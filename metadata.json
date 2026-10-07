@@ -1,0 +1,6 @@
+{
+  "name": "SPIKE — Web3 Crypto Mining & Validator Platform",
+  "description": "High-performance BSC mining rig and validator node dashboard with live hashrate telemetry, pool metrics, staking vaults, and multi-tier rewards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
