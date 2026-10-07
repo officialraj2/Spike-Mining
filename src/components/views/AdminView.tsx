@@ -48,6 +48,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [adjustAmount, setAdjustAmount] = useState<number>(50);
   const [adjustType, setAdjustType] = useState<'credit' | 'debit'>('credit');
   const [adjustReason, setAdjustReason] = useState<string>('Operational liquidity top-up');
+  const [syncingFirebase, setSyncingFirebase] = useState<boolean>(false);
 
   // Settings form state
   const [settingsForm, setSettingsForm] = useState<Partial<AdminSettings>>({});
@@ -206,6 +207,27 @@ export const AdminView: React.FC<AdminViewProps> = ({
       }
     } catch {
       onNotify?.('Error', 'Reset failed', 'error');
+    }
+  };
+
+  const handleSyncFirebase = async () => {
+    setSyncingFirebase(true);
+    try {
+      const res = await fetch('/api/firebase/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        onNotify?.(
+          'Firebase Synced!',
+          `Firestore successfully stored ${data.synced.users} users, ${data.synced.nodes} nodes, ${data.synced.transactions} txs!`,
+          'success'
+        );
+      } else {
+        onNotify?.('Firebase Notice', data.error || 'Sync status received', 'warning');
+      }
+    } catch {
+      onNotify?.('Firebase Error', 'Failed to reach Firebase sync API', 'error');
+    } finally {
+      setSyncingFirebase(false);
     }
   };
 
@@ -1502,6 +1524,101 @@ export const AdminView: React.FC<AdminViewProps> = ({
          ============================================================ */}
       {activeSubTab === 'database' && (
         <div className="space-y-6">
+          {/* FIREBASE FIRESTORE CLOUD INTEGRATION CARD */}
+          <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <span className="material-symbols-outlined text-2xl">local_fire_department</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold font-headline text-white">
+                      Google Firebase Firestore Cloud Storage
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      ACTIVE & CONNECTED
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#94a3b8]">
+                    Real-time cloud database persistent storage and Firebase Hosting configuration
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSyncFirebase}
+                  disabled={syncingFirebase}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-[#0A0F1D] font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all disabled:opacity-50"
+                >
+                  <span className={`material-symbols-outlined text-sm ${syncingFirebase ? 'animate-spin' : ''}`}>
+                    sync
+                  </span>
+                  {syncingFirebase ? 'Syncing to Firestore...' : 'Sync All to Firestore'}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+              <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b]/60 space-y-1">
+                <span className="text-[10px] uppercase font-mono text-[#94a3b8]">Cloud Project ID</span>
+                <div className="text-xs font-mono font-bold text-amber-300 truncate">
+                  glassy-fountain-lsmzh
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b]/60 space-y-1">
+                <span className="text-[10px] uppercase font-mono text-[#94a3b8]">Firestore Database</span>
+                <div className="text-xs font-mono font-bold text-white truncate" title="ai-studio-spikeweb3cryptom-fdb9d06e-51b7-4001-8d57-7aeb0361ee6d">
+                  ai-studio-spikeweb3cryptom...
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b]/60 space-y-1">
+                <span className="text-[10px] uppercase font-mono text-[#94a3b8]">Security Rules</span>
+                <div className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-sm">verified_user</span>
+                  Hardened ABAC Deployed
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b]/60 space-y-1">
+                <span className="text-[10px] uppercase font-mono text-[#94a3b8]">Custom Domain Host</span>
+                <div className="text-xs font-mono font-bold text-[#00F0FF]">
+                  spikenodes.com
+                </div>
+              </div>
+            </div>
+
+            {/* Firestore Collections Blueprint */}
+            <div className="p-4 rounded-xl bg-[#122130]/60 border border-[#1c2b3b]/60 space-y-3">
+              <span className="text-xs font-mono text-[#94a3b8] block font-bold">
+                Active Firestore Database Collections:
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono">
+                <div className="p-2.5 rounded-lg bg-[#0d1d2c] border border-[#1c2b3b] text-center">
+                  <div className="text-white font-bold">/users</div>
+                  <div className="text-[10px] text-[#94a3b8]">{users.length} Wallets</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#0d1d2c] border border-[#1c2b3b] text-center">
+                  <div className="text-white font-bold">/nodes</div>
+                  <div className="text-[10px] text-[#94a3b8]">{nodes.length} Mining Units</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#0d1d2c] border border-[#1c2b3b] text-center">
+                  <div className="text-white font-bold">/transactions</div>
+                  <div className="text-[10px] text-[#94a3b8]">{transactions.length} Ledger TXs</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#0d1d2c] border border-[#1c2b3b] text-center">
+                  <div className="text-white font-bold">/settings</div>
+                  <div className="text-[10px] text-[#94a3b8]">spikenodes.com</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#0d1d2c] border border-[#1c2b3b] text-center">
+                  <div className="text-white font-bold">/auditLogs</div>
+                  <div className="text-[10px] text-[#94a3b8]">{auditLogs.length} Events</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">

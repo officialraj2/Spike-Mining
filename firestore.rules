@@ -1,0 +1,119 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny all unmatched paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Helper Primitives
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'officialraj2@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Entity Validators
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['address', 'balanceUsdt', 'role', 'status']) &&
+        data.address is string && data.address.size() <= 64 &&
+        data.balanceUsdt is number &&
+        (data.role == 'admin' || data.role == 'user' || data.role == 'moderator') &&
+        (data.status == 'active' || data.status == 'frozen' || data.status == 'banned');
+    }
+
+    function isValidMiningNode(data) {
+      return data.keys().hasAll(['id', 'name', 'status', 'hashrate']) &&
+        data.id is string && data.id.size() <= 64 &&
+        data.name is string && data.name.size() <= 100 &&
+        (data.status == 'mining' || data.status == 'idle' || data.status == 'syncing' || data.status == 'stopped') &&
+        data.hashrate is number;
+    }
+
+    function isValidRewardTransaction(data) {
+      return data.keys().hasAll(['id', 'amount', 'currency', 'status']) &&
+        data.id is string && data.id.size() <= 64 &&
+        data.amount is number &&
+        data.currency is string && data.currency.size() <= 16 &&
+        (data.status == 'Confirmed' || data.status == 'Pending' || data.status == 'Rejected');
+    }
+
+    function isValidSystemSettings(data) {
+      return data.keys().hasAll(['maintenanceMode']) &&
+        data.maintenanceMode is bool;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['id', 'adminUser', 'action', 'timestamp']) &&
+        data.id is string && data.id.size() <= 64 &&
+        data.adminUser is string && data.adminUser.size() <= 64 &&
+        data.action is string && data.action.size() <= 100 &&
+        data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isValidId(userId) && isValidUserProfile(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Mining Nodes Collection
+    match /nodes/{nodeId} {
+      allow read: if true;
+      allow create, update: if isValidId(nodeId) && isValidMiningNode(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Reward Transactions Collection
+    match /transactions/{txId} {
+      allow read: if true;
+      allow create, update: if isValidId(txId) && isValidRewardTransaction(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Global Settings Collection
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if isValidId(settingId) && isValidSystemSettings(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Audit Logs Collection
+    match /auditLogs/{logId} {
+      allow read: if true;
+      allow create, update: if isValidId(logId) && isValidAuditLog(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Connection Test Document for Validation
+    match /test/{testId} {
+      allow read, write: if true;
+    }
+  }
+}

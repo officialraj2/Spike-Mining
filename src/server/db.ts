@@ -332,10 +332,15 @@ const INITIAL_DATA: DatabaseSchema = {
 class PersistentDatabase {
   private data: DatabaseSchema;
   private isSaving = false;
+  private onSaveCallback?: (data: DatabaseSchema) => void;
 
   constructor() {
     this.ensureDirectory();
     this.data = this.load();
+  }
+
+  public setOnSaveCallback(cb: (data: DatabaseSchema) => void) {
+    this.onSaveCallback = cb;
   }
 
   private ensureDirectory() {
@@ -402,6 +407,14 @@ class PersistentDatabase {
         fs.writeFileSync(BACKUP_FILE, content, 'utf-8');
       } catch {
         // backup failure non-fatal
+      }
+
+      if (this.onSaveCallback) {
+        try {
+          this.onSaveCallback(dataToSave);
+        } catch {
+          // ignore callback failure
+        }
       }
     } catch (err) {
       console.error('[DB] Failed to save database to disk:', err);

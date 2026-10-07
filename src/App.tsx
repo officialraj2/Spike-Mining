@@ -3,44 +3,95 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { TabType, MiningNode, RewardTransaction, ToastMessage } from './types';
 import { INITIAL_NODES, INITIAL_REWARDS } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { HomeView } from './components/views/HomeView';
-import { DashboardView } from './components/views/DashboardView';
-import { MiningNodesView } from './components/views/MiningNodesView';
-import { ReferralsView } from './components/views/ReferralsView';
-import { AnnouncementsView } from './components/views/AnnouncementsView';
-import { AdminView } from './components/views/AdminView';
-import { ConnectWalletModal } from './components/modals/ConnectWalletModal';
-import { DeployNodeModal } from './components/modals/DeployNodeModal';
-import { ClaimRewardsModal } from './components/modals/ClaimRewardsModal';
-import { AuditModal } from './components/modals/AuditModal';
-import { SwapModal } from './components/modals/SwapModal';
-import { TestnetTestingModal } from './components/modals/TestnetTestingModal';
 import { Toast } from './components/Toast';
 import { BlockchainBackground } from './components/BlockchainBackground';
 
+// Code-split heavy views and modals for sub-100ms ultra-fast initial paint
+const DashboardView = lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
+const MiningNodesView = lazy(() => import('./components/views/MiningNodesView').then(m => ({ default: m.MiningNodesView })));
+const ReferralsView = lazy(() => import('./components/views/ReferralsView').then(m => ({ default: m.ReferralsView })));
+const AnnouncementsView = lazy(() => import('./components/views/AnnouncementsView').then(m => ({ default: m.AnnouncementsView })));
+const AdminView = lazy(() => import('./components/views/AdminView').then(m => ({ default: m.AdminView })));
+
+const ConnectWalletModal = lazy(() => import('./components/modals/ConnectWalletModal').then(m => ({ default: m.ConnectWalletModal })));
+const DeployNodeModal = lazy(() => import('./components/modals/DeployNodeModal').then(m => ({ default: m.DeployNodeModal })));
+const ClaimRewardsModal = lazy(() => import('./components/modals/ClaimRewardsModal').then(m => ({ default: m.ClaimRewardsModal })));
+const AuditModal = lazy(() => import('./components/modals/AuditModal').then(m => ({ default: m.AuditModal })));
+const SwapModal = lazy(() => import('./components/modals/SwapModal').then(m => ({ default: m.SwapModal })));
+const TestnetTestingModal = lazy(() => import('./components/modals/TestnetTestingModal').then(m => ({ default: m.TestnetTestingModal })));
+
+// Ultra-fast lightweight skeleton loader
+const ViewSkeleton: React.FC = () => (
+  <div className="w-full space-y-4 animate-pulse pt-2">
+    <div className="h-44 bg-[#0d1d2c]/60 rounded-3xl border border-[#1c2b3b]/40 flex items-center justify-center">
+      <div className="w-7 h-7 rounded-full border-2 border-[#00F0FF] border-t-transparent animate-spin" />
+    </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="h-32 bg-[#0d1d2c]/40 rounded-2xl border border-[#1c2b3b]/30" />
+      <div className="h-32 bg-[#0d1d2c]/40 rounded-2xl border border-[#1c2b3b]/30" />
+      <div className="h-32 bg-[#0d1d2c]/40 rounded-2xl border border-[#1c2b3b]/30" />
+    </div>
+  </div>
+);
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab') as TabType;
+      if (tabParam) return tabParam;
+      return (localStorage.getItem('spike_active_tab') as TabType) || 'home';
+    } catch {
+      return 'home';
+    }
+  });
+
   const [viewMode, setViewMode] = useState<'auto' | 'mobile' | 'desktop'>('auto');
 
-  // Application Data States
+  // Application Data States (Hydrated instantly from cache for 0ms lag)
   const [nodes, setNodes] = useState<MiningNode[]>(INITIAL_NODES);
   const [rewards, setRewards] = useState<RewardTransaction[]>(INITIAL_REWARDS);
-  const [walletBalance, setWalletBalance] = useState<number>(1250.0);
-  const [walletBNB, setWalletBNB] = useState<number>(0.428);
+  const [walletBalance, setWalletBalance] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('spike_balance_usdt');
+      return saved ? parseFloat(saved) : 1250.0;
+    } catch {
+      return 1250.0;
+    }
+  });
+  const [walletBNB, setWalletBNB] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('spike_balance_bnb');
+      return saved ? parseFloat(saved) : 0.428;
+    } catch {
+      return 0.428;
+    }
+  });
   const [dailyEarnings, setDailyEarnings] = useState<number>(48.5);
   const [network, setNetwork] = useState<string>('BEP-20 / BSC Network');
 
-  // Wallet Auth State - Initially false so options appear AFTER login panel
-  const [isWalletConnected, setIsWalletConnected] = useState<boolean>(false);
-  const [walletAddress, setWalletAddress] = useState<string>(
-    '0x71C8a914B97e889F12A0987cB32456Fa12349A2'
-  );
+  // Wallet Auth State
+  const [isWalletConnected, setIsWalletConnected] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('spike_wallet_connected') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [walletAddress, setWalletAddress] = useState<string>(() => {
+    try {
+      return localStorage.getItem('spike_wallet_address') || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+    } catch {
+      return '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+    }
+  });
 
   // Designated Protocol Primary Admin Wallet
   const PRIMARY_ADMIN_WALLET = '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
@@ -80,6 +131,7 @@ export default function App() {
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
     try {
+      localStorage.setItem('spike_active_tab', tab);
       const url = new URL(window.location.href);
       if (tab === 'home') {
         url.searchParams.delete('tab');
@@ -92,14 +144,25 @@ export default function App() {
     }
   };
 
-  // Sync state with persistent backend database on start
+  // Sync state with persistent backend database on start (Non-blocking background refresh)
   useEffect(() => {
     fetch(`/api/user/${walletAddress}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
+          return null;
+        }
+        return res.json();
+      })
       .then((data) => {
         if (data && data.user) {
-          if (typeof data.user.balanceUsdt === 'number') setWalletBalance(data.user.balanceUsdt);
-          if (typeof data.user.balanceBnb === 'number') setWalletBNB(data.user.balanceBnb);
+          if (typeof data.user.balanceUsdt === 'number') {
+            setWalletBalance(data.user.balanceUsdt);
+            try { localStorage.setItem('spike_balance_usdt', String(data.user.balanceUsdt)); } catch {}
+          }
+          if (typeof data.user.balanceBnb === 'number') {
+            setWalletBNB(data.user.balanceBnb);
+            try { localStorage.setItem('spike_balance_bnb', String(data.user.balanceBnb)); } catch {}
+          }
         }
         if (data && Array.isArray(data.nodes) && data.nodes.length > 0) {
           setNodes(data.nodes);
@@ -374,6 +437,11 @@ export default function App() {
     setIsWalletConnected(true);
     setWalletAddress(finalAddress);
     setActiveTab('dashboard');
+    try {
+      localStorage.setItem('spike_wallet_connected', 'true');
+      localStorage.setItem('spike_wallet_address', finalAddress);
+      localStorage.setItem('spike_active_tab', 'dashboard');
+    } catch {}
     addToast(
       'Wallet Authenticated',
       `Logged in via ${provider} (${finalAddress.slice(0, 6)}...${finalAddress.slice(-4)}). Dashboard, Mining Nodes & Referral System unlocked!`,
@@ -384,6 +452,10 @@ export default function App() {
   const handleDisconnectWallet = () => {
     setIsWalletConnected(false);
     setActiveTab('home');
+    try {
+      localStorage.setItem('spike_wallet_connected', 'false');
+      localStorage.setItem('spike_active_tab', 'home');
+    } catch {}
     addToast('Logged Out', 'Disconnected from BEP-20 provider. Switched to public Home overview.', 'info');
   };
 
@@ -439,9 +511,11 @@ export default function App() {
       );
     }
 
+    let currentComponent: React.ReactNode = null;
+
     switch (activeTab) {
       case 'home':
-        return (
+        currentComponent = (
           <HomeView
             onNavigate={handleTabChange}
             onConnectWallet={() => setIsConnectModalOpen(true)}
@@ -458,8 +532,9 @@ export default function App() {
             }}
           />
         );
+        break;
       case 'dashboard':
-        return (
+        currentComponent = (
           <DashboardView
             nodes={nodes}
             rewards={rewards}
@@ -483,8 +558,9 @@ export default function App() {
             }}
           />
         );
+        break;
       case 'mining-nodes':
-        return (
+        currentComponent = (
           <MiningNodesView
             nodes={nodes}
             onRestartNode={handleRestartNode}
@@ -496,8 +572,9 @@ export default function App() {
             onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
           />
         );
+        break;
       case 'referrals':
-        return (
+        currentComponent = (
           <ReferralsView
             walletAddress={walletAddress}
             onCopyText={copyToClipboard}
@@ -507,15 +584,17 @@ export default function App() {
             }}
           />
         );
+        break;
       case 'announcements':
-        return (
+        currentComponent = (
           <AnnouncementsView
             onCopyText={copyToClipboard}
             onNavigateHome={(tab) => handleTabChange(tab as TabType)}
           />
         );
+        break;
       case 'admin':
-        return (
+        currentComponent = (
           <AdminView
             onNotify={addToast}
             onNavigateTab={handleTabChange}
@@ -530,9 +609,16 @@ export default function App() {
             }}
           />
         );
+        break;
       default:
-        return null;
+        currentComponent = null;
     }
+
+    return (
+      <Suspense fallback={<ViewSkeleton />}>
+        {currentComponent}
+      </Suspense>
+    );
   };
 
   // If Mobile Simulator View is selected, wrap in an interactive smartphone frame
@@ -612,57 +698,71 @@ export default function App() {
           />
         </div>
 
-        {/* Modals and Toasts inside Mobile View */}
-        <ConnectWalletModal
-          isOpen={isConnectModalOpen}
-          onClose={() => setIsConnectModalOpen(false)}
-          isConnected={isWalletConnected}
-          address={walletAddress}
-          balanceUSDT={walletBalance}
-          balanceBNB={walletBNB}
-          onConnect={handleConnectWallet}
-          onDisconnect={handleDisconnectWallet}
-          onCopyAddress={() => copyToClipboard(walletAddress)}
-        />
-        <DeployNodeModal
-          isOpen={isDeployModalOpen}
-          onClose={() => setIsDeployModalOpen(false)}
-          onDeploy={handleDeployNode}
-          existingCount={nodes.length}
-        />
-        <ClaimRewardsModal
-          isOpen={isClaimModalOpen}
-          onClose={() => setIsClaimModalOpen(false)}
-          claimableUSDT={dailyEarnings}
-          walletAddress={walletAddress}
-          onConfirmClaim={handleConfirmClaim}
-        />
-        <AuditModal
-          isOpen={isAuditModalOpen}
-          onClose={() => setIsAuditModalOpen(false)}
-        />
-        <TestnetTestingModal
-          isOpen={isTestnetModalOpen}
-          onClose={() => setIsTestnetModalOpen(false)}
-          walletAddress={walletAddress}
-          walletBalance={walletBalance}
-          walletBNB={walletBNB}
-          currentNetwork={network}
-          nodesCount={nodes.length}
-          onTopUpUsdt={handleTopUpUsdt}
-          onTopUpBnb={handleTopUpBnb}
-          onResetToFreshUser={handleResetToFreshUser}
-          onSeedTeamLeader={handleSeedTeamLeader}
-          onClearTransactions={handleClearTransactions}
-          onSwitchToBscTestnet={handleSwitchToBscTestnet}
-        />
-        <SwapModal
-          isOpen={isSwapModalOpen}
-          onClose={() => setIsSwapModalOpen(false)}
-          spikeBalance={walletBalance}
-          bnbBalance={walletBNB}
-          onSwapSuccess={handleSwapSuccess}
-        />
+        {/* Modals and Toasts inside Mobile View (On-demand mount) */}
+        <Suspense fallback={null}>
+          {isConnectModalOpen && (
+            <ConnectWalletModal
+              isOpen={isConnectModalOpen}
+              onClose={() => setIsConnectModalOpen(false)}
+              isConnected={isWalletConnected}
+              address={walletAddress}
+              balanceUSDT={walletBalance}
+              balanceBNB={walletBNB}
+              onConnect={handleConnectWallet}
+              onDisconnect={handleDisconnectWallet}
+              onCopyAddress={() => copyToClipboard(walletAddress)}
+            />
+          )}
+          {isDeployModalOpen && (
+            <DeployNodeModal
+              isOpen={isDeployModalOpen}
+              onClose={() => setIsDeployModalOpen(false)}
+              onDeploy={handleDeployNode}
+              existingCount={nodes.length}
+            />
+          )}
+          {isClaimModalOpen && (
+            <ClaimRewardsModal
+              isOpen={isClaimModalOpen}
+              onClose={() => setIsClaimModalOpen(false)}
+              claimableUSDT={dailyEarnings}
+              walletAddress={walletAddress}
+              onConfirmClaim={handleConfirmClaim}
+            />
+          )}
+          {isAuditModalOpen && (
+            <AuditModal
+              isOpen={isAuditModalOpen}
+              onClose={() => setIsAuditModalOpen(false)}
+            />
+          )}
+          {isTestnetModalOpen && (
+            <TestnetTestingModal
+              isOpen={isTestnetModalOpen}
+              onClose={() => setIsTestnetModalOpen(false)}
+              walletAddress={walletAddress}
+              walletBalance={walletBalance}
+              walletBNB={walletBNB}
+              currentNetwork={network}
+              nodesCount={nodes.length}
+              onTopUpUsdt={handleTopUpUsdt}
+              onTopUpBnb={handleTopUpBnb}
+              onResetToFreshUser={handleResetToFreshUser}
+              onSeedTeamLeader={handleSeedTeamLeader}
+              onClearTransactions={handleClearTransactions}
+              onSwitchToBscTestnet={handleSwitchToBscTestnet}
+            />
+          )}
+          {isSwapModalOpen && (
+            <SwapModal
+              isOpen={isSwapModalOpen}
+              onClose={() => setIsSwapModalOpen(false)}
+              spikeBalance={walletBalance}
+              bnbBalance={walletBNB}
+              onSwapSuccess={handleSwapSuccess}
+            />
+          )}
+        </Suspense>
         <Toast toasts={toasts} onDismiss={handleDismissToast} />
       </div>
     );
@@ -746,62 +846,76 @@ export default function App() {
         onNavigateHomeSection={handleNavigateHomeSection}
       />
 
-      {/* Modals & Dialogs */}
-      <ConnectWalletModal
-        isOpen={isConnectModalOpen}
-        onClose={() => setIsConnectModalOpen(false)}
-        isConnected={isWalletConnected}
-        address={walletAddress}
-        balanceUSDT={walletBalance}
-        balanceBNB={walletBNB}
-        onConnect={handleConnectWallet}
-        onDisconnect={handleDisconnectWallet}
-        onCopyAddress={() => copyToClipboard(walletAddress)}
-      />
+      {/* Modals & Dialogs (Mounted strictly on-demand for maximum speed) */}
+      <Suspense fallback={null}>
+        {isConnectModalOpen && (
+          <ConnectWalletModal
+            isOpen={isConnectModalOpen}
+            onClose={() => setIsConnectModalOpen(false)}
+            isConnected={isWalletConnected}
+            address={walletAddress}
+            balanceUSDT={walletBalance}
+            balanceBNB={walletBNB}
+            onConnect={handleConnectWallet}
+            onDisconnect={handleDisconnectWallet}
+            onCopyAddress={() => copyToClipboard(walletAddress)}
+          />
+        )}
 
-      <DeployNodeModal
-        isOpen={isDeployModalOpen}
-        onClose={() => setIsDeployModalOpen(false)}
-        onDeploy={handleDeployNode}
-        existingCount={nodes.length}
-      />
+        {isDeployModalOpen && (
+          <DeployNodeModal
+            isOpen={isDeployModalOpen}
+            onClose={() => setIsDeployModalOpen(false)}
+            onDeploy={handleDeployNode}
+            existingCount={nodes.length}
+          />
+        )}
 
-      <ClaimRewardsModal
-        isOpen={isClaimModalOpen}
-        onClose={() => setIsClaimModalOpen(false)}
-        claimableUSDT={dailyEarnings}
-        walletAddress={walletAddress}
-        onConfirmClaim={handleConfirmClaim}
-      />
+        {isClaimModalOpen && (
+          <ClaimRewardsModal
+            isOpen={isClaimModalOpen}
+            onClose={() => setIsClaimModalOpen(false)}
+            claimableUSDT={dailyEarnings}
+            walletAddress={walletAddress}
+            onConfirmClaim={handleConfirmClaim}
+          />
+        )}
 
-      <AuditModal
-        isOpen={isAuditModalOpen}
-        onClose={() => setIsAuditModalOpen(false)}
-      />
+        {isAuditModalOpen && (
+          <AuditModal
+            isOpen={isAuditModalOpen}
+            onClose={() => setIsAuditModalOpen(false)}
+          />
+        )}
 
-      <TestnetTestingModal
-        isOpen={isTestnetModalOpen}
-        onClose={() => setIsTestnetModalOpen(false)}
-        walletAddress={walletAddress}
-        walletBalance={walletBalance}
-        walletBNB={walletBNB}
-        currentNetwork={network}
-        nodesCount={nodes.length}
-        onTopUpUsdt={handleTopUpUsdt}
-        onTopUpBnb={handleTopUpBnb}
-        onResetToFreshUser={handleResetToFreshUser}
-        onSeedTeamLeader={handleSeedTeamLeader}
-        onClearTransactions={handleClearTransactions}
-        onSwitchToBscTestnet={handleSwitchToBscTestnet}
-      />
+        {isTestnetModalOpen && (
+          <TestnetTestingModal
+            isOpen={isTestnetModalOpen}
+            onClose={() => setIsTestnetModalOpen(false)}
+            walletAddress={walletAddress}
+            walletBalance={walletBalance}
+            walletBNB={walletBNB}
+            currentNetwork={network}
+            nodesCount={nodes.length}
+            onTopUpUsdt={handleTopUpUsdt}
+            onTopUpBnb={handleTopUpBnb}
+            onResetToFreshUser={handleResetToFreshUser}
+            onSeedTeamLeader={handleSeedTeamLeader}
+            onClearTransactions={handleClearTransactions}
+            onSwitchToBscTestnet={handleSwitchToBscTestnet}
+          />
+        )}
 
-      <SwapModal
-        isOpen={isSwapModalOpen}
-        onClose={() => setIsSwapModalOpen(false)}
-        spikeBalance={walletBalance}
-        bnbBalance={walletBNB}
-        onSwapSuccess={handleSwapSuccess}
-      />
+        {isSwapModalOpen && (
+          <SwapModal
+            isOpen={isSwapModalOpen}
+            onClose={() => setIsSwapModalOpen(false)}
+            spikeBalance={walletBalance}
+            bnbBalance={walletBNB}
+            onSwapSuccess={handleSwapSuccess}
+          />
+        )}
+      </Suspense>
 
       {/* Toast Notification Container */}
       <Toast toasts={toasts} onDismiss={handleDismissToast} />

@@ -24,21 +24,36 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+  }
   * {
     border-color: rgba(70, 70, 76, 0.3);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     background-color: #051424;
     color: #d4e4fa;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     letter-spacing: -0.01em;
+    overflow-x: hidden;
+    touch-action: manipulation;
   }
   h1, h2, h3, h4, h5, h6, .font-headline {
     font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     letter-spacing: -0.02em;
   }
+}
+
+/* GPU Hardware Acceleration for ultra-smooth 60-120 FPS */
+.gpu-layer {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform;
 }
 
 .tabular-nums {

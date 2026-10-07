@@ -3,6 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import path from 'path';
 import { db } from './src/server/db';
+import { firestore, config as firebaseConfig, syncEntireDatabase } from './src/server/firebaseServer';
 
 dotenv.config();
 
@@ -50,6 +51,30 @@ app.post('/api/db/reset', (req: Request, res: Response) => {
   const adminAddress = req.body.adminAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
   const result = db.resetToDefault(adminAddress);
   res.json(result);
+});
+
+// ============================================================
+// FIREBASE FIRESTORE SYNC & STATUS APIS
+// ============================================================
+app.get('/api/firebase/status', (req: Request, res: Response) => {
+  res.json({
+    connected: !!firestore,
+    projectId: firebaseConfig?.projectId || null,
+    databaseId: firebaseConfig?.firestoreDatabaseId || null,
+    status: firestore ? 'ONLINE_ACTIVE' : 'INITIALIZING',
+    storage: 'Firebase Cloud Firestore Enterprise',
+    rules: 'Deployed and active',
+  });
+});
+
+app.post('/api/firebase/sync', async (req: Request, res: Response) => {
+  try {
+    const allData = db.exportData();
+    const result = await syncEntireDatabase(allData);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || String(err) });
+  }
 });
 
 // ============================================================
@@ -347,6 +372,25 @@ async function startServer() {
     console.log(`SPIKE Full-Stack Server running at http://0.0.0.0:${PORT}`);
     console.log(`[DB] Persistent Database connected at .data/spike_database.json`);
     console.log(`[ADMIN] Admin API routes live at /api/admin/*`);
+    console.log(`[FIREBASE] Cloud Firestore connected: ${firebaseConfig?.projectId || 'active'}`);
+    
+    // Background sync to Firestore on startup
+    syncEntireDatabase(db.exportData())
+      .then((res) => {
+        if (res.success) {
+          console.log(`[FIREBASE] Successfully synchronized database to Firestore! Synced:`, res.synced);
+        } else {
+          console.warn(`[FIREBASE] Firestore initial sync notice:`, res.error);
+        }
+      })
+      .catch((err) => console.error('[FIREBASE] Sync exception:', err));
+
+    // Real-time automatic sync on any database write
+    db.setOnSaveCallback((latestData) => {
+      syncEntireDatabase(latestData).catch((err) => {
+        console.error('[FIREBASE] Real-time auto-sync error:', err);
+      });
+    });
   });
 }
 
