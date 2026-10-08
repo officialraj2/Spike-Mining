@@ -291,7 +291,11 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userAddress: walletAddress, amount: amt }),
       })
-        .then((r) => r.json())
+        .then(async (r) => {
+          if (!r.ok) return null;
+          const text = await r.text();
+          return text ? JSON.parse(text) : null;
+        })
         .then((data) => {
           if (data && data.user && typeof data.user.balanceUsdt === 'number') {
             setWalletBalance(data.user.balanceUsdt);
@@ -550,7 +554,11 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ referrerAddress: walletAddress }),
       });
-      const data = await res.json();
+      let data: any = null;
+      try {
+        const text = await res.text();
+        if (text) data = JSON.parse(text);
+      } catch {}
       if (data && data.success) {
         setReferralStats(data.stats);
         if (typeof data.commissionAdded === 'number') {

@@ -70,18 +70,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
     let timeout: NodeJS.Timeout;
 
     if (!isDeleting && typedText === currentPhrase) {
-      // Crisp, punchy hold at full phrase before quick transition
+      // Comfortable reading pause so the user can easily absorb the full phrase
       timeout = setTimeout(() => {
         setIsDeleting(true);
-      }, 850);
+      }, 1800);
     } else if (isDeleting && typedText === '') {
-      // Swift transition to the next phrase
+      // Natural clean pause before typing the next phrase
       setIsDeleting(false);
       setPhraseIdx((prev) => (prev + 1) % HERO_PHRASES.length);
-      timeout = setTimeout(() => {}, 80);
+      timeout = setTimeout(() => {}, 300);
     } else {
-      // Ultra-crisp, constant fast cadence (no random pauses or sluggish mid-text lag)
-      const speed = isDeleting ? 12 : 22;
+      // Perfectly calibrated, consistent professional speed (smooth, readable & crisp)
+      const speed = isDeleting ? 28 : 55;
       timeout = setTimeout(() => {
         setTypedText(
           isDeleting
@@ -113,13 +113,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Hero Left Content */}
           <div className="lg:col-span-7 space-y-6 sm:space-y-7 pt-2 sm:pt-0">
             {/* HUD / System Labels from Official Whitepaper */}
-            <div className="mt-4 sm:mt-0 inline-flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-2 sm:py-2 rounded-2xl sm:rounded-full bg-[#122130]/95 border border-[#00F0FF]/50 text-xs sm:text-xs font-mono text-[#00F0FF] shadow-[0_0_18px_rgba(0,240,255,0.25)]">
-              <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse shrink-0"></span>
+            <div className="mt-3 sm:mt-0 inline-flex max-w-full flex-nowrap items-center gap-1 min-[360px]:gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#122130]/95 border border-[#00F0FF]/50 text-[9px] min-[360px]:text-[10px] min-[410px]:text-[11px] sm:text-xs font-mono text-[#00F0FF] shadow-[0_0_18px_rgba(0,240,255,0.25)] whitespace-nowrap overflow-x-auto scrollbar-none">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00F0FF] animate-pulse shrink-0"></span>
               <span className="font-bold tracking-wide shrink-0 text-white">STATOR</span>
-              <span className="text-[#94a3b8]/70 shrink-0">|</span>
+              <span className="text-[#94a3b8]/60 shrink-0">|</span>
               <span className="text-[#D4AF37] font-semibold shrink-0">Gear 7-38 270</span>
-              <span className="text-[#94a3b8]/70 shrink-0">|</span>
-              <span className="text-[#7df4ff] shrink-0 font-medium">
+              <span className="text-[#94a3b8]/60 shrink-0">|</span>
+              <span className="text-[#7df4ff] shrink-0 font-medium whitespace-nowrap">
                 SPIKE BEP-20 · BNB Smart Chain
               </span>
             </div>
