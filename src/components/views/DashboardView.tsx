@@ -225,7 +225,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     .reduce((acc, curr) => acc + curr.hashrate, 0);
 
   const activeNodeCount = nodes.filter((n) => n.status === 'mining').length;
-  const operationalEfficiency = Math.round((activeNodeCount / nodes.length) * 100);
+  const operationalEfficiency = nodes.length > 0 ? Math.round((activeNodeCount / nodes.length) * 100) : 0;
 
   // Timeframe chart curve data configurations
   const chartConfigs = {
@@ -1261,123 +1261,144 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="text-[#94a3b8] font-mono text-[10px] uppercase tracking-[0.14em] border-b border-[#1c2b3b]">
-                <th className="py-3 px-4 font-semibold">Node ID &amp; Name</th>
-                <th className="py-3 px-4 font-semibold">Status</th>
-                <th className="py-3 px-4 font-semibold">Hashrate</th>
-                <th className="py-3 px-4 font-semibold">Temperature</th>
-                <th className="py-3 px-4 font-semibold">Share Acceptance</th>
-                <th className="py-3 px-4 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#1c2b3b]/40 text-sm">
-              {nodes.map((node) => {
-                const isMining = node.status === 'mining';
-                return (
-                  <tr
-                    key={node.id}
-                    className="hover:bg-[#1c2b3b]/30 transition-colors group"
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                            isMining
-                              ? 'bg-[#00F0FF]/10 text-[#00F0FF]'
-                              : 'bg-[#1c2b3b] text-[#94a3b8]'
+        {nodes.length === 0 ? (
+          <div className="py-12 px-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col items-center justify-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-[#00F0FF]/10 text-[#00F0FF] flex items-center justify-center border border-[#00F0FF]/25 shadow-[0_0_15px_rgba(0,240,255,0.15)]">
+              <span className="material-symbols-outlined text-[30px]">dns</span>
+            </div>
+            <div className="max-w-md">
+              <h3 className="text-base font-bold font-headline text-white">No Active Mining Nodes</h3>
+              <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
+                This wallet has 0 active rigs online. Deploy your first node to connect to the BSC validator pool and start generating daily SPIKE token &amp; USDT yields.
+              </p>
+            </div>
+            <button
+              onClick={onOpenDeployModal}
+              className="mt-2 px-5 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-2 shadow-[0_0_16px_rgba(0,240,255,0.3)] transition-all hover:scale-105 active:scale-95"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              <span>Deploy First Node (from 15 USDT)</span>
+            </button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-[#94a3b8] font-mono text-[10px] uppercase tracking-[0.14em] border-b border-[#1c2b3b]">
+                  <th className="py-3 px-4 font-semibold">Node ID &amp; Name</th>
+                  <th className="py-3 px-4 font-semibold">Status</th>
+                  <th className="py-3 px-4 font-semibold">Hashrate</th>
+                  <th className="py-3 px-4 font-semibold">Temperature</th>
+                  <th className="py-3 px-4 font-semibold">Share Acceptance</th>
+                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#1c2b3b]/40 text-sm">
+                {nodes.map((node) => {
+                  const isMining = node.status === 'mining';
+                  return (
+                    <tr
+                      key={node.id}
+                      className="hover:bg-[#1c2b3b]/30 transition-colors group"
+                    >
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                              isMining
+                                ? 'bg-[#00F0FF]/10 text-[#00F0FF]'
+                                : 'bg-[#1c2b3b] text-[#94a3b8]'
+                            }`}
+                          >
+                            <span
+                              className="material-symbols-outlined text-[18px]"
+                              style={{ fontVariationSettings: "'FILL' 1" }}
+                            >
+                              dns
+                            </span>
+                          </div>
+                          <div>
+                            <div className="font-semibold text-white font-headline text-xs sm:text-sm tracking-wide">
+                              {node.name}
+                            </div>
+                            <div className="text-[11px] text-[#94a3b8] font-mono">
+                              {node.region}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 whitespace-nowrap">
+                        {isMining ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#00F0FF]/10 text-[#00F0FF] border border-[#00F0FF]/20">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse"></span>
+                            Mining
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#1c2b3b] text-[#94a3b8]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#909096]"></span>
+                            Idle / Standby
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-4 font-headline text-sm text-white font-bold tabular-nums">
+                        {node.hashrate.toFixed(2)} TH/s
+                      </td>
+                      <td className="py-4 px-4 text-[#94a3b8] text-xs font-mono">
+                        {node.temperature}°C{' '}
+                        <span
+                          className={`text-[11px] font-sans ${
+                            isMining ? 'text-[#7df4ff] font-medium' : 'text-[#94a3b8]'
                           }`}
                         >
-                          <span
-                            className="material-symbols-outlined text-[18px]"
-                            style={{ fontVariationSettings: "'FILL' 1" }}
-                          >
-                            dns
-                          </span>
-                        </div>
-                        <div>
-                          <div className="font-semibold text-white font-headline text-xs sm:text-sm tracking-wide">
-                            {node.name}
-                          </div>
-                          <div className="text-[11px] text-[#94a3b8] font-mono">
-                            {node.region}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 whitespace-nowrap">
-                      {isMining ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#00F0FF]/10 text-[#00F0FF] border border-[#00F0FF]/20">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse"></span>
-                          Mining
+                          ({isMining ? 'Optimal' : 'Idle'})
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#1c2b3b] text-[#94a3b8]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#909096]"></span>
-                          Idle / Standby
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 font-headline text-sm text-white font-bold tabular-nums">
-                      {node.hashrate.toFixed(2)} TH/s
-                    </td>
-                    <td className="py-4 px-4 text-[#94a3b8] text-xs font-mono">
-                      {node.temperature}°C{' '}
-                      <span
-                        className={`text-[11px] font-sans ${
-                          isMining ? 'text-[#7df4ff] font-medium' : 'text-[#94a3b8]'
-                        }`}
-                      >
-                        ({isMining ? 'Optimal' : 'Idle'})
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-white text-xs font-mono tabular-nums">
-                      {node.shareAcceptance}%
-                    </td>
-                    <td className="py-4 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-2">
-                        {isMining ? (
-                          <>
+                      </td>
+                      <td className="py-4 px-4 text-white text-xs font-mono tabular-nums">
+                        {node.shareAcceptance}%
+                      </td>
+                      <td className="py-4 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          {isMining ? (
+                            <>
+                              <button
+                                onClick={() => onRestartNode(node.id)}
+                                className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#D4AF37] transition-colors"
+                                title="Restart Node"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">
+                                 restart_alt
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => onStopNode(node.id)}
+                                className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-red-500/20 text-red-400 transition-colors"
+                                title="Stop Node"
+                              >
+                                <span className="material-symbols-outlined text-[16px]">
+                                  stop
+                                </span>
+                              </button>
+                            </>
+                          ) : (
                             <button
-                              onClick={() => onRestartNode(node.id)}
-                              className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#D4AF37] transition-colors"
-                              title="Restart Node"
+                              onClick={() => onStartNode(node.id)}
+                              className="p-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold hover:bg-[#7df4ff] transition-colors"
+                              title="Start Node"
                             >
                               <span className="material-symbols-outlined text-[16px]">
-                                restart_alt
+                                play_arrow
                               </span>
                             </button>
-                            <button
-                              onClick={() => onStopNode(node.id)}
-                              className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-red-500/20 text-red-400 transition-colors"
-                              title="Stop Node"
-                            >
-                              <span className="material-symbols-outlined text-[16px]">
-                                stop
-                              </span>
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => onStartNode(node.id)}
-                            className="p-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold hover:bg-[#7df4ff] transition-colors"
-                            title="Start Node"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">
-                              play_arrow
-                            </span>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Recent Reward Claim History Table matching Image 2 */}
@@ -1402,57 +1423,71 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </a>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="text-[#94a3b8] font-mono text-[10px] uppercase tracking-[0.14em] border-b border-[#1c2b3b]">
-                <th className="py-3 px-4 font-semibold">Transaction Hash</th>
-                <th className="py-3 px-4 font-semibold">Reward Source</th>
-                <th className="py-3 px-4 font-semibold">Amount</th>
-                <th className="py-3 px-4 font-semibold">Timestamp</th>
-                <th className="py-3 px-4 font-semibold text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#1c2b3b]/40 text-sm">
-              {rewards.map((tx) => (
-                <tr
-                  key={tx.id}
-                  className="hover:bg-[#1c2b3b]/30 transition-colors"
-                >
-                  <td className="py-4 px-4 font-mono text-[#00F0FF] text-xs">
-                    <button
-                      onClick={() => onCopyText(tx.txHash)}
-                      className="hover:underline flex items-center gap-1.5"
-                      title="Copy TX Hash"
-                    >
-                      <span className="tabular-nums">{tx.txHash}</span>
-                      <span className="material-symbols-outlined text-[14px] text-[#94a3b8] hover:text-[#00F0FF]">
-                        content_copy
-                      </span>
-                    </button>
-                  </td>
-                  <td className="py-4 px-4 text-xs sm:text-sm text-white font-medium">
-                    {tx.rewardSource}
-                  </td>
-                  <td className="py-4 px-4 font-headline text-sm text-[#D4AF37] font-bold tabular-nums">
-                    +{tx.amount.toFixed(2)} {tx.currency}
-                  </td>
-                  <td className="py-4 px-4 text-[#94a3b8] text-xs font-mono">
-                    {tx.timestamp}
-                  </td>
-                  <td className="py-4 px-4 text-right">
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#7df4ff] bg-[#7df4ff]/10 px-2 py-0.5 rounded border border-[#7df4ff]/20">
-                      <span className="material-symbols-outlined text-[14px]">
-                        check_circle
-                      </span>
-                      Confirmed
-                    </span>
-                  </td>
+        {rewards.length === 0 ? (
+          <div className="py-10 px-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col items-center justify-center space-y-2.5">
+            <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center border border-[#D4AF37]/25 shadow-sm">
+              <span className="material-symbols-outlined text-[26px]">receipt_long</span>
+            </div>
+            <div className="max-w-md">
+              <h3 className="text-sm font-bold font-headline text-white">No Payout Records Yet</h3>
+              <p className="text-xs text-[#94a3b8] mt-0.5 leading-relaxed">
+                Daily mining payouts and activation transactions will be automatically recorded here once rigs are deployed.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-[#94a3b8] font-mono text-[10px] uppercase tracking-[0.14em] border-b border-[#1c2b3b]">
+                  <th className="py-3 px-4 font-semibold">Transaction Hash</th>
+                  <th className="py-3 px-4 font-semibold">Reward Source</th>
+                  <th className="py-3 px-4 font-semibold">Amount</th>
+                  <th className="py-3 px-4 font-semibold">Timestamp</th>
+                  <th className="py-3 px-4 font-semibold text-right">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[#1c2b3b]/40 text-sm">
+                {rewards.map((tx) => (
+                  <tr
+                    key={tx.id}
+                    className="hover:bg-[#1c2b3b]/30 transition-colors"
+                  >
+                    <td className="py-4 px-4 font-mono text-[#00F0FF] text-xs">
+                      <button
+                        onClick={() => onCopyText(tx.txHash)}
+                        className="hover:underline flex items-center gap-1.5"
+                        title="Copy TX Hash"
+                      >
+                        <span className="tabular-nums">{tx.txHash}</span>
+                        <span className="material-symbols-outlined text-[14px] text-[#94a3b8] hover:text-[#00F0FF]">
+                          content_copy
+                        </span>
+                      </button>
+                    </td>
+                    <td className="py-4 px-4 text-xs sm:text-sm text-white font-medium">
+                      {tx.rewardSource}
+                    </td>
+                    <td className="py-4 px-4 font-headline text-sm text-[#D4AF37] font-bold tabular-nums">
+                      {tx.amount > 0 ? `+${tx.amount.toFixed(2)}` : tx.amount.toFixed(2)} {tx.currency}
+                    </td>
+                    <td className="py-4 px-4 text-[#94a3b8] text-xs font-mono">
+                      {tx.timestamp}
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#7df4ff] bg-[#7df4ff]/10 px-2 py-0.5 rounded border border-[#7df4ff]/20">
+                        <span className="material-symbols-outlined text-[14px]">
+                          check_circle
+                        </span>
+                        Confirmed
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -197,8 +197,28 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
       </div>
 
       {/* Nodes Detail Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filteredNodes.map((node) => {
+      {filteredNodes.length === 0 ? (
+        <div className="py-14 px-6 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col items-center justify-center space-y-3.5">
+          <div className="w-16 h-16 rounded-2xl bg-[#00F0FF]/10 text-[#00F0FF] flex items-center justify-center border border-[#00F0FF]/30 shadow-[0_0_20px_rgba(0,240,255,0.15)]">
+            <span className="material-symbols-outlined text-[34px]">dns</span>
+          </div>
+          <div className="max-w-md">
+            <h3 className="text-lg font-bold font-headline text-white">No Mining Rigs in Fleet</h3>
+            <p className="text-xs text-[#94a3b8] mt-1.5 leading-relaxed">
+              You haven't deployed any mining rigs to this wallet yet. Choose a starter (15 USDT), standard (75 USDT), or cluster node to start hashing on the BSC validator sublayer.
+            </p>
+          </div>
+          <button
+            onClick={onOpenDeployModal}
+            className="mt-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#38e8f8] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all hover:scale-105 active:scale-95"
+          >
+            <span className="material-symbols-outlined text-[18px]">add_circle</span>
+            <span>Deploy First Node (from 15 USDT)</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {filteredNodes.map((node) => {
           const isMining = node.status === 'mining';
           const isSelected = selectedNodeLogs?.id === node.id;
 
@@ -323,6 +343,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           );
         })}
       </div>
+      )}
 
       {/* Live Stratum Console Logs Viewer */}
       {selectedNodeLogs && (

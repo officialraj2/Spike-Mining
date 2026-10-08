@@ -58,14 +58,25 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     },
   ];
 
+  const [customAddress, setCustomAddress] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+
+  const generateFreshWallet = () => {
+    const chars = '0123456789abcdef';
+    let addr = '0x';
+    for (let i = 0; i < 40; i++) {
+      addr += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return addr;
+  };
+
   const handleSelectProvider = async (id: string) => {
     setConnectingProvider(id);
 
     try {
       if (
         typeof window !== 'undefined' &&
-        (window as unknown as { ethereum?: { request: (args: { method: string }) => Promise<string[]> } }).ethereum &&
-        (id === 'metamask' || id === 'trustwallet' || id === 'binance')
+        (window as unknown as { ethereum?: { request: (args: { method: string }) => Promise<string[]> } }).ethereum
       ) {
         const eth = (window as unknown as { ethereum: { request: (args: { method: string }) => Promise<string[]> } }).ethereum;
         const accounts = await eth.request({ method: 'eth_requestAccounts' });
@@ -77,14 +88,37 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         }
       }
     } catch {
-      // User cancelled or browser blocked popup, continue to test simulation
+      // Browser blocked popup or user cancelled
     }
 
+    // If no real web3 provider or in test mode, generate a distinct new fresh wallet address
     setTimeout(() => {
-      onConnect(id);
+      const freshAddr = generateFreshWallet();
+      onConnect(id, freshAddr);
       setConnectingProvider(null);
       onClose();
-    }, 700);
+    }, 600);
+  };
+
+  const handleConnectFreshWallet = () => {
+    const freshAddr = generateFreshWallet();
+    onConnect('Fresh Wallet', freshAddr);
+    onClose();
+  };
+
+  const handleConnectDemoLeader = () => {
+    onConnect('Demo Leader', '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
+    onClose();
+  };
+
+  const handleConnectCustom = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = customAddress.trim();
+    if (!trimmed.startsWith('0x') || trimmed.length < 10) {
+      return;
+    }
+    onConnect('Custom Wallet', trimmed);
+    onClose();
   };
 
   return (
@@ -185,23 +219,22 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
             <div className="p-3 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-xs text-[#00F0FF] flex items-start gap-2">
               <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">verified_user</span>
               <span>
-                Log in to unlock your personal <strong>Live Dashboard</strong>, <strong>Mining Rigs</strong>, and <strong>Referral Rewards</strong>.
+                Each BEP-20 wallet has its own <strong>independent dashboard data</strong>. New wallets start with <strong>0 active rigs</strong> and <strong>0 history</strong>.
               </span>
             </div>
 
-            {/* Quick 1-Click Login CTA */}
+            {/* Fresh Wallet CTA (Starts with 0 Data) */}
             <button
-              onClick={() => handleSelectProvider('metamask')}
-              disabled={connectingProvider !== null}
-              className="w-full py-3 px-4 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all"
+              onClick={handleConnectFreshWallet}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#38e8f8] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
-              <span className="material-symbols-outlined text-[18px]">bolt</span>
-              <span>Quick 1-Click Login (0x71C8...49A2)</span>
+              <span className="material-symbols-outlined text-[18px]">add_circle</span>
+              <span>Connect Fresh New Wallet (0 Records / Blank Slate)</span>
             </button>
 
             <div className="flex items-center gap-2 my-2 text-center">
               <div className="h-[1px] bg-[#1c2b3b] flex-1" />
-              <span className="text-[10px] font-mono uppercase text-[#94a3b8]">or connect wallet</span>
+              <span className="text-[10px] font-mono uppercase text-[#94a3b8]">or connect web3 provider</span>
               <div className="h-[1px] bg-[#1c2b3b] flex-1" />
             </div>
 
@@ -211,10 +244,10 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                   key={provider.id}
                   onClick={() => handleSelectProvider(provider.id)}
                   disabled={connectingProvider !== null}
-                  className="w-full p-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] hover:border-[#00F0FF]/40 text-left transition-all duration-200 flex items-center justify-between group"
+                  className="w-full p-2.5 sm:p-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] hover:border-[#00F0FF]/40 text-left transition-all duration-200 flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-center text-base sm:text-lg group-hover:scale-110 transition-transform">
                       {provider.icon}
                     </div>
                     <div>
@@ -236,6 +269,55 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                   )}
                 </button>
               ))}
+            </div>
+
+            {/* Custom Address Input Toggle */}
+            <div className="pt-1">
+              {!showCustomInput ? (
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => setShowCustomInput(true)}
+                    className="text-[11px] text-[#00F0FF] hover:underline font-mono flex items-center gap-1"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">edit</span>
+                    <span>Enter Custom 0x Address</span>
+                  </button>
+                  <button
+                    onClick={handleConnectDemoLeader}
+                    className="text-[11px] text-[#D4AF37] hover:underline font-mono flex items-center gap-1"
+                    title="Load pre-populated demo cluster with 3 rigs & 28 partners"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">history_edu</span>
+                    <span>Load Demo Cluster (0x71C8...)</span>
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleConnectCustom} className="space-y-2 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
+                  <div className="flex items-center justify-between text-[11px] text-[#94a3b8] font-mono">
+                    <span>Paste BSC Wallet Address:</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomInput(false)}
+                      className="text-red-400 hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={customAddress}
+                    onChange={(e) => setCustomAddress(e.target.value)}
+                    placeholder="0x71C... or your custom address"
+                    className="w-full px-3 py-2 rounded-lg bg-[#122130] border border-[#1c2b3b] text-white text-xs font-mono focus:border-[#00F0FF] focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff]"
+                  >
+                    Connect Address
+                  </button>
+                </form>
+              )}
             </div>
 
             <div className="pt-2 text-center">

@@ -15,13 +15,32 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
   onClaimReward,
   walletAddress,
 }) => {
-  // Team counts (Direct + Downline = Total Team Partners)
-  const [directCount, setDirectCount] = useState<number>(directPartners);
-  const [downlineCount, setDownlineCount] = useState<number>(downlinePartners);
-  const totalTeamPartners = directCount + downlineCount;
+  const [overrideCount, setOverrideCount] = useState<number | null>(null);
+  const totalTeamPartners = overrideCount !== null ? overrideCount : (directPartners + downlinePartners);
+  const directCount = overrideCount !== null ? Math.floor(overrideCount / 2) : directPartners;
+  const downlineCount = overrideCount !== null ? (overrideCount - directCount) : downlinePartners;
 
-  // Track claimed milestone IDs
-  const [claimedIds, setClaimedIds] = useState<string[]>([]);
+  // Track claimed milestone IDs per wallet
+  const storageKey = `spike_claimed_milestones_${walletAddress || 'default'}`;
+  const [claimedIds, setClaimedIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Keep claimedIds synced if wallet changes
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`spike_claimed_milestones_${walletAddress || 'default'}`);
+      setClaimedIds(saved ? JSON.parse(saved) : []);
+    } catch {
+      setClaimedIds([]);
+    }
+  }, [walletAddress]);
+
   const [justClaimedId, setJustClaimedId] = useState<string | null>(null);
 
   // Find claimable milestones (reached but not claimed)
@@ -36,7 +55,11 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
 
   const handleClaim = (milestone: TeamMilestoneTier) => {
     if (claimedIds.includes(milestone.id)) return;
-    setClaimedIds((prev) => [...prev, milestone.id]);
+    const updated = [...claimedIds, milestone.id];
+    setClaimedIds(updated);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch {}
     setJustClaimedId(milestone.id);
     onClaimReward?.(milestone.rewardUsd, milestone.label);
     setTimeout(() => {
@@ -232,11 +255,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               {[10, 28, 100, 1000, 5000].map((count) => (
                 <button
                   key={count}
-                  onClick={() => {
-                    const half = Math.floor(count / 2);
-                    setDirectCount(half);
-                    setDownlineCount(count - half);
-                  }}
+                  onClick={() => setOverrideCount(count)}
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border ${
                     totalTeamPartners === count
                       ? 'bg-[#00F0FF] text-[#0A0F1D] border-[#00F0FF] shadow-[0_0_10px_rgba(0,240,255,0.4)]'
@@ -247,12 +266,9 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                 </button>
               ))}
               <button
-                onClick={() => {
-                  setDirectCount(directPartners);
-                  setDownlineCount(downlinePartners);
-                }}
+                onClick={() => setOverrideCount(null)}
                 className="px-2 py-1 rounded-lg text-[10px] font-mono text-[#94a3b8] hover:text-[#00F0FF]"
-                title="Reset to default"
+                title="Reset to real wallet stats"
               >
                 Reset
               </button>

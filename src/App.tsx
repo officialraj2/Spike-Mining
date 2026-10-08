@@ -55,27 +55,20 @@ export default function App() {
 
   const [viewMode, setViewMode] = useState<'auto' | 'mobile' | 'desktop'>('auto');
 
-  // Application Data States (Hydrated instantly from cache for 0ms lag)
-  const [nodes, setNodes] = useState<MiningNode[]>(INITIAL_NODES);
-  const [rewards, setRewards] = useState<RewardTransaction[]>(INITIAL_REWARDS);
-  const [walletBalance, setWalletBalance] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('spike_balance_usdt');
-      return saved ? parseFloat(saved) : 1250.0;
-    } catch {
-      return 1250.0;
-    }
-  });
-  const [walletBNB, setWalletBNB] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('spike_balance_bnb');
-      return saved ? parseFloat(saved) : 0.428;
-    } catch {
-      return 0.428;
-    }
-  });
-  const [dailyEarnings, setDailyEarnings] = useState<number>(48.5);
+  // Application Data States (Scoped to current connected wallet)
+  const [nodes, setNodes] = useState<MiningNode[]>([]);
+  const [rewards, setRewards] = useState<RewardTransaction[]>([]);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [walletBNB, setWalletBNB] = useState<number>(0.005);
+  const [dailyEarnings, setDailyEarnings] = useState<number>(0);
   const [network, setNetwork] = useState<string>('BEP-20 / BSC Network');
+  const [referralStats, setReferralStats] = useState<any>({
+    directPartners: 0,
+    downlinePartners: 0,
+    totalPartners: 0,
+    totalCommissions: 0,
+    referrals: [],
+  });
 
   // Wallet Auth State
   const [isWalletConnected, setIsWalletConnected] = useState<boolean>(() => {
@@ -87,9 +80,9 @@ export default function App() {
   });
   const [walletAddress, setWalletAddress] = useState<string>(() => {
     try {
-      return localStorage.getItem('spike_wallet_address') || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+      return localStorage.getItem('spike_wallet_address') || '';
     } catch {
-      return '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+      return '';
     }
   });
 
@@ -146,6 +139,21 @@ export default function App() {
 
   // Sync state with persistent backend database on start (Non-blocking background refresh)
   useEffect(() => {
+    if (!walletAddress) {
+      setNodes([]);
+      setRewards([]);
+      setWalletBalance(0);
+      setDailyEarnings(0);
+      setReferralStats({
+        directPartners: 0,
+        downlinePartners: 0,
+        totalPartners: 0,
+        totalCommissions: 0,
+        referrals: [],
+      });
+      return;
+    }
+
     fetch(`/api/user/${walletAddress}`)
       .then((res) => {
         if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
@@ -164,11 +172,25 @@ export default function App() {
             try { localStorage.setItem('spike_balance_bnb', String(data.user.balanceBnb)); } catch {}
           }
         }
-        if (data && Array.isArray(data.nodes) && data.nodes.length > 0) {
+        // Set nodes array (for a new wallet this is [] 0 nodes!)
+        if (data && Array.isArray(data.nodes)) {
           setNodes(data.nodes);
+          const activeMining = data.nodes.filter((n: MiningNode) => n.status === 'mining');
+          const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
+          setDailyEarnings(+calculatedYield.toFixed(2));
+        } else {
+          setNodes([]);
+          setDailyEarnings(0);
         }
-        if (data && Array.isArray(data.transactions) && data.transactions.length > 0) {
+        // Set rewards transactions
+        if (data && Array.isArray(data.transactions)) {
           setRewards(data.transactions);
+        } else {
+          setRewards([]);
+        }
+        // Set real referral stats
+        if (data && data.referralStats) {
+          setReferralStats(data.referralStats);
         }
       })
       .catch((err) => {
@@ -324,14 +346,21 @@ export default function App() {
     if (walletBalance < costUsdt) {
       addToast(
         'Insufficient Balance',
-        `Required ${costUsdt} USDT for node activation. Your balance: ${walletBalance.toFixed(2)} USDT.`,
+        `Required ${costUsdt} USDT for node activation. Your balance: ${walletBalance.toFixed(2)} USDT. Use Testnet Faucet to add funds!`,
         'warning'
       );
       return;
     }
 
-    setWalletBalance((prev) => Math.max(0, +(prev - costUsdt).toFixed(2)));
-    setNodes((prev) => [newNode, ...prev]);
+    const updatedBalance = Math.max(0, +(walletBalance - costUsdt).toFixed(2));
+    setWalletBalance(updatedBalance);
+    const updatedNodes = [newNode, ...nodes];
+    setNodes(updatedNodes);
+
+    // Dynamically recalculate daily yield from all active rigs
+    const activeMining = updatedNodes.filter((n) => n.status === 'mining');
+    const calculatedYield = activeMining.reduce((acc, n) => acc + (n.hashrate * 39), 0);
+    setDailyEarnings(+calculatedYield.toFixed(2));
 
     const randomTxHash = `0x${Array.from({ length: 4 }, () =>
       Math.floor(Math.random() * 16).toString(16)
@@ -365,13 +394,13 @@ export default function App() {
 
     addToast(
       'Rig Deployed & Activated',
-      `-${costUsdt} USDT deducted and saved in DB. ${newNode.name} is now hashing on BSC validator network!`,
+      `-${costUsdt} USDT deducted. ${newNode.name} is now hashing on BSC validator network! Generating +${(newNode.hashrate * 39).toFixed(2)} USDT/day.`,
       'success'
     );
   };
 
   const handleConfirmClaim = (amount: number) => {
-    setWalletBalance((prev) => prev + amount);
+    setWalletBalance((prev) => +(prev + amount).toFixed(2));
     setDailyEarnings(0);
 
     const randomTxHash = `0x${Array.from({ length: 4 }, () =>
@@ -406,7 +435,7 @@ export default function App() {
       }),
     }).catch((err) => console.warn('[App] Claim API error:', err));
 
-    addToast('Rewards Claimed', `+${amount.toFixed(2)} USDT deposited and saved in DB.`, 'success');
+    addToast('Rewards Claimed', `+${amount.toFixed(2)} USDT deposited into your wallet.`, 'success');
   };
 
   const handleSwapSuccess = (
@@ -432,8 +461,83 @@ export default function App() {
     );
   };
 
+  const handleSimulateReferralJoin = async () => {
+    if (!walletAddress) {
+      addToast('Connect Wallet', 'Please connect a wallet first to test referrals.', 'warning');
+      return;
+    }
+    try {
+      const res = await fetch('/api/referrals/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ referrerAddress: walletAddress }),
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        setReferralStats(data.stats);
+        if (typeof data.commissionAdded === 'number') {
+          setWalletBalance((prev) => +(prev + data.commissionAdded).toFixed(2));
+          const newTx: RewardTransaction = {
+            id: `tx-ref-${Date.now()}`,
+            txHash: `0x${Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}...${Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+            rewardSource: `Direct Referral Commission (${data.referral?.refereeAddress?.slice(0, 6)}...)`,
+            amount: data.commissionAdded,
+            currency: 'USDT',
+            timestamp: 'Just now',
+            status: 'Confirmed',
+          };
+          setRewards((prev) => [newTx, ...prev]);
+        }
+        addToast('Referral Joined!', `+1 Partner joined via your link! +${data.commissionAdded} USDT commission added.`, 'success');
+      }
+    } catch {
+      addToast('Simulation Note', 'Added local test referral', 'info');
+    }
+  };
+
+  const handleClaimReferralMilestone = (amountUsd: number, milestoneLabel: string = 'Team Milestone') => {
+    setWalletBalance((prev) => +(prev + amountUsd).toFixed(2));
+    const randomTxHash = `0x${Array.from({ length: 4 }, () =>
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('')}...${Array.from({ length: 4 }, () =>
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('')}`;
+    const newTx: RewardTransaction = {
+      id: `tx-milestone-${Date.now()}`,
+      txHash: randomTxHash,
+      rewardSource: `Team Career Milestone Reward (${milestoneLabel})`,
+      amount: amountUsd,
+      currency: 'USDT',
+      timestamp: 'Just now',
+      status: 'Confirmed',
+    };
+    setRewards((prev) => [newTx, ...prev]);
+    fetch('/api/transactions/record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userAddress: walletAddress,
+        type: 'referral_bonus',
+        amount: amountUsd,
+        currency: 'USDT',
+        details: `Team Career Milestone (${milestoneLabel}) Payout`,
+        txHash: randomTxHash,
+      }),
+    }).catch(() => {});
+    addToast('Milestone Claimed', `+${amountUsd} USDT milestone bonus unlocked and credited to your wallet!`, 'success');
+  };
+
   const handleConnectWallet = (provider: string, realAddress?: string) => {
-    const finalAddress = realAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+    let finalAddress = realAddress;
+    if (!finalAddress) {
+      const chars = '0123456789abcdef';
+      let addr = '0x';
+      for (let i = 0; i < 40; i++) {
+        addr += chars[Math.floor(Math.random() * chars.length)];
+      }
+      finalAddress = addr;
+    }
+
     setIsWalletConnected(true);
     setWalletAddress(finalAddress);
     setActiveTab('dashboard');
@@ -444,16 +548,31 @@ export default function App() {
     } catch {}
     addToast(
       'Wallet Authenticated',
-      `Logged in via ${provider} (${finalAddress.slice(0, 6)}...${finalAddress.slice(-4)}). Dashboard, Mining Nodes & Referral System unlocked!`,
+      `Logged in via ${provider} (${finalAddress.slice(0, 6)}...${finalAddress.slice(-4)}). Initialized personal dashboard!`,
       'success'
     );
   };
 
   const handleDisconnectWallet = () => {
     setIsWalletConnected(false);
+    setWalletAddress('');
+    setNodes([]);
+    setRewards([]);
+    setWalletBalance(0);
+    setDailyEarnings(0);
+    setReferralStats({
+      directPartners: 0,
+      downlinePartners: 0,
+      totalPartners: 0,
+      totalCommissions: 0,
+      referrals: [],
+    });
     setActiveTab('home');
     try {
-      localStorage.setItem('spike_wallet_connected', 'false');
+      localStorage.removeItem('spike_wallet_connected');
+      localStorage.removeItem('spike_wallet_address');
+      localStorage.removeItem('spike_balance_usdt');
+      localStorage.removeItem('spike_balance_bnb');
       localStorage.setItem('spike_active_tab', 'home');
     } catch {}
     addToast('Logged Out', 'Disconnected from BEP-20 provider. Switched to public Home overview.', 'info');
@@ -578,10 +697,9 @@ export default function App() {
           <ReferralsView
             walletAddress={walletAddress}
             onCopyText={copyToClipboard}
-            onClaimReferralRewards={(amt) => {
-              setWalletBalance((prev) => prev + amt);
-              addToast('Commission Claimed', `+${amt.toFixed(2)} USDT added to balance.`, 'success');
-            }}
+            onClaimReferralRewards={handleClaimReferralMilestone}
+            referralStats={referralStats}
+            onSimulateReferral={handleSimulateReferralJoin}
           />
         );
         break;
@@ -868,6 +986,8 @@ export default function App() {
             onClose={() => setIsDeployModalOpen(false)}
             onDeploy={handleDeployNode}
             existingCount={nodes.length}
+            walletBalance={walletBalance}
+            onClaimFaucet={handleTopUpUsdt}
           />
         )}
 

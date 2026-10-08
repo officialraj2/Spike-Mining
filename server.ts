@@ -260,12 +260,52 @@ app.get('/api/user/:address', (req: Request, res: Response) => {
   const nodes = db.getNodes(address);
   const transactions = db.getTransactions(address, 20);
   const settings = db.getSettings();
+  const referralStats = db.getReferralStats(address);
   res.json({
     user,
     nodes,
     transactions,
     settings,
+    referralStats,
   });
+});
+
+app.post('/api/faucet/claim', (req: Request, res: Response) => {
+  const { userAddress, amount = 100 } = req.body;
+  if (!userAddress) {
+    res.status(400).json({ error: 'User address is required' });
+    return;
+  }
+  const amt = Number(amount) || 100;
+  const user = db.adjustUserBalance(userAddress, amt, 0.05, 'Testnet Faucet USDT Credit for Node Activation', 'SYSTEM');
+  const tx = db.createTransaction({
+    userAddress,
+    txHash: `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+    type: 'faucet',
+    amount: amt,
+    currency: 'USDT',
+    status: 'Confirmed',
+    details: 'Testnet Faucet Node Activation Grant',
+    blockNumber: 42900000 + Math.floor(Math.random() * 50000),
+  });
+  res.json({ success: true, user, transaction: tx });
+});
+
+app.get('/api/referrals/stats/:address', (req: Request, res: Response) => {
+  const { address } = req.params;
+  const stats = db.getReferralStats(address);
+  res.json({ success: true, stats });
+});
+
+app.post('/api/referrals/simulate', (req: Request, res: Response) => {
+  const { referrerAddress } = req.body;
+  if (!referrerAddress) {
+    res.status(400).json({ error: 'referrerAddress is required' });
+    return;
+  }
+  const result = db.simulateReferral(referrerAddress);
+  const stats = db.getReferralStats(referrerAddress);
+  res.json({ success: true, ...result, stats });
 });
 
 app.post('/api/user/:address/sync', (req: Request, res: Response) => {

@@ -491,8 +491,8 @@ class PersistentDatabase {
     } else {
       const newUser: DbUser = {
         address: user.address,
-        balanceUsdt: user.balanceUsdt ?? 100.0,
-        balanceBnb: user.balanceBnb ?? 0.1,
+        balanceUsdt: user.balanceUsdt ?? 0.0,
+        balanceBnb: user.balanceBnb ?? 0.005,
         totalMined: user.totalMined ?? 0.0,
         referralCode: user.referralCode || `SPK-${user.address.slice(2, 8).toUpperCase()}`,
         referredBy: user.referredBy || null,
@@ -653,6 +653,26 @@ class PersistentDatabase {
     return this.data.referrals;
   }
 
+  public getReferralStats(userAddress: string) {
+    const norm = userAddress.toLowerCase();
+    const directs = this.data.referrals.filter(
+      (r) => r.referrerAddress.toLowerCase() === norm && r.tier === 1
+    );
+    const downlines = this.data.referrals.filter(
+      (r) => r.referrerAddress.toLowerCase() === norm && r.tier === 2
+    );
+    const totalCommissions = directs.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0) +
+      downlines.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
+
+    return {
+      directPartners: directs.length,
+      downlinePartners: downlines.length,
+      totalPartners: directs.length + downlines.length,
+      totalCommissions: +totalCommissions.toFixed(2),
+      referrals: [...directs, ...downlines],
+    };
+  }
+
   public createReferral(ref: Omit<DbReferral, 'id' | 'createdAt'>): DbReferral {
     const newRef: DbReferral = {
       ...ref,
@@ -662,6 +682,26 @@ class PersistentDatabase {
     this.data.referrals.unshift(newRef);
     this.save();
     return newRef;
+  }
+
+  public simulateReferral(referrerAddress: string): { referral: DbReferral; commissionAdded: number } {
+    const randomHex = Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const randomHexEnd = Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const referee = `0x${randomHex}${Date.now().toString(16).slice(-4)}${randomHexEnd}`;
+    const commission = 15.0; // 10% on Starter/Standard activation
+
+    const newRef = this.createReferral({
+      referrerAddress,
+      refereeAddress: referee,
+      tier: 1,
+      commissionUsdt: commission,
+      volumeUsdt: 150.0,
+    });
+
+    // Credit referrer wallet with commission
+    this.adjustUserBalance(referrerAddress, commission, 0, `Direct referral hash commission from ${referee.slice(0, 6)}...${referee.slice(-4)}`, 'SYSTEM');
+
+    return { referral: newRef, commissionAdded: commission };
   }
 
   // ---- Announcements ----

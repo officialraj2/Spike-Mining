@@ -6,6 +6,8 @@ interface DeployNodeModalProps {
   onClose: () => void;
   onDeploy: (newNode: MiningNode, costAmount: number) => void;
   existingCount: number;
+  walletBalance?: number;
+  onClaimFaucet?: (amount: number) => void;
 }
 
 export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
@@ -13,6 +15,8 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
   onClose,
   onDeploy,
   existingCount,
+  walletBalance = 0,
+  onClaimFaucet,
 }) => {
   const nextNum = (existingCount + 1).toString().padStart(2, '0');
   const [nodeName, setNodeName] = useState(`SPIKE-NODE-${nextNum}`);
@@ -175,6 +179,18 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
               <span className="text-white font-mono">{currentTier.specs}</span>
             </div>
             <div className="flex justify-between text-[#c6c6cc]">
+              <span>Activation Cost:</span>
+              <span className="text-[#00F0FF] font-bold font-mono">
+                {currentTier.cost}
+              </span>
+            </div>
+            <div className="flex justify-between text-[#c6c6cc]">
+              <span>Your Wallet Balance:</span>
+              <span className={`font-mono font-bold ${walletBalance >= (tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250) ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {walletBalance.toFixed(2)} USDT
+              </span>
+            </div>
+            <div className="flex justify-between text-[#c6c6cc]">
               <span>Estimated Daily Rewards:</span>
               <span className="text-[#D4AF37] font-bold font-mono">
                 +{(currentTier.hashrate * 39).toFixed(2)} USDT / day
@@ -185,6 +201,26 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
               <span className="text-white font-mono">{currentTier.power} W (Hydro Cooled)</span>
             </div>
           </div>
+
+          {/* Insufficient Balance Notice & Instant Faucet Trigger */}
+          {walletBalance < (tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250) && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 text-xs text-amber-300">
+                <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                <span>Wallet has {walletBalance.toFixed(2)} USDT (Need {tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250} USDT)</span>
+              </div>
+              {onClaimFaucet && (
+                <button
+                  type="button"
+                  onClick={() => onClaimFaucet(100)}
+                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-1 shadow-sm shrink-0 hover:scale-105 active:scale-95 transition-all"
+                >
+                  <span className="material-symbols-outlined text-[15px]">add_circle</span>
+                  <span>Get Faucet (+100 USDT)</span>
+                </button>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
