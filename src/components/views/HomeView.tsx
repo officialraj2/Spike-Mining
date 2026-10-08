@@ -102,7 +102,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
          ========================================================= */}
       <section
         id="hero"
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#0d1d2c] via-[#091728] to-[#051424] border border-[#1c2b3b] p-6 sm:p-10 md:p-14 shadow-2xl"
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#0d1d2c] via-[#091728] to-[#051424] border border-[#1c2b3b] pt-8 pb-7 px-5 sm:p-10 md:p-14 shadow-2xl mt-1 sm:mt-0"
       >
         {/* Atmospheric Glow Backdrops */}
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#00F0FF]/15 rounded-full blur-[100px] pointer-events-none" />
@@ -111,9 +111,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
           {/* Hero Left Content */}
-          <div className="lg:col-span-7 space-y-6 sm:space-y-7">
+          <div className="lg:col-span-7 space-y-6 sm:space-y-7 pt-2 sm:pt-0">
             {/* HUD / System Labels from Official Whitepaper */}
-            <div className="inline-flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl sm:rounded-full bg-[#122130]/95 border border-[#00F0FF]/50 text-xs sm:text-xs font-mono text-[#00F0FF] shadow-[0_0_15px_rgba(0,240,255,0.18)]">
+            <div className="mt-4 sm:mt-0 inline-flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 px-3.5 sm:px-4 py-2 sm:py-2 rounded-2xl sm:rounded-full bg-[#122130]/95 border border-[#00F0FF]/50 text-xs sm:text-xs font-mono text-[#00F0FF] shadow-[0_0_18px_rgba(0,240,255,0.25)]">
               <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse shrink-0"></span>
               <span className="font-bold tracking-wide shrink-0 text-white">STATOR</span>
               <span className="text-[#94a3b8]/70 shrink-0">|</span>

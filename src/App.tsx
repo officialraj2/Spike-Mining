@@ -1044,7 +1044,7 @@ export default function App() {
         )}
 
         {/* Main Content Viewport */}
-        <main className={`flex-1 ${activeTab === 'admin' ? 'pt-20 md:pt-24' : 'pt-4 md:pt-6'} px-4 sm:px-6 md:px-8 ${activeTab === 'home' ? 'max-w-7xl mx-auto w-full' : 'max-w-7xl w-full mx-auto'} pb-20 md:pb-12`}>
+        <main className={`flex-1 ${isAdmin && activeTab !== 'admin' ? 'pt-4 md:pt-6' : 'pt-20 sm:pt-24 md:pt-28'} px-4 sm:px-6 md:px-8 ${activeTab === 'home' ? 'max-w-7xl mx-auto w-full' : 'max-w-7xl w-full mx-auto'} pb-24 md:pb-12`}>
           {renderCurrentView()}
         </main>
       </div>
