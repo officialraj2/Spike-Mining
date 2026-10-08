@@ -39,17 +39,9 @@ export const Header: React.FC<HeaderProps> = ({
   onDisconnectWallet,
   isAdmin = false,
 }) => {
-  const [showNetworkMenu, setShowNetworkMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
   const [activeSection, setActiveSection] = useState<'hero' | 'features' | 'calculator' | 'security'>('hero');
-
-  const networks = [
-    { id: 'BEP-20 / BSC Network', name: 'BNB Smart Chain (BEP-20)', speed: '3.0s', active: true },
-    { id: 'BSC Testnet', name: 'BSC Testnet Chapel', speed: '3.0s', active: false },
-    { id: 'Arbitrum One', name: 'Arbitrum One', speed: '0.25s', active: false },
-    { id: 'Ethereum Mainnet', name: 'Ethereum Mainnet', speed: '12.0s', active: false },
-  ];
 
   const handleHomeSectionClick = (secId: 'hero' | 'features' | 'calculator' | 'security') => {
     setActiveSection(secId);
@@ -102,68 +94,6 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
           </div>
-
-          {/* Network Selector Pill */}
-          <div className="relative hidden xl:block ml-2">
-            <button
-              onClick={() => setShowNetworkMenu(!showNetworkMenu)}
-              className="flex items-center gap-2 bg-[#122130] hover:bg-[#1c2b3b] border border-[#00F0FF]/30 px-3 py-1.5 rounded-full text-xs text-[#00F0FF] transition-colors focus:outline-none shadow-sm"
-              title="Switch Network"
-            >
-              <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse"></span>
-              <span className="font-mono font-medium tracking-tight">{network}</span>
-              <span className="material-symbols-outlined text-[16px] text-[#94a3b8]">expand_more</span>
-            </button>
-
-            {showNetworkMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setShowNetworkMenu(false)}
-                />
-                <div className="absolute left-0 mt-2 w-64 bg-[#0d1d2c] border border-[#1c2b3b] rounded-xl shadow-2xl py-2 z-20">
-                  <div className="px-3 py-1 text-[10px] font-mono uppercase tracking-[0.14em] text-[#94a3b8] border-b border-[#1c2b3b] mb-1 font-semibold">
-                    Select Validator Chain
-                  </div>
-                  {networks.map((net) => (
-                    <button
-                      key={net.id}
-                      onClick={() => {
-                        onNetworkChange(net.id);
-                        setShowNetworkMenu(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-[#1c2b3b] transition-colors ${
-                        network === net.id ? 'text-[#00F0FF] font-semibold bg-[#122130]' : 'text-[#94a3b8]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-2 h-2 rounded-full ${
-                            network === net.id ? 'bg-[#00F0FF]' : 'bg-[#94a3b8]/40'
-                          }`}
-                        />
-                        <span className="font-medium tracking-normal">{net.name}</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-[#94a3b8]/70 tabular-nums">{net.speed}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Dedicated Web3 Testnet Faucet & QA Studio Button */}
-          {onOpenTestnetModal && (
-            <button
-              onClick={onOpenTestnetModal}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-[#122130] hover:bg-[#1c2b3b] border border-[#D4AF37]/50 text-[#D4AF37] hover:text-[#ffe088] text-xs font-headline font-bold transition-all shadow-sm hover:scale-102 shrink-0"
-              title="Open Web3 Testnet Faucet & Records Verification Studio"
-            >
-              <span className="material-symbols-outlined text-[15px] text-[#00F0FF]">science</span>
-              <span className="hidden sm:inline">Testnet Faucet &amp; QA</span>
-              <span className="sm:hidden">QA Test</span>
-            </button>
-          )}
 
           {/* Admin Panel Direct Navigation Button (Shown ONLY to Admin) */}
           {isAdmin && (
@@ -405,16 +335,16 @@ export const Header: React.FC<HeaderProps> = ({
                         <span className="material-symbols-outlined text-[16px] text-[#D4AF37]">groups</span>
                         <span>Referral system</span>
                       </button>
-                      {onOpenTestnetModal && (
+                      {isAdmin && (
                         <button
                           onClick={() => {
-                            onOpenTestnetModal();
+                            onTabChange('admin');
                             setShowUserMenu(false);
                           }}
-                          className="w-full text-left px-3 py-2 rounded-lg text-xs text-[#00F0FF] hover:bg-[#1c2b3b] flex items-center gap-2 font-semibold"
+                          className="w-full text-left px-3 py-2 rounded-lg text-xs text-[#D4AF37] hover:bg-[#1c2b3b] flex items-center gap-2 font-semibold"
                         >
-                          <span className="material-symbols-outlined text-[16px]">science</span>
-                          <span>Testnet Faucet &amp; QA Studio</span>
+                          <span className="material-symbols-outlined text-[16px]">shield_person</span>
+                          <span>Admin Panel &amp; Faucet</span>
                         </button>
                       )}
                     </div>
@@ -624,20 +554,20 @@ export const Header: React.FC<HeaderProps> = ({
                     );
                   })}
 
-                  {onOpenTestnetModal && (
+                  {isAdmin && (
                     <button
                       onClick={() => {
-                        onOpenTestnetModal();
+                        onTabChange('admin');
                         setShowMobileDrawer(false);
                       }}
-                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] border border-[#00F0FF]/30 mt-2 transition-all shadow-sm"
+                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold bg-[#122130] hover:bg-[#1c2b3b] text-[#D4AF37] border border-[#D4AF37]/30 mt-2 transition-all shadow-sm"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-[18px]">science</span>
-                        <span>Testnet Faucet &amp; QA Studio</span>
+                        <span className="material-symbols-outlined text-[18px]">shield_person</span>
+                        <span>Admin Panel &amp; Faucet</span>
                       </div>
                       <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 font-bold">
-                        DEV
+                        ADMIN
                       </span>
                     </button>
                   )}

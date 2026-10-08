@@ -202,23 +202,13 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
             </div>
           </div>
 
-          {/* Insufficient Balance Notice & Instant Faucet Trigger */}
+          {/* Insufficient Balance Notice */}
           {walletBalance < (tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250) && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 text-xs text-amber-300">
-                <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
-                <span>Wallet has {walletBalance.toFixed(2)} USDT (Need {tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250} USDT)</span>
-              </div>
-              {onClaimFaucet && (
-                <button
-                  type="button"
-                  onClick={() => onClaimFaucet(100)}
-                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-1 shadow-sm shrink-0 hover:scale-105 active:scale-95 transition-all"
-                >
-                  <span className="material-symbols-outlined text-[15px]">add_circle</span>
-                  <span>Get Faucet (+100 USDT)</span>
-                </button>
-              )}
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2.5 text-xs text-amber-300 font-mono">
+              <span className="material-symbols-outlined text-[18px] text-amber-400 shrink-0">account_balance_wallet</span>
+              <span>
+                Insufficient balance ({walletBalance.toFixed(2)} USDT). Need {tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250} USDT to activate this node.
+              </span>
             </div>
           )}
 

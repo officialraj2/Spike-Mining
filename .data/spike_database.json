@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "lastSaved": "2026-10-08T17:47:17.090Z",
+  "users": [
+    {
+      "address": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "balanceUsdt": 1250,
+      "balanceBnb": 0.428,
+      "totalMined": 4892.45,
+      "referralCode": "SPK-71C8A9",
+      "referredBy": null,
+      "role": "admin",
+      "status": "active",
+      "createdAt": "2025-01-15T08:00:00.000Z",
+      "lastActive": "2026-10-08T17:13:39.708Z",
+      "notes": "Super Admin & Primary Validator Node Owner"
+    },
+    {
+      "address": "0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239",
+      "balanceUsdt": 640.2,
+      "balanceBnb": 0.185,
+      "totalMined": 1240.8,
+      "referralCode": "SPK-38F2B7",
+      "referredBy": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2025-02-10T12:30:00.000Z",
+      "lastActive": "2026-10-08T17:13:39.708Z",
+      "notes": "Tier 1 Referral partner"
+    },
+    {
+      "address": "0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08",
+      "balanceUsdt": 320,
+      "balanceBnb": 0.092,
+      "totalMined": 680.15,
+      "referralCode": "SPK-992B10",
+      "referredBy": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2025-02-28T16:15:00.000Z",
+      "lastActive": "2026-10-08T17:13:39.708Z"
+    },
+    {
+      "address": "0x1234567890123456789012345678901234567890",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-123456",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-08T17:17:04.546Z",
+      "lastActive": "2026-10-08T17:17:04.546Z",
+      "notes": ""
+    },
+    {
+      "address": "0x9876543210987654321098765432109876543210",
+      "balanceUsdt": 85,
+      "balanceBnb": 0.055,
+      "totalMined": 0,
+      "referralCode": "SPK-987654",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-08T17:26:15.340Z",
+      "lastActive": "2026-10-08T17:26:19.868Z",
+      "notes": ""
+    }
+  ],
+  "nodes": [
+    {
+      "userAddress": "0x9876543210987654321098765432109876543210",
+      "name": "SPIKE-NODE-01",
+      "region": "Frankfurt (EU-Central)",
+      "status": "mining",
+      "hashrate": 0.3,
+      "temperature": 61,
+      "shareAcceptance": 99.9,
+      "fanSpeed": 70,
+      "powerUsage": 2200,
+      "uptimeDays": 0.1,
+      "algorithm": "SHA-256 (BSC Sublayer)",
+      "logs": [
+        "[5:26:19 PM] Provisioned on BSC validator sublayer.",
+        "[5:26:19 PM] Stratum target diff accepted: 1048576."
+      ],
+      "costUsdt": 15,
+      "id": "spk-node-1791480379846-787",
+      "deployedAt": "2026-10-08T17:26:19.846Z"
+    },
+    {
+      "id": "spk-node-01",
+      "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "name": "Falcon Titan Apex Rig #1",
+      "region": "Frankfurt (EU-Central)",
+      "status": "mining",
+      "hashrate": 142.8,
+      "temperature": 63,
+      "shareAcceptance": 99.94,
+      "fanSpeed": 74,
+      "powerUsage": 3180,
+      "uptimeDays": 24.6,
+      "algorithm": "SHA-256 (BSC Sublayer)",
+      "logs": [
+        "Stratum target diff accepted: 1048576 (hash: 00000000...a4f2)",
+        "Share #192,840 verified by validator block 42918491",
+        "Fan speed adjusted dynamically to 74% (63°C ambient)"
+      ],
+      "costUsdt": 50,
+      "deployedAt": "2025-02-01T10:00:00.000Z"
+    },
+    {
+      "id": "spk-node-02",
+      "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "name": "Falcon Quantum Rig #2",
+      "region": "Singapore (AP-East)",
+      "status": "mining",
+      "hashrate": 118.4,
+      "temperature": 61,
+      "shareAcceptance": 99.88,
+      "fanSpeed": 68,
+      "powerUsage": 2840,
+      "uptimeDays": 18.2,
+      "algorithm": "SHA-256 (BSC Sublayer)",
+      "logs": [
+        "Stratum heartbeat OK: 28ms latency to Singapore pool",
+        "Epoch 48 payout confirmed: 0.042 tBNB credited"
+      ],
+      "costUsdt": 35,
+      "deployedAt": "2025-02-12T14:20:00.000Z"
+    },
+    {
+      "id": "spk-node-03",
+      "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "name": "Falcon Micro Cluster #3",
+      "region": "Virginia (US-East)",
+      "status": "mining",
+      "hashrate": 86.5,
+      "temperature": 58,
+      "shareAcceptance": 99.91,
+      "fanSpeed": 62,
+      "powerUsage": 2150,
+      "uptimeDays": 12.8,
+      "algorithm": "SHA-256 (BSC Sublayer)",
+      "logs": [
+        "Stratum connection established with us-east.spike.network",
+        "Valid shares accepted: 84,209 / 84,285 (99.91%)"
+      ],
+      "costUsdt": 15,
+      "deployedAt": "2025-02-20T09:00:00.000Z"
+    }
+  ],
+  "transactions": [
+    {
+      "userAddress": "0x9876543210987654321098765432109876543210",
+      "txHash": "0x6bc22780a1190416",
+      "type": "admin_adjustment",
+      "amount": -15,
+      "currency": "USDT",
+      "status": "Confirmed",
+      "details": "Admin adjustment: Node activation fee (SPIKE-NODE-01)",
+      "blockNumber": 42933694,
+      "id": "tx-1791480379838-588",
+      "timestamp": "2026-10-08 17:26:19"
+    },
+    {
+      "userAddress": "0x9876543210987654321098765432109876543210",
+      "txHash": "0x2efca5b8445a133fb66051fec5c58fc7f0f8c5ca",
+      "type": "faucet",
+      "amount": 100,
+      "currency": "USDT",
+      "status": "Confirmed",
+      "details": "Testnet Faucet Node Activation Grant",
+      "blockNumber": 42925926,
+      "id": "tx-1791480379815-837",
+      "timestamp": "2026-10-08 17:26:19"
+    },
+    {
+      "userAddress": "0x9876543210987654321098765432109876543210",
+      "txHash": "0x8c15b22e55841313",
+      "type": "admin_adjustment",
+      "amount": 100,
+      "currency": "USDT",
+      "status": "Confirmed",
+      "details": "Admin adjustment: Testnet Faucet USDT Credit for Node Activation",
+      "blockNumber": 42919571,
+      "id": "tx-1791480379815-15",
+      "timestamp": "2026-10-08 17:26:19"
+    },
+    {
+      "id": "tx-init-1",
+      "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "txHash": "0x9b4f2c81a938d7210e54b67fa9c8b71d9a24e8310c854129e73cba985a14d872",
+      "type": "activation",
+      "amount": -50,
+      "currency": "USDT",
+      "timestamp": "2025-02-01 10:00:00",
+      "status": "Confirmed",
+      "details": "Node Activation Fee (Falcon Titan Apex Rig #1)",
+      "blockNumber": 42901842
+    },
+    {
+      "id": "tx-init-2",
+      "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "txHash": "0x4f128c7391b8a472d93e821094ba8721c09841f3e72c819a04b8273918a24c51",
+      "type": "claim",
+      "amount": 48.5,
+      "currency": "USDT",
+      "timestamp": "2025-02-15 18:30:00",
+      "status": "Confirmed",
+      "details": "Daily Epoch Mining Rewards Payout",
+      "blockNumber": 42915830
+    },
+    {
+      "id": "tx-init-3",
+      "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "txHash": "0x18a93b4827c6d591823a748c9182b37491029c83719283749182736481928374",
+      "type": "referral_bonus",
+      "amount": 32,
+      "currency": "USDT",
+      "timestamp": "2025-02-18 12:45:00",
+      "status": "Confirmed",
+      "details": "Tier-1 Direct Referral Hash Commission (10%)",
+      "blockNumber": 42918491
+    }
+  ],
+  "referrals": [
+    {
+      "id": "ref-1",
+      "referrerAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "refereeAddress": "0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239",
+      "tier": 1,
+      "commissionUsdt": 64.02,
+      "volumeUsdt": 640.2,
+      "createdAt": "2025-02-10T12:30:00.000Z"
+    },
+    {
+      "id": "ref-2",
+      "referrerAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "refereeAddress": "0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08",
+      "tier": 1,
+      "commissionUsdt": 32,
+      "volumeUsdt": 320,
+      "createdAt": "2025-02-28T16:15:00.000Z"
+    }
+  ],
+  "announcements": [
+    {
+      "id": "ann-1",
+      "title": "Top 10 Global CEX Listing Agreement Finalized",
+      "content": "SPIKE protocol has officially signed terms with Tier-1 Centralized Exchanges. Mining difficulty will adjust dynamically post-listing.",
+      "badge": "TOP 10 CEX",
+      "priority": "high",
+      "author": "Core Protocol Foundation",
+      "isActive": true,
+      "createdAt": "2026-10-08T17:13:39.708Z"
+    },
+    {
+      "id": "ann-2",
+      "title": "Stratum Turbo 10X Mining Engine Deployed to BSC Testnet & Mainnet",
+      "content": "Overclocking profile locked to Turbo 10X. All connected rigs receive high-priority ASIC share validation and zero orphan blocks.",
+      "badge": "PROTOCOL UPDATE",
+      "priority": "medium",
+      "author": "Lead Infrastructure Engineer",
+      "isActive": true,
+      "createdAt": "2026-10-08T17:13:39.708Z"
+    }
+  ],
+  "settings": {
+    "turboMultiplier": 10,
+    "dailyYieldPercent": 3.88,
+    "maintenanceMode": false,
+    "stratumPoolUrl": "stratum+tcp://pool.spikenodes.com:443",
+    "bscContractAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+    "minWithdrawalUsdt": 5,
+    "autoPayoutEnabled": true,
+    "updatedAt": "2026-10-08T17:13:39.708Z",
+    "primaryDomain": "spikenodes.com",
+    "protocolUrl": "https://spikenodes.com",
+    "apiBaseUrl": "https://spikenodes.com/api",
+    "docsUrl": "https://docs.spikenodes.com",
+    "rpcUrl": "https://rpc.spikenodes.com",
+    "telegramUrl": "https://t.me/spikenodes",
+    "twitterUrl": "https://x.com/spikenodes",
+    "supportEmail": "contact@spikenodes.com"
+  },
+  "auditLogs": [
+    {
+      "id": "audit-1791481623261-737",
+      "adminUser": "Admin Testnet Faucet",
+      "action": "ADJUST_BALANCE",
+      "target": "0x9999888877776666555544443333222211110000",
+      "details": "USDT delta: 150, Reason: Testing Admin Faucet",
+      "timestamp": "2026-10-08T17:47:03.261Z"
+    },
+    {
+      "id": "audit-1791481623261-714",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x9999888877776666555544443333222211110000",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-08T17:47:03.261Z"
+    },
+    {
+      "id": "audit-1791480379846-403",
+      "adminUser": "0x9876543210987654321098765432109876543210",
+      "action": "NODE_DEPLOYED",
+      "target": "spk-node-1791480379846-787",
+      "details": "Deployed SPIKE-NODE-01 (0.3 TH/s)",
+      "timestamp": "2026-10-08T17:26:19.846Z"
+    },
+    {
+      "id": "audit-1791480379838-572",
+      "adminUser": "SYSTEM",
+      "action": "ADJUST_BALANCE",
+      "target": "0x9876543210987654321098765432109876543210",
+      "details": "USDT delta: -15, Reason: Node activation fee (SPIKE-NODE-01)",
+      "timestamp": "2026-10-08T17:26:19.838Z"
+    },
+    {
+      "id": "audit-1791480379815-969",
+      "adminUser": "SYSTEM",
+      "action": "ADJUST_BALANCE",
+      "target": "0x9876543210987654321098765432109876543210",
+      "details": "USDT delta: 100, Reason: Testnet Faucet USDT Credit for Node Activation",
+      "timestamp": "2026-10-08T17:26:19.815Z"
+    },
+    {
+      "id": "audit-1791480375340-970",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x9876543210987654321098765432109876543210",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-08T17:26:15.340Z"
+    },
+    {
+      "id": "audit-1791479824546-659",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x1234567890123456789012345678901234567890",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-08T17:17:04.546Z"
+    },
+    {
+      "id": "audit-init",
+      "adminUser": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "action": "SYSTEM_BOOTSTRAP",
+      "target": "spike_database",
+      "details": "Database initialized with persistent ACID JSON engine and schema v1.",
+      "timestamp": "2026-10-08T17:13:39.708Z"
+    }
+  ]
+}

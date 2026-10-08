@@ -60,6 +60,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
 
   const [customAddress, setCustomAddress] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
 
   const generateFreshWallet = () => {
     const chars = '0123456789abcdef';
@@ -76,13 +77,25 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     try {
       if (
         typeof window !== 'undefined' &&
-        (window as unknown as { ethereum?: { request: (args: { method: string }) => Promise<string[]> } }).ethereum
+        (window as unknown as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum
       ) {
-        const eth = (window as unknown as { ethereum: { request: (args: { method: string }) => Promise<string[]> } }).ethereum;
-        const accounts = await eth.request({ method: 'eth_requestAccounts' });
+        const eth = (window as unknown as { ethereum: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
+        
+        // Request permissions to prompt user to choose account if available
+        try {
+          await eth.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }],
+          });
+        } catch {
+          // If cancelled or unsupported, fallback to standard eth_requestAccounts
+        }
+
+        const accounts = (await eth.request({ method: 'eth_requestAccounts' })) as string[];
         if (accounts && accounts.length > 0) {
           onConnect(id, accounts[0]);
           setConnectingProvider(null);
+          setShowProviderPicker(false);
           onClose();
           return;
         }
@@ -96,6 +109,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
       const freshAddr = generateFreshWallet();
       onConnect(id, freshAddr);
       setConnectingProvider(null);
+      setShowProviderPicker(false);
       onClose();
     }, 600);
   };
@@ -103,11 +117,13 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   const handleConnectFreshWallet = () => {
     const freshAddr = generateFreshWallet();
     onConnect('Fresh Wallet', freshAddr);
+    setShowProviderPicker(false);
     onClose();
   };
 
   const handleConnectDemoLeader = () => {
     onConnect('Demo Leader', '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
+    setShowProviderPicker(false);
     onClose();
   };
 
@@ -118,6 +134,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
       return;
     }
     onConnect('Custom Wallet', trimmed);
+    setShowProviderPicker(false);
     onClose();
   };
 
@@ -149,7 +166,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           </button>
         </div>
 
-        {isConnected ? (
+        {isConnected && !showProviderPicker ? (
           /* Connected Account State */
           <div className="mt-5 space-y-4">
             <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex flex-col gap-3">
@@ -192,7 +209,26 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
               </div>
             </div>
 
-            <div className="flex gap-3">
+            {/* Quick Actions to Switch or Test Clean 0-Slate Wallet */}
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={handleConnectFreshWallet}
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#38e8f8]/20 hover:from-[#00F0FF]/30 hover:to-[#38e8f8]/30 border border-[#00F0FF]/40 text-[#00F0FF] font-headline font-bold text-xs flex items-center justify-center gap-2 transition-all"
+              >
+                <span className="material-symbols-outlined text-[17px]">restart_alt</span>
+                <span>Switch to New Clean Wallet (0 Nodes / Blank Slate)</span>
+              </button>
+
+              <button
+                onClick={() => setShowProviderPicker(true)}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-white hover:text-[#00F0FF] font-headline font-semibold text-xs flex items-center justify-center gap-2 transition-all"
+              >
+                <span className="material-symbols-outlined text-[17px]">swap_horiz</span>
+                <span>Connect Different Web3 Provider / Custom Address</span>
+              </button>
+            </div>
+
+            <div className="flex gap-3 pt-1 border-t border-[#1c2b3b]/60">
               <a
                 href={`https://bscscan.com/address/${address}`}
                 target="_blank"
@@ -216,6 +252,15 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         ) : (
           /* Select Provider State */
           <div className="mt-4 space-y-3">
+            {showProviderPicker && isConnected && (
+              <button
+                onClick={() => setShowProviderPicker(false)}
+                className="text-xs text-[#94a3b8] hover:text-white flex items-center gap-1 mb-2 font-mono"
+              >
+                <span className="material-symbols-outlined text-[15px]">arrow_back</span>
+                <span>Back to Connected Wallet</span>
+              </button>
+            )}
             <div className="p-3 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-xs text-[#00F0FF] flex items-start gap-2">
               <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">verified_user</span>
               <span>

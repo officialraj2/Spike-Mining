@@ -137,12 +137,34 @@ export default function App() {
     }
   };
 
+  // Listen to Web3 provider accountsChanged event for auto-switching
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      (window as unknown as { ethereum?: { on: (event: string, cb: (acc: string[]) => void) => void; removeListener: (event: string, cb: (acc: string[]) => void) => void } }).ethereum
+    ) {
+      const eth = (window as unknown as { ethereum: { on: (event: string, cb: (acc: string[]) => void) => void; removeListener: (event: string, cb: (acc: string[]) => void) => void } }).ethereum;
+      const handleAccountsChanged = (accs: string[]) => {
+        if (accs && accs.length > 0) {
+          handleConnectWallet('MetaMask', accs[0]);
+        } else {
+          handleDisconnectWallet();
+        }
+      };
+      eth.on('accountsChanged', handleAccountsChanged);
+      return () => {
+        eth.removeListener('accountsChanged', handleAccountsChanged);
+      };
+    }
+  }, []);
+
   // Sync state with persistent backend database on start (Non-blocking background refresh)
   useEffect(() => {
     if (!walletAddress) {
       setNodes([]);
       setRewards([]);
       setWalletBalance(0);
+      setWalletBNB(0.005);
       setDailyEarnings(0);
       setReferralStats({
         directPartners: 0,
@@ -154,6 +176,11 @@ export default function App() {
       return;
     }
 
+    // Immediately ensure clean initial baseline for the address while fetching
+    setNodes([]);
+    setRewards([]);
+    setDailyEarnings(0);
+
     fetch(`/api/user/${walletAddress}`)
       .then((res) => {
         if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
@@ -163,17 +190,20 @@ export default function App() {
       })
       .then((data) => {
         if (data && data.user) {
-          if (typeof data.user.balanceUsdt === 'number') {
-            setWalletBalance(data.user.balanceUsdt);
-            try { localStorage.setItem('spike_balance_usdt', String(data.user.balanceUsdt)); } catch {}
-          }
-          if (typeof data.user.balanceBnb === 'number') {
-            setWalletBNB(data.user.balanceBnb);
-            try { localStorage.setItem('spike_balance_bnb', String(data.user.balanceBnb)); } catch {}
-          }
+          const uBal = typeof data.user.balanceUsdt === 'number' ? data.user.balanceUsdt : 0;
+          const bBal = typeof data.user.balanceBnb === 'number' ? data.user.balanceBnb : 0.005;
+          setWalletBalance(uBal);
+          setWalletBNB(bBal);
+          try {
+            localStorage.setItem('spike_balance_usdt', String(uBal));
+            localStorage.setItem('spike_balance_bnb', String(bBal));
+          } catch {}
+        } else {
+          setWalletBalance(0);
+          setWalletBNB(0.005);
         }
         // Set nodes array (for a new wallet this is [] 0 nodes!)
-        if (data && Array.isArray(data.nodes)) {
+        if (data && Array.isArray(data.nodes) && data.nodes.length > 0) {
           setNodes(data.nodes);
           const activeMining = data.nodes.filter((n: MiningNode) => n.status === 'mining');
           const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
@@ -183,18 +213,40 @@ export default function App() {
           setDailyEarnings(0);
         }
         // Set rewards transactions
-        if (data && Array.isArray(data.transactions)) {
-          setRewards(data.transactions);
+        if (data && Array.isArray(data.transactions) && data.transactions.length > 0) {
+          const mappedTxs: RewardTransaction[] = data.transactions.map((t: any) => ({
+            id: t.id,
+            txHash: t.txHash,
+            rewardSource: t.details || t.rewardSource || 'Mining Payout',
+            amount: t.amount,
+            currency: t.currency || 'USDT',
+            timestamp: t.timestamp || 'Recent',
+            status: t.status === 'Rejected' ? 'Pending' : (t.status || 'Confirmed'),
+            epoch: t.blockNumber,
+          }));
+          setRewards(mappedTxs);
         } else {
           setRewards([]);
         }
         // Set real referral stats
         if (data && data.referralStats) {
           setReferralStats(data.referralStats);
+        } else {
+          setReferralStats({
+            directPartners: 0,
+            downlinePartners: 0,
+            totalPartners: 0,
+            totalCommissions: 0,
+            referrals: [],
+          });
         }
       })
       .catch((err) => {
         console.warn('[App] Backend DB sync note:', err);
+        setNodes([]);
+        setRewards([]);
+        setWalletBalance(0);
+        setDailyEarnings(0);
       });
   }, [walletAddress]);
 
@@ -233,6 +285,32 @@ export default function App() {
   // Testnet & QA Controls
   const handleTopUpUsdt = (amt: number) => {
     setWalletBalance((prev) => +(prev + amt).toFixed(2));
+    if (walletAddress) {
+      fetch('/api/faucet/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userAddress: walletAddress, amount: amt }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.user && typeof data.user.balanceUsdt === 'number') {
+            setWalletBalance(data.user.balanceUsdt);
+          }
+          if (data && data.transaction) {
+            const mappedTx: RewardTransaction = {
+              id: data.transaction.id,
+              txHash: data.transaction.txHash,
+              rewardSource: data.transaction.details || 'Testnet Faucet USDT Grant',
+              amount: data.transaction.amount,
+              currency: data.transaction.currency || 'USDT',
+              timestamp: 'Just now',
+              status: 'Confirmed',
+            };
+            setRewards((prev) => [mappedTx, ...prev]);
+          }
+        })
+        .catch(() => {});
+    }
     addToast('Faucet Claimed', `+${amt.toFixed(2)} Test USDT credited for testing.`, 'success');
   };
 
@@ -538,6 +616,20 @@ export default function App() {
       finalAddress = addr;
     }
 
+    // Immediately reset in-memory data to pure 0-slate before loading new wallet state
+    setNodes([]);
+    setRewards([]);
+    setWalletBalance(0);
+    setWalletBNB(0.005);
+    setDailyEarnings(0);
+    setReferralStats({
+      directPartners: 0,
+      downlinePartners: 0,
+      totalPartners: 0,
+      totalCommissions: 0,
+      referrals: [],
+    });
+
     setIsWalletConnected(true);
     setWalletAddress(finalAddress);
     setActiveTab('dashboard');
@@ -717,6 +809,9 @@ export default function App() {
             onNotify={addToast}
             onNavigateTab={handleTabChange}
             isAdmin={isAdmin}
+            network={network}
+            onNetworkChange={setNetwork}
+            onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
             onUnlockAdmin={() => {
               setIsAdminUnlocked(true);
               try {

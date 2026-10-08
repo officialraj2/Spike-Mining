@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
-import { SPIKE_LOGO_URL, SPIKE_TOKEN_METRICS, REFERRAL_TIERS } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { SPIKE_LOGO_URL, SPIKE_TOKEN_METRICS } from '../../data/mockData';
 import { TabType } from '../../types';
-import { TeamRewardMilestonesSection } from '../TeamRewardMilestonesSection';
+
+const HERO_PHRASES = [
+  'Decentralized Technology',
+  'Autonomous Mining Nodes',
+  'Stratum 10X Hardware',
+  'High-Yield BSC Infrastructure',
+];
 
 interface HomeViewProps {
   onNavigate: (tab: TabType) => void;
@@ -20,25 +26,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onNavigate,
   onConnectWallet,
   isWalletConnected,
-  walletBalance,
+  walletBalance: _walletBalance,
   totalHashrate,
   onOpenAuditModal,
   onOpenDeployModal,
-  walletAddress = '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-  onCopyText,
-  onClaimReferralRewards,
+  walletAddress: _walletAddress = '',
+  onCopyText: _onCopyText,
+  onClaimReferralRewards: _onClaimReferralRewards,
 }) => {
-  // Referral State
-  const shortAddr = (walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2').slice(2, 8).toUpperCase();
-  const refCode = `SPIKE-${shortAddr}`;
-  const baseDomain = typeof window !== 'undefined' && window.location.origin.includes('spikenodes.com')
-    ? window.location.origin
-    : 'https://spikenodes.com';
-  const refLink = `${baseDomain}/ref/${shortAddr}`;
-  const [refCopied, setRefCopied] = useState(false);
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [claimSuccess, setClaimSuccess] = useState(false);
-  const claimableReferralUsdt = 38.40;
   // Calculator state (starts at 0.30 TH/s which corresponds to the $15 starter activation package)
   const [calcHashrate, setCalcHashrate] = useState<number>(0.30);
   const [activationTier, setActivationTier] = useState<number>(15);
@@ -65,6 +60,40 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setCalcHashrate(ths);
   };
 
+  // Dynamic Letter-by-Letter Typewriter Animation for Hero Headline
+  const [typedText, setTypedText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [phraseIdx, setPhraseIdx] = useState(0);
+
+  useEffect(() => {
+    const currentPhrase = HERO_PHRASES[phraseIdx];
+    let timeout: NodeJS.Timeout;
+
+    if (!isDeleting && typedText === currentPhrase) {
+      // Crisp, punchy hold at full phrase before quick transition
+      timeout = setTimeout(() => {
+        setIsDeleting(true);
+      }, 850);
+    } else if (isDeleting && typedText === '') {
+      // Swift transition to the next phrase
+      setIsDeleting(false);
+      setPhraseIdx((prev) => (prev + 1) % HERO_PHRASES.length);
+      timeout = setTimeout(() => {}, 80);
+    } else {
+      // Ultra-crisp, constant fast cadence (no random pauses or sluggish mid-text lag)
+      const speed = isDeleting ? 12 : 22;
+      timeout = setTimeout(() => {
+        setTypedText(
+          isDeleting
+            ? currentPhrase.substring(0, typedText.length - 1)
+            : currentPhrase.substring(0, typedText.length + 1)
+        );
+      }, speed);
+    }
+
+    return () => clearTimeout(timeout);
+  }, [typedText, isDeleting, phraseIdx]);
+
   return (
     <div className="flex flex-col w-full space-y-12 md:space-y-16 pb-12">
       {/* =========================================================
@@ -80,24 +109,45 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#00F0FF]/5 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
           {/* Hero Left Content */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="lg:col-span-7 space-y-6 sm:space-y-7">
             {/* HUD / System Labels from Official Whitepaper */}
-            <div className="inline-flex flex-wrap items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#122130] border border-[#00F0FF]/40 text-xs font-mono text-[#00F0FF] shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse"></span>
-              <span className="font-semibold tracking-wide">STATOR</span>
-              <span className="text-[#94a3b8]">|</span>
-              <span className="text-[#D4AF37] font-semibold">Gear 7-38 270</span>
-              <span className="text-[#94a3b8]">|</span>
-              <span className="text-[#7df4ff]">SPIKE BEP-20 / BNB Smart Chain</span>
+            <div className="inline-flex max-w-full flex-wrap items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl sm:rounded-full bg-[#122130]/95 border border-[#00F0FF]/50 text-xs sm:text-xs font-mono text-[#00F0FF] shadow-[0_0_15px_rgba(0,240,255,0.18)]">
+              <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse shrink-0"></span>
+              <span className="font-bold tracking-wide shrink-0 text-white">STATOR</span>
+              <span className="text-[#94a3b8]/70 shrink-0">|</span>
+              <span className="text-[#D4AF37] font-semibold shrink-0">Gear 7-38 270</span>
+              <span className="text-[#94a3b8]/70 shrink-0">|</span>
+              <span className="text-[#7df4ff] shrink-0 font-medium">
+                SPIKE BEP-20 · BNB Smart Chain
+              </span>
             </div>
 
-            {/* Main Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-5xl font-extrabold font-headline text-white leading-[1.14] tracking-tight">
-              Building the Next Generation of{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] via-[#7df4ff] to-[#D4AF37] drop-shadow-[0_2px_15px_rgba(0,240,255,0.3)]">
-                Decentralized Technology
+            {/* Main Headline with Text-by-Text Cinematic Animation */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black font-headline text-white leading-[1.14] sm:leading-[1.12] tracking-tight min-h-[3.6em] sm:min-h-[2.4em] break-words">
+              <span className="inline">
+                {"Building the Next Generation of".split(" ").map((word, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-block mr-1.5 sm:mr-3 transition-all"
+                    style={{
+                      animation: `fadeInUpWord 0.45s cubic-bezier(0.16, 1, 0.3, 1) both`,
+                      animationDelay: `${idx * 0.06}s`,
+                    }}
+                  >
+                    {word}
+                  </span>
+                ))}
+              </span>{' '}
+              <span className="inline-block relative">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F0FF] via-[#7df4ff] to-[#D4AF37] drop-shadow-[0_2px_22px_rgba(0,240,255,0.45)]">
+                  {typedText}
+                </span>
+                <span
+                  className="inline-block w-[3.5px] sm:w-[5px] h-[0.9em] ml-1 bg-gradient-to-b from-[#00F0FF] via-[#7df4ff] to-[#D4AF37] rounded-full shadow-[0_0_14px_#00F0FF,0_0_22px_rgba(212,175,55,0.65)] animate-cursor-pulse align-baseline"
+                  aria-hidden="true"
+                />
               </span>
             </h1>
 
@@ -953,311 +1003,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          SECTION: BUILD THE TEAM. UNLOCK THE REWARD.
-          FULL REFERRAL & AFFILIATE ARCHITECTURE INTEGRATION
-         ========================================================= */}
-      <section id="referrals-home" className="p-6 md:p-8 rounded-3xl bg-[#122130] border border-[#1c2b3b] shadow-2xl space-y-6 scroll-mt-24">
-        {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-[#00F0FF]">
-                Team-Based Reward Program
-              </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
-                2-Tier Lifetime Payout
-              </span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-white tracking-tight mt-1">
-              Build the Team. Unlock the Reward.
-            </h2>
-            <p className="text-xs sm:text-sm text-[#94a3b8] mt-1 max-w-2xl">
-              Grow your network. Reach team milestones. Unlock higher rewards with our continuous 2-tier decentralized affiliate structure.
-            </p>
-          </div>
-
-          <button
-            onClick={() => {
-              if (!isWalletConnected) {
-                onConnectWallet();
-              } else {
-                setClaimSuccess(true);
-                onClaimReferralRewards?.(claimableReferralUsdt);
-                setTimeout(() => setClaimSuccess(false), 3000);
-              }
-            }}
-            className="bg-[#D4AF37] hover:bg-[#ffe088] text-[#0A0F1D] font-headline font-bold text-xs px-5 py-3 rounded-xl transition-all flex items-center gap-2 self-start md:self-auto shadow-[0_0_18px_rgba(212,175,55,0.35)] hover:scale-102 tracking-wide shrink-0"
-          >
-            <span className="material-symbols-outlined text-[18px]">payments</span>
-            <span>
-              {claimSuccess
-                ? 'Claimed Successfully!'
-                : `Claim Referral Bonus (+${claimableReferralUsdt.toFixed(2)} USDT)`}
-            </span>
-          </button>
-        </div>
-
-        {/* ============================================================
-            STEP 0: SBSE TOP ME -> REFERRAL LINK & REFERRAL CODE BOX
-           ============================================================ */}
-        <div className="bg-[#0c1d2e] rounded-2xl p-5 md:p-6 border border-[#00F0FF]/40 shadow-[0_0_20px_rgba(0,240,255,0.12)]">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-5">
-            {/* Referral Link */}
-            <div className="flex-1 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-[#00F0FF] font-mono font-bold uppercase tracking-[0.14em] flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[15px]">link</span>
-                  <span>Your Unique Referral Link</span>
-                </span>
-                <span className="text-[10px] font-mono text-[#94a3b8]">
-                  {isWalletConnected ? 'Linked to your wallet' : 'Starter Link (Connect wallet to personalize)'}
-                </span>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-[#051424] border border-[#1c2b3b] rounded-xl p-2 sm:p-2.5">
-                <span className="material-symbols-outlined text-[#00F0FF] text-[20px] ml-1 hidden sm:inline">share</span>
-                <input
-                  type="text"
-                  readOnly
-                  value={refLink}
-                  className="bg-transparent text-white font-mono text-xs sm:text-sm px-2 py-1 flex-1 tracking-tight select-all focus:outline-none truncate"
-                />
-                <button
-                  onClick={() => {
-                    if (onCopyText) onCopyText(refLink);
-                    setRefCopied(true);
-                    setTimeout(() => setRefCopied(false), 2000);
-                  }}
-                  className="px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center justify-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_12px_rgba(0,240,255,0.35)]"
-                >
-                  <span className="material-symbols-outlined text-[16px]">
-                    {refCopied ? 'check' : 'content_copy'}
-                  </span>
-                  <span>{refCopied ? 'Copied!' : 'Copy Link'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Referral Code & Social Sharing */}
-            <div className="lg:w-80 p-4 rounded-xl bg-[#051424] border border-[#1c2b3b] flex flex-col justify-between space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-[0.12em]">Referral Code</div>
-                  <div className="text-lg font-bold font-mono text-[#D4AF37] mt-0.5 tracking-wider">{refCode}</div>
-                </div>
-                <button
-                  onClick={() => {
-                    if (onCopyText) onCopyText(refCode);
-                    setCodeCopied(true);
-                    setTimeout(() => setCodeCopied(false), 2000);
-                  }}
-                  className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1"
-                  title="Copy Referral Code"
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    {codeCopied ? 'check' : 'content_copy'}
-                  </span>
-                  <span className="text-[11px] font-mono">{codeCopied ? 'Copied' : 'Code'}</span>
-                </button>
-              </div>
-
-              {/* Quick Social Share Buttons */}
-              <div className="flex items-center gap-2 pt-2 border-t border-[#1c2b3b]/70">
-                <span className="text-[10px] font-mono text-[#94a3b8]">Share:</span>
-                <a
-                  href={`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join SPIKE Nodes Decentralized Cloud Mining on spikenodes.com! Activate nodes from $15 & earn USDT daily:')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2 py-1 rounded bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-[10px] font-mono flex items-center gap-1"
-                >
-                  Telegram
-                </a>
-                <a
-                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Join SPIKE Mining Protocol on spikenodes.com: ${refLink}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2 py-1 rounded bg-[#1c2b3b] hover:bg-[#273647] text-emerald-400 text-[10px] font-mono flex items-center gap-1"
-                >
-                  WhatsApp
-                </a>
-                <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Building next gen decentralized cloud mining with @spikenodes (spikenodes.com). Join my team: ${refLink}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2 py-1 rounded bg-[#1c2b3b] hover:bg-[#273647] text-white text-[10px] font-mono flex items-center gap-1"
-                >
-                  Twitter (X)
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ============================================================
-            STEP 1: 4 KEY SUMMARY STAT BOXES
-           ============================================================ */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#94a3b8]">
-            Step 1 · Network Performance &amp; Earnings
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-[#0c1d2e] rounded-xl p-5 border border-[#1c2b3b] hover:border-[#00F0FF]/40 transition-all shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Total Referrals</span>
-                <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">group</span>
-              </div>
-              <div className="text-3xl font-extrabold font-headline text-white mt-2 tabular-nums tracking-tight">28</div>
-              <div className="text-xs text-[#7df4ff] font-mono mt-1 font-medium">Across 2 tiers globally</div>
-            </div>
-
-            <div className="bg-[#0c1d2e] rounded-xl p-5 border border-[#1c2b3b] hover:border-[#00F0FF]/40 transition-all shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Active Miners</span>
-                <span className="material-symbols-outlined text-emerald-400 text-[18px]">dns</span>
-              </div>
-              <div className="text-3xl font-extrabold font-headline text-[#00F0FF] mt-2 tabular-nums tracking-tight">19</div>
-              <div className="text-xs text-[#94a3b8] font-mono mt-1">67.8% miner conversion rate</div>
-            </div>
-
-            <div className="bg-[#0c1d2e] rounded-xl p-5 border border-[#1c2b3b] hover:border-[#D4AF37]/40 transition-all shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Total Earned</span>
-                <span className="material-symbols-outlined text-[#D4AF37] text-[18px]">payments</span>
-              </div>
-              <div className="text-3xl font-extrabold font-headline text-[#D4AF37] mt-2 tabular-nums tracking-tight">
-                +428.50 <span className="text-sm text-white font-semibold">USDT</span>
-              </div>
-              <div className="text-xs text-[#D4AF37] font-mono mt-1 font-medium">Direct wallet settlements</div>
-            </div>
-
-            <div className="bg-[#0c1d2e] rounded-xl p-5 border border-[#1c2b3b] hover:border-emerald-500/40 transition-all shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Hashrate Boost</span>
-                <span className="material-symbols-outlined text-emerald-400 text-[18px]">bolt</span>
-              </div>
-              <div className="text-3xl font-extrabold font-headline text-white mt-2 tabular-nums tracking-tight">
-                +5.8% <span className="text-sm text-[#00F0FF] font-semibold">TH/s</span>
-              </div>
-              <div className="text-xs text-emerald-400 font-mono mt-1 font-medium">Team validator perk</div>
-            </div>
-          </div>
-        </div>
-
-        {/* ============================================================
-            STEP 2: 2 TIER DETAILED BREAKDOWN BOXES
-           ============================================================ */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#94a3b8]">
-            Step 2 · 2-Tier Commission Distribution Structure
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {REFERRAL_TIERS.map((tier) => (
-              <div
-                key={tier.tier}
-                className="bg-[#0c1d2e] rounded-2xl p-6 border border-[#1c2b3b] shadow-md hover:border-[#00F0FF]/30 transition-all"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-[#00F0FF]/15 text-[#00F0FF] flex items-center justify-center font-headline font-extrabold text-lg border border-[#00F0FF]/30 shadow-sm">
-                      T{tier.tier}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-base font-headline text-white">
-                        {tier.tier === 1 ? 'Tier 1 Direct Network' : 'Tier 2 Secondary Network'}
-                      </h3>
-                      <div className="text-xs text-[#94a3b8]">
-                        {tier.tier === 1
-                          ? 'Direct invites registered through your referral link'
-                          : 'Sub-referrals invited by your direct network'}
-                      </div>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
-                    {tier.percentage}% Lifetime Payout
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center text-xs">
-                  <div>
-                    <div className="text-[#94a3b8]">Total Members</div>
-                    <div className="text-lg font-bold font-mono text-white mt-0.5">{tier.totalMembers}</div>
-                  </div>
-                  <div>
-                    <div className="text-[#94a3b8]">Active Rigs</div>
-                    <div className="text-lg font-bold font-mono text-[#00F0FF] mt-0.5">{tier.activeMiners}</div>
-                  </div>
-                  <div>
-                    <div className="text-[#94a3b8]">Total Earned</div>
-                    <div className="text-lg font-bold font-mono text-[#D4AF37] mt-0.5">
-                      +{tier.earningsUsdt.toFixed(2)} USDT
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ============================================================
-            STEP 3: HOW IT WORKS IN 3 STEPS (STEP BY STEP BOXES)
-           ============================================================ */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-mono uppercase tracking-[0.14em] text-[#94a3b8]">
-            Step 3 · How To Earn Step-By-Step
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] relative overflow-hidden">
-              <div className="text-3xl font-extrabold font-headline text-[#00F0FF]/30 absolute top-3 right-4">01</div>
-              <div className="text-xs font-mono text-[#00F0FF] font-bold">STEP 01</div>
-              <div className="text-base font-bold font-headline text-white mt-1">Share Your Unique Link</div>
-              <p className="text-xs text-[#94a3b8] mt-2 leading-relaxed">
-                Copy your customized invitation link from the top and share it across Telegram groups, Twitter/X, Discord, or with fellow crypto miners.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] relative overflow-hidden">
-              <div className="text-3xl font-extrabold font-headline text-[#D4AF37]/30 absolute top-3 right-4">02</div>
-              <div className="text-xs font-mono text-[#D4AF37] font-bold">STEP 02</div>
-              <div className="text-base font-bold font-headline text-white mt-1">Friends Activate Miners</div>
-              <p className="text-xs text-[#94a3b8] mt-2 leading-relaxed">
-                When any user joins through your link and activates a cloud mining rig (starting from just the $15 starter tier), they join your permanent team.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-emerald-500/30 relative overflow-hidden">
-              <div className="text-3xl font-extrabold font-headline text-emerald-500/30 absolute top-3 right-4">03</div>
-              <div className="text-xs font-mono text-emerald-400 font-bold">STEP 03</div>
-              <div className="text-base font-bold font-headline text-white mt-1">Instant USDT Settlements</div>
-              <p className="text-xs text-[#94a3b8] mt-2 leading-relaxed">
-                Earn 10% direct + 5% secondary overrides instantly credited to your non-custodial wallet with zero withdrawal lockups or delays.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ============================================================
-            OFFICIAL TEAM-BASED MILESTONE REWARD PROGRAM (MATCHING DEMO FILE)
-           ============================================================ */}
-        <div className="pt-2">
-          <TeamRewardMilestonesSection
-            directPartners={12}
-            downlinePartners={16}
-            onClaimReward={(amt) => {
-              if (!isWalletConnected) {
-                onConnectWallet();
-              } else {
-                onClaimReferralRewards?.(amt);
-              }
-            }}
-            walletAddress={walletAddress}
-          />
         </div>
       </section>
 

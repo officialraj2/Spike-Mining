@@ -42,9 +42,9 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
     .filter((n) => n.status === 'mining')
     .reduce((acc, curr) => acc + curr.powerUsage, 0);
 
-  const avgTemp = Math.round(
-    nodes.reduce((acc, curr) => acc + curr.temperature, 0) / (nodes.length || 1)
-  );
+  const avgTemp = nodes.length > 0
+    ? Math.round(nodes.reduce((acc, curr) => acc + curr.temperature, 0) / nodes.length)
+    : 0;
 
   return (
     <div className="flex flex-col w-full space-y-6 md:space-y-8 pb-12">
@@ -59,28 +59,6 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          {onResetToFreshUser && (
-            <button
-              onClick={onResetToFreshUser}
-              className="bg-[#122130] hover:bg-[#1c2b3b] text-amber-300 hover:text-white border border-amber-500/40 font-headline font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
-              title="Click here to reset account to 0 nodes and 100 USDT to test fresh purchase deduction"
-            >
-              <span className="material-symbols-outlined text-[17px] text-amber-400">restart_alt</span>
-              <span>Reset to Fresh User</span>
-            </button>
-          )}
-
-          {onOpenTestnetModal && (
-            <button
-              onClick={onOpenTestnetModal}
-              className="bg-[#122130] hover:bg-[#1c2b3b] text-[#D4AF37] hover:text-[#ffe088] border border-[#D4AF37]/40 font-headline font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
-              title="Open Faucet, Balance Top-up & Blockchain Testing Studio"
-            >
-              <span className="material-symbols-outlined text-[17px] text-[#00F0FF]">science</span>
-              <span>Testnet Faucet</span>
-            </button>
-          )}
-
           <button
             onClick={onOpenDeployModal}
             className="bg-[#00F0FF] text-[#0A0F1D] hover:bg-[#7df4ff] font-headline font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-[0_0_18px_rgba(0,240,255,0.3)] tracking-wide active:scale-95"
@@ -123,9 +101,11 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           <div>
             <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Average Temp</div>
             <div className="text-2xl lg:text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
-              {avgTemp}°C
+              {nodes.length > 0 ? `${avgTemp}°C` : '-- °C'}
             </div>
-            <div className="text-[11px] text-emerald-400 font-mono mt-0.5">Hydro Cooling Nominal</div>
+            <div className="text-[11px] text-emerald-400 font-mono mt-0.5">
+              {nodes.length > 0 ? 'Hydro Cooling Nominal' : 'Standby / 0 Nodes'}
+            </div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
             <span className="material-symbols-outlined text-[22px]">thermostat</span>

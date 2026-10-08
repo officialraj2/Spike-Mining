@@ -147,12 +147,29 @@ app.get('/api/admin/users', (req: Request, res: Response) => {
 app.post('/api/admin/users/:address/adjust-balance', (req: Request, res: Response) => {
   const { address } = req.params;
   const { usdtDelta = 0, bnbDelta = 0, reason = 'Admin adjustment', adminUser = 'Admin Portal' } = req.body;
+  let user = db.getUser(address);
+  if (!user) {
+    user = db.upsertUser({ address });
+  }
   const updated = db.adjustUserBalance(address, Number(usdtDelta), Number(bnbDelta), reason, adminUser);
-  if (!updated) {
-    res.status(404).json({ error: 'User not found in database' });
+  res.json({ success: true, user: updated });
+});
+
+app.post('/api/admin/faucet/credit', (req: Request, res: Response) => {
+  const { walletAddress, amount = 100, bnbAmount = 0.05, note = 'Admin Faucet Credit' } = req.body;
+  const addr = (walletAddress || '').trim();
+  if (!addr || !addr.startsWith('0x') || addr.length < 10) {
+    res.status(400).json({ error: 'Valid BEP-20 wallet address (starting with 0x) is required' });
     return;
   }
-  res.json({ success: true, user: updated });
+  let user = db.getUser(addr);
+  if (!user) {
+    user = db.upsertUser({ address: addr });
+  }
+  const amt = Number(amount) || 100;
+  const bnbAmt = Number(bnbAmount) || 0;
+  const updated = db.adjustUserBalance(addr, amt, bnbAmt, note, 'Admin Testnet Faucet');
+  res.json({ success: true, user: updated, creditedUsdt: amt, creditedBnb: bnbAmt });
 });
 
 app.post('/api/admin/users/:address/status', (req: Request, res: Response) => {

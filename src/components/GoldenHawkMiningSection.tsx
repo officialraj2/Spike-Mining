@@ -31,23 +31,34 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     : (totalHashrate > 0);
 
   const [isStriking, setIsStriking] = useState<boolean>(false);
-  const [accumulatedSpike, setAccumulatedSpike] = useState<number>(0.284);
-  const [accumulatedUsdt, setAccumulatedUsdt] = useState<number>(0.284 * 1.0);
+  const [accumulatedSpike, setAccumulatedSpike] = useState<number>(0);
+  const [accumulatedUsdt, setAccumulatedUsdt] = useState<number>(0);
   const [currentBlock, setCurrentBlock] = useState<number>(38192842);
-  const [sharesCount, setSharesCount] = useState<number>(48295);
-  const [lastBlockTime, setLastBlockTime] = useState<string>('Just now');
+  const [sharesCount, setSharesCount] = useState<number>(0);
+  const [lastBlockTime, setLastBlockTime] = useState<string>('Standby');
   const [claimedNotice, setClaimedNotice] = useState<boolean>(false);
   const [strikeNotice, setStrikeNotice] = useState<string | null>(null);
 
-  // Effective Hashrate with fixed 10x Turbo speed
-  const effectiveHashrate = isMining ? (totalHashrate || 1.28) * 10 : 0;
+  // Effective Hashrate with fixed 10x Turbo speed (0 TH/s if no active nodes)
+  const effectiveHashrate = isMining && totalHashrate > 0 ? totalHashrate * 10 : 0;
 
   // Real-time mining ticker: accumulates tokens every 1.2 seconds when mining node is active
   useEffect(() => {
-    if (!isMining) return;
+    if (!isMining || totalHashrate <= 0) {
+      setAccumulatedSpike(0);
+      setAccumulatedUsdt(0);
+      setSharesCount(0);
+      setLastBlockTime('Standby');
+      return;
+    }
+
+    // Set initial active shares when first activated
+    setSharesCount((prev) => (prev === 0 ? 124 : prev));
+    setLastBlockTime('Just now');
 
     const interval = setInterval(() => {
-      const increment = 0.0052; // Fixed 10x Turbo yield
+      // Yield proportional to actual hashrate
+      const increment = +(0.0052 * (totalHashrate / 1.28 || 1)).toFixed(5);
       setAccumulatedSpike((prev) => +(prev + increment).toFixed(5));
       setAccumulatedUsdt((prev) => +((prev + increment) * 1.0).toFixed(4));
 
@@ -65,7 +76,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }, 1200);
 
     return () => clearInterval(interval);
-  }, [isMining]);
+  }, [isMining, totalHashrate]);
 
   // Trigger high-velocity power strike into the coin
   const handleStrikeBlock = () => {

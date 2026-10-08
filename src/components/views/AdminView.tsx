@@ -13,6 +13,9 @@ interface AdminViewProps {
   onNavigateTab: (tab: 'dashboard' | 'mining-nodes' | 'referrals' | 'home') => void;
   isAdmin?: boolean;
   onUnlockAdmin?: () => void;
+  network?: string;
+  onNetworkChange?: (net: string) => void;
+  onOpenTestnetModal?: () => void;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({
@@ -20,9 +23,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
   onNavigateTab,
   isAdmin = false,
   onUnlockAdmin,
+  network = 'BSC Testnet',
+  onNetworkChange,
+  onOpenTestnetModal,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<
-    'overview' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
+    'overview' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
   >('overview');
 
   // Security gate passcode state
@@ -49,6 +55,19 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [adjustType, setAdjustType] = useState<'credit' | 'debit'>('credit');
   const [adjustReason, setAdjustReason] = useState<string>('Operational liquidity top-up');
   const [syncingFirebase, setSyncingFirebase] = useState<boolean>(false);
+
+  // Dedicated Admin Testnet Faucet & Wallet Credit Console State
+  const [faucetAddress, setFaucetAddress] = useState('');
+  const [faucetAmount, setFaucetAmount] = useState<number>(100);
+  const [faucetBnb, setFaucetBnb] = useState<number>(0.05);
+  const [faucetNote, setFaucetNote] = useState('Admin Testnet Faucet Node Activation Grant');
+  const [isCreditingFaucet, setIsCreditingFaucet] = useState(false);
+  const [faucetSuccessMsg, setFaucetSuccessMsg] = useState<{
+    address: string;
+    creditedUsdt: number;
+    creditedBnb: number;
+    newBalance: number;
+  } | null>(null);
 
   // Settings form state
   const [settingsForm, setSettingsForm] = useState<Partial<AdminSettings>>({});
@@ -135,6 +154,56 @@ export const AdminView: React.FC<AdminViewProps> = ({
       }
     } catch {
       onNotify?.('Network Error', 'Could not reach backend database', 'error');
+    }
+  };
+
+  // Dedicated handler for the Admin Testnet Faucet & Wallet Credit Console
+  const handleExecuteAdminFaucet = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const addr = faucetAddress.trim();
+    if (!addr.startsWith('0x') || addr.length < 10) {
+      onNotify?.('Invalid Address', 'Please paste a valid BEP-20 wallet address starting with 0x.', 'warning');
+      return;
+    }
+    if (faucetAmount <= 0) {
+      onNotify?.('Invalid Amount', 'Please enter a positive USDT credit amount.', 'warning');
+      return;
+    }
+
+    setIsCreditingFaucet(true);
+    setFaucetSuccessMsg(null);
+    try {
+      const res = await fetch('/api/admin/faucet/credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: addr,
+          amount: faucetAmount,
+          bnbAmount: faucetBnb,
+          note: faucetNote,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFaucetSuccessMsg({
+          address: addr,
+          creditedUsdt: data.creditedUsdt || faucetAmount,
+          creditedBnb: data.creditedBnb || faucetBnb,
+          newBalance: data.user?.balanceUsdt || 0,
+        });
+        onNotify?.(
+          'USDT Credited Successfully',
+          `+${faucetAmount} USDT credited to ${addr.slice(0, 6)}...${addr.slice(-4)}. New Balance: ${data.user?.balanceUsdt} USDT.`,
+          'success'
+        );
+        fetchAllData(true);
+      } else {
+        onNotify?.('Credit Failed', data.error || 'Server error while funding wallet.', 'error');
+      }
+    } catch (err: any) {
+      onNotify?.('Network Error', err?.message || 'Could not connect to backend.', 'error');
+    } finally {
+      setIsCreditingFaucet(false);
     }
   };
 
@@ -520,6 +589,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       <div className="flex items-center gap-2 overflow-x-auto border-b border-[#1c2b3b] pb-2 scrollbar-none">
         {[
           { id: 'overview', label: 'Dashboard Overview', icon: 'dashboard' },
+          { id: 'faucet', label: 'Testnet Faucet & Wallet Credit', icon: 'science', badge: 'FAUCET' },
           { id: 'domain', label: 'Domain & Sublinks (spikenodes.com)', icon: 'language', badge: 'PRO' },
           { id: 'users', label: 'User & Wallet Management', icon: 'manage_accounts', count: users.length },
           { id: 'nodes', label: 'Fleet & Rig Controller', icon: 'developer_board', count: nodes.length },
@@ -540,6 +610,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
             >
               <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
               <span>{tab.label}</span>
+              {tab.badge && (
+                <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
+                  {tab.badge}
+                </span>
+              )}
               {tab.count !== undefined && (
                 <span
                   className={`text-[10px] px-2 py-0.2 rounded-full font-mono ${
@@ -571,6 +646,28 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Dedicated Testnet Faucet Quick Card */}
+                <button
+                  onClick={() => setActiveSubTab('faucet')}
+                  className="p-4 rounded-xl bg-gradient-to-r from-[#00F0FF]/15 via-[#122130] to-[#D4AF37]/15 hover:from-[#00F0FF]/25 hover:to-[#D4AF37]/25 border border-[#00F0FF]/40 text-left transition-all group sm:col-span-2 shadow-sm"
+                >
+                  <div className="flex items-center justify-between text-[#00F0FF] mb-2">
+                    <span className="text-sm font-bold flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[20px] text-[#00F0FF]">science</span>
+                      <span>Testnet Faucet: Credit USDT to Any Wallet Address</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/40 font-bold">
+                        DIRECT CREDIT
+                      </span>
+                    </span>
+                    <span className="material-symbols-outlined text-[20px] text-[#00F0FF] group-hover:translate-x-1 transition-transform">
+                      arrow_forward
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#94a3b8] leading-relaxed">
+                    Kisi bhi user ka BEP-20 wallet address paste karke turant temporary testnet USDT aur gas fee BNB credit karein taaki user dApp me jakar node purchase &amp; mining test kar sake.
+                  </p>
+                </button>
+
                 <button
                   onClick={() => setActiveSubTab('users')}
                   className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group"
@@ -762,6 +859,367 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <div className="flex justify-between">
                   <span>Difficulty:</span>
                   <span className="text-white">1,048,576 (Auto VarDiff)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================
+          TAB CONTENT: ADMIN TESTNET FAUCET & WALLET BALANCE CREDIT CONSOLE
+         ============================================================ */}
+      {activeSubTab === 'faucet' && (
+        <div className="space-y-6">
+          {/* Main Faucet Header Card */}
+          <div className="rounded-2xl bg-gradient-to-r from-[#0d1d2c] via-[#0f2438] to-[#0a1827] border-2 border-[#00F0FF]/40 p-6 md:p-8 shadow-[0_0_30px_rgba(0,240,255,0.15)] relative overflow-hidden">
+            <div className="relative z-10 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#00F0FF] text-[#0A0F1D] flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,240,255,0.4)]">
+                  <span className="material-symbols-outlined text-[16px]">science</span>
+                  ADMIN TESTNET FAUCET
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
+                  REAL-TIME DATABASE FUNDING
+                </span>
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-500/40">
+                  Centralized in Admin Panel
+                </span>
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-white tracking-tight">
+                Direct Wallet Balance Injector &amp; Testnet Faucet
+              </h2>
+              <p className="text-xs sm:text-sm text-[#94a3b8] max-w-2xl leading-relaxed">
+                Home page aur Dashboard se testing buttons remove kar diye gaye hain. Jab bhi kisi user ke testnet faucet me temporary USDT dalne hon, aap yahan admin me aakar uska BEP-20 wallet address paste karke turant USDT credit kar sakte hain. Database real-time sync hoga aur user turant node deploy kar sakega.
+              </p>
+
+              {/* Network Switcher & QA Studio Bar (Centralized from Header into Admin) */}
+              <div className="pt-2 flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 bg-[#122130] border border-[#1c2b3b] px-3 py-1.5 rounded-xl text-xs">
+                  <span className="text-[#94a3b8]">Active Chain:</span>
+                  <span className="font-mono text-[#00F0FF] font-bold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse" />
+                    {network}
+                  </span>
+                  {onNetworkChange && (
+                    <div className="flex gap-1 ml-2 pl-2 border-l border-[#1c2b3b]">
+                      <button
+                        type="button"
+                        onClick={() => onNetworkChange('BSC Testnet')}
+                        className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                          network === 'BSC Testnet'
+                            ? 'bg-[#00F0FF] text-black font-bold'
+                            : 'text-[#94a3b8] hover:text-white'
+                        }`}
+                      >
+                        BSC Testnet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNetworkChange('BNB Smart Chain')}
+                        className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                          network === 'BNB Smart Chain'
+                            ? 'bg-[#D4AF37] text-black font-bold'
+                            : 'text-[#94a3b8] hover:text-white'
+                        }`}
+                      >
+                        Mainnet
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {onOpenTestnetModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenTestnetModal}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-headline font-bold bg-[#1c2b3b] hover:bg-[#25384d] text-[#00F0FF] border border-[#00F0FF]/40 transition-all shadow-sm"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">terminal</span>
+                    <span>Open Web3 Testnet &amp; Smart Contract Tools</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Faucet Injector Form (7 cols) */}
+            <div className="lg:col-span-7 bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-6 space-y-5 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-[#1c2b3b]">
+                <div className="flex items-center gap-2 text-white font-bold font-headline text-base">
+                  <span className="material-symbols-outlined text-[#00F0FF]">account_balance_wallet</span>
+                  <span>Fund Recipient Wallet</span>
+                </div>
+                <span className="text-xs text-[#94a3b8] font-mono">BEP-20 (BSC Sublayer)</span>
+              </div>
+
+              <form onSubmit={handleExecuteAdminFaucet} className="space-y-4">
+                {/* Wallet Address Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-headline font-semibold text-white">
+                      Recipient Wallet Address (0x...)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const clip = await navigator.clipboard.readText();
+                            if (clip && clip.startsWith('0x')) {
+                              setFaucetAddress(clip.trim());
+                              onNotify?.('Pasted', 'Wallet address pasted from clipboard', 'info');
+                            } else {
+                              onNotify?.('Clipboard Notice', 'No valid 0x address found in clipboard. Please paste manually.', 'info');
+                            }
+                          } catch {
+                            onNotify?.('Paste Notice', 'Please press Ctrl+V to paste the address.', 'info');
+                          }
+                        }}
+                        className="text-[11px] text-[#00F0FF] hover:underline font-mono flex items-center gap-1 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">content_paste</span>
+                        <span>Paste Address</span>
+                      </button>
+                      {faucetAddress && (
+                        <button
+                          type="button"
+                          onClick={() => setFaucetAddress('')}
+                          className="text-[11px] text-rose-400 hover:underline font-mono cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={faucetAddress}
+                    onChange={(e) => setFaucetAddress(e.target.value)}
+                    placeholder="e.g. 0x8a923bf410de882... (Paste user wallet address here)"
+                    className="w-full bg-[#122130] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-4 py-3 text-white text-xs sm:text-sm font-mono placeholder-[#94a3b8]/50 focus:outline-none focus:ring-1 focus:ring-[#00F0FF] transition-all"
+                  />
+
+                  {/* Quick-Pick Registered Wallets */}
+                  {users.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-wider">
+                        Quick Select Registered Users:
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        {users.slice(0, 8).map((u) => (
+                          <button
+                            key={u.address}
+                            type="button"
+                            onClick={() => setFaucetAddress(u.address)}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-all flex items-center gap-1 border ${
+                              faucetAddress.toLowerCase() === u.address.toLowerCase()
+                                ? 'bg-[#00F0FF]/20 text-[#00F0FF] border-[#00F0FF]/50 font-bold'
+                                : 'bg-[#122130] text-[#94a3b8] hover:text-white border-[#1c2b3b]'
+                            }`}
+                          >
+                            <span>{u.address.slice(0, 6)}...{u.address.slice(-4)}</span>
+                            <span className="text-[#D4AF37]">(${u.balanceUsdt.toFixed(0)})</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Amount USDT Selection */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-headline font-semibold text-white">
+                      USDT Credit Amount
+                    </label>
+                    <span className="text-[11px] text-[#00F0FF] font-mono font-bold">
+                      +{faucetAmount} USDT
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-2">
+                    {[
+                      { amt: 15, label: '+15 (Starter)' },
+                      { amt: 50, label: '+50' },
+                      { amt: 75, label: '+75 (Standard)' },
+                      { amt: 100, label: '+100' },
+                      { amt: 250, label: '+250 (Enterprise)' },
+                      { amt: 500, label: '+500' },
+                    ].map((p) => (
+                      <button
+                        key={p.amt}
+                        type="button"
+                        onClick={() => setFaucetAmount(p.amt)}
+                        className={`py-2 px-1 rounded-xl text-xs font-mono font-semibold transition-all border text-center ${
+                          faucetAmount === p.amt
+                            ? 'bg-[#00F0FF] text-[#0A0F1D] border-[#00F0FF] font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]'
+                            : 'bg-[#122130] text-[#94a3b8] hover:text-white border-[#1c2b3b]'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    value={faucetAmount}
+                    onChange={(e) => setFaucetAmount(Math.max(1, Number(e.target.value)))}
+                    className="w-full bg-[#122130] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-4 py-2.5 text-white text-xs font-mono focus:outline-none"
+                    placeholder="Or enter custom USDT amount..."
+                  />
+                </div>
+
+                {/* Gas Fee BNB Support */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-headline font-semibold text-white mb-1.5">
+                      BNB Gas Fee Credit
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFaucetBnb(0.05)}
+                        className={`flex-1 py-2 rounded-xl text-xs font-mono font-semibold border ${
+                          faucetBnb === 0.05
+                            ? 'bg-[#D4AF37] text-black border-[#ffe088] font-bold'
+                            : 'bg-[#122130] text-[#94a3b8] border-[#1c2b3b]'
+                        }`}
+                      >
+                        +0.05 BNB (Recommended)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFaucetBnb(0)}
+                        className={`py-2 px-3 rounded-xl text-xs font-mono border ${
+                          faucetBnb === 0
+                            ? 'bg-[#D4AF37] text-black border-[#ffe088] font-bold'
+                            : 'bg-[#122130] text-[#94a3b8] border-[#1c2b3b]'
+                        }`}
+                      >
+                        0 BNB
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-headline font-semibold text-white mb-1.5">
+                      Memo / Transaction Note
+                    </label>
+                    <input
+                      type="text"
+                      value={faucetNote}
+                      onChange={(e) => setFaucetNote(e.target.value)}
+                      placeholder="e.g. Admin Testnet Faucet Node Activation Grant"
+                      className="w-full bg-[#122130] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Action Button */}
+                <button
+                  type="submit"
+                  disabled={isCreditingFaucet}
+                  className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#00F0FF] via-[#38e8f8] to-[#D4AF37] hover:brightness-110 text-[#0A0F1D] font-headline font-extrabold text-sm shadow-[0_0_25px_rgba(0,240,255,0.4)] transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+                >
+                  {isCreditingFaucet ? (
+                    <>
+                      <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
+                      <span>Injecting Balance into Database...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[20px]">send</span>
+                      <span>Credit +{faucetAmount} USDT to Recipient Wallet</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Success Notification Box */}
+              {faucetSuccessMsg && (
+                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/50 text-xs font-mono space-y-2 animate-in fade-in duration-300">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                    <span>Testnet Funds Credited &amp; Synchronized!</span>
+                  </div>
+                  <div className="space-y-1 text-[#d4e4fa]">
+                    <div>
+                      Target Address: <span className="text-white font-bold break-all">{faucetSuccessMsg.address}</span>
+                    </div>
+                    <div>
+                      Credited: <span className="text-emerald-400 font-bold">+{faucetSuccessMsg.creditedUsdt} USDT</span>
+                      {faucetSuccessMsg.creditedBnb > 0 && <span> and +{faucetSuccessMsg.creditedBnb} BNB</span>}
+                    </div>
+                    <div>
+                      New Available Balance: <span className="text-[#D4AF37] font-bold">${faucetSuccessMsg.newBalance.toFixed(2)} USDT</span>
+                    </div>
+                    <div className="text-[11px] text-[#94a3b8] pt-1">
+                      User can now deploy their node on the dApp immediately with this balance.
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Quick Instructions & Faucet Audit (5 cols) */}
+            <div className="lg:col-span-5 space-y-5">
+              <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-5 space-y-4 shadow-xl">
+                <div className="flex items-center gap-2 text-[#D4AF37] font-bold font-headline text-sm">
+                  <span className="material-symbols-outlined text-[18px]">info</span>
+                  <span>How Admin Faucet Works</span>
+                </div>
+                <div className="text-xs text-[#94a3b8] space-y-2.5 leading-relaxed">
+                  <div className="flex gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#122130] text-[#00F0FF] flex items-center justify-center shrink-0 font-bold text-[10px]">1</span>
+                    <span>User apna dApp kholta hai aur wallet connect karta hai (0 nodes / 0 balance dikhta hai).</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#122130] text-[#00F0FF] flex items-center justify-center shrink-0 font-bold text-[10px]">2</span>
+                    <span>Aap admin panel ke is section me aakar uska wallet address paste karke <strong>100 USDT</strong> credit karte hain.</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="w-5 h-5 rounded-full bg-[#122130] text-[#00F0FF] flex items-center justify-center shrink-0 font-bold text-[10px]">3</span>
+                    <span>User ke wallet me balance instantly 100 USDT show hota hai, fir wo 15 USDT se node deploy karke real-time mining shuru kar leta hai.</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Faucet & Adjustment Logs */}
+              <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-5 space-y-3 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold font-headline text-white flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[#00F0FF] text-[16px]">history</span>
+                    <span>Recent Balance Adjustments</span>
+                  </div>
+                  <span className="text-[10px] text-[#94a3b8] font-mono">Live Audit Logs</span>
+                </div>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {transactions
+                    .filter((t) => t.rewardSource?.includes('Faucet') || t.rewardSource?.includes('Admin') || t.amount > 0)
+                    .slice(0, 6)
+                    .map((tx) => (
+                      <div key={tx.id} className="p-2.5 rounded-xl bg-[#122130] border border-[#1c2b3b] text-xs font-mono flex items-center justify-between">
+                        <div className="truncate mr-2">
+                          <div className="text-white font-semibold truncate">{tx.rewardSource}</div>
+                          <div className="text-[10px] text-[#94a3b8] truncate">{tx.txHash}</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-emerald-400 font-bold font-mono">+{tx.amount.toFixed(2)} USDT</div>
+                          <div className="text-[9px] text-[#94a3b8]">{tx.timestamp}</div>
+                        </div>
+                      </div>
+                    ))}
+                  {transactions.length === 0 && (
+                    <div className="text-xs text-[#94a3b8] text-center py-4">No adjustment history yet.</div>
+                  )}
                 </div>
               </div>
             </div>

@@ -62,9 +62,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenAuditModal,
   onOpenSwapModal,
   onSwapSuccess,
-  walletBNB = 0.428,
+  walletBNB = 0.005,
   onCopyText,
-  walletAddress = '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+  walletAddress = '',
   onClaimReferralBonus,
   onNavigateToReferrals,
 }) => {
@@ -77,8 +77,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const dashTokens: Record<string, { symbol: string; name: string; balance: number; rate: number; isSpike?: boolean; icon?: string }> = {
     SPIKE: { symbol: 'SPIKE', name: 'SPIKE Protocol', balance: walletBalance, rate: 1.0, isSpike: true },
-    USDT: { symbol: 'USDT', name: 'Tether USD (BEP-20)', balance: 850.0, rate: 1.0, icon: 'attach_money' },
-    BNB: { symbol: 'BNB', name: 'BNB Smart Chain', balance: walletBNB || 0.428, rate: 620.0, icon: 'token' },
+    USDT: { symbol: 'USDT', name: 'Tether USD (BEP-20)', balance: walletBalance, rate: 1.0, icon: 'attach_money' },
+    BNB: { symbol: 'BNB', name: 'BNB Smart Chain', balance: walletBNB ?? 0.005, rate: 620.0, icon: 'token' },
   };
 
   const currentFrom = dashTokens[dashFromToken] || dashTokens.SPIKE;
