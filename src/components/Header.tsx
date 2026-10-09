@@ -16,6 +16,7 @@ interface HeaderProps {
   onOpenAuditModal: () => void;
   onOpenTestnetModal?: () => void;
   onOpenSwapModal?: () => void;
+  onOpenDepositModal?: () => void;
   onNavigateHomeSection?: (sectionId: string) => void;
   onDisconnectWallet?: () => void;
   isAdmin?: boolean;
@@ -35,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuditModal,
   onOpenTestnetModal,
   onOpenSwapModal,
+  onOpenDepositModal,
   onNavigateHomeSection,
   onDisconnectWallet,
   isAdmin = false,
@@ -311,30 +313,30 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
 
                     <div className="space-y-1 pt-1 border-t border-[#1c2b3b]/60">
-                      {typeof window !== 'undefined' && !!(window as any).ethereum && (
-                        <button
-                          onClick={async () => {
-                            try {
-                              await (window as any).ethereum.request({
-                                method: 'wallet_watchAsset',
-                                params: {
-                                  type: 'ERC20',
-                                  options: {
-                                    address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd',
-                                    symbol: 'USDT',
-                                    decimals: 18,
-                                    image: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
-                                  },
-                                },
-                              });
-                            } catch {}
-                          }}
-                          className="w-full text-left px-3 py-1.5 rounded-lg text-[11px] text-[#00F0FF] hover:bg-[#1c2b3b] flex items-center gap-2 border border-[#00F0FF]/30 font-mono"
-                        >
-                          <span className="material-symbols-outlined text-[15px]">add_circle</span>
-                          <span>Watch USDT in MetaMask</span>
-                        </button>
-                      )}
+                      {/* BUTTON 1: REAL USDT DEPOSIT (+$15 MINING BALANCE) */}
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          onOpenDepositModal?.();
+                        }}
+                        className="w-full text-left px-3 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF]/25 via-[#00F0FF]/15 to-[#122130] hover:from-[#00F0FF]/35 hover:via-[#00F0FF]/25 border border-[#00F0FF]/60 hover:border-[#00F0FF] flex items-center justify-between text-xs transition-all shadow-[0_0_15px_rgba(0,240,255,0.25)] group"
+                        title="Send Real USDT (BEP-20) to Protocol Official Wallet (+$15 to Mining Balance)"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-[#00F0FF]/20 border border-[#00F0FF]/60 flex items-center justify-center text-[#00F0FF] group-hover:scale-110 transition-transform shadow-sm">
+                            <span className="material-symbols-outlined text-[18px]">add</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[#00F0FF] font-headline font-bold text-xs tracking-wide">
+                              Deposit 15 USDT
+                            </span>
+                          </div>
+                        </div>
+                        <span className="material-symbols-outlined text-[17px] text-[#00F0FF] group-hover:translate-x-0.5 transition-transform">
+                          arrow_forward
+                        </span>
+                      </button>
+
                       <button
                         onClick={() => {
                           onTabChange('dashboard');
@@ -583,6 +585,23 @@ export const Header: React.FC<HeaderProps> = ({
                       </button>
                     );
                   })}
+
+                  {/* Mobile Drawer Real USDT Deposit Action */}
+                  <button
+                    onClick={() => {
+                      setShowMobileDrawer(false);
+                      onOpenDepositModal?.();
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-[#00F0FF]/25 via-[#00F0FF]/15 to-[#122130] text-[#00F0FF] border border-[#00F0FF]/60 mt-2 shadow-[0_0_12px_rgba(0,240,255,0.2)]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-[18px]">add</span>
+                      <span>Deposit 15 USDT</span>
+                    </div>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-400/20 text-emerald-400 border border-emerald-400/40 font-bold">
+                      +$15
+                    </span>
+                  </button>
 
                   {isAdmin && (
                     <button

@@ -7,6 +7,7 @@ interface MiningNodesViewProps {
   onStopNode: (nodeId: string) => void;
   onStartNode: (nodeId: string) => void;
   onOpenDeployModal: () => void;
+  onOpenDepositModal?: () => void;
   onNavigateToReferrals?: () => void;
   onResetToFreshUser?: () => void;
   onOpenTestnetModal?: () => void;
@@ -18,6 +19,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
   onStopNode,
   onStartNode,
   onOpenDeployModal,
+  onOpenDepositModal,
   onNavigateToReferrals,
   onResetToFreshUser,
   onOpenTestnetModal,
@@ -59,6 +61,19 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          {onOpenDepositModal && (
+            <button
+              onClick={onOpenDepositModal}
+              className="bg-gradient-to-r from-[#D4AF37]/20 to-[#00F0FF]/15 hover:from-[#D4AF37]/30 hover:to-[#00F0FF]/25 text-[#D4AF37] border border-[#D4AF37]/60 hover:border-[#D4AF37] font-headline font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+              title="Deposit 15 USDT to Official Protocol Wallet (+$15 Mining Balance)"
+            >
+              <span className="material-symbols-outlined text-[17px]">payments</span>
+              <span>Deposit 15 USDT</span>
+              <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-400/25 text-emerald-400 border border-emerald-400/40 font-mono font-bold">
+                +$15
+              </span>
+            </button>
+          )}
           <button
             onClick={onOpenDeployModal}
             className="bg-[#00F0FF] text-[#0A0F1D] hover:bg-[#7df4ff] font-headline font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-[0_0_18px_rgba(0,240,255,0.3)] tracking-wide active:scale-95"

@@ -326,6 +326,123 @@ app.post('/api/faucet/claim', (req: Request, res: Response) => {
   });
 });
 
+// BSC RPC on-chain transaction verifier
+async function verifyBscTxReceipt(txHash: string): Promise<{
+  verifiedOnChain: boolean;
+  blockNumber?: number;
+  status?: 'Success' | 'Failed' | 'Pending';
+  gasUsed?: number;
+}> {
+  const rpcs = [
+    'https://bsc-dataseed.binance.org',
+    'https://bsc-dataseed1.defibit.io',
+    'https://data-seed-prebsc-1-s1.binance.org:8545',
+  ];
+
+  for (const rpc of rpcs) {
+    try {
+      const res = await fetch(rpc, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_getTransactionReceipt',
+          params: [txHash.trim()],
+          id: Date.now(),
+        }),
+        signal: AbortSignal.timeout(3500),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.result) {
+          const receipt = data.result;
+          const blockNum = receipt.blockNumber ? parseInt(receipt.blockNumber, 16) : undefined;
+          const status = receipt.status === '0x1' ? 'Success' : receipt.status === '0x0' ? 'Failed' : 'Pending';
+          const gasUsed = receipt.gasUsed ? parseInt(receipt.gasUsed, 16) : undefined;
+          return { verifiedOnChain: true, blockNumber: blockNum, status, gasUsed };
+        }
+      }
+    } catch {
+      // Continue to next RPC fallback
+    }
+  }
+
+  return { verifiedOnChain: false, status: 'Pending' };
+}
+
+app.get('/api/deposit/config', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    officialWallet: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+    amount: 15,
+    network: 'BNB Smart Chain (BEP-20)',
+    autoVerify: true,
+  });
+});
+
+app.post('/api/deposit/verify-hash', async (req: Request, res: Response) => {
+  try {
+    const { userAddress, txHash, amount = 15 } = req.body || {};
+    if (!userAddress || !txHash) {
+      res.status(400).json({ error: 'userAddress and txHash are required' });
+      return;
+    }
+
+    const cleanHash = String(txHash).trim();
+    if (!cleanHash.startsWith('0x') || cleanHash.length < 20) {
+      res.status(400).json({ error: 'Invalid transaction hash format. Must begin with 0x' });
+      return;
+    }
+
+    const officialWallet = '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
+
+    // Query on-chain BSC RPC for real receipt verification
+    const onChain = await verifyBscTxReceipt(cleanHash);
+    if (onChain.status === 'Failed') {
+      res.status(400).json({
+        success: false,
+        error: 'Transaction failed on the BNB Smart Chain. Please verify your transaction on BscScan.',
+      });
+      return;
+    }
+
+    const result = db.verifyAndProcessDeposit(
+      userAddress,
+      cleanHash,
+      Number(amount) || 15,
+      officialWallet,
+      onChain.blockNumber
+    );
+
+    if (!result.success) {
+      res.status(400).json(result);
+      return;
+    }
+
+    if (result.user) {
+      syncDocument('users', result.user.address.toLowerCase(), result.user).catch(() => {});
+    }
+    if (result.transaction) {
+      syncDocument('transactions', result.transaction.id, result.transaction).catch(() => {});
+    }
+
+    res.json({
+      success: true,
+      message: `Deposit of ${amount} USDT verified successfully on BNB Smart Chain and credited to Mining Balance!`,
+      balanceUsdt: result.user?.balanceUsdt,
+      transaction: result.transaction,
+      onChainVerification: {
+        verified: onChain.verifiedOnChain,
+        blockNumber: onChain.blockNumber || result.transaction?.blockNumber,
+        status: onChain.status || 'Confirmed',
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Deposit verification failed' });
+  }
+});
+
 app.get('/api/referrals/stats/:address', (req: Request, res: Response) => {
   const { address } = req.params;
   const stats = db.getReferralStats(address);

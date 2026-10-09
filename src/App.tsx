@@ -28,6 +28,7 @@ const ClaimRewardsModal = lazy(() => import('./components/modals/ClaimRewardsMod
 const AuditModal = lazy(() => import('./components/modals/AuditModal').then(m => ({ default: m.AuditModal })));
 const SwapModal = lazy(() => import('./components/modals/SwapModal').then(m => ({ default: m.SwapModal })));
 const TestnetTestingModal = lazy(() => import('./components/modals/TestnetTestingModal').then(m => ({ default: m.TestnetTestingModal })));
+const DepositUsdtModal = lazy(() => import('./components/modals/DepositUsdtModal').then(m => ({ default: m.DepositUsdtModal })));
 
 // Ultra-fast lightweight skeleton loader
 const ViewSkeleton: React.FC = () => (
@@ -380,6 +381,7 @@ export default function App() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [isTestnetModalOpen, setIsTestnetModalOpen] = useState(false);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
 
   // Notifications
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -706,6 +708,35 @@ export default function App() {
     addToast('Milestone Claimed', `+${amountUsd} USDT milestone bonus unlocked and credited to your wallet!`, 'success');
   };
 
+  const handleDepositSuccess = (newBalance: number, txHash: string) => {
+    setWalletBalance(newBalance);
+    if (walletAddress) {
+      const norm = walletAddress.toLowerCase();
+      localStorage.setItem(`spike_bal_${norm}`, newBalance.toFixed(2));
+      window.dispatchEvent(
+        new CustomEvent('spike_balance_updated', {
+          detail: { address: norm, balanceUsdt: newBalance },
+        })
+      );
+    }
+    const cleanHash = txHash.length > 14 ? `${txHash.slice(0, 8)}...${txHash.slice(-6)}` : txHash;
+    const newTx: RewardTransaction = {
+      id: `tx-dep-${Date.now()}`,
+      txHash: cleanHash,
+      rewardSource: 'Real BEP-20 Node Deposit to Official Wallet (+$15)',
+      amount: 15,
+      currency: 'USDT',
+      timestamp: 'Just now',
+      status: 'Confirmed',
+    };
+    setRewards((prev) => [newTx, ...prev]);
+    addToast(
+      'Deposit Verified!',
+      `+15.00 USDT credited to Mining Balance! (New Balance: ${newBalance.toFixed(2)} USDT)`,
+      'success'
+    );
+  };
+
   const handleConnectWallet = (provider: string, realAddress?: string) => {
     let finalAddress = realAddress;
     if (!finalAddress) {
@@ -994,6 +1025,7 @@ export default function App() {
             onOpenClaimModal={() => setIsClaimModalOpen(true)}
             onOpenAuditModal={() => setIsAuditModalOpen(true)}
             onOpenSwapModal={() => setIsSwapModalOpen(true)}
+            onOpenDepositModal={() => setIsDepositModalOpen(true)}
             onSwapSuccess={handleSwapSuccess}
             onCopyText={copyToClipboard}
             walletAddress={walletAddress}
@@ -1013,6 +1045,7 @@ export default function App() {
             onStopNode={handleStopNode}
             onStartNode={handleStartNode}
             onOpenDeployModal={() => setIsDeployModalOpen(true)}
+            onOpenDepositModal={() => setIsDepositModalOpen(true)}
             onNavigateToReferrals={() => handleTabChange('referrals')}
             onResetToFreshUser={handleResetToFreshUser}
             onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
@@ -1125,6 +1158,7 @@ export default function App() {
               onOpenAuditModal={() => setIsAuditModalOpen(true)}
               onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
               onOpenSwapModal={() => setIsSwapModalOpen(true)}
+              onOpenDepositModal={() => setIsDepositModalOpen(true)}
               onNavigateHomeSection={handleNavigateHomeSection}
               onDisconnectWallet={handleDisconnectWallet}
               isAdmin={isAdmin}
@@ -1212,6 +1246,15 @@ export default function App() {
               onSwapSuccess={handleSwapSuccess}
             />
           )}
+          {isDepositModalOpen && (
+            <DepositUsdtModal
+              isOpen={isDepositModalOpen}
+              onClose={() => setIsDepositModalOpen(false)}
+              walletAddress={walletAddress}
+              walletBalance={walletBalance}
+              onDepositSuccess={handleDepositSuccess}
+            />
+          )}
         </Suspense>
         <Toast toasts={toasts} onDismiss={handleDismissToast} />
       </div>
@@ -1252,6 +1295,7 @@ export default function App() {
           onOpenAuditModal={() => setIsAuditModalOpen(true)}
           onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
           onOpenSwapModal={() => setIsSwapModalOpen(true)}
+          onOpenDepositModal={() => setIsDepositModalOpen(true)}
           onNavigateHomeSection={handleNavigateHomeSection}
           onDisconnectWallet={handleDisconnectWallet}
           isAdmin={isAdmin}
@@ -1366,6 +1410,16 @@ export default function App() {
             spikeBalance={walletBalance}
             bnbBalance={walletBNB}
             onSwapSuccess={handleSwapSuccess}
+          />
+        )}
+
+        {isDepositModalOpen && (
+          <DepositUsdtModal
+            isOpen={isDepositModalOpen}
+            onClose={() => setIsDepositModalOpen(false)}
+            walletAddress={walletAddress}
+            walletBalance={walletBalance}
+            onDepositSuccess={handleDepositSuccess}
           />
         )}
       </Suspense>

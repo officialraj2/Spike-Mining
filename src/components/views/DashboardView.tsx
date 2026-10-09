@@ -41,6 +41,7 @@ interface DashboardViewProps {
   onOpenClaimModal: () => void;
   onOpenAuditModal: () => void;
   onOpenSwapModal?: () => void;
+  onOpenDepositModal?: () => void;
   onSwapSuccess?: (fromToken: string, toToken: string, fromAmount: number, toAmount: number) => void;
   walletBNB?: number;
   onCopyText: (text: string) => void;
@@ -61,6 +62,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenClaimModal,
   onOpenAuditModal,
   onOpenSwapModal,
+  onOpenDepositModal,
   onSwapSuccess,
   walletBNB = 0.005,
   onCopyText,
@@ -448,15 +450,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}{' '}
               <span className="text-lg lg:text-xl text-[#D4AF37] font-semibold tracking-normal">USDT</span>
             </div>
-            <button
-              onClick={onOpenClaimModal}
-              className="text-xs text-[#00F0FF] hover:underline font-headline font-semibold flex items-center gap-1 mt-1 transition-all group/btn"
-            >
-              <span>Claim Rewards</span>
-              <span className="material-symbols-outlined text-[14px] group-hover/btn:translate-x-0.5 transition-transform">
-                arrow_forward
-              </span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5 mt-1.5">
+              <button
+                onClick={onOpenClaimModal}
+                className="text-xs text-[#00F0FF] hover:underline font-headline font-semibold flex items-center gap-1 transition-all group/btn"
+              >
+                <span>Claim Rewards</span>
+                <span className="material-symbols-outlined text-[14px] group-hover/btn:translate-x-0.5 transition-transform">
+                  arrow_forward
+                </span>
+              </button>
+              {onOpenDepositModal && (
+                <button
+                  onClick={onOpenDepositModal}
+                  className="px-2 py-0.5 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37]/35 text-[#D4AF37] border border-[#D4AF37]/50 hover:border-[#D4AF37] text-[11px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+                  title="Deposit 15 USDT to Official Protocol Wallet (+$15 Mining Balance)"
+                >
+                  <span className="material-symbols-outlined text-[13px]">payments</span>
+                  <span>+ Deposit 15$</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
