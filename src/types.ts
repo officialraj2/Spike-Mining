@@ -84,6 +84,25 @@ export interface RewardTransaction {
   type?: string;
 }
 
+export interface ReferralItem {
+  id: string;
+  referrerAddress: string;
+  refereeAddress: string;
+  tier: number;
+  commissionUsdt: number;
+  volumeUsdt: number;
+  createdAt: string;
+}
+
+export interface ReferralStatsData {
+  directPartners: number;
+  downlinePartners: number;
+  totalPartners: number;
+  totalCommissions: number;
+  referrals: ReferralItem[];
+  referredBy?: string | null;
+}
+
 export interface ReferralTier {
   tier: number;
   percentage: number;

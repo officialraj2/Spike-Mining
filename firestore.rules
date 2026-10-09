@@ -70,6 +70,14 @@ service cloud.firestore {
         data.timestamp is string && data.timestamp.size() <= 64;
     }
 
+    function isValidReferral(data) {
+      return data.keys().hasAll(['id', 'referrerAddress', 'refereeAddress', 'tier']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.referrerAddress is string && data.referrerAddress.size() <= 64 &&
+        data.refereeAddress is string && data.refereeAddress.size() <= 64 &&
+        data.tier is number;
+    }
+
     // Admins Collection
     match /admins/{adminId} {
       allow read: if true;
@@ -94,6 +102,13 @@ service cloud.firestore {
     match /transactions/{txId} {
       allow read: if true;
       allow create, update: if isValidId(txId) && isValidRewardTransaction(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Referrals Collection
+    match /referrals/{refId} {
+      allow read: if true;
+      allow create, update: if isValidId(refId) && isValidReferral(incoming());
       allow delete: if isAdmin();
     }
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastSaved": "2026-10-08T17:47:17.090Z",
+  "lastSaved": "2026-10-09T08:48:03.422Z",
   "users": [
     {
       "address": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
@@ -65,6 +65,32 @@
       "createdAt": "2026-10-08T17:26:15.340Z",
       "lastActive": "2026-10-08T17:26:19.868Z",
       "notes": ""
+    },
+    {
+      "address": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-BC5D44",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-09T08:22:38.725Z",
+      "lastActive": "2026-10-09T08:27:35.847Z",
+      "notes": "Primary Referrer Wallet"
+    },
+    {
+      "address": "0x38069663d6408dff184bafc65e247e37ae84a1c2",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-380696",
+      "referredBy": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-09T08:22:38.726Z",
+      "lastActive": "2026-10-09T08:22:38.726Z",
+      "notes": "Referee Partner"
     }
   ],
   "nodes": [
@@ -152,6 +178,30 @@
   ],
   "transactions": [
     {
+      "userAddress": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "txHash": "0x5b00a7c03f848963709619edfb2a262bf4d165a7",
+      "type": "referral_bonus",
+      "amount": 15,
+      "currency": "USDT",
+      "status": "Confirmed",
+      "details": "Direct Affiliate Hash Commission from 0x1111...1111",
+      "blockNumber": 42923931,
+      "id": "tx-1791534455847-613",
+      "timestamp": "2026-10-09 08:27:35"
+    },
+    {
+      "userAddress": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "txHash": "0xa8a69dd14a509aa8",
+      "type": "admin_adjustment",
+      "amount": 15,
+      "currency": "USDT",
+      "status": "Confirmed",
+      "details": "Admin adjustment: Direct affiliate partner invite reward (+15 USDT) from 0x1111...1111",
+      "blockNumber": 42907563,
+      "id": "tx-1791534455847-941",
+      "timestamp": "2026-10-09 08:27:35"
+    },
+    {
       "userAddress": "0x9876543210987654321098765432109876543210",
       "txHash": "0x6bc22780a1190416",
       "type": "admin_adjustment",
@@ -226,6 +276,15 @@
   ],
   "referrals": [
     {
+      "id": "ref-bc5d-3806",
+      "referrerAddress": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "refereeAddress": "0x38069663d6408dff184bafc65e247e37ae84a1c2",
+      "tier": 1,
+      "commissionUsdt": 15,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-09T08:22:38.726Z"
+    },
+    {
       "id": "ref-1",
       "referrerAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
       "refereeAddress": "0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239",
@@ -285,6 +344,30 @@
     "supportEmail": "contact@spikenodes.com"
   },
   "auditLogs": [
+    {
+      "id": "audit-1791534455847-292",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21->0x1111111111111111111111111111111111111111",
+      "details": "Linked partner 0x1111111111111111111111111111111111111111 to sponsor 0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "timestamp": "2026-10-09T08:27:35.847Z"
+    },
+    {
+      "id": "audit-1791534455847-429",
+      "adminUser": "SYSTEM",
+      "action": "ADJUST_BALANCE",
+      "target": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "details": "USDT delta: 15, Reason: Direct affiliate partner invite reward (+15 USDT) from 0x1111...1111",
+      "timestamp": "2026-10-09T08:27:35.847Z"
+    },
+    {
+      "id": "audit-1791534455846-3",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x1111111111111111111111111111111111111111",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-09T08:27:35.846Z"
+    },
     {
       "id": "audit-1791481623261-737",
       "adminUser": "Admin Testnet Faucet",

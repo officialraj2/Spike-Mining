@@ -319,34 +319,59 @@ app.get('/api/user/:address', (req: Request, res: Response) => {
 });
 
 app.post('/api/faucet/claim', (req: Request, res: Response) => {
-  const { userAddress, amount = 100 } = req.body;
-  if (!userAddress) {
-    res.status(400).json({ error: 'User address is required' });
-    return;
-  }
-  const norm = String(userAddress).trim().toLowerCase();
-  const amt = Number(amount) || 100;
-  const user = db.adjustUserBalance(norm, amt, 0.05, 'Testnet Faucet USDT Credit for Node Activation', 'SYSTEM');
-  if (user) {
-    syncDocument('users', norm, user).catch(() => {});
-  }
-  const tx = db.createTransaction({
-    userAddress: norm,
-    txHash: `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-    type: 'faucet',
-    amount: amt,
-    currency: 'USDT',
-    status: 'Confirmed',
-    details: 'Testnet Faucet Node Activation Grant',
-    blockNumber: 42900000 + Math.floor(Math.random() * 50000),
+  // Public self-claiming disabled per security policy: Only Admin Panel can credit faucet balances
+  res.status(403).json({
+    success: false,
+    error: 'Self-claim faucet is disabled. Testnet USDT can only be credited by the Platform Administrator from the Admin Panel (Testnet Faucet & Wallet Credit).',
   });
-  res.json({ success: true, user, transaction: tx });
 });
 
 app.get('/api/referrals/stats/:address', (req: Request, res: Response) => {
   const { address } = req.params;
   const stats = db.getReferralStats(address);
   res.json({ success: true, stats });
+});
+
+app.post('/api/referrals/register', (req: Request, res: Response) => {
+  try {
+    const { referrerCodeOrAddr, refereeAddress } = req.body || {};
+    if (!referrerCodeOrAddr || !refereeAddress) {
+      res.status(400).json({ error: 'referrerCodeOrAddr and refereeAddress are required' });
+      return;
+    }
+
+    const result = db.registerReferral(referrerCodeOrAddr, refereeAddress);
+    if (!result.success) {
+      res.status(400).json(result);
+      return;
+    }
+
+    // Sync updated referrer & referee to Firestore
+    if (result.referrer) {
+      syncDocument('users', result.referrer.address.toLowerCase(), result.referrer).catch(() => {});
+    }
+    if (result.referee) {
+      syncDocument('users', result.referee.address.toLowerCase(), result.referee).catch(() => {});
+    }
+    if (result.referral) {
+      syncDocument('referrals', result.referral.id, result.referral).catch(() => {});
+    }
+
+    const updatedReferrerStats = result.referrer ? db.getReferralStats(result.referrer.address) : null;
+    const updatedRefereeStats = result.referee ? db.getReferralStats(result.referee.address) : null;
+
+    res.json({
+      success: true,
+      message: result.message,
+      referral: result.referral,
+      referrer: result.referrer,
+      referee: result.referee,
+      referrerStats: updatedReferrerStats,
+      refereeStats: updatedRefereeStats,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to register referral' });
+  }
 });
 
 app.post('/api/referrals/simulate', (req: Request, res: Response) => {

@@ -153,6 +153,32 @@ const INITIAL_DATA: DatabaseSchema = {
       createdAt: '2025-02-28T16:15:00.000Z',
       lastActive: new Date().toISOString(),
     },
+    {
+      address: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
+      balanceUsdt: 0.0,
+      balanceBnb: 0.005,
+      totalMined: 0.0,
+      referralCode: 'SPK-BC5D44',
+      referredBy: null,
+      role: 'user',
+      status: 'active',
+      createdAt: '2026-10-09T07:30:00.000Z',
+      lastActive: new Date().toISOString(),
+      notes: 'Primary Referrer Wallet',
+    },
+    {
+      address: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
+      balanceUsdt: 0.0,
+      balanceBnb: 0.005,
+      totalMined: 0.0,
+      referralCode: 'SPK-380696',
+      referredBy: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
+      role: 'user',
+      status: 'active',
+      createdAt: '2026-10-09T07:35:00.000Z',
+      lastActive: new Date().toISOString(),
+      notes: 'Referee Partner invited by 0xbc5d44...',
+    },
   ],
   nodes: [
     {
@@ -273,6 +299,15 @@ const INITIAL_DATA: DatabaseSchema = {
       commissionUsdt: 32.0,
       volumeUsdt: 320.0,
       createdAt: '2025-02-28T16:15:00.000Z',
+    },
+    {
+      id: 'ref-bc5d-3806',
+      referrerAddress: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
+      refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
+      tier: 1,
+      commissionUsdt: 15.0,
+      volumeUsdt: 150.0,
+      createdAt: '2026-10-09T07:35:00.000Z',
     },
   ],
   announcements: [
@@ -664,13 +699,154 @@ class PersistentDatabase {
     const totalCommissions = directs.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0) +
       downlines.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
 
+    const currentUser = this.getUser(userAddress);
+
     return {
       directPartners: directs.length,
       downlinePartners: downlines.length,
       totalPartners: directs.length + downlines.length,
       totalCommissions: +totalCommissions.toFixed(2),
       referrals: [...directs, ...downlines],
+      referredBy: currentUser?.referredBy || null,
+      referralCode: currentUser?.referralCode || `SPK-${norm.slice(2, 8).toUpperCase()}`,
     };
+  }
+
+  public findUserByReferralCodeOrAddress(codeOrAddr: string): DbUser | undefined {
+    if (!codeOrAddr) return undefined;
+    const clean = codeOrAddr.trim().toLowerCase();
+    
+    // 1. Direct address match
+    let user = this.data.users.find((u) => u.address.toLowerCase() === clean);
+    if (user) return user;
+
+    // 2. Referral code match (e.g. SPK-BC5D44, SPIKE-BC5D44, BC5D44)
+    user = this.data.users.find((u) => {
+      const code = u.referralCode ? u.referralCode.toLowerCase() : '';
+      const slice = u.address.slice(2, 8).toLowerCase();
+      const rawCode = clean.replace(/^spike-/, '').replace(/^spk-/, '');
+      const rawUserCode = code.replace(/^spike-/, '').replace(/^spk-/, '');
+      return (
+        code === clean ||
+        rawUserCode === rawCode ||
+        slice === rawCode ||
+        `spike-${slice}` === clean ||
+        `spk-${slice}` === clean
+      );
+    });
+    return user;
+  }
+
+  public registerReferral(
+    referrerCodeOrAddr: string,
+    refereeAddress: string
+  ): { success: boolean; referrer?: DbUser; referee?: DbUser; referral?: DbReferral; message?: string } {
+    if (!referrerCodeOrAddr || !refereeAddress) {
+      return { success: false, message: 'Both referrer code/address and referee address are required' };
+    }
+
+    const normReferee = refereeAddress.trim().toLowerCase();
+    let referee = this.getUser(normReferee);
+    if (!referee) {
+      referee = this.upsertUser({ address: refereeAddress.trim() });
+    }
+
+    // Check if referrer code is the same wallet (cannot self-refer)
+    if (referee.address.toLowerCase() === referrerCodeOrAddr.trim().toLowerCase()) {
+      return { success: false, message: 'Cannot refer your own wallet address' };
+    }
+
+    // Find referrer
+    let referrer = this.findUserByReferralCodeOrAddress(referrerCodeOrAddr);
+    if (!referrer) {
+      // If referrerCodeOrAddr is a valid Ethereum/BSC 0x address not yet in memory, create their user profile
+      if (/^0x[a-fA-F0-9]{40}$/.test(referrerCodeOrAddr.trim())) {
+        referrer = this.upsertUser({ address: referrerCodeOrAddr.trim() });
+      }
+    }
+
+    if (!referrer) {
+      return { success: false, message: 'Sponsor referral code or address not found' };
+    }
+
+    if (referrer.address.toLowerCase() === referee.address.toLowerCase()) {
+      return { success: false, message: 'Cannot refer yourself' };
+    }
+
+    // Check if referral link already established
+    const existing = this.data.referrals.find(
+      (r) =>
+        r.referrerAddress.toLowerCase() === referrer!.address.toLowerCase() &&
+        r.refereeAddress.toLowerCase() === normReferee &&
+        r.tier === 1
+    );
+
+    if (existing) {
+      if (!referee.referredBy) {
+        referee.referredBy = referrer.address;
+        this.save();
+      }
+      return { success: true, referrer, referee, referral: existing, message: 'Referral connection already verified and active' };
+    }
+
+    // Bind sponsor
+    referee.referredBy = referrer.address;
+    this.save();
+
+    // Create Tier 1 Referral record
+    const newRef = this.createReferral({
+      referrerAddress: referrer.address,
+      refereeAddress: referee.address,
+      tier: 1,
+      commissionUsdt: 15.0, // Instant $15 USDT direct sponsor commission
+      volumeUsdt: 150.0,
+    });
+
+    // Credit referrer wallet with direct partner commission
+    this.adjustUserBalance(
+      referrer.address,
+      15.0,
+      0,
+      `Direct affiliate partner invite reward (+15 USDT) from ${referee.address.slice(0, 6)}...${referee.address.slice(-4)}`,
+      'SYSTEM'
+    );
+
+    // Create transaction log for referrer
+    this.createTransaction({
+      userAddress: referrer.address,
+      txHash: `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+      type: 'referral_bonus',
+      amount: 15.0,
+      currency: 'USDT',
+      status: 'Confirmed',
+      details: `Direct Affiliate Hash Commission from ${referee.address.slice(0, 6)}...${referee.address.slice(-4)}`,
+      blockNumber: 42920000 + Math.floor(Math.random() * 10000),
+    });
+
+    // If the referrer themselves was referred by a parent, award Tier 2 (downline) bonus!
+    if (referrer.referredBy) {
+      const tier2Referrer = this.getUser(referrer.referredBy);
+      if (tier2Referrer && tier2Referrer.address.toLowerCase() !== referee.address.toLowerCase()) {
+        this.createReferral({
+          referrerAddress: tier2Referrer.address,
+          refereeAddress: referee.address,
+          tier: 2,
+          commissionUsdt: 5.0,
+          volumeUsdt: 150.0,
+        });
+        this.adjustUserBalance(
+          tier2Referrer.address,
+          5.0,
+          0,
+          `Tier 2 sub-referral commission (+5 USDT) from network partner ${referee.address.slice(0, 6)}...${referee.address.slice(-4)}`,
+          'SYSTEM'
+        );
+      }
+    }
+
+    this.logAudit('SYSTEM', 'REFERRAL_REGISTER', `${referrer.address}->${referee.address}`, `Linked partner ${referee.address} to sponsor ${referrer.address}`);
+
+    return { success: true, referrer, referee, referral: newRef, message: 'Referral link successfully established and commission credited!' };
   }
 
   public createReferral(ref: Omit<DbReferral, 'id' | 'createdAt'>): DbReferral {

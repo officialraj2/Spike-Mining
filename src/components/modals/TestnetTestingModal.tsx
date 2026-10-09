@@ -9,12 +9,13 @@ interface TestnetTestingModalProps {
   walletBNB: number;
   currentNetwork: string;
   nodesCount: number;
-  onTopUpUsdt: (amount: number) => void;
-  onTopUpBnb: (amount: number) => void;
+  onTopUpUsdt?: (amount: number) => void;
+  onTopUpBnb?: (amount: number) => void;
   onResetToFreshUser: () => void;
   onSeedTeamLeader: () => void;
   onClearTransactions: () => void;
   onSwitchToBscTestnet: () => void;
+  onOpenAdminFaucet?: () => void;
 }
 
 export const TestnetTestingModal: React.FC<TestnetTestingModalProps> = ({
@@ -31,9 +32,11 @@ export const TestnetTestingModal: React.FC<TestnetTestingModalProps> = ({
   onSeedTeamLeader,
   onClearTransactions,
   onSwitchToBscTestnet,
+  onOpenAdminFaucet,
 }) => {
   const [activeTab, setActiveTab] = useState<'faucet' | 'reset' | 'blockchain' | 'smartcontract'>('faucet');
   const [copiedContract, setCopiedContract] = useState(false);
+  const [copiedAddr, setCopiedAddr] = useState(false);
 
   if (!isOpen) return null;
 
@@ -212,46 +215,63 @@ contract SPIKEMiningProtocol is Ownable {
           {/* TAB 1: FAUCET */}
           {activeTab === 'faucet' && (
             <div className="space-y-4 animate-in fade-in">
-              <div className="p-4 rounded-xl bg-[#0c1d2e] border border-[#00F0FF]/30 space-y-2">
+              <div className="p-4 rounded-xl bg-[#0c1d2e] border border-amber-500/30 space-y-3">
                 <div className="flex items-center gap-2 text-white font-headline font-bold text-sm">
-                  <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">bolt</span>
-                  <span>Instant In-App Test Faucet (Instant Credit)</span>
+                  <span className="material-symbols-outlined text-amber-400 text-[18px]">verified_user</span>
+                  <span>Admin-Controlled Testnet Faucet</span>
                 </div>
-                <p className="text-[#94a3b8] leading-relaxed">
-                  Bina real crypto kharch kiye testing karne ke liye yahan se 1-click me test tokens apne wallet me credit karein:
+                <p className="text-[#94a3b8] leading-relaxed text-xs">
+                  Public self-claim faucet band kar diya gaya hai. Testnet USDT balance ab <strong>sirf aur sirf Admin Panel</strong> ke <em>'Testnet Faucet & Wallet Credit'</em> console se hi kisi bhi wallet me credit kiya ja sakta hai.
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                  <button
-                    onClick={() => onTopUpUsdt(100)}
-                    className="p-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#00F0FF]/40 text-left transition-all hover:scale-[1.02] active:scale-[0.98] group"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[#00F0FF] font-bold font-headline text-xs">+100.00 Test USDT</span>
-                      <span className="material-symbols-outlined text-[18px] text-[#00F0FF] group-hover:translate-x-1 transition-transform">
-                        add_circle
+                {/* Connected Wallet Box */}
+                <div className="p-3 rounded-lg bg-[#122130] border border-[#1c2b3b] space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-[#94a3b8]">Aapka Connected BEP-20 Wallet:</span>
+                    <span className="font-mono text-[#D4AF37] font-bold">{walletBalance.toFixed(2)} USDT</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={walletAddress || 'Wallet not connected'}
+                      className="flex-1 bg-[#09131d] border border-[#1c2b3b] px-2.5 py-1.5 rounded-lg text-white font-mono text-xs select-all focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (walletAddress) {
+                          navigator.clipboard?.writeText(walletAddress);
+                          setCopiedAddr(true);
+                          setTimeout(() => setCopiedAddr(false), 2000);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-[#1c2b3b] hover:bg-[#253648] text-white text-xs font-semibold flex items-center gap-1.5 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">
+                        {copiedAddr ? 'check' : 'content_copy'}
                       </span>
-                    </div>
-                    <span className="text-[10px] text-[#94a3b8] block">
-                      Node deployment fees (15, 75, 250 USDT) deduct test karne ke liye.
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => onTopUpBnb(0.5)}
-                    className="p-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#D4AF37]/40 text-left transition-all hover:scale-[1.02] active:scale-[0.98] group"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[#D4AF37] font-bold font-headline text-xs">+0.50 Test BNB</span>
-                      <span className="material-symbols-outlined text-[18px] text-[#D4AF37] group-hover:translate-x-1 transition-transform">
-                        add_circle
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-[#94a3b8] block">
-                      DEX Swap aur network validator gas fees testing ke liye.
-                    </span>
-                  </button>
+                      <span>{copiedAddr ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-[#94a3b8]">
+                    Is address ko copy karke Admin Panel ke <strong>'Testnet Faucet & Wallet Credit'</strong> tab me paste karke jitna chahein USDT credit kar sakte hain.
+                  </p>
                 </div>
+
+                {onOpenAdminFaucet && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenAdminFaucet();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#00F0FF] text-[#0A0F1D] font-headline font-bold text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-md"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+                    <span>Admin Panel Faucet Console Kholein (Send USDT)</span>
+                  </button>
+                )}
               </div>
 
               {/* Official BNB Faucet External */}

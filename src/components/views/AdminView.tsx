@@ -1793,7 +1793,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
                         </span>
                       </td>
 
-                      <td className="p-4 text-[#94a3b8]">{user.referralCode}</td>
+                      <td className="p-4 text-[#94a3b8]">
+                        <div className="font-mono text-white text-xs">{user.referralCode}</div>
+                        {user.referredBy && (
+                          <div className="text-[10px] text-[#00F0FF] font-mono mt-0.5" title={`Referred by ${user.referredBy}`}>
+                            Ref by: {user.referredBy.slice(0, 6)}...{user.referredBy.slice(-4)}
+                          </div>
+                        )}
+                      </td>
 
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">

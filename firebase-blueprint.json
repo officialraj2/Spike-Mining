@@ -229,6 +229,38 @@
         }
       },
       "required": ["id", "adminUser", "action", "timestamp"]
+    },
+    "ReferralRecord": {
+      "title": "ReferralRecord",
+      "description": "Referral mapping and commission ledger entry",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "referrerAddress": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "refereeAddress": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "tier": {
+          "type": "number"
+        },
+        "commissionUsdt": {
+          "type": "number"
+        },
+        "volumeUsdt": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "referrerAddress", "refereeAddress", "tier"]
     }
   },
   "firestore": {
@@ -243,6 +275,10 @@
     "/transactions/{txId}": {
       "schema": "RewardTransaction",
       "description": "Rewards and payouts transactions ledger"
+    },
+    "/referrals/{refId}": {
+      "schema": "ReferralRecord",
+      "description": "Referral networks and commission links"
     },
     "/settings/{settingId}": {
       "schema": "SystemSettings",
