@@ -4,6 +4,8 @@
  */
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { db as firestoreDb } from './firebase';
+import { doc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
 import { TabType, MiningNode, RewardTransaction, ToastMessage } from './types';
 import { INITIAL_NODES, INITIAL_REWARDS } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
@@ -158,7 +160,7 @@ export default function App() {
     }
   }, []);
 
-  // Sync state with persistent backend database on start (Non-blocking background refresh)
+  // Sync state with persistent Firebase Firestore & backend database (Real-time live sync)
   useEffect(() => {
     if (!walletAddress) {
       setNodes([]);
@@ -176,11 +178,75 @@ export default function App() {
       return;
     }
 
-    // Immediately ensure clean initial baseline for the address while fetching
-    setNodes([]);
-    setRewards([]);
-    setDailyEarnings(0);
+    const norm = walletAddress.toLowerCase();
 
+    // 1. Immediately load local cache if present (zero latency, no 0 flicker)
+    try {
+      const cachedUsdt = localStorage.getItem(`spike_bal_${norm}`) || localStorage.getItem('spike_balance_usdt');
+      const cachedBnb = localStorage.getItem(`spike_bnb_${norm}`) || localStorage.getItem('spike_balance_bnb');
+      if (cachedUsdt !== null && !isNaN(Number(cachedUsdt))) {
+        setWalletBalance(Number(cachedUsdt));
+      }
+      if (cachedBnb !== null && !isNaN(Number(cachedBnb))) {
+        setWalletBNB(Number(cachedBnb));
+      }
+    } catch {}
+
+    // 2. Real-time Firebase Firestore listener for instant synchronization with Admin Panel
+    let unsubscribeFirestore: (() => void) | null = null;
+    try {
+      const userDocRef = doc(firestoreDb, 'users', norm);
+      unsubscribeFirestore = onSnapshot(
+        userDocRef,
+        (snap) => {
+          if (snap.exists()) {
+            const fsData = snap.data();
+            if (typeof fsData.balanceUsdt === 'number') {
+              setWalletBalance(fsData.balanceUsdt);
+              try {
+                localStorage.setItem(`spike_bal_${norm}`, String(fsData.balanceUsdt));
+                localStorage.setItem('spike_balance_usdt', String(fsData.balanceUsdt));
+              } catch {}
+            }
+            if (typeof fsData.balanceBnb === 'number') {
+              setWalletBNB(fsData.balanceBnb);
+              try {
+                localStorage.setItem(`spike_bnb_${norm}`, String(fsData.balanceBnb));
+                localStorage.setItem('spike_balance_bnb', String(fsData.balanceBnb));
+              } catch {}
+            }
+          }
+        },
+        (err) => {
+          console.warn('[App] Realtime Firestore sync note:', err);
+        }
+      );
+    } catch (fsInitErr) {
+      console.warn('[App] Firestore init note:', fsInitErr);
+    }
+
+    // 3. Multi-tab & Same-Device Real-time balance event listeners
+    const handleBalanceEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.address?.toLowerCase() === norm) {
+        if (typeof customEvent.detail.balanceUsdt === 'number') {
+          setWalletBalance(customEvent.detail.balanceUsdt);
+        }
+        if (typeof customEvent.detail.balanceBnb === 'number') {
+          setWalletBNB(customEvent.detail.balanceBnb);
+        }
+      }
+    };
+    window.addEventListener('spike_balance_updated', handleBalanceEvent);
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `spike_bal_${norm}` && e.newValue !== null) {
+        setWalletBalance(Number(e.newValue));
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // 4. Fetch backend database state (Nodes, transactions, referrals)
     fetch(`/api/user/${walletAddress}`)
       .then((res) => {
         if (!res.ok || res.headers.get('content-type')?.includes('text/html')) {
@@ -190,27 +256,29 @@ export default function App() {
       })
       .then((data) => {
         if (data && data.user) {
-          const uBal = typeof data.user.balanceUsdt === 'number' ? data.user.balanceUsdt : 0;
-          const bBal = typeof data.user.balanceBnb === 'number' ? data.user.balanceBnb : 0.005;
-          setWalletBalance(uBal);
-          setWalletBNB(bBal);
-          try {
-            localStorage.setItem('spike_balance_usdt', String(uBal));
-            localStorage.setItem('spike_balance_bnb', String(bBal));
-          } catch {}
-        } else {
-          setWalletBalance(0);
-          setWalletBNB(0.005);
+          const uBal = typeof data.user.balanceUsdt === 'number' ? data.user.balanceUsdt : null;
+          const bBal = typeof data.user.balanceBnb === 'number' ? data.user.balanceBnb : null;
+          if (uBal !== null) {
+            setWalletBalance(uBal);
+            try {
+              localStorage.setItem(`spike_bal_${norm}`, String(uBal));
+              localStorage.setItem('spike_balance_usdt', String(uBal));
+            } catch {}
+          }
+          if (bBal !== null) {
+            setWalletBNB(bBal);
+            try {
+              localStorage.setItem(`spike_bnb_${norm}`, String(bBal));
+              localStorage.setItem('spike_balance_bnb', String(bBal));
+            } catch {}
+          }
         }
-        // Set nodes array (for a new wallet this is [] 0 nodes!)
+        // Set nodes array
         if (data && Array.isArray(data.nodes) && data.nodes.length > 0) {
           setNodes(data.nodes);
           const activeMining = data.nodes.filter((n: MiningNode) => n.status === 'mining');
           const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
           setDailyEarnings(+calculatedYield.toFixed(2));
-        } else {
-          setNodes([]);
-          setDailyEarnings(0);
         }
         // Set rewards transactions
         if (data && Array.isArray(data.transactions) && data.transactions.length > 0) {
@@ -225,29 +293,21 @@ export default function App() {
             epoch: t.blockNumber,
           }));
           setRewards(mappedTxs);
-        } else {
-          setRewards([]);
         }
         // Set real referral stats
         if (data && data.referralStats) {
           setReferralStats(data.referralStats);
-        } else {
-          setReferralStats({
-            directPartners: 0,
-            downlinePartners: 0,
-            totalPartners: 0,
-            totalCommissions: 0,
-            referrals: [],
-          });
         }
       })
       .catch((err) => {
-        console.warn('[App] Backend DB sync note:', err);
-        setNodes([]);
-        setRewards([]);
-        setWalletBalance(0);
-        setDailyEarnings(0);
+        console.warn('[App] Backend DB sync notice (Firebase fallback active):', err);
       });
+
+    return () => {
+      if (unsubscribeFirestore) unsubscribeFirestore();
+      window.removeEventListener('spike_balance_updated', handleBalanceEvent);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, [walletAddress]);
 
   // Modals
@@ -624,11 +684,24 @@ export default function App() {
       finalAddress = addr;
     }
 
-    // Immediately reset in-memory data to pure 0-slate before loading new wallet state
+    const norm = finalAddress.toLowerCase();
+    let initialUsdt = 0;
+    let initialBnb = 0.005;
+    try {
+      const cachedUsdt = localStorage.getItem(`spike_bal_${norm}`) || localStorage.getItem('spike_balance_usdt');
+      const cachedBnb = localStorage.getItem(`spike_bnb_${norm}`) || localStorage.getItem('spike_balance_bnb');
+      if (cachedUsdt !== null && !isNaN(Number(cachedUsdt))) {
+        initialUsdt = Number(cachedUsdt);
+      }
+      if (cachedBnb !== null && !isNaN(Number(cachedBnb))) {
+        initialBnb = Number(cachedBnb);
+      }
+    } catch {}
+
     setNodes([]);
     setRewards([]);
-    setWalletBalance(0);
-    setWalletBNB(0.005);
+    setWalletBalance(initialUsdt);
+    setWalletBNB(initialBnb);
     setDailyEarnings(0);
     setReferralStats({
       directPartners: 0,

@@ -296,15 +296,45 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)} />
                   <div className="absolute right-0 mt-2 w-64 bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl shadow-2xl p-3 z-20 space-y-2">
                     <div className="p-2.5 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]/60 space-y-1">
-                      <div className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-wider">Connected Account</div>
+                      <div className="flex items-center justify-between text-[10px] text-[#94a3b8] font-mono uppercase tracking-wider">
+                        <span>Connected Account</span>
+                        <span className="flex items-center gap-1 text-emerald-400 font-mono text-[9px]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>Live Synced</span>
+                        </span>
+                      </div>
                       <div className="text-xs font-mono text-white font-bold break-all">{walletAddress}</div>
-                      <div className="text-xs text-[#00F0FF] font-mono font-semibold pt-1 flex justify-between">
-                        <span>Balance:</span>
-                        <span>{walletBalance.toFixed(2)} USDT</span>
+                      <div className="text-xs text-[#00F0FF] font-mono font-semibold pt-1 flex justify-between items-center">
+                        <span>Mining Balance:</span>
+                        <span className="text-[#00F0FF] font-bold">{walletBalance.toFixed(2)} USDT</span>
                       </div>
                     </div>
 
                     <div className="space-y-1 pt-1 border-t border-[#1c2b3b]/60">
+                      {typeof window !== 'undefined' && !!(window as any).ethereum && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              await (window as any).ethereum.request({
+                                method: 'wallet_watchAsset',
+                                params: {
+                                  type: 'ERC20',
+                                  options: {
+                                    address: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd',
+                                    symbol: 'USDT',
+                                    decimals: 18,
+                                    image: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+                                  },
+                                },
+                              });
+                            } catch {}
+                          }}
+                          className="w-full text-left px-3 py-1.5 rounded-lg text-[11px] text-[#00F0FF] hover:bg-[#1c2b3b] flex items-center gap-2 border border-[#00F0FF]/30 font-mono"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">add_circle</span>
+                          <span>Watch USDT in MetaMask</span>
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           onTabChange('dashboard');

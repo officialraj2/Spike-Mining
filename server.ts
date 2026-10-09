@@ -3,7 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import path from 'path';
 import { db } from './src/server/db.ts';
-import { firestore, config as firebaseConfig, syncEntireDatabase } from './src/server/firebaseServer.ts';
+import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument } from './src/server/firebaseServer.ts';
 
 dotenv.config();
 
@@ -161,11 +161,15 @@ app.post('/api/admin/users/:address/adjust-balance', (req: Request, res: Respons
   try {
     const { address } = req.params;
     const { usdtDelta = 0, bnbDelta = 0, reason = 'Admin adjustment', adminUser = 'Admin Portal' } = req.body || {};
-    let user = db.getUser(address);
+    const norm = (address || '').toLowerCase();
+    let user = db.getUser(norm);
     if (!user) {
-      user = db.upsertUser({ address });
+      user = db.upsertUser({ address: norm });
     }
-    const updated = db.adjustUserBalance(address, Number(usdtDelta), Number(bnbDelta), reason, adminUser);
+    const updated = db.adjustUserBalance(norm, Number(usdtDelta), Number(bnbDelta), reason, adminUser);
+    if (updated) {
+      syncDocument('users', norm, updated).catch(() => {});
+    }
     res.json({ success: true, user: updated });
   } catch (err: any) {
     console.error('[API Error] adjust-balance:', err);
@@ -181,13 +185,17 @@ app.post('/api/admin/faucet/credit', (req: Request, res: Response) => {
       res.status(400).json({ success: false, error: 'Valid BEP-20 wallet address (starting with 0x) is required' });
       return;
     }
-    let user = db.getUser(addr);
+    const norm = addr.toLowerCase();
+    let user = db.getUser(norm);
     if (!user) {
       user = db.upsertUser({ address: addr });
     }
     const amt = Number(amount) || 100;
     const bnbAmt = Number(bnbAmount) || 0;
-    const updated = db.adjustUserBalance(addr, amt, bnbAmt, note, 'Admin Testnet Faucet');
+    const updated = db.adjustUserBalance(norm, amt, bnbAmt, note, 'Admin Testnet Faucet');
+    if (updated) {
+      syncDocument('users', norm, updated).catch(() => {});
+    }
     res.json({ success: true, user: updated, creditedUsdt: amt, creditedBnb: bnbAmt });
   } catch (err: any) {
     console.error('[API Error] faucet/credit:', err);
@@ -316,10 +324,14 @@ app.post('/api/faucet/claim', (req: Request, res: Response) => {
     res.status(400).json({ error: 'User address is required' });
     return;
   }
+  const norm = String(userAddress).trim().toLowerCase();
   const amt = Number(amount) || 100;
-  const user = db.adjustUserBalance(userAddress, amt, 0.05, 'Testnet Faucet USDT Credit for Node Activation', 'SYSTEM');
+  const user = db.adjustUserBalance(norm, amt, 0.05, 'Testnet Faucet USDT Credit for Node Activation', 'SYSTEM');
+  if (user) {
+    syncDocument('users', norm, user).catch(() => {});
+  }
   const tx = db.createTransaction({
-    userAddress,
+    userAddress: norm,
     txHash: `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
     type: 'faucet',
     amount: amt,

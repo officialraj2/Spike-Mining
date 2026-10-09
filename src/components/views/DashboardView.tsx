@@ -430,8 +430,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
           <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#D4AF37]/5 rounded-full blur-xl group-hover:bg-[#D4AF37]/15 transition-all"></div>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">
-              Treasury Wallet
+            <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em] flex items-center gap-1.5">
+              <span>Treasury Wallet</span>
+              <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live
+              </span>
             </span>
             <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">
               <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
