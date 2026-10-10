@@ -125,3 +125,47 @@ export interface ToastMessage {
   message: string;
   type: 'success' | 'info' | 'warning' | 'error';
 }
+
+export interface TestnetSpikeTokenInfo {
+  name: string;
+  symbol: string;
+  totalSupply: number; // 50,000,000 SPK
+  circulatingSupply: number;
+  decimals: number;
+  contractAddress: string;
+  pair: string;
+  poolSpkReserve: number;
+  poolUsdtReserve: number;
+  currentPrice: number;
+  volume24h: number;
+  high24h: number;
+  low24h: number;
+  change24h: number;
+  buyPressure: number;
+}
+
+export interface TestnetWalletState {
+  address: string;
+  testnetUsdt: number;
+  testnetSpk: number;
+  autoBuyEnabled: boolean;
+  slippageTolerance: number;
+  totalHarvestAutoBoughtSpk: number;
+  totalUsdtSpentOnAutoBuy: number;
+  lastAutoBuyAt?: string;
+}
+
+export interface TestnetTransaction {
+  id: string;
+  userAddress: string;
+  txHash: string;
+  type: 'harvest_autobuy' | 'swap_buy' | 'swap_sell' | 'faucet';
+  spkAmount: number;
+  usdtAmount: number;
+  priceUsdt: number;
+  status: 'Confirmed' | 'Pending';
+  blockNumber: number;
+  gasFeeBnb: number;
+  details: string;
+  timestamp: string;
+}

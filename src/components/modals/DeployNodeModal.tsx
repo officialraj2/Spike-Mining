@@ -29,11 +29,11 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
   const tiers = [
     {
       id: 'starter',
-      name: 'Starter Hash Rate',
-      hashrate: 0.30,
-      power: 85,
-      cost: '15 USDT (Activation)',
-      specs: 'SHA-256 Stratum+ssl · Protocol Entry',
+      name: 'Falcon Titan Apex (Entry)',
+      hashrate: 142.8,
+      power: 3180,
+      cost: '10 USDT (Step 2 Activation)',
+      specs: 'Smart Contract Mining Call · Backend executes PancakeSwap buy route',
     },
     {
       id: 'standard',
@@ -60,11 +60,11 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
     setIsDeploying(true);
 
     const costValues: Record<string, number> = {
-      starter: 15,
+      starter: 10,
       standard: 75,
       enterprise: 250,
     };
-    const costUsdt = costValues[tier] || 15;
+    const costUsdt = costValues[tier] || 10;
 
     setTimeout(() => {
       const newNode: MiningNode = {
@@ -186,7 +186,7 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
             </div>
             <div className="flex justify-between text-[#c6c6cc]">
               <span>Your Wallet Balance:</span>
-              <span className={`font-mono font-bold ${walletBalance >= (tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250) ? 'text-emerald-400' : 'text-amber-400'}`}>
+              <span className={`font-mono font-bold ${walletBalance >= (tier === 'starter' ? 10 : tier === 'standard' ? 75 : 250) ? 'text-emerald-400' : 'text-amber-400'}`}>
                 {walletBalance.toFixed(2)} USDT
               </span>
             </div>
@@ -203,11 +203,11 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
           </div>
 
           {/* Insufficient Balance Notice */}
-          {walletBalance < (tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250) && (
+          {walletBalance < (tier === 'starter' ? 10 : tier === 'standard' ? 75 : 250) && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2.5 text-xs text-amber-300 font-mono">
               <span className="material-symbols-outlined text-[18px] text-amber-400 shrink-0">account_balance_wallet</span>
               <span>
-                Insufficient balance ({walletBalance.toFixed(2)} USDT). Need {tier === 'starter' ? 15 : tier === 'standard' ? 75 : 250} USDT to activate this node.
+                Insufficient balance ({walletBalance.toFixed(2)} USDT). Need {tier === 'starter' ? 10 : tier === 'standard' ? 75 : 250} USDT to activate this node.
               </span>
             </div>
           )}

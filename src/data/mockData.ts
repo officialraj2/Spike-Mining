@@ -112,8 +112,8 @@ export const INITIAL_REWARDS: RewardTransaction[] = [
   {
     id: 'tx-3',
     txHash: '0x91aa...4c42',
-    rewardSource: 'Referral Bonus (Tier 1)',
-    amount: 12.25,
+    rewardSource: 'Team Milestone Bonus (10 Partners)',
+    amount: 15.00,
     currency: 'USDT',
     timestamp: '2 days ago, 18:22 UTC',
     status: 'Confirmed',
@@ -130,22 +130,7 @@ export const INITIAL_REWARDS: RewardTransaction[] = [
   },
 ];
 
-export const REFERRAL_TIERS: ReferralTier[] = [
-  {
-    tier: 1,
-    percentage: 10,
-    totalMembers: 22,
-    earningsUsdt: 312.50,
-    activeMiners: 15,
-  },
-  {
-    tier: 2,
-    percentage: 5,
-    totalMembers: 6,
-    earningsUsdt: 116.00,
-    activeMiners: 4,
-  },
-];
+export const REFERRAL_TIERS: ReferralTier[] = [];
 
 export const TEAM_MILESTONE_TIERS: TeamMilestoneTier[] = [
   { id: 'm-1', partnersRequired: 10, rewardUsd: 15, label: '10 Partners', rewardFormatted: '$15' },

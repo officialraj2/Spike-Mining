@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { REFERRAL_TIERS, TEAM_MILESTONE_TIERS } from '../../data/mockData';
+import { TEAM_MILESTONE_TIERS } from '../../data/mockData';
 import { TeamRewardMilestonesSection } from '../TeamRewardMilestonesSection';
 
 export interface ReferralStatsData {
@@ -62,7 +62,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const directPartners = referralStats?.directPartners ?? (isTargetReferrer ? 1 : 0);
   const downlinePartners = referralStats?.downlinePartners ?? 0;
   const totalTeamPartners = directPartners + downlinePartners;
-  const totalEarnedUsdt = referralStats?.totalCommissions ?? (isTargetReferrer ? 15.0 : 0);
+  const totalEarnedUsdt = referralStats?.totalCommissions ?? 0;
   
   const referralsList = (referralStats?.referrals && referralStats.referrals.length > 0)
     ? referralStats.referrals
@@ -73,7 +73,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           referrerAddress: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
           refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
           tier: 1,
-          commissionUsdt: 15.0,
+          commissionUsdt: 0,
           volumeUsdt: 150.0,
           createdAt: new Date().toISOString(),
         },
@@ -269,7 +269,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs text-[#94a3b8]">
-              Send this link to partners. Each active miner joining gives you <strong className="text-white">10% direct hashrate commission</strong> and counts toward milestone bonus targets.
+              Send this link to partners. Each registered miner directly joins your network and unlocks <strong className="text-white">Team Milestone Rewards</strong> ($15 to $500,000 USDT).
             </span>
           </div>
 
@@ -277,7 +277,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             <button
               onClick={onSimulateReferral}
               className="px-4 py-2 rounded-xl bg-[#1c2b3b] hover:bg-[#273647] border border-[#00F0FF]/40 text-[#00F0FF] hover:text-white text-xs font-headline font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto shrink-0 shadow-sm"
-              title="Test referral join counter: adds a new partner and triggers commission"
+              title="Test referral join: adds +1 Partner to team network"
             >
               <span className="material-symbols-outlined text-[16px]">person_add</span>
               <span>Test Referral Join (+1 Partner)</span>
@@ -289,12 +289,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
-          <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Total Referrals</div>
+          <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Total Team Partners</div>
           <div className="text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
             {totalTeamPartners}
           </div>
           <div className="text-xs text-[#7df4ff] font-mono mt-1 font-medium">
-            {directPartners} Direct · {downlinePartners} Downline
+            {totalTeamPartners} Active Partners in Network
           </div>
         </div>
 
@@ -313,7 +313,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           <div className="text-3xl font-extrabold font-headline text-[#D4AF37] mt-1 tabular-nums tracking-tight">
             +{totalEarnedUsdt.toFixed(2)} <span className="text-sm text-white font-semibold">USDT</span>
           </div>
-          <div className="text-xs text-[#D4AF37] font-mono mt-1 font-medium">Direct wallet settlements</div>
+          <div className="text-xs text-[#D4AF37] font-mono mt-1 font-medium">Claimed from Team Milestones</div>
         </div>
 
         <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
@@ -323,58 +323,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </div>
           <div className="text-xs text-emerald-400 font-mono mt-1 font-medium">Team validator perk</div>
         </div>
-      </div>
-
-      {/* Tier Breakdown Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {REFERRAL_TIERS.map((tier) => {
-          const members = tier.tier === 1 ? directPartners : downlinePartners;
-          const activeMiners = members > 0 ? Math.round(members * 0.75) : 0;
-          const earned = tier.tier === 1 ? totalEarnedUsdt * 0.8 : totalEarnedUsdt * 0.2;
-
-          return (
-            <div
-              key={tier.tier}
-              className="bg-[#122130] rounded-xl p-6 border border-[#1c2b3b] shadow-md"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 text-[#00F0FF] flex items-center justify-center font-headline font-bold text-lg">
-                    T{tier.tier}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base font-headline text-white">
-                      Tier {tier.tier} Direct Network
-                    </h3>
-                    <div className="text-xs text-[#c6c6cc]">
-                      {tier.tier === 1 ? 'Direct invites from your link' : 'Sub-referrals invited by your network'}
-                    </div>
-                  </div>
-                </div>
-                <span className="px-3 py-1 rounded-full text-xs font-bold font-mono bg-[#00F0FF]/15 text-[#00F0FF]">
-                  {tier.percentage}% Lifetime Payout
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 p-3.5 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] text-center text-xs">
-                <div>
-                  <div className="text-[#c6c6cc]">Members</div>
-                  <div className="text-lg font-bold font-mono text-white mt-0.5">{members}</div>
-                </div>
-                <div>
-                  <div className="text-[#c6c6cc]">Active Rigs</div>
-                  <div className="text-lg font-bold font-mono text-[#00F0FF] mt-0.5">{activeMiners}</div>
-                </div>
-                <div>
-                  <div className="text-[#c6c6cc]">Earned</div>
-                  <div className="text-lg font-bold font-mono text-[#D4AF37] mt-0.5">
-                    +{earned.toFixed(2)} USDT
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       {/* Official Team-Based Reward Program Milestones */}
@@ -387,8 +335,8 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
       {/* Recent Referral Activity Table */}
       <div className="bg-[#122130] rounded-xl p-5 md:p-6 border border-[#1c2b3b] shadow-md">
-        <h2 className="text-lg font-bold font-headline text-white mb-1">Recent Affiliate Activity</h2>
-        <p className="text-xs text-[#c6c6cc] mb-4">Real-time commissions credited from referred hash power</p>
+        <h2 className="text-lg font-bold font-headline text-white mb-1">Recent Network Partner Activity</h2>
+        <p className="text-xs text-[#c6c6cc] mb-4">Live partners joining your network and counting toward Team Milestones</p>
 
         {referralsList.length === 0 ? (
           <div className="py-10 px-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col items-center justify-center space-y-2.5">
@@ -398,7 +346,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             <div className="max-w-md">
               <h3 className="text-sm font-bold font-headline text-white">No Referred Partners Yet</h3>
               <p className="text-xs text-[#94a3b8] mt-0.5 leading-relaxed">
-                Share your unique link above. As partners join and activate mining nodes, commissions and volume will appear here.
+                Share your unique link above. As partners join and activate mining nodes, they will count toward your milestones here.
               </p>
             </div>
           </div>
@@ -408,9 +356,9 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               <thead>
                 <tr className="text-[#c6c6cc] font-headline border-b border-[#1c2b3b]">
                   <th className="py-2.5 px-3">Invited Member</th>
-                  <th className="py-2.5 px-3">Tier</th>
+                  <th className="py-2.5 px-3">Partner Status</th>
                   <th className="py-2.5 px-3">Rig Deployed</th>
-                  <th className="py-2.5 px-3">Your Commission</th>
+                  <th className="py-2.5 px-3">Milestone Contribution</th>
                   <th className="py-2.5 px-3 text-right">Date</th>
                 </tr>
               </thead>
@@ -421,15 +369,15 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                       {ref.refereeAddress ? `${ref.refereeAddress.slice(0, 6)}...${ref.refereeAddress.slice(-4)}` : '0xUnknown'}
                     </td>
                     <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#1c2b3b] text-white">
-                        Tier {ref.tier}
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        Team Partner
                       </span>
                     </td>
                     <td className="py-3 px-3 text-white font-mono">
-                      {ref.volumeUsdt ? `$${ref.volumeUsdt.toFixed(0)} Hash Allocation` : 'Mining Rig'}
+                      {ref.volumeUsdt ? `$${ref.volumeUsdt.toFixed(0)} Hash Allocation` : 'Active Miner'}
                     </td>
-                    <td className="py-3 px-3 text-[#D4AF37] font-bold font-mono">
-                      +{ref.commissionUsdt.toFixed(2)} USDT
+                    <td className="py-3 px-3 text-[#00F0FF] font-bold font-mono">
+                      +1 Partner Target
                     </td>
                     <td className="py-3 px-3 text-[#c6c6cc] text-right">
                       {ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : 'Recent'}

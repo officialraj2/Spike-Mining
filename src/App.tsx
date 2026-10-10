@@ -157,22 +157,34 @@ export default function App() {
 
   // Listen to Web3 provider accountsChanged event for auto-switching
   useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      (window as unknown as { ethereum?: { on: (event: string, cb: (acc: string[]) => void) => void; removeListener: (event: string, cb: (acc: string[]) => void) => void } }).ethereum
-    ) {
-      const eth = (window as unknown as { ethereum: { on: (event: string, cb: (acc: string[]) => void) => void; removeListener: (event: string, cb: (acc: string[]) => void) => void } }).ethereum;
-      const handleAccountsChanged = (accs: string[]) => {
-        if (accs && accs.length > 0) {
-          handleConnectWallet('MetaMask', accs[0]);
-        } else {
-          handleDisconnectWallet();
+    try {
+      if (
+        typeof window !== 'undefined' &&
+        (window as unknown as { ethereum?: { on?: (event: string, cb: (acc: string[]) => void) => void; removeListener?: (event: string, cb: (acc: string[]) => void) => void } }).ethereum
+      ) {
+        const eth = (window as unknown as { ethereum: { on?: (event: string, cb: (acc: string[]) => void) => void; removeListener?: (event: string, cb: (acc: string[]) => void) => void } }).ethereum;
+        if (typeof eth?.on === 'function') {
+          const handleAccountsChanged = (accs: string[]) => {
+            if (accs && accs.length > 0) {
+              handleConnectWallet('MetaMask', accs[0]);
+            } else {
+              handleDisconnectWallet();
+            }
+          };
+          eth.on('accountsChanged', handleAccountsChanged);
+          return () => {
+            try {
+              if (typeof eth?.removeListener === 'function') {
+                eth.removeListener('accountsChanged', handleAccountsChanged);
+              }
+            } catch {
+              // ignore
+            }
+          };
         }
-      };
-      eth.on('accountsChanged', handleAccountsChanged);
-      return () => {
-        eth.removeListener('accountsChanged', handleAccountsChanged);
-      };
+      }
+    } catch {
+      // ignore
     }
   }, []);
 
@@ -220,14 +232,14 @@ export default function App() {
           directPartners: 1,
           downlinePartners: 0,
           totalPartners: 1,
-          totalCommissions: 15.0,
+          totalCommissions: 0,
           referrals: [
             {
               id: 'ref-bc5d-3806',
               referrerAddress: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
               refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
               tier: 1,
-              commissionUsdt: 15.0,
+              commissionUsdt: 0,
               volumeUsdt: 150.0,
               createdAt: new Date().toISOString(),
             },
@@ -380,8 +392,14 @@ export default function App() {
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [swapModalMode, setSwapModalMode] = useState<'sellSpike' | 'buySpike'>('sellSpike');
   const [isTestnetModalOpen, setIsTestnetModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+
+  const handleOpenSwapModal = (mode: 'sellSpike' | 'buySpike' = 'sellSpike') => {
+    setSwapModalMode(mode);
+    setIsSwapModalOpen(true);
+  };
 
   // Notifications
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -548,7 +566,7 @@ export default function App() {
     const newTx: RewardTransaction = {
       id: `tx-node-${Date.now()}`,
       txHash: randomTxHash,
-      rewardSource: `Node Activation Fee (${newNode.name})`,
+      rewardSource: `Smart Contract Call: Mining Node Activation (${newNode.name})`,
       amount: -costUsdt,
       currency: 'USDT',
       timestamp: 'Just now',
@@ -556,22 +574,31 @@ export default function App() {
     };
     setRewards((prev) => [newTx, ...prev]);
 
-    // Save to persistent backend database
-    fetch('/api/nodes/deploy', {
+    // Save to persistent backend database & execute backend PancakeSwap buy
+    fetch('/api/mining/activate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userAddress: walletAddress,
-        name: newNode.name,
-        region: newNode.region,
-        hashrate: newNode.hashrate,
+        nodeName: newNode.name,
         costUsdt,
       }),
-    }).catch((err) => console.warn('[App] Deploy API error:', err));
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success && data.boughtSpk) {
+          addToast(
+            'Smart Contract Mining Call Executed!',
+            `Mining active (${newNode.name})! Backend executed PancakeSwap Buy Route: +${data.boughtSpk.toFixed(2)} SPK credited to your SPIKE Balance!`,
+            'success'
+          );
+        }
+      })
+      .catch((err) => console.warn('[App] Mining activate error:', err));
 
     addToast(
       'Rig Deployed & Activated',
-      `-${costUsdt} USDT deducted. ${newNode.name} is now hashing on BSC validator network! Generating +${(newNode.hashrate * 39).toFixed(2)} USDT/day.`,
+      `-${costUsdt} USDT deducted via Smart Contract call. ${newNode.name} is now hashing on BSC validator network! Generating +${(newNode.hashrate * 39).toFixed(2)} USDT/day.`,
       'success'
     );
   };
@@ -621,21 +648,32 @@ export default function App() {
     fromAmount: number,
     toAmount: number
   ) => {
-    if (fromToken === 'SPIKE') {
-      setWalletBalance((prev) => Math.max(0, +(prev - fromAmount).toFixed(2)));
-    } else if (toToken === 'SPIKE') {
+    if (fromToken === 'SPIKE' && toToken === 'USDT') {
+      // Selling SPIKE: USDT is credited directly to connected wallet!
       setWalletBalance((prev) => +(prev + toAmount).toFixed(2));
+      addToast(
+        'PancakeSwap Sell Executed',
+        `+${toAmount.toFixed(2)} USDT credited directly into your connected wallet!`,
+        'success'
+      );
+    } else if (fromToken === 'USDT' && toToken === 'SPIKE') {
+      // Buying SPIKE with USDT:
+      setWalletBalance((prev) => Math.max(0, +(prev - fromAmount).toFixed(2)));
+      addToast(
+        'SPIKE Purchased',
+        `+${toAmount.toFixed(2)} SPK added via PancakeSwap!`,
+        'success'
+      );
+    } else if (fromToken === 'SPIKE') {
+      setWalletBalance((prev) => +(prev + toAmount).toFixed(2));
+    } else if (toToken === 'SPIKE') {
+      setWalletBalance((prev) => Math.max(0, +(prev - fromAmount).toFixed(2)));
     }
     if (fromToken === 'BNB') {
       setWalletBNB((prev) => Math.max(0, +(prev - fromAmount).toFixed(4)));
     } else if (toToken === 'BNB') {
       setWalletBNB((prev) => +(prev + toAmount).toFixed(4));
     }
-    addToast(
-      'Swap Executed Successfully',
-      `Swapped ${fromAmount} ${fromToken} for ${toAmount.toFixed(4)} ${toToken} on BSC!`,
-      'success'
-    );
   };
 
   const handleSimulateReferralJoin = async () => {
@@ -656,20 +694,7 @@ export default function App() {
       } catch {}
       if (data && data.success) {
         setReferralStats(data.stats);
-        if (typeof data.commissionAdded === 'number') {
-          setWalletBalance((prev) => +(prev + data.commissionAdded).toFixed(2));
-          const newTx: RewardTransaction = {
-            id: `tx-ref-${Date.now()}`,
-            txHash: `0x${Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}...${Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-            rewardSource: `Direct Referral Commission (${data.referral?.refereeAddress?.slice(0, 6)}...)`,
-            amount: data.commissionAdded,
-            currency: 'USDT',
-            timestamp: 'Just now',
-            status: 'Confirmed',
-          };
-          setRewards((prev) => [newTx, ...prev]);
-        }
-        addToast('Referral Joined!', `+1 Partner joined via your link! +${data.commissionAdded} USDT commission added.`, 'success');
+        addToast('Referral Joined!', `+1 Partner joined via your link! Counted toward your Team Milestones.`, 'success');
       }
     } catch {
       addToast('Simulation Note', 'Added local test referral', 'info');
@@ -723,16 +748,16 @@ export default function App() {
     const newTx: RewardTransaction = {
       id: `tx-dep-${Date.now()}`,
       txHash: cleanHash,
-      rewardSource: 'Real BEP-20 Node Deposit to Official Wallet (+$15)',
-      amount: 15,
+      rewardSource: 'Step 1: 5 USDT Protocol Deposit to Official Treasury Wallet',
+      amount: -5,
       currency: 'USDT',
       timestamp: 'Just now',
       status: 'Confirmed',
     };
     setRewards((prev) => [newTx, ...prev]);
     addToast(
-      'Deposit Verified!',
-      `+15.00 USDT credited to Mining Balance! (New Balance: ${newBalance.toFixed(2)} USDT)`,
+      'Phase 1 Deposit Verified!',
+      `5.00 USDT transferred directly to Official Protocol Treasury Wallet (0xDE7B...a4c7). Remaining: ${newBalance.toFixed(2)} USDT in your wallet for Mining Activation!`,
       'success'
     );
   };
@@ -749,7 +774,7 @@ export default function App() {
     }
 
     const norm = finalAddress.toLowerCase();
-    let initialUsdt = 0;
+    let initialUsdt = 15.0; // 15$ project entry budget
     let initialBnb = 0.005;
     try {
       const cachedUsdt = localStorage.getItem(`spike_bal_${norm}`);
@@ -782,14 +807,14 @@ export default function App() {
         directPartners: 1,
         downlinePartners: 0,
         totalPartners: 1,
-        totalCommissions: 15.0,
+        totalCommissions: 0,
         referrals: [
           {
             id: 'ref-bc5d-3806',
             referrerAddress: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
             refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
             tier: 1,
-            commissionUsdt: 15.0,
+            commissionUsdt: 0,
             volumeUsdt: 150.0,
             createdAt: new Date().toISOString(),
           },
@@ -847,7 +872,7 @@ export default function App() {
           referrerAddress: pendingReferrer,
           refereeAddress: finalAddress,
           tier: 1,
-          commissionUsdt: 15.0,
+          commissionUsdt: 0,
           volumeUsdt: 150.0,
           createdAt: new Date().toISOString(),
         }).catch(() => {});
@@ -1024,7 +1049,7 @@ export default function App() {
             onOpenDeployModal={() => setIsDeployModalOpen(true)}
             onOpenClaimModal={() => setIsClaimModalOpen(true)}
             onOpenAuditModal={() => setIsAuditModalOpen(true)}
-            onOpenSwapModal={() => setIsSwapModalOpen(true)}
+            onOpenSwapModal={handleOpenSwapModal}
             onOpenDepositModal={() => setIsDepositModalOpen(true)}
             onSwapSuccess={handleSwapSuccess}
             onCopyText={copyToClipboard}
@@ -1407,8 +1432,11 @@ export default function App() {
           <SwapModal
             isOpen={isSwapModalOpen}
             onClose={() => setIsSwapModalOpen(false)}
-            spikeBalance={walletBalance}
+            spikeBalance={150.0}
             bnbBalance={walletBNB}
+            usdtBalance={walletBalance}
+            walletAddress={walletAddress}
+            initialMode={swapModalMode}
             onSwapSuccess={handleSwapSuccess}
           />
         )}

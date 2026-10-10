@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastSaved": "2026-10-09T10:03:55.168Z",
+  "lastSaved": "2026-10-09T11:07:04.885Z",
   "users": [
     {
       "address": "0x71c8a914b97e889f12a0987cb32456fa12349a2",
@@ -115,7 +115,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T09:43:43.924Z",
-      "lastActive": "2026-10-09T09:53:54.156Z",
+      "lastActive": "2026-10-09T10:37:25.838Z",
       "notes": ""
     }
   ],
@@ -318,27 +318,9 @@
       "referrerAddress": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
       "refereeAddress": "0x38069663d6408dff184bafc65e247e37ae84a1c2",
       "tier": 1,
-      "commissionUsdt": 15,
+      "commissionUsdt": 0,
       "volumeUsdt": 150,
       "createdAt": "2026-10-09T08:22:38.726Z"
-    },
-    {
-      "id": "ref-1",
-      "referrerAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
-      "refereeAddress": "0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239",
-      "tier": 1,
-      "commissionUsdt": 64.02,
-      "volumeUsdt": 640.2,
-      "createdAt": "2025-02-10T12:30:00.000Z"
-    },
-    {
-      "id": "ref-2",
-      "referrerAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
-      "refereeAddress": "0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08",
-      "tier": 1,
-      "commissionUsdt": 32,
-      "volumeUsdt": 320,
-      "createdAt": "2025-02-28T16:15:00.000Z"
     }
   ],
   "announcements": [

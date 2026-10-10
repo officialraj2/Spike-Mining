@@ -38,6 +38,34 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    <script>
+      // Suppress known third-party browser extension injection errors (e.g. MetaMask in iframe previews)
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var msg = (typeof reason === 'string' ? reason : (reason && reason.message) || '');
+        if (
+          msg.indexOf('Failed to connect to MetaMask') !== -1 ||
+          msg.indexOf('MetaMask') !== -1 ||
+          msg.indexOf('User rejected') !== -1 ||
+          (reason && reason.stack && reason.stack.indexOf('chrome-extension://') !== -1)
+        ) {
+          event.preventDefault();
+          console.warn('[Handled Web3 Extension Notice]:', msg);
+        }
+      });
+      window.addEventListener('error', function(event) {
+        var msg = event.message || '';
+        var filename = event.filename || '';
+        if (
+          msg.indexOf('Failed to connect to MetaMask') !== -1 ||
+          filename.indexOf('chrome-extension://') !== -1 ||
+          (event.error && event.error.stack && event.error.stack.indexOf('chrome-extension://') !== -1)
+        ) {
+          event.preventDefault();
+          console.warn('[Handled Web3 Extension Error]:', msg);
+        }
+      });
+    </script>
   </head>
   <body class="bg-[#051424] text-[#d4e4fa] antialiased selection:bg-[#00F0FF]/20 selection:text-[#00F0FF] min-h-screen">
     <div id="root"></div>

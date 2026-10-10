@@ -16,77 +16,72 @@ interface TradingViewChartProps {
 }
 
 export const TradingViewChart: React.FC<TradingViewChartProps> = ({
-  pairName = 'LGNS/WPOL (Market Cap)',
-  dexUrl = 'https://dexscreener.com/polygon/0x3c12eca24ebafd6795e731753879d5b629dd2741',
+  pairName = 'SPIKE (SPK) / USDT [BEP-20]',
+  dexUrl = '#dashboard-testnet',
   onBuyClick,
 }) => {
   const [selectedInterval, setSelectedInterval] = useState<'1s' | '1m' | '5m' | '15m' | '1h' | '4h' | 'D'>('15m');
   const [hoveredCandle, setHoveredCandle] = useState<TVCandle | null>(null);
   const [crosshairPos, setCrosshairPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Exact candlestick pattern modeled from the user's uploaded TradingView screenshot
-  // Market cap range: 290.00K to 365.00K, currently at 327.12K
-  const [candles, setCandles] = useState<TVCandle[]>([
-    { time: '12:00', open: 292.5, high: 298.2, low: 290.1, close: 296.8, volume: 450 },
-    { time: '12:30', open: 296.8, high: 304.5, low: 295.2, close: 302.1, volume: 820 },
-    { time: '13:00', open: 302.1, high: 304.0, low: 293.4, close: 295.0, volume: 610 },
-    { time: '13:30', open: 295.0, high: 301.2, low: 294.0, close: 299.8, volume: 540 },
-    { time: '14:00', open: 299.8, high: 303.4, low: 298.5, close: 302.6, volume: 730 },
-    { time: '14:30', open: 302.6, high: 303.1, low: 300.2, close: 301.5, volume: 490 },
-    { time: '15:00', open: 301.5, high: 322.8, low: 300.8, close: 320.4, volume: 2450 },
-    { time: '15:30', open: 320.4, high: 321.2, low: 310.5, close: 312.0, volume: 1100 },
-    { time: '16:00', open: 312.0, high: 314.8, low: 310.2, close: 313.5, volume: 780 },
-    { time: '16:30', open: 313.5, high: 332.0, low: 312.8, close: 330.2, volume: 3200 },
-    { time: '17:00', open: 330.2, high: 331.4, low: 323.0, close: 325.8, volume: 1350 },
-    { time: '17:30', open: 325.8, high: 327.5, low: 324.2, close: 326.4, volume: 890 },
-    { time: '18:00', open: 326.4, high: 327.2, low: 325.5, close: 326.8, volume: 640 },
-    { time: '18:30', open: 326.8, high: 338.5, low: 326.0, close: 337.2, volume: 4100 },
-    { time: '19:00', open: 337.2, high: 338.0, low: 304.0, close: 306.5, volume: 5600 },
-    { time: '19:30', open: 306.5, high: 328.4, low: 305.2, close: 326.0, volume: 3800 },
-    { time: '20:00', open: 326.0, high: 331.2, low: 325.0, close: 330.5, volume: 2900 },
-    { time: '20:30', open: 330.5, high: 364.5, low: 329.8, close: 362.0, volume: 9200 },
-    { time: '21:00', open: 362.0, high: 363.8, low: 346.0, close: 348.5, volume: 4800 },
-    { time: '21:30', open: 348.5, high: 353.2, low: 347.0, close: 351.8, volume: 2600 },
-    { time: '22:00', open: 351.8, high: 352.5, low: 334.0, close: 336.2, volume: 5100 },
-    { time: '22:30', open: 336.2, high: 338.0, low: 329.5, close: 331.0, volume: 3400 },
-    { time: '23:00', open: 331.0, high: 334.2, low: 326.5, close: 327.12, volume: 2800 },
+  // Candlesticks for SPIKE (SPK) / USDT (Base Price ~ $0.03450 USDT, Total Supply 50M)
+  const [spikeCandles, setSpikeCandles] = useState<TVCandle[]>([
+    { time: '12:00', open: 0.0315, high: 0.0322, low: 0.0312, close: 0.0320, volume: 45000 },
+    { time: '12:30', open: 0.0320, high: 0.0328, low: 0.0318, close: 0.0325, volume: 62000 },
+    { time: '13:00', open: 0.0325, high: 0.0329, low: 0.0321, close: 0.0322, volume: 38000 },
+    { time: '13:30', open: 0.0322, high: 0.0331, low: 0.0320, close: 0.0328, volume: 54000 },
+    { time: '14:00', open: 0.0328, high: 0.0334, low: 0.0326, close: 0.0332, volume: 82000 },
+    { time: '14:30', open: 0.0332, high: 0.0335, low: 0.0330, close: 0.0333, volume: 49000 },
+    { time: '15:00', open: 0.0333, high: 0.0348, low: 0.0331, close: 0.0345, volume: 145000 },
+    { time: '15:30', open: 0.0345, high: 0.0349, low: 0.0338, close: 0.0340, volume: 88000 },
+    { time: '16:00', open: 0.0340, high: 0.0344, low: 0.0337, close: 0.0341, volume: 72000 },
+    { time: '16:30', open: 0.0341, high: 0.0356, low: 0.0340, close: 0.0352, volume: 195000 },
+    { time: '17:00', open: 0.0352, high: 0.0354, low: 0.0346, close: 0.0348, volume: 110000 },
+    { time: '17:30', open: 0.0348, high: 0.0350, low: 0.0345, close: 0.0347, volume: 65000 },
+    { time: '18:00', open: 0.0347, high: 0.0349, low: 0.0344, close: 0.0346, volume: 52000 },
+    { time: '18:30', open: 0.0346, high: 0.0359, low: 0.0345, close: 0.0355, volume: 240000 },
+    { time: '19:00', open: 0.0355, high: 0.0356, low: 0.0335, close: 0.0338, volume: 310000 },
+    { time: '19:30', open: 0.0338, high: 0.0351, low: 0.0336, close: 0.0348, volume: 215000 },
+    { time: '20:00', open: 0.0348, high: 0.0352, low: 0.0346, close: 0.0350, volume: 175000 },
+    { time: '20:30', open: 0.0350, high: 0.0368, low: 0.0348, close: 0.0365, volume: 490000 },
+    { time: '21:00', open: 0.0365, high: 0.0367, low: 0.0352, close: 0.0355, volume: 280000 },
+    { time: '21:30', open: 0.0355, high: 0.0360, low: 0.0353, close: 0.0358, volume: 160000 },
+    { time: '22:00', open: 0.0358, high: 0.0361, low: 0.0345, close: 0.0348, volume: 320000 },
+    { time: '22:30', open: 0.0348, high: 0.0352, low: 0.0342, close: 0.0345, volume: 190000 },
+    { time: '23:00', open: 0.0345, high: 0.0348, low: 0.0342, close: 0.03450, volume: 145000 },
   ]);
 
-  const [currentMcap, setCurrentMcap] = useState<number>(327.12);
-  const [deltaChange, setDeltaChange] = useState<number>(-379.14);
-  const [deltaPct, setDeltaPct] = useState<number>(-0.12);
-  const [isTickUp, setIsTickUp] = useState<boolean>(false);
+  const [currentSpikePrice, setCurrentSpikePrice] = useState<number>(0.03450);
+  const [deltaPct, setDeltaPct] = useState<number>(8.84);
+  const [isTickUp, setIsTickUp] = useState<boolean>(true);
 
-  // Live real-time tick simulator (updating the active forming candle and price line)
+  // Live real-time tick simulator
   useEffect(() => {
     const interval = setInterval(() => {
-      // Small realistic tick delta (-0.45 to +0.55) with upward momentum
-      const tickDelta = (Math.random() - 0.45) * 0.75;
-      setCurrentMcap((prev) => {
-        const next = Math.max(315, Math.min(355, Number((prev + tickDelta).toFixed(2))));
-        const isUp = next >= prev;
-        setIsTickUp(isUp);
-        setDeltaChange((c) => Number((c + (isUp ? 24.5 : -18.2)).toFixed(2)));
-        setDeltaPct((p) => Number((p + (isUp ? 0.02 : -0.01)).toFixed(2)));
-
-        setCandles((prevCandles) => {
-          const last = prevCandles[prevCandles.length - 1];
-          const updatedLast: TVCandle = {
-            ...last,
-            close: next,
-            high: Math.max(last.high, next),
-            low: Math.min(last.low, next),
-            volume: last.volume + Math.floor(10 + Math.random() * 45),
-          };
-          return [...prevCandles.slice(0, prevCandles.length - 1), updatedLast];
-        });
-
+      const tickDelta = (Math.random() - 0.44) * 0.00015;
+      setCurrentSpikePrice((prev) => {
+        const next = Math.max(0.0310, Math.min(0.0375, +(prev + tickDelta).toFixed(5)));
+        setIsTickUp(next >= prev);
         return next;
       });
-    }, 1800);
+      setDeltaPct((prev) => +(prev + (Math.random() - 0.46) * 0.08).toFixed(2));
+
+      // Micro update last candle
+      setSpikeCandles((prev) => {
+        if (!prev.length) return prev;
+        const last = { ...prev[prev.length - 1] };
+        last.close = +(last.close + tickDelta).toFixed(5);
+        last.high = Math.max(last.high, last.close);
+        last.low = Math.min(last.low, last.close);
+        last.volume += Math.floor(Math.random() * 500);
+        return [...prev.slice(0, prev.length - 1), last];
+      });
+    }, 2400);
 
     return () => clearInterval(interval);
   }, []);
+
+  const candles = spikeCandles;
 
   // SVG Chart Coordinate Mapping
   const chartHeight = 360;
@@ -96,9 +91,9 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const volumeHeight = 65;
   const mainPlotHeight = chartHeight - volumeHeight - 30;
 
-  // Y-Scale fixed levels matching the photo
-  const yMin = 285.0;
-  const yMax = 365.0;
+  // Y-Scale levels based on SPIKE (SPK)
+  const yMin = 0.0300;
+  const yMax = 0.0380;
   const yRange = yMax - yMin;
 
   const yToCoord = (val: number) => {
@@ -106,14 +101,13 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   };
 
   const maxVolume = useMemo(() => Math.max(...candles.map((c) => c.volume), 1000), [candles]);
-
   const candleSpacing = (chartWidth - paddingLeft - paddingRight) / candles.length;
   const candleBarWidth = Math.max(6, candleSpacing * 0.72);
 
-  const priceY = yToCoord(currentMcap);
+  const activeDisplayPrice = currentSpikePrice;
+  const priceY = yToCoord(activeDisplayPrice);
 
-  // Exact Price Ladder steps matching the screenshot
-  const priceLadder = [360.0, 350.0, 340.0, 330.0, 320.0, 310.0, 300.0, 290.0];
+  const priceLadder = [0.0380, 0.0360, 0.0340, 0.0320, 0.0300];
 
   return (
     <div className="w-full bg-[#131722] text-[#d1d4dc] font-sans rounded-2xl border border-[#2a2e39] overflow-hidden shadow-2xl flex flex-col select-none">
@@ -135,7 +129,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             <button
               key={int}
               onClick={() => setSelectedInterval(int)}
-              className={`px-2 py-1 rounded text-xs transition-colors ${
+              className={`px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
                 selectedInterval === int
                   ? 'text-[#2962FF] font-bold bg-[#2962FF]/15'
                   : 'text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39]'
@@ -171,17 +165,12 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
           </button>
         </div>
 
-        {/* Right tools: Open on DexScreener & Camera */}
+        {/* Right tools */}
         <div className="flex items-center gap-2 shrink-0">
-          <a
-            href={dexUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#2962FF]/15 hover:bg-[#2962FF]/25 border border-[#2962FF]/40 text-[#2962FF] text-xs font-bold transition-all"
-          >
-            <span>DexScreener Live</span>
-            <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-          </a>
+          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>PancakeSwap V2 AMM</span>
+          </span>
 
           <button className="w-7 h-7 rounded flex items-center justify-center text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39]">
             <span className="material-symbols-outlined text-[16px]">photo_camera</span>
@@ -190,37 +179,47 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
       </div>
 
       {/* ============================================================
-          2. CHART SUB-HEADER / LEGEND (Exact match to screenshot)
+          2. CHART SUB-HEADER / LEGEND (SPIKE (SPK) / USDT)
          ============================================================ */}
       <div className="px-3 sm:px-4 py-2 bg-[#131722] flex flex-wrap items-center justify-between text-xs gap-2 border-b border-[#1e222d]">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Pair Circle Token Icon */}
-          <div className="w-4 h-4 rounded-full bg-[#1e222d] border border-[#2a2e39] flex items-center justify-center text-[10px] text-[#787b86]">
-            0
+          {/* Pair Title */}
+          <div className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#00F0FF]/20 border border-[#D4AF37]/40 text-white font-headline font-bold text-xs flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+            <span>{pairName}</span>
           </div>
 
-          {/* Symbol */}
-          <span className="font-bold text-white tracking-wide">
-            {pairName}
+          {/* Network and Token Standard Badge */}
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
+            BEP-20 (50M SPK Supply)
           </span>
-          <span className="text-[#787b86]">· {selectedInterval} · DexScreener</span>
+
+          <span className="text-[#787b86]">· {selectedInterval} · Testnet Live</span>
 
           {/* Live pulsing green dot */}
           <span className="w-2 h-2 rounded-full bg-[#089981] animate-pulse"></span>
 
-          {/* Current MCap / Price */}
-          <span className="font-bold text-[#f23645] tabular-nums text-sm">
-            {currentMcap.toFixed(2)}K
+          {/* Current Price */}
+          <span className="font-bold tabular-nums text-sm text-emerald-400">
+            ${activeDisplayPrice.toFixed(5)} USDT
           </span>
 
           {/* Change Delta */}
-          <span className="font-mono text-[#f23645] text-xs tabular-nums">
-            {deltaChange.toFixed(2)} ({deltaPct.toFixed(2)}%)
+          <span className="font-mono text-xs tabular-nums text-emerald-400">
+            +{deltaPct.toFixed(2)}%
           </span>
         </div>
 
-        {/* Volume toggle */}
-        <div className="flex items-center gap-1 text-[#787b86] text-xs font-mono">
+        {/* Volume & Quick Action */}
+        <div className="flex items-center gap-2 text-[#787b86] text-xs font-mono">
+          {onBuyClick && (
+            <button
+              onClick={onBuyClick}
+              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#00F0FF] to-emerald-400 text-[#051424] font-headline font-bold text-[11px] shadow-sm hover:brightness-110 transition-all cursor-pointer"
+            >
+              + Copy Contract
+            </button>
+          )}
           <span>Volume</span>
           <span className="material-symbols-outlined text-[14px]">keyboard_arrow_up</span>
         </div>
@@ -378,14 +377,14 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
               })}
             </g>
 
-            {/* 3. Horizontal Dotted Active Price Line (Red dotted across screen) */}
+            {/* 3. Horizontal Dotted Active Price Line */}
             <g>
               <line
                 x1={0}
                 y1={priceY}
                 x2={chartWidth}
                 y2={priceY}
-                stroke="#f23645"
+                stroke="#089981"
                 strokeWidth="1.2"
                 strokeDasharray="2 3"
               />
@@ -420,10 +419,12 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
           {hoveredCandle && (
             <div className="absolute top-2 left-3 bg-[#1e222d]/95 backdrop-blur-md border border-[#2a2e39] rounded px-2.5 py-1 text-[11px] font-mono shadow-xl z-20 flex items-center gap-3">
               <span className="text-[#787b86]">{hoveredCandle.time}</span>
-              <span>O: <span className="text-white font-bold">{hoveredCandle.open.toFixed(2)}K</span></span>
-              <span>H: <span className="text-white font-bold">{hoveredCandle.high.toFixed(2)}K</span></span>
-              <span>L: <span className="text-white font-bold">{hoveredCandle.low.toFixed(2)}K</span></span>
-              <span>C: <span className={hoveredCandle.close >= hoveredCandle.open ? 'text-[#089981] font-bold' : 'text-[#f23645] font-bold'}>{hoveredCandle.close.toFixed(2)}K</span></span>
+              <span>O: <span className="text-white font-bold">${hoveredCandle.open.toFixed(5)}</span></span>
+              <span>H: <span className="text-white font-bold">${hoveredCandle.high.toFixed(5)}</span></span>
+              <span>L: <span className="text-white font-bold">${hoveredCandle.low.toFixed(5)}</span></span>
+              <span>C: <span className={hoveredCandle.close >= hoveredCandle.open ? 'text-[#089981] font-bold' : 'text-[#f23645] font-bold'}>
+                ${hoveredCandle.close.toFixed(5)}
+              </span></span>
             </div>
           )}
         </div>
@@ -435,23 +436,23 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             return (
               <div
                 key={val}
-                className="absolute right-2 transform -translate-y-1/2 text-right tabular-nums"
+                className="absolute right-2 transform -translate-y-1/2 text-right tabular-nums text-[10px]"
                 style={{ top: `${(yPos / chartHeight) * 100}%` }}
               >
-                {val.toFixed(2)}K
+                ${val.toFixed(4)}
               </div>
             );
           })}
 
-          {/* ACTIVE SOLID RED PRICE BADGE (Exact match to 327.12K in screenshot) */}
+          {/* ACTIVE SOLID PRICE BADGE */}
           <div
-            className="absolute left-0 right-0 bg-[#f23645] text-white font-bold text-[11px] font-mono py-1 px-1.5 text-center shadow-lg transition-all duration-300"
+            className="absolute left-0 right-0 font-bold text-[10px] font-mono py-1 px-1 text-center shadow-lg transition-all duration-300 bg-emerald-500 text-[#0A0F1D]"
             style={{
               top: `${(priceY / chartHeight) * 100}%`,
               transform: 'translateY(-50%)',
             }}
           >
-            {currentMcap.toFixed(2)}K
+            ${activeDisplayPrice.toFixed(5)}
           </div>
         </div>
       </div>

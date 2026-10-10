@@ -4,8 +4,8 @@ import { SPIKE_LOGO_URL } from '../../data/mockData';
 import { TradingViewChart } from '../TradingViewChart';
 import { GoldenHawkMiningSection } from '../GoldenHawkMiningSection';
 
-const DEX_PAIR_URL = 'https://dexscreener.com/polygon/0x3c12eca24ebafd6795e731753879d5b629dd2741';
-const DEX_EMBED_URL = 'https://dexscreener.com/polygon/0x3c12eca24ebafd6795e731753879d5b629dd2741?embed=1&theme=dark&trades=0&info=0';
+const BSCSCAN_TOKEN_URL = 'https://bscscan.com/token/0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+const PANCAKESWAP_ROUTER_URL = 'https://pancakeswap.finance/swap?outputCurrency=0x71C8a914B97e889F12A0987cB32456Fa12349A2';
 
 interface CandleTick {
   time: string;
@@ -21,7 +21,7 @@ interface CandleTick {
 interface LiveTxn {
   id: string;
   type: 'buy' | 'sell';
-  amountLgns: number;
+  amountSpk: number;
   amountUsd: number;
   price: number;
   timeAgo: string;
@@ -40,7 +40,7 @@ interface DashboardViewProps {
   onOpenDeployModal: () => void;
   onOpenClaimModal: () => void;
   onOpenAuditModal: () => void;
-  onOpenSwapModal?: () => void;
+  onOpenSwapModal?: (initialMode?: 'sellSpike' | 'buySpike') => void;
   onOpenDepositModal?: () => void;
   onSwapSuccess?: (fromToken: string, toToken: string, fromAmount: number, toAmount: number) => void;
   walletBNB?: number;
@@ -70,6 +70,131 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onClaimReferralBonus,
   onNavigateToReferrals,
 }) => {
+  // Testnet Engine & Hashrate Auto-Buy States
+  const [testnetWallet, setTestnetWallet] = useState<{
+    address: string;
+    testnetUsdt: number;
+    testnetSpk: number;
+    autoBuyEnabled: boolean;
+    slippageTolerance: number;
+    totalHarvestAutoBoughtSpk: number;
+    totalUsdtSpentOnAutoBuy: number;
+  }>({
+    address: walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+    testnetUsdt: 1000.0,
+    testnetSpk: 250.0,
+    autoBuyEnabled: true,
+    slippageTolerance: 0.5,
+    totalHarvestAutoBoughtSpk: 125.0,
+    totalUsdtSpentOnAutoBuy: 4.31,
+  });
+
+  const [spikeTokenInfo, setSpikeTokenInfo] = useState<{
+    name: string;
+    symbol: string;
+    totalSupply: number;
+    circulatingSupply: number;
+    currentPrice: number;
+    poolSpkReserve: number;
+    poolUsdtReserve: number;
+    contractAddress: string;
+    buyPressure: number;
+    volume24h: number;
+    change24h: number;
+    high24h?: number;
+    low24h?: number;
+  }>({
+    name: 'SPIKE',
+    symbol: 'SPK',
+    totalSupply: 50_000_000,
+    circulatingSupply: 12_450_000,
+    currentPrice: 0.0345,
+    poolSpkReserve: 2_500_000,
+    poolUsdtReserve: 86_250,
+    contractAddress: '0x5P1KE777cE25a947C590823FaBe876610bFa3109',
+    buyPressure: 88.5,
+    volume24h: 1_420_000,
+    change24h: 8.42,
+    high24h: 0.0368,
+    low24h: 0.0332,
+  });
+
+  const [testnetTransactions, setTestnetTransactions] = useState<any[]>([]);
+  const [isHarvestAutoBuying, setIsHarvestAutoBuying] = useState<boolean>(false);
+  const [lastAutoBuyReceipt, setLastAutoBuyReceipt] = useState<any | null>(null);
+  const [pendingMinedSpk, setPendingMinedSpk] = useState<number>(18.42);
+  const [isTestnetFaucetLoading, setIsTestnetFaucetLoading] = useState<boolean>(false);
+  const [testnetActiveTab, setTestnetActiveTab] = useState<'autobuy' | 'swap' | 'history'>('autobuy');
+  const [testnetSwapFrom, setTestnetSwapFrom] = useState<'USDT' | 'SPK'>('USDT');
+  const [testnetSwapAmount, setTestnetSwapAmount] = useState<string>('50');
+  const [isTestnetSwapping, setIsTestnetSwapping] = useState<boolean>(false);
+  const [testnetSwapSuccessTx, setTestnetSwapSuccessTx] = useState<any | null>(null);
+
+  // Global Protocol Treasury State (Common for all users)
+  const [treasuryData, setTreasuryData] = useState<{
+    treasuryBalanceUsdt: number;
+    treasuryWalletAddress: string;
+    depositRequiredUsdt: number;
+    miningCostUsdt: number;
+    totalProjectCostUsdt: number;
+  }>({
+    treasuryBalanceUsdt: 24850.0,
+    treasuryWalletAddress: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+    depositRequiredUsdt: 5.0,
+    miningCostUsdt: 10.0,
+    totalProjectCostUsdt: 15.0,
+  });
+
+  const fetchTreasuryInfo = async () => {
+    try {
+      const res = await fetch('/api/treasury');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success) {
+          setTreasuryData({
+            treasuryBalanceUsdt: data.treasuryBalanceUsdt || 24850.0,
+            treasuryWalletAddress: data.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+            depositRequiredUsdt: data.depositRequiredUsdt || 5.0,
+            miningCostUsdt: data.miningCostUsdt || 10.0,
+            totalProjectCostUsdt: data.totalProjectCostUsdt || 15.0,
+          });
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchTreasuryInfo();
+    const handleUpdated = () => fetchTreasuryInfo();
+    window.addEventListener('spike_balance_updated', handleUpdated);
+    return () => window.removeEventListener('spike_balance_updated', handleUpdated);
+  }, []);
+
+  // Load live testnet data from backend
+  useEffect(() => {
+    const fetchTestnetData = async () => {
+      try {
+        const addr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+        const [tokenRes, walletRes] = await Promise.all([
+          fetch('/api/testnet/spike/info'),
+          fetch(`/api/testnet/wallet/${addr}`),
+        ]);
+        if (tokenRes.ok) {
+          const tData = await tokenRes.json();
+          if (tData.token) setSpikeTokenInfo(tData.token);
+        }
+        if (walletRes.ok) {
+          const wData = await walletRes.json();
+          if (wData.wallet) setTestnetWallet(wData.wallet);
+          if (wData.transactions) setTestnetTransactions(wData.transactions);
+        }
+      } catch (err) {
+        console.error('Failed to load testnet state:', err);
+      }
+    };
+    fetchTestnetData();
+  }, [walletAddress]);
+
   // DEX Swap System State (Inside Dashboard)
   const [dashFromToken, setDashFromToken] = useState<string>('SPIKE');
   const [dashToToken, setDashToToken] = useState<string>('USDT');
@@ -106,11 +231,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }, 1100);
   };
 
-  const [chartMode, setChartMode] = useState<'animated-stream' | 'dex-embed' | 'hashrate'>('animated-stream');
+  const [chartMode, setChartMode] = useState<'animated-stream' | 'hashrate'>('animated-stream');
   const [timeframe, setTimeframe] = useState<'24H' | '7D' | '30D'>('24H');
   const [streamInterval, setStreamInterval] = useState<'1M' | '5M' | '15M' | '1H' | '24H'>('1M');
-  const [currentPrice, setCurrentPrice] = useState<number>(0.0003271);
-  const [priceChange24h, setPriceChange24h] = useState<number>(4.82);
+  const [currentPrice, setCurrentPrice] = useState<number>(0.03450);
+  const [priceChange24h, setPriceChange24h] = useState<number>(8.42);
   const [lastTickDirection, setLastTickDirection] = useState<'up' | 'down'>('up');
   const [hoveredCandle, setHoveredCandle] = useState<{
     x: number;
@@ -118,27 +243,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     tick: CandleTick;
   } | null>(null);
 
-  // Initial live ticks series around DexScreener price
+  // Initial live ticks series around SPIKE spot price ($0.03450 USDT)
   const [ticks, setTicks] = useState<CandleTick[]>([
-    { time: '10:14', open: 0.0003215, high: 0.0003230, low: 0.0003208, close: 0.0003222, price: 0.0003222, volume: 1420, isBuySurge: true },
-    { time: '10:15', open: 0.0003222, high: 0.0003241, low: 0.0003218, close: 0.0003235, price: 0.0003235, volume: 1850, isBuySurge: true },
-    { time: '10:16', open: 0.0003235, high: 0.0003238, low: 0.0003220, close: 0.0003228, price: 0.0003228, volume: 920, isBuySurge: false },
-    { time: '10:17', open: 0.0003228, high: 0.0003250, low: 0.0003225, close: 0.0003246, price: 0.0003246, volume: 2400, isBuySurge: true },
-    { time: '10:18', open: 0.0003246, high: 0.0003258, low: 0.0003240, close: 0.0003252, price: 0.0003252, volume: 1680, isBuySurge: true },
-    { time: '10:19', open: 0.0003252, high: 0.0003265, low: 0.0003245, close: 0.0003260, price: 0.0003260, volume: 2100, isBuySurge: true },
-    { time: '10:20', open: 0.0003260, high: 0.0003262, low: 0.0003248, close: 0.0003254, price: 0.0003254, volume: 1150, isBuySurge: false },
-    { time: '10:21', open: 0.0003254, high: 0.0003272, low: 0.0003251, close: 0.0003268, price: 0.0003268, volume: 3200, isBuySurge: true },
-    { time: '10:22', open: 0.0003268, high: 0.0003278, low: 0.0003262, close: 0.0003271, price: 0.0003271, volume: 2850, isBuySurge: true },
+    { time: '10:14', open: 0.0322, high: 0.0330, low: 0.0320, close: 0.0328, price: 0.0328, volume: 14200, isBuySurge: true },
+    { time: '10:15', open: 0.0328, high: 0.0335, low: 0.0325, close: 0.0332, price: 0.0332, volume: 18500, isBuySurge: true },
+    { time: '10:16', open: 0.0332, high: 0.0338, low: 0.0330, close: 0.0334, price: 0.0334, volume: 9200, isBuySurge: false },
+    { time: '10:17', open: 0.0334, high: 0.0342, low: 0.0332, close: 0.0340, price: 0.0340, volume: 24000, isBuySurge: true },
+    { time: '10:18', open: 0.0340, high: 0.0346, low: 0.0338, close: 0.0344, price: 0.0344, volume: 16800, isBuySurge: true },
+    { time: '10:19', open: 0.0344, high: 0.0349, low: 0.0341, close: 0.0345, price: 0.0345, volume: 21000, isBuySurge: true },
+    { time: '10:20', open: 0.0345, high: 0.0350, low: 0.0342, close: 0.0347, price: 0.0347, volume: 11500, isBuySurge: false },
+    { time: '10:21', open: 0.0347, high: 0.0352, low: 0.0344, close: 0.0349, price: 0.0349, volume: 32000, isBuySurge: true },
+    { time: '10:22', open: 0.0349, high: 0.0355, low: 0.0346, close: 0.0345, price: 0.0345, volume: 28500, isBuySurge: true },
   ]);
 
-  // Live Buy/Sell Transactions Stream (High Buy side hype 84%+)
+  // Live Buy/Sell Transactions Stream for SPIKE (High Buy side hype 84%+)
   const [liveTxns, setLiveTxns] = useState<LiveTxn[]>([
-    { id: 'tx-1', type: 'buy', amountLgns: 54200, amountUsd: 17.72, price: 0.0003271, timeAgo: 'Just now', wallet: '0x8a92...3f1c', isWhale: false },
-    { id: 'tx-2', type: 'buy', amountLgns: 210000, amountUsd: 68.62, price: 0.0003268, timeAgo: '2s ago', wallet: '0x4f11...9cb2', isWhale: true },
-    { id: 'tx-3', type: 'buy', amountLgns: 38500, amountUsd: 12.57, price: 0.0003265, timeAgo: '5s ago', wallet: '0xd340...e17a', isWhale: false },
-    { id: 'tx-4', type: 'sell', amountLgns: 3100, amountUsd: 1.01, price: 0.0003260, timeAgo: '9s ago', wallet: '0x12bb...a840', isWhale: false },
-    { id: 'tx-5', type: 'buy', amountLgns: 94000, amountUsd: 30.69, price: 0.0003258, timeAgo: '12s ago', wallet: '0x99cc...451a', isWhale: false },
-    { id: 'tx-6', type: 'buy', amountLgns: 350000, amountUsd: 114.28, price: 0.0003254, timeAgo: '16s ago', wallet: '0x6e90...bb44', isWhale: true },
+    { id: 'tx-1', type: 'buy', amountSpk: 1250, amountUsd: 43.12, price: 0.0345, timeAgo: 'Just now', wallet: '0x8a92...3f1c', isWhale: false },
+    { id: 'tx-2', type: 'buy', amountSpk: 6500, amountUsd: 224.25, price: 0.0345, timeAgo: '2s ago', wallet: '0x4f11...9cb2', isWhale: true },
+    { id: 'tx-3', type: 'buy', amountSpk: 850, amountUsd: 29.32, price: 0.0345, timeAgo: '5s ago', wallet: '0xd340...e17a', isWhale: false },
+    { id: 'tx-4', type: 'sell', amountSpk: 220, amountUsd: 7.59, price: 0.0344, timeAgo: '9s ago', wallet: '0x12bb...a840', isWhale: false },
+    { id: 'tx-5', type: 'buy', amountSpk: 2400, amountUsd: 82.80, price: 0.0345, timeAgo: '12s ago', wallet: '0x99cc...451a', isWhale: false },
+    { id: 'tx-6', type: 'buy', amountSpk: 15000, amountUsd: 517.50, price: 0.0345, timeAgo: '16s ago', wallet: '0x6e90...bb44', isWhale: true },
   ]);
   const [buyPressure, setBuyPressure] = useState<number>(84.5);
   const [totalBuysCount, setTotalBuysCount] = useState<number>(1420);
@@ -147,15 +272,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Real-time animation ticker: updates price & adds live candle every 2 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      // Generate realistic micro delta with upward buy pressure bias
-      const delta = (Math.random() - 0.44) * 0.0000009;
+      // Generate realistic micro delta with upward buy pressure bias for SPIKE
+      const delta = (Math.random() - 0.44) * 0.00008;
 
       setTicks((prev) => {
         const last = prev[prev.length - 1];
-        const newPrice = Math.max(0.000315, last.close + delta);
+        const newPrice = Math.max(0.0315, +(last.close + delta).toFixed(5));
         const isUp = newPrice >= last.close;
-        const newHigh = Math.max(last.close, newPrice) + Math.random() * 0.0000004;
-        const newLow = Math.min(last.close, newPrice) - Math.random() * 0.0000004;
+        const newHigh = +(Math.max(last.close, newPrice) + Math.random() * 0.00004).toFixed(5);
+        const newLow = +(Math.min(last.close, newPrice) - Math.random() * 0.00004).toFixed(5);
         
         const now = new Date();
         const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
@@ -170,7 +295,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           high: newHigh,
           low: newLow,
           price: newPrice,
-          volume: Math.floor(800 + Math.random() * 2500),
+          volume: Math.floor(1200 + Math.random() * 4500),
           isBuySurge: isUp,
         };
 
@@ -178,10 +303,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         const isBuyTrade = Math.random() < 0.85;
         const isWhaleTrade = isBuyTrade && Math.random() < 0.22;
         const tradeAmount = isWhaleTrade
-          ? Math.floor(120000 + Math.random() * 280000)
+          ? Math.floor(4000 + Math.random() * 12000)
           : isBuyTrade
-          ? Math.floor(15000 + Math.random() * 65000)
-          : Math.floor(1800 + Math.random() * 7500);
+          ? Math.floor(350 + Math.random() * 2200)
+          : Math.floor(80 + Math.random() * 450);
         const tradeUsd = Number((tradeAmount * newPrice).toFixed(2));
         const randomHex = Math.random().toString(16).substring(2, 6);
         const randomEnd = Math.random().toString(16).substring(2, 6);
@@ -189,7 +314,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         const newTx: LiveTxn = {
           id: `tx-${Date.now()}`,
           type: isBuyTrade ? 'buy' : 'sell',
-          amountLgns: tradeAmount,
+          amountSpk: tradeAmount,
           amountUsd: tradeUsd,
           price: newPrice,
           timeAgo: 'Just now',
@@ -311,6 +436,149 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return { pathD, fillD, coords, minP, maxP };
   }, [ticks]);
 
+  // Live Hashrate accumulator for pending mined SPK
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const activeHash = totalHashrate > 0 ? totalHashrate : 1.25;
+      const ratePerSec = activeHash * 0.025;
+      setPendingMinedSpk((prev) => Number((prev + ratePerSec).toFixed(3)));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [totalHashrate]);
+
+  // Calculated required USDT for auto-buying current pending mined SPK
+  const requiredUsdtForPending = useMemo(() => {
+    return Number((pendingMinedSpk * spikeTokenInfo.currentPrice).toFixed(4));
+  }, [pendingMinedSpk, spikeTokenInfo.currentPrice]);
+
+  // Execute Harvest & Auto-Buy via backend testnet engine
+  const handleExecuteHarvestAutoBuy = async () => {
+    if (pendingMinedSpk <= 0) return;
+    setIsHarvestAutoBuying(true);
+    try {
+      const addr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+      const res = await fetch('/api/testnet/harvest-autobuy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: addr,
+          minedSpkAmount: pendingMinedSpk,
+          hashrate: totalHashrate || 1.25,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestnetWallet(data.wallet);
+        setSpikeTokenInfo(data.token);
+        setLastAutoBuyReceipt(data.tx);
+        setTestnetTransactions((prev) => [data.tx, ...prev]);
+        setPendingMinedSpk(0.25); // reset with tiny seed
+
+        // Push bullish trade to order stream
+        const newTrade: LiveTxn = {
+          id: `tx-spk-${Date.now()}`,
+          type: 'buy',
+          amountSpk: Math.round(data.tx.spkAmount),
+          amountUsd: Number(data.tx.usdtAmount.toFixed(2)),
+          price: data.tx.priceUsdt,
+          timeAgo: 'Just now',
+          wallet: addr ? `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}` : '0xAuto...Miner',
+          isWhale: data.tx.spkAmount > 50,
+        };
+        setLiveTxns((prev) => [newTrade, ...prev.slice(0, 5)]);
+      } else {
+        alert(data.error || 'Failed to execute auto-buy transaction');
+      }
+    } catch (err: any) {
+      console.error('Harvest auto-buy error:', err);
+    } finally {
+      setIsHarvestAutoBuying(false);
+    }
+  };
+
+  // 1-Click Faucet topup
+  const handleClaimTestnetFaucet = async () => {
+    setIsTestnetFaucetLoading(true);
+    try {
+      const addr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+      const res = await fetch('/api/testnet/wallet/faucet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: addr,
+          usdtAmount: 500,
+          spkAmount: 100,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestnetWallet(data.wallet);
+        setTestnetTransactions((prev) => [data.tx, ...prev]);
+      }
+    } catch (err) {
+      console.error('Faucet error:', err);
+    } finally {
+      setIsTestnetFaucetLoading(false);
+    }
+  };
+
+  // Toggle Auto-buy automation
+  const handleToggleAutoBuySetting = async (enabled: boolean) => {
+    try {
+      const addr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+      const res = await fetch('/api/testnet/wallet/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: addr,
+          autoBuyEnabled: enabled,
+          slippageTolerance: testnetWallet.slippageTolerance,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestnetWallet(data.wallet);
+      }
+    } catch (err) {
+      console.error('Settings error:', err);
+    }
+  };
+
+  // Manual Testnet Swap
+  const handleExecuteManualTestnetSwap = async () => {
+    const num = parseFloat(testnetSwapAmount) || 0;
+    if (num <= 0) return;
+    setIsTestnetSwapping(true);
+    setTestnetSwapSuccessTx(null);
+    try {
+      const addr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+      const toToken = testnetSwapFrom === 'USDT' ? 'SPK' : 'USDT';
+      const res = await fetch('/api/testnet/swap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: addr,
+          fromToken: testnetSwapFrom,
+          toToken,
+          amountIn: num,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestnetWallet(data.wallet);
+        setSpikeTokenInfo(data.token);
+        setTestnetSwapSuccessTx(data.tx);
+        setTestnetTransactions((prev) => [data.tx, ...prev]);
+      } else {
+        alert(data.error || 'Swap failed');
+      }
+    } catch (err) {
+      console.error('Swap error:', err);
+    } finally {
+      setIsTestnetSwapping(false);
+    }
+  };
+
   return (
     <div className="flex flex-col w-full space-y-6 md:space-y-8 pb-12">
       {/* ============================================================
@@ -345,11 +613,114 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <GoldenHawkMiningSection
         totalHashrate={totalHashrate}
         walletBalance={walletBalance}
+        walletAddress={walletAddress}
         isNodeActive={activeNodeCount > 0}
         activeNodesCount={activeNodeCount}
         onClaimReward={onClaimReferralBonus}
         onDeployMoreNodes={onOpenDeployModal}
+        onAutoBuySuccess={(tx, wallet, token) => {
+          if (wallet) setTestnetWallet(wallet);
+          if (token) setSpikeTokenInfo(token);
+          if (tx) {
+            setLastAutoBuyReceipt(tx);
+            setTestnetTransactions((prev) => [tx, ...prev]);
+            const newTrade: LiveTxn = {
+              id: `tx-spk-${Date.now()}`,
+              type: 'buy',
+              amountSpk: Math.round(tx.spkAmount),
+              amountUsd: Number(tx.usdtAmount.toFixed(2)),
+              price: tx.priceUsdt,
+              timeAgo: 'Just now',
+              wallet: walletAddress ? `${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}` : '0xAuto...Miner',
+              isWhale: tx.spkAmount > 50,
+            };
+            setLiveTxns((prev) => [newTrade, ...prev.slice(0, 5)]);
+          }
+        }}
       />
+
+      {/* ============================================================
+          15$ PROTOCOL WORKFLOW: Step 1 (5$ Treasury Deposit) ➔ Step 2 (10$ Mining Start)
+         ============================================================ */}
+      <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-[#071b2d] via-[#0b243b] to-[#071b2d] border border-[#00F0FF]/30 shadow-xl relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">account_tree</span>
+                <span>15$ Project Protocol Workflow</span>
+              </span>
+              <span className="text-xs text-[#94a3b8] font-mono">
+                Budget: <strong className="text-white">15.00 USDT</strong> (5$ Treasury Deposit + 10$ Mining Call)
+              </span>
+            </div>
+            <p className="text-xs text-[#94a3b8]">
+              Step 1 me 5$ seedha Official Treasury me deposit hoga, baki bache 10$ se Smart Contract call execute hokar mining activate hogi (backend PancakeSwap buy route).
+            </p>
+          </div>
+
+          {/* Stepper Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+            {/* Step 1: 5$ Deposit to Treasury */}
+            <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+              walletBalance < 15
+                ? 'bg-emerald-950/30 border-emerald-500/40'
+                : 'bg-[#0a1826] border-[#D4AF37]/40'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                  walletBalance < 15 ? 'bg-emerald-500 text-[#051424]' : 'bg-[#D4AF37] text-[#051424]'
+                }`}>
+                  {walletBalance < 15 ? '✓' : '1'}
+                </div>
+                <div>
+                  <div className="text-xs font-bold font-headline text-white">Step 1: Deposit 5$</div>
+                  <div className="text-[10px] text-[#94a3b8] font-mono">To Treasury (0xDE7B...a4c7)</div>
+                </div>
+              </div>
+              {onOpenDepositModal && (
+                <button
+                  onClick={onOpenDepositModal}
+                  className="px-2.5 py-1 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] text-[#051424] font-headline font-bold text-[11px] transition-all cursor-pointer shadow-sm shrink-0"
+                >
+                  {walletBalance < 15 ? 'Deposited' : 'Deposit 5$'}
+                </button>
+              )}
+            </div>
+
+            {/* Step 2: 10$ Start Mining */}
+            <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+              nodes.some(n => n.status === 'mining')
+                ? 'bg-emerald-950/30 border-emerald-500/40'
+                : 'bg-[#0a1826] border-[#00F0FF]/40'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+                  nodes.some(n => n.status === 'mining') ? 'bg-emerald-500 text-[#051424]' : 'bg-[#00F0FF] text-[#051424]'
+                }`}>
+                  {nodes.some(n => n.status === 'mining') ? '✓' : '2'}
+                </div>
+                <div>
+                  <div className="text-xs font-bold font-headline text-white">Step 2: Start Mining 10$</div>
+                  <div className="text-[10px] text-[#94a3b8] font-mono">Smart Contract + PancakeSwap Buy</div>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (nodes.length > 0 && nodes[0].status !== 'mining') {
+                    onStartNode(nodes[0].id);
+                  } else {
+                    onOpenDeployModal();
+                  }
+                }}
+                className="px-2.5 py-1 rounded-lg bg-[#00F0FF] hover:bg-[#7df4ff] text-[#051424] font-headline font-bold text-[11px] transition-all cursor-pointer shadow-sm shrink-0"
+              >
+                {nodes.some(n => n.status === 'mining') ? 'Mining Active' : 'Start Mining'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* 4 Metric Cards matching Image 2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -403,32 +774,60 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Daily USDT Earnings */}
+        {/* Card 3: SPIKE Balance with Instant PancakeSwap Sell Route */}
         <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
-          <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#00F0FF]/5 rounded-full blur-xl group-hover:bg-[#00F0FF]/15 transition-all"></div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">
-              Daily USDT Earnings
-            </span>
-            <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 flex items-center justify-center text-[#00F0FF]">
-              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                payments
-              </span>
-            </div>
-          </div>
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#D4AF37]/5 rounded-full blur-xl group-hover:bg-[#D4AF37]/15 transition-all pointer-events-none" />
+          
           <div>
-            <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-1 tabular-nums tracking-tight">
-              {dailyEarnings.toFixed(2)}{' '}
-              <span className="text-lg lg:text-xl text-[#00F0FF] font-semibold tracking-normal">USDT</span>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">
+                SPIKE Balance
+              </span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37]/20 to-[#f59e0b]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.25)] shrink-0">
+                <img
+                  src={SPIKE_LOGO_URL}
+                  alt="SPIKE Token Medallion"
+                  className="w-7 h-7 object-contain drop-shadow-[0_0_8px_rgba(212,175,55,0.5)] group-hover:scale-110 transition-transform"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-[#7df4ff] font-medium">
-              <span className="material-symbols-outlined text-[14px]">schedule</span>
-              <span>Next payout in 3h 12m</span>
+
+            <div>
+              <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-0.5 tabular-nums tracking-tight flex items-baseline gap-2">
+                <span>{(testnetWallet?.testnetSpk ?? 150.0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="text-lg lg:text-xl text-[#D4AF37] font-semibold tracking-normal font-headline">SPK</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs font-mono mb-2">
+                <span className="text-emerald-400 font-bold">
+                  ≈ ${(((testnetWallet?.testnetSpk ?? 150.0)) * (spikeTokenInfo?.currentPrice || 0.0345)).toFixed(2)} USDT
+                </span>
+                <span className="text-[#475569]">•</span>
+                <span className="text-[#94a3b8] text-[11px]">
+                  1 SPK = ${(spikeTokenInfo?.currentPrice || 0.0345).toFixed(4)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 mt-1.5">
+                <button
+                  onClick={() => {
+                    if (onOpenSwapModal) {
+                      onOpenSwapModal('sellSpike');
+                    }
+                  }}
+                  className="text-xs text-[#D4AF37] hover:underline font-headline font-semibold flex items-center gap-1 transition-all group/btn cursor-pointer"
+                  title="Open PancakeSwap Sell Route: Sell SPK for USDT"
+                >
+                  <span>Swap Now</span>
+                  <span className="material-symbols-outlined text-[14px] group-hover/btn:translate-x-0.5 transition-transform">
+                    arrow_forward
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Card 4: Treasury Wallet */}
+        {/* Card 4: Protocol Treasury Wallet (Common for Everyone) */}
         <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
           <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#D4AF37]/5 rounded-full blur-xl group-hover:bg-[#D4AF37]/15 transition-all"></div>
           <div className="flex items-center justify-between mb-4">
@@ -436,21 +835,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span>Treasury Wallet</span>
               <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live
+                Global Vault
               </span>
             </span>
             <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">
               <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                account_balance_wallet
+                account_balance
               </span>
             </div>
           </div>
           <div>
-            <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-1 tabular-nums tracking-tight">
-              {walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}{' '}
+            <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-0.5 tabular-nums tracking-tight">
+              {treasuryData.treasuryBalanceUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })}{' '}
               <span className="text-lg lg:text-xl text-[#D4AF37] font-semibold tracking-normal">USDT</span>
             </div>
+            <div className="flex items-center gap-1.5 text-xs text-[#94a3b8] font-mono mb-2 truncate">
+              <span className="material-symbols-outlined text-[13px] text-emerald-400">verified</span>
+              <span className="text-emerald-300">Official: {treasuryData.treasuryWalletAddress.slice(0, 6)}...{treasuryData.treasuryWalletAddress.slice(-4)}</span>
+              <span className="text-[#475569]">•</span>
+              <span className="text-[11px] text-[#94a3b8]">Sabke liye common</span>
+            </div>
             <div className="flex flex-wrap items-center gap-2.5 mt-1.5">
+              {onOpenDepositModal && (
+                <button
+                  onClick={onOpenDepositModal}
+                  className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/35 hover:to-[#f59e0b]/35 text-[#D4AF37] border border-[#D4AF37]/50 hover:border-[#D4AF37] text-xs font-headline font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+                  title="Deposit 5 USDT Protocol Entry Fee to Official Treasury Wallet"
+                >
+                  <span className="material-symbols-outlined text-[14px]">payments</span>
+                  <span>+ Deposit 5$ to Treasury</span>
+                </button>
+              )}
               <button
                 onClick={onOpenClaimModal}
                 className="text-xs text-[#00F0FF] hover:underline font-headline font-semibold flex items-center gap-1 transition-all group/btn"
@@ -460,341 +875,484 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   arrow_forward
                 </span>
               </button>
-              {onOpenDepositModal && (
-                <button
-                  onClick={onOpenDepositModal}
-                  className="px-2 py-0.5 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37]/35 text-[#D4AF37] border border-[#D4AF37]/50 hover:border-[#D4AF37] text-[11px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-                  title="Deposit 15 USDT to Official Protocol Wallet (+$15 Mining Balance)"
-                >
-                  <span className="material-symbols-outlined text-[13px]">payments</span>
-                  <span>+ Deposit 15$</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* ============================================================
-          SPIKE DEX SWAP SYSTEM CONSOLE (INSIDE DASHBOARD)
+          SPIKE (SPK) BEP-20 TESTNET ENGINE & HASHRATE AUTO-BUY SANDBOX
          ============================================================ */}
-      <div id="dashboard-swap" className="bg-gradient-to-br from-[#0c2035] via-[#0a1828] to-[#06121f] rounded-2xl p-5 md:p-7 shadow-2xl border-2 border-[#D4AF37]/50 relative overflow-hidden">
+      <div id="dashboard-testnet" className="bg-gradient-to-br from-[#071727] via-[#0a1b2d] to-[#040e1a] rounded-2xl p-5 md:p-7 shadow-2xl border-2 border-[#00F0FF]/40 relative overflow-hidden">
         {/* Ambient Glows */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#00F0FF]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-80 h-80 bg-[#00F0FF]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#1c2b3b]">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[#1c2b3b]">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#D4AF37] to-[#00F0FF] p-0.5 shadow-[0_0_20px_rgba(212,175,55,0.4)] flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#00F0FF] to-[#D4AF37] p-0.5 shadow-[0_0_20px_rgba(0,240,255,0.4)] flex items-center justify-center shrink-0">
                 <div className="w-full h-full bg-[#0a0f1d] rounded-2xl flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[24px] text-[#D4AF37]">swap_horiz</span>
+                  <span className="material-symbols-outlined text-[26px] text-[#00F0FF]">science</span>
                 </div>
               </div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-xl md:text-2xl font-extrabold font-headline text-white tracking-tight">
-                    SPIKE DEX Swap System
+                    SPIKE (SPK) Testnet Engine
                   </h2>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    0% TAX
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/30">
+                    BEP-20 BSC TESTNET
                   </span>
-                  <span className="hidden sm:inline px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/30">
-                    BEP-20
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30">
+                    TOTAL SUPPLY: 50,000,000 SPK
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    0% TAX AMM
                   </span>
                 </div>
                 <p className="text-xs text-[#94a3b8] mt-0.5">
-                  Instant non-custodial decentralized swapping with live automated market liquidity on BNB Smart Chain.
+                  Decentralized Hashrate Auto-Buy mechanism (<span className="text-[#00F0FF] font-mono">swapTokensForExactTokens</span>) using Temporary USDT and simulated PancakeSwap Liquidity Pool.
                 </p>
               </div>
             </div>
 
-            {/* Quick Action to open full swap modal if preferred */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Faucet Top-up button */}
+            <div className="flex items-center gap-2 self-start lg:self-auto">
               <button
-                onClick={onOpenSwapModal}
-                className="px-3.5 py-2 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] hover:text-white border border-[#00F0FF]/40 text-xs font-headline font-semibold transition-all flex items-center gap-1.5 shadow-sm"
+                onClick={handleClaimTestnetFaucet}
+                disabled={isTestnetFaucetLoading}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#ffe088] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-bold text-xs transition-all shadow-[0_0_15px_rgba(212,175,55,0.3)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                title="Get +500 tUSDT & +100 SPK free for testing"
               >
-                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                <span>Advanced Terminal</span>
+                {isTestnetFaucetLoading ? (
+                  <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-[16px]">water_drop</span>
+                )}
+                <span>+ Faucet: Claim 500$ tUSDT</span>
               </button>
             </div>
           </div>
 
-          {/* Swap Interactive Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-            {/* Left: Interactive Swap Controls (7 cols) */}
-            <div className="lg:col-span-7 space-y-4">
-              {/* Preset Mode Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-[#051424] rounded-xl border border-[#1c2b3b] w-fit">
-                <button
-                  onClick={() => {
-                    setDashFromToken('SPIKE');
-                    setDashToToken('USDT');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-headline font-semibold transition-all ${
-                    dashFromToken === 'SPIKE' && dashToToken === 'USDT'
-                      ? 'bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-bold shadow-sm'
-                      : 'text-[#94a3b8] hover:text-white'
-                  }`}
-                >
-                  Sell SPIKE
-                </button>
-                <button
-                  onClick={() => {
-                    setDashFromToken('USDT');
-                    setDashToToken('SPIKE');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-headline font-semibold transition-all ${
-                    dashFromToken === 'USDT' && dashToToken === 'SPIKE'
-                      ? 'bg-gradient-to-r from-[#00F0FF] to-[#7df4ff] text-[#0A0F1D] font-bold shadow-sm'
-                      : 'text-[#94a3b8] hover:text-white'
-                  }`}
-                >
-                  Buy SPIKE
-                </button>
-                <button
-                  onClick={() => {
-                    setDashFromToken('BNB');
-                    setDashToToken('SPIKE');
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-headline font-semibold transition-all ${
-                    dashFromToken === 'BNB' && dashToToken === 'SPIKE'
-                      ? 'bg-gradient-to-r from-[#D4AF37] to-[#00F0FF] text-[#0A0F1D] font-bold shadow-sm'
-                      : 'text-[#94a3b8] hover:text-white'
-                  }`}
-                >
-                  BNB ➔ SPIKE
-                </button>
+          {/* Testnet Balances & Contract Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-2xl bg-[#051424] border border-[#1c2b3b]">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#94a3b8] block">Testnet USDT Balance</span>
+              <div className="text-lg sm:text-xl font-extrabold font-mono text-[#00F0FF] mt-0.5">
+                ${testnetWallet.testnetUsdt.toFixed(2)}{' '}
+                <span className="text-xs text-[#7df4ff]">tUSDT</span>
               </div>
-
-              {/* Pay Input Box */}
-              <div className="p-4 rounded-2xl bg-[#051424] border border-[#1c2b3b] hover:border-[#D4AF37]/50 transition-colors space-y-2">
-                <div className="flex items-center justify-between text-xs text-[#94a3b8]">
-                  <span className="font-mono font-semibold uppercase tracking-wider">You Pay</span>
-                  <span className="font-mono">
-                    Balance:{' '}
-                    <strong className="text-white">
-                      {currentFrom.balance.toFixed(currentFrom.symbol === 'BNB' ? 4 : 2)} {currentFrom.symbol}
-                    </strong>
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    value={dashFromAmount}
-                    onChange={(e) => setDashFromAmount(e.target.value)}
-                    placeholder="0.0"
-                    min="0"
-                    className="w-full bg-transparent text-2xl sm:text-3xl font-extrabold font-mono text-white focus:outline-none placeholder-[#94a3b8]/40"
-                  />
-
-                  {/* Token selector badge */}
-                  <div className="shrink-0 flex items-center gap-2 bg-[#0c1d2e] border border-[#1c2b3b] px-3.5 py-1.5 rounded-xl">
-                    {currentFrom.isSpike ? (
-                      <img
-                        src={SPIKE_LOGO_URL}
-                        alt="SPIKE"
-                        onError={(e) => { e.currentTarget.src = '/spike_logo.png'; }}
-                        className="w-6 h-6 object-contain"
-                      />
-                    ) : (
-                      <span className="material-symbols-outlined text-[20px] text-[#00F0FF]">
-                        {currentFrom.icon}
-                      </span>
-                    )}
-                    <span className="font-headline font-bold text-sm text-white">{currentFrom.symbol}</span>
-                  </div>
-                </div>
-
-                {/* Percentage Shortcuts */}
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-[#94a3b8] font-mono">
-                    ≈ ${(numFromAmount * currentFrom.rate).toFixed(2)} USD
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {[0.25, 0.5, 0.75, 1.0].map((pct) => (
-                      <button
-                        key={pct}
-                        onClick={() => {
-                          const val = (currentFrom.balance * pct).toFixed(currentFrom.symbol === 'BNB' ? 4 : 2);
-                          setDashFromAmount(val);
-                        }}
-                        className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#0c1d2e] hover:bg-[#1c2b3b] text-[#94a3b8] hover:text-[#00F0FF] border border-[#1c2b3b] transition-colors"
-                      >
-                        {pct * 100}%
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Flip Direction Button */}
-              <div className="flex justify-center -my-2 relative z-10">
-                <button
-                  onClick={handleFlipDashTokens}
-                  className="w-9 h-9 rounded-xl bg-[#0c1d2e] border border-[#D4AF37]/60 text-[#D4AF37] hover:text-[#00F0FF] hover:border-[#00F0FF] hover:rotate-180 transition-all duration-300 shadow-md flex items-center justify-center active:scale-95"
-                  title="Switch Token Direction"
-                >
-                  <span className="material-symbols-outlined text-[18px]">swap_vert</span>
-                </button>
-              </div>
-
-              {/* Receive Output Box */}
-              <div className="p-4 rounded-2xl bg-[#051424] border border-[#1c2b3b] hover:border-[#00F0FF]/50 transition-colors space-y-2">
-                <div className="flex items-center justify-between text-xs text-[#94a3b8]">
-                  <span className="font-mono font-semibold uppercase tracking-wider">You Receive (Estimated)</span>
-                  <span className="font-mono">
-                    Balance:{' '}
-                    <strong className="text-white">
-                      {currentTo.balance.toFixed(currentTo.symbol === 'BNB' ? 4 : 2)} {currentTo.symbol}
-                    </strong>
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    readOnly
-                    value={calculatedToAmount.toFixed(currentTo.symbol === 'BNB' ? 4 : 2)}
-                    className="w-full bg-transparent text-2xl sm:text-3xl font-extrabold font-mono text-[#00F0FF] focus:outline-none"
-                  />
-
-                  {/* Token selector badge */}
-                  <div className="shrink-0 flex items-center gap-2 bg-[#0c1d2e] border border-[#1c2b3b] px-3.5 py-1.5 rounded-xl">
-                    {currentTo.isSpike ? (
-                      <img
-                        src={SPIKE_LOGO_URL}
-                        alt="SPIKE"
-                        onError={(e) => { e.currentTarget.src = '/spike_logo.png'; }}
-                        className="w-6 h-6 object-contain"
-                      />
-                    ) : (
-                      <span className="material-symbols-outlined text-[20px] text-emerald-400">
-                        {currentTo.icon}
-                      </span>
-                    )}
-                    <span className="font-headline font-bold text-sm text-white">{currentTo.symbol}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-[#94a3b8] font-mono">
-                    ≈ ${(calculatedToAmount * currentTo.rate).toFixed(2)} USD
-                  </span>
-                  <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1 font-semibold">
-                    <span className="material-symbols-outlined text-[13px]">check_circle</span>
-                    0% Transfer Fee
-                  </span>
-                </div>
-              </div>
-
-              {/* Swap Trigger Button */}
-              {numFromAmount > currentFrom.balance ? (
-                <button
-                  disabled
-                  className="w-full py-3.5 rounded-xl bg-[#1c2b3b] text-[#94a3b8] font-headline font-bold text-sm cursor-not-allowed border border-[#1c2b3b]"
-                >
-                  Insufficient {currentFrom.symbol} Balance
-                </button>
-              ) : numFromAmount <= 0 ? (
-                <button
-                  disabled
-                  className="w-full py-3.5 rounded-xl bg-[#1c2b3b] text-[#94a3b8] font-headline font-bold text-sm cursor-not-allowed border border-[#1c2b3b]"
-                >
-                  Enter an Amount to Swap
-                </button>
-              ) : (
-                <button
-                  onClick={handleExecuteDashSwap}
-                  disabled={dashIsSwapping}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] text-[#0A0F1D] font-headline font-extrabold text-sm shadow-[0_0_24px_rgba(212,175,55,0.4)] hover:shadow-[0_0_32px_rgba(212,175,55,0.6)] hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-75"
-                >
-                  {dashIsSwapping ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                      <span>Executing Swap on BNB Smart Chain...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined text-[20px]">swap_horiz</span>
-                      <span>Execute Instant Swap ({currentFrom.symbol} ➔ {currentTo.symbol})</span>
-                    </>
-                  )}
-                </button>
-              )}
-
-              {/* Success Alert */}
-              {dashSwapSuccessTx && (
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono space-y-1 animate-fade-in">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <span className="material-symbols-outlined text-[16px]">verified</span>
-                    <span>Swap Executed Successfully!</span>
-                  </div>
-                  <div className="text-[10px] text-[#94a3b8] truncate">
-                    Tx Hash: <span className="text-[#00F0FF]">{dashSwapSuccessTx}</span>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Right: Pool Metrics & Routing Transparency (5 cols) */}
-            <div className="lg:col-span-5 space-y-4">
-              <div className="p-4 rounded-xl bg-[#051424] border border-[#1c2b3b] space-y-3">
-                <div className="text-xs font-mono uppercase tracking-wider text-[#94a3b8] font-bold">
-                  Order Routing &amp; Liquidity
-                </div>
-
-                <div className="space-y-2 text-xs font-mono">
-                  <div className="flex justify-between items-center text-[#94a3b8]">
-                    <span>Exchange Rate:</span>
-                    <span className="text-white font-bold">
-                      1 {currentFrom.symbol} ≈ {dashRate.toFixed(4)} {currentTo.symbol}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-[#94a3b8]">
-                    <span>Router:</span>
-                    <span className="text-[#00F0FF] font-semibold flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">alt_route</span>
-                      PancakeSwap V3 (BSC)
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-[#94a3b8]">
-                    <span>Protocol Fee:</span>
-                    <span className="text-emerald-400 font-bold">0.00% (Zero Tax)</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[#94a3b8]">
-                    <span>Network Gas:</span>
-                    <span className="text-white font-semibold">≈ 0.00045 BNB (~$0.28)</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[#94a3b8]">
-                    <span>Slippage:</span>
-                    <span className="text-white font-semibold">0.5% (Auto)</span>
-                  </div>
-                </div>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#94a3b8] block">SPIKE (SPK) Balance</span>
+              <div className="text-lg sm:text-xl font-extrabold font-mono text-[#D4AF37] mt-0.5">
+                {testnetWallet.testnetSpk.toFixed(2)}{' '}
+                <span className="text-xs text-[#ffe088]">SPK</span>
               </div>
+            </div>
 
-              {/* Liquidity Pool Health */}
-              <div className="p-4 rounded-xl bg-[#051424] border border-[#1c2b3b] space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-mono text-[#94a3b8] uppercase font-bold">Liquidity Pool Health</span>
-                  <span className="font-mono text-emerald-400 font-bold">Optimal (99.8%)</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-                  <div className="p-2.5 rounded-lg bg-[#0c1d2e] border border-[#1c2b3b]">
-                    <div className="text-[10px] text-[#94a3b8]">24h Volume</div>
-                    <div className="text-sm font-bold text-white mt-0.5">$482,910</div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-[#0c1d2e] border border-[#1c2b3b]">
-                    <div className="text-[10px] text-[#94a3b8]">Total Locked</div>
-                    <div className="text-sm font-bold text-[#00F0FF] mt-0.5">$3,420,000</div>
-                  </div>
-                </div>
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#94a3b8] block">SPK Spot Price</span>
+              <div className="text-lg sm:text-xl font-extrabold font-mono text-emerald-400 mt-0.5 flex items-center gap-1">
+                <span>${spikeTokenInfo.currentPrice.toFixed(4)}</span>
+                <span className="text-[10px] text-emerald-300 font-normal">USDT</span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#94a3b8] block">Total Auto-Bought</span>
+              <div className="text-lg sm:text-xl font-extrabold font-mono text-white mt-0.5">
+                {testnetWallet.totalHarvestAutoBoughtSpk.toFixed(2)}{' '}
+                <span className="text-[11px] text-[#94a3b8]">SPK</span>
               </div>
             </div>
           </div>
+
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center gap-2 border-b border-[#1c2b3b] pb-2">
+            <button
+              onClick={() => setTestnetActiveTab('autobuy')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-headline font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                testnetActiveTab === 'autobuy'
+                  ? 'bg-gradient-to-r from-[#00F0FF] to-[#7df4ff] text-[#0A0F1D] shadow-[0_0_15px_rgba(0,240,255,0.3)]'
+                  : 'text-[#94a3b8] hover:text-white hover:bg-[#122130]'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">bolt</span>
+              <span>Hashrate Auto-Buy on Harvest</span>
+            </button>
+
+            <button
+              onClick={() => setTestnetActiveTab('swap')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-headline font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                testnetActiveTab === 'swap'
+                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.3)]'
+                  : 'text-[#94a3b8] hover:text-white hover:bg-[#122130]'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
+              <span>Testnet DEX Swap (tUSDT ⇄ SPK)</span>
+            </button>
+
+            <button
+              onClick={() => setTestnetActiveTab('history')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-headline font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                testnetActiveTab === 'history'
+                  ? 'bg-[#1c2b3b] text-white border border-[#00F0FF]/40'
+                  : 'text-[#94a3b8] hover:text-white hover:bg-[#122130]'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[16px]">receipt_long</span>
+              <span>Testnet Transactions ({testnetTransactions.length})</span>
+            </button>
+          </div>
+
+          {/* TAB 1: HASHRATE AUTO-BUY ON HARVEST */}
+          {testnetActiveTab === 'autobuy' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                {/* Left: Interactive Harvest Auto-Buy Box (7 cols) */}
+                <div className="lg:col-span-7 p-5 rounded-2xl bg-[#051424] border border-[#1c2b3b] space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-[#1c2b3b]">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                      <span className="font-headline font-bold text-sm text-white">
+                        Hashrate Auto-Buy Engine (Live Linked)
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-[#00F0FF]">
+                      Current Hashrate: <strong>{totalHashrate > 0 ? totalHashrate.toFixed(2) : '1.25'} TH/s</strong>
+                    </span>
+                  </div>
+
+                  {/* Mining Calculation Display */}
+                  <div className="p-4 rounded-xl bg-[#091b2e] border border-[#00F0FF]/30 space-y-2">
+                    <div className="flex justify-between items-center text-xs text-[#94a3b8]">
+                      <span>Hashrate Mined Output (Pending Harvest):</span>
+                      <span className="text-emerald-400 font-mono font-bold animate-pulse">
+                        ⛏️ Mined in real-time
+                      </span>
+                    </div>
+
+                    <div className="flex items-baseline justify-between">
+                      <div className="text-3xl sm:text-4xl font-black font-mono text-white tabular-nums tracking-tight">
+                        {pendingMinedSpk.toFixed(2)}{' '}
+                        <span className="text-lg text-[#D4AF37] font-bold">SPK</span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[11px] text-[#94a3b8] block">Required tUSDT</span>
+                        <span className="text-lg font-mono font-bold text-[#00F0FF] tabular-nums">
+                          ${requiredUsdtForPending.toFixed(4)} USDT
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#1c2b3b]/60 flex items-center justify-between text-[11px] font-mono text-[#94a3b8]">
+                      <span>Smart Contract Method:</span>
+                      <span className="text-white font-semibold">swapTokensForExactTokens</span>
+                    </div>
+                  </div>
+
+                  {/* Automation Switch */}
+                  <div className="p-3.5 rounded-xl bg-[#091524] border border-[#1c2b3b] flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-headline font-bold text-white flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">autorenew</span>
+                        <span>Auto-Buy on Hashrate Epoch (Hands-Free)</span>
+                      </div>
+                      <p className="text-[11px] text-[#94a3b8] mt-0.5">
+                        Automatically buy exact mined SPK whenever hashrate produces tokens.
+                      </p>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={testnetWallet.autoBuyEnabled}
+                        onChange={(e) => handleToggleAutoBuySetting(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-[#1c2b3b] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00F0FF]" />
+                    </label>
+                  </div>
+
+                  {/* Trigger Auto-Buy Button */}
+                  {testnetWallet.testnetUsdt < requiredUsdtForPending ? (
+                    <div className="space-y-2">
+                      <button
+                        disabled
+                        className="w-full py-3.5 rounded-xl bg-[#1c2b3b] text-[#94a3b8] font-headline font-bold text-sm cursor-not-allowed border border-[#1c2b3b]"
+                      >
+                        Insufficient tUSDT Balance (${testnetWallet.testnetUsdt.toFixed(2)} / ${requiredUsdtForPending.toFixed(2)})
+                      </button>
+                      <button
+                        onClick={handleClaimTestnetFaucet}
+                        className="w-full py-2 rounded-xl bg-[#D4AF37]/20 hover:bg-[#D4AF37]/35 text-[#D4AF37] border border-[#D4AF37]/50 text-xs font-mono font-bold transition-all cursor-pointer"
+                      >
+                        + Use Faucet to get 500$ Testnet USDT
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleExecuteHarvestAutoBuy}
+                      disabled={isHarvestAutoBuying || pendingMinedSpk <= 0}
+                      className="w-full py-4 rounded-xl bg-gradient-to-r from-[#00F0FF] via-[#7df4ff] to-[#D4AF37] text-[#0A0F1D] font-headline font-black text-sm shadow-[0_0_25px_rgba(0,240,255,0.4)] hover:shadow-[0_0_35px_rgba(0,240,255,0.6)] hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {isHarvestAutoBuying ? (
+                        <>
+                          <span className="w-5 h-5 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                          <span>Executing swapTokensForExactTokens on BSC Testnet...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined text-[22px]">bolt</span>
+                          <span>
+                            Harvest &amp; Auto-Buy {pendingMinedSpk.toFixed(2)} SPK (Spend ${requiredUsdtForPending.toFixed(4)} tUSDT)
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Right: Technical Explanation & Latest Receipt (5 cols) */}
+                <div className="lg:col-span-5 space-y-4">
+                  {lastAutoBuyReceipt ? (
+                    <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/50 space-y-3 animate-fade-in shadow-xl">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                        <span className="material-symbols-outlined text-[18px]">verified</span>
+                        <span>BEP-20 Transaction Confirmed!</span>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-[#04121f] border border-emerald-500/30 font-mono text-xs space-y-1.5">
+                        <div className="flex justify-between text-[#94a3b8]">
+                          <span>Tokens Bought:</span>
+                          <span className="text-white font-bold">+{lastAutoBuyReceipt.spkAmount.toFixed(2)} SPK</span>
+                        </div>
+                        <div className="flex justify-between text-[#94a3b8]">
+                          <span>USDT Deducted:</span>
+                          <span className="text-[#00F0FF] font-bold">-${lastAutoBuyReceipt.usdtAmount.toFixed(4)} USDT</span>
+                        </div>
+                        <div className="flex justify-between text-[#94a3b8]">
+                          <span>Effective Price:</span>
+                          <span className="text-white font-bold">${lastAutoBuyReceipt.priceUsdt.toFixed(5)} USDT</span>
+                        </div>
+                        <div className="flex justify-between text-[#94a3b8]">
+                          <span>Block Number:</span>
+                          <span className="text-white font-mono">#{lastAutoBuyReceipt.blockNumber}</span>
+                        </div>
+                        <div className="pt-2 border-t border-[#1c2b3b] truncate text-[10px] text-[#94a3b8]">
+                          <span>Tx Hash: </span>
+                          <span className="text-[#00F0FF] font-mono">{lastAutoBuyReceipt.txHash}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-[#94a3b8]">
+                        Exact token quantity mine hui aur utni hi quantity DEX liquidity pool se auto-buy kar ke wallet me credit kar di gayi!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-[#051424] border border-[#1c2b3b] space-y-3">
+                      <div className="text-xs font-mono uppercase tracking-wider text-[#94a3b8] font-bold flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">info</span>
+                        <span>How Hashrate Auto-Buy Works</span>
+                      </div>
+
+                      <ul className="space-y-2 text-xs text-[#94a3b8] font-sans">
+                        <li className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-[#00F0FF]/15 text-[#00F0FF] flex items-center justify-center text-[10px] shrink-0 font-bold">1</span>
+                          <span>Aapki hashrate se jitne bhi SPK token mine hote hain, system unka exact count karta hai.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-[#00F0FF]/15 text-[#00F0FF] flex items-center justify-center text-[10px] shrink-0 font-bold">2</span>
+                          <span>Harvest click par Smart Contract ka <strong className="text-white">swapTokensForExactTokens</strong> function call hota hai.</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-[#00F0FF]/15 text-[#00F0FF] flex items-center justify-center text-[10px] shrink-0 font-bold">3</span>
+                          <span>User ke testnet USDT se utne exact SPK token buy hokar wallet me credit ho jaate hain aur trading chart par green candle ban jaati hai!</span>
+                        </li>
+                      </ul>
+
+                      <div className="p-2.5 rounded-xl bg-[#091524] border border-[#1c2b3b] text-[11px] font-mono text-[#00F0FF] flex items-center justify-between">
+                        <span>PancakeSwap v2 Pool:</span>
+                        <span className="text-white font-bold">2.5M SPK / 86.25K USDT</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: TESTNET DEX SWAP */}
+          {testnetActiveTab === 'swap' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+              <div className="lg:col-span-7 space-y-4">
+                <div className="p-4 rounded-2xl bg-[#051424] border border-[#1c2b3b] space-y-3">
+                  <div className="flex items-center justify-between text-xs text-[#94a3b8]">
+                    <span className="font-mono font-semibold uppercase">You Swap ({testnetSwapFrom})</span>
+                    <span className="font-mono">
+                      Available: <strong className="text-white">
+                        {testnetSwapFrom === 'USDT' ? `$${testnetWallet.testnetUsdt.toFixed(2)}` : `${testnetWallet.testnetSpk.toFixed(2)} SPK`}
+                      </strong>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      value={testnetSwapAmount}
+                      onChange={(e) => setTestnetSwapAmount(e.target.value)}
+                      placeholder="0.0"
+                      min="0"
+                      className="w-full bg-transparent text-2xl sm:text-3xl font-extrabold font-mono text-white focus:outline-none"
+                    />
+                    <div className="px-3 py-1.5 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b] text-sm font-bold text-white shrink-0">
+                      {testnetSwapFrom}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1.5">
+                      {[25, 50, 100, 250].map((amt) => (
+                        <button
+                          key={amt}
+                          onClick={() => setTestnetSwapAmount(String(amt))}
+                          className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#0c1d2e] hover:bg-[#1c2b3b] text-[#94a3b8] hover:text-[#00F0FF] border border-[#1c2b3b] cursor-pointer"
+                        >
+                          {amt}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setTestnetSwapFrom(testnetSwapFrom === 'USDT' ? 'SPK' : 'USDT')}
+                      className="text-xs text-[#00F0FF] hover:underline flex items-center gap-1 font-mono cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">swap_vert</span>
+                      Switch Direction
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleExecuteManualTestnetSwap}
+                  disabled={isTestnetSwapping || parseFloat(testnetSwapAmount) <= 0}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#00F0FF] text-[#0A0F1D] font-headline font-extrabold text-sm shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isTestnetSwapping ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                      <span>Swapping on BSC Testnet...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[18px]">swap_horiz</span>
+                      <span>Execute Swap ({testnetSwapFrom} ➔ {testnetSwapFrom === 'USDT' ? 'SPK' : 'USDT'})</span>
+                    </>
+                  )}
+                </button>
+
+                {testnetSwapSuccessTx && (
+                  <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono space-y-1">
+                    <div className="font-bold flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px]">verified</span>
+                      <span>Testnet Swap Executed!</span>
+                    </div>
+                    <div className="text-[10px] text-[#94a3b8] truncate">
+                      Tx Hash: <span className="text-[#00F0FF]">{testnetSwapSuccessTx.txHash}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="lg:col-span-5 p-4 rounded-2xl bg-[#051424] border border-[#1c2b3b] space-y-2.5 text-xs font-mono">
+                <div className="text-[#94a3b8] uppercase font-bold text-[10px]">Pool Liquidity &amp; Route</div>
+                <div className="flex justify-between text-[#94a3b8]">
+                  <span>Pair:</span>
+                  <span className="text-white font-bold">SPIKE / USDT (BEP-20)</span>
+                </div>
+                <div className="flex justify-between text-[#94a3b8]">
+                  <span>Exchange Rate:</span>
+                  <span className="text-white font-bold">1 SPK = ${spikeTokenInfo.currentPrice.toFixed(4)} USDT</span>
+                </div>
+                <div className="flex justify-between text-[#94a3b8]">
+                  <span>Protocol Fee:</span>
+                  <span className="text-emerald-400 font-bold">0.00% (Zero Tax)</span>
+                </div>
+                <div className="flex justify-between text-[#94a3b8]">
+                  <span>Pool SPK Reserve:</span>
+                  <span className="text-white font-bold">{spikeTokenInfo.poolSpkReserve.toLocaleString()} SPK</span>
+                </div>
+                <div className="flex justify-between text-[#94a3b8]">
+                  <span>Pool USDT Reserve:</span>
+                  <span className="text-white font-bold">${spikeTokenInfo.poolUsdtReserve.toLocaleString()} USDT</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: TESTNET TRANSACTIONS LEDGER */}
+          {testnetActiveTab === 'history' && (
+            <div className="overflow-x-auto rounded-xl border border-[#1c2b3b]">
+              <table className="w-full text-left text-xs font-mono">
+                <thead className="bg-[#051424] text-[#94a3b8] uppercase text-[10px] border-b border-[#1c2b3b]">
+                  <tr>
+                    <th className="py-2.5 px-3">Type</th>
+                    <th className="py-2.5 px-3">SPK Amount</th>
+                    <th className="py-2.5 px-3">USDT Amount</th>
+                    <th className="py-2.5 px-3">Price</th>
+                    <th className="py-2.5 px-3">Tx Hash</th>
+                    <th className="py-2.5 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1c2b3b] bg-[#081726]">
+                  {testnetTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-4 text-center text-[#94a3b8]">
+                        No testnet transactions yet. Click "Harvest &amp; Auto-Buy" above to test!
+                      </td>
+                    </tr>
+                  ) : (
+                    testnetTransactions.map((tx) => (
+                      <tr key={tx.id} className="hover:bg-[#0c1f33] transition-colors">
+                        <td className="py-2.5 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            tx.type === 'harvest_autobuy'
+                              ? 'bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30'
+                              : tx.type === 'faucet'
+                              ? 'bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30'
+                              : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                          }`}>
+                            {tx.type === 'harvest_autobuy' ? '⚡ HARVEST AUTO-BUY' : tx.type === 'faucet' ? '💧 FAUCET' : '🔄 SWAP'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-white font-bold">
+                          {tx.spkAmount ? `${Number(tx.spkAmount).toFixed(2)} SPK` : '—'}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#00F0FF] font-bold">
+                          ${Number(tx.usdtAmount || 0).toFixed(4)}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#94a3b8]">
+                          ${Number(tx.priceUsdt || 0.0345).toFixed(4)}
+                        </td>
+                        <td className="py-2.5 px-3 text-[#7df4ff] truncate max-w-[140px]">
+                          {tx.txHash ? `${tx.txHash.substring(0, 10)}...${tx.txHash.substring(tx.txHash.length - 6)}` : '0x...'}
+                        </td>
+                        <td className="py-2.5 px-3 text-emerald-400 font-bold flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          Confirmed
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -802,41 +1360,41 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart Container (2 Cols) */}
         <div className="lg:col-span-2 bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between shadow-md border border-[#1c2b3b]/60">
-          {/* Header Bar with DexScreener Link & Mode Switchers */}
+          {/* Header Bar with BSCScan Link & Mode Switchers */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-[#1c2b3b]/80">
             <div>
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#8247E5]/20 text-[#a87ffb] border border-[#8247E5]/40 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#8247E5]"></span>
-                  Polygon
-                </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#1c2b3b] text-white border border-[#1c2b3b]">
-                  0rigin LGNS / WPOL
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <div className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-[#D4AF37]/20 to-[#00F0FF]/20 border border-[#D4AF37]/40 text-white font-headline font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
+                  <span>SPIKE (SPK) / USDT</span>
+                </div>
+
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/40">
+                  BEP-20 • 50M Supply
                 </span>
                 <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>LIVE</span>
-                  <span className="tabular-nums font-semibold">${currentPrice.toFixed(7)}</span>
-                  <span className="text-[9px] text-emerald-300 font-normal">({lastTickDirection === 'up' ? '▲' : '▼'} +{priceChange24h}%)</span>
+                  <span>TESTNET LIVE</span>
+                  <span className="tabular-nums font-semibold">${spikeTokenInfo.currentPrice.toFixed(4)} USDT</span>
+                  <span className="text-[9px] text-emerald-300 font-normal">(+{spikeTokenInfo.change24h}%)</span>
                 </div>
               </div>
 
               <h2 className="text-lg md:text-xl font-bold font-headline text-white tracking-tight flex items-center gap-2">
-                <span>DexScreener Live Terminal</span>
+                <span>SPIKE (SPK) / USDT Live Trading Terminal</span>
               </h2>
             </div>
 
-            {/* Actions: Direct DexScreener Link & Tab Switchers */}
+            {/* Actions: BSCScan Verified Contract & Tab Switchers */}
             <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-              {/* Direct DexScreener External Link */}
               <a
-                href={DEX_PAIR_URL}
+                href={BSCSCAN_TOKEN_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-1.5 rounded-xl bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 border border-[#00F0FF]/40 text-[#00F0FF] text-xs font-headline font-bold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(0,240,255,0.25)] hover:scale-102"
-                title="Open DexScreener Pair in New Window"
+                title="View Verified SPIKE Contract on BSCScan"
               >
-                <span>DexScreener</span>
+                <span>BSCScan</span>
                 <span className="material-symbols-outlined text-[15px]">open_in_new</span>
               </a>
 
@@ -849,23 +1407,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       ? 'bg-[#00F0FF] text-[#0A0F1D] shadow-[0_0_12px_rgba(0,240,255,0.35)] font-bold'
                       : 'text-[#94a3b8] hover:text-white'
                   }`}
-                  title="Live Animated Candle & Waveform Stream"
+                  title="Live Candlestick & Trading Terminal"
                 >
                   <span className="material-symbols-outlined text-[14px]">show_chart</span>
                   <span>Live Stream</span>
-                </button>
-
-                <button
-                  onClick={() => setChartMode('dex-embed')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-headline font-semibold tracking-wide transition-all flex items-center gap-1 ${
-                    chartMode === 'dex-embed'
-                      ? 'bg-[#00F0FF] text-[#0A0F1D] shadow-[0_0_12px_rgba(0,240,255,0.35)] font-bold'
-                      : 'text-[#94a3b8] hover:text-white'
-                  }`}
-                  title="Direct DexScreener Interactive Iframe"
-                >
-                  <span className="material-symbols-outlined text-[14px]">candlestick_chart</span>
-                  <span>Dex Embed</span>
                 </button>
 
                 <button
@@ -895,19 +1440,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="flex items-center gap-2 mb-1">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
                     <span className="text-[11px] font-mono font-extrabold uppercase tracking-wider text-emerald-400">
-                      LIVE DEX PRICE (POLYGON)
+                      LIVE TESTNET POOL PRICE (BEP-20)
                     </span>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                      84.5% BUY DOMINANCE
+                      {spikeTokenInfo.buyPressure.toFixed(1)}% BUY DOMINANCE
                     </span>
                   </div>
                   <div className="flex flex-wrap items-baseline gap-2.5">
                     <span className="text-3xl sm:text-4xl font-extrabold font-headline text-white tracking-tight tabular-nums drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]">
-                      ${currentPrice.toFixed(7)}
+                      ${spikeTokenInfo.currentPrice.toFixed(4)}
                     </span>
                     <span className="text-xs sm:text-sm font-headline font-bold text-emerald-400 flex items-center gap-0.5">
                       <span className="material-symbols-outlined text-[16px]">trending_up</span>
-                      <span>+{priceChange24h}% (Strong Buy Pressure)</span>
+                      <span>
+                        +{spikeTokenInfo.change24h}% (Extreme Bullish Momentum)
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -916,26 +1463,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-mono">
                   <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
                     <div className="text-[10px] text-[#94a3b8] uppercase">24h High</div>
-                    <div className="text-white font-bold tabular-nums">${svgMetrics.maxP.toFixed(7)}</div>
+                    <div className="text-white font-bold tabular-nums">
+                      ${(spikeTokenInfo.high24h ?? 0.0368).toFixed(4)}
+                    </div>
                   </div>
                   <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
                     <div className="text-[10px] text-[#94a3b8] uppercase">24h Low</div>
-                    <div className="text-white font-bold tabular-nums">${svgMetrics.minP.toFixed(7)}</div>
+                    <div className="text-white font-bold tabular-nums">
+                      ${(spikeTokenInfo.low24h ?? 0.0332).toFixed(4)}
+                    </div>
                   </div>
                   <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
                     <div className="text-[10px] text-[#94a3b8] uppercase">Pool Liquidity</div>
-                    <div className="text-[#D4AF37] font-bold">$261.7K</div>
+                    <div className="text-[#D4AF37] font-bold">
+                      ${spikeTokenInfo.poolUsdtReserve.toLocaleString()}
+                    </div>
                   </div>
 
-                  <a
-                    href={DEX_PAIR_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00F0FF] text-[#051424] font-headline font-extrabold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:brightness-110 transition-all ml-auto md:ml-0"
+                  <button
+                    onClick={handleExecuteHarvestAutoBuy}
+                    className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF] to-emerald-400 text-[#051424] font-headline font-extrabold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:brightness-110 transition-all ml-auto md:ml-0 cursor-pointer"
                   >
-                    <span>Buy LGNS</span>
-                    <span className="material-symbols-outlined text-[15px]">shopping_cart</span>
-                  </a>
+                    <span>⚡ Auto-Buy SPK</span>
+                    <span className="material-symbols-outlined text-[15px]">bolt</span>
+                  </button>
                 </div>
               </div>
 
@@ -967,7 +1518,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex items-center justify-between text-[11px] font-mono text-[#94a3b8] px-1">
                   <span className="flex items-center gap-1 text-white font-bold">
                     <span className="material-symbols-outlined text-emerald-400 text-[14px]">swap_horizontal_circle</span>
-                    <span>Real-Time Swap Orders</span>
+                    <span>Real-Time SPIKE Swap Orders</span>
                   </span>
                   <span className="text-emerald-400 font-semibold animate-pulse">● Continuous Inflow</span>
                 </div>
@@ -1001,7 +1552,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <span className="text-[#94a3b8] text-[9px]">{tx.timeAgo}</span>
                         </div>
                         <div className="font-bold text-white text-[11px] tabular-nums mt-0.5">
-                          {isBuy ? '+' : '-'}{tx.amountLgns.toLocaleString()} LGNS
+                          {isBuy ? '+' : '-'}{tx.amountSpk.toLocaleString()} SPK
                         </div>
                         <div className="text-[10px] text-[#D4AF37] font-semibold tabular-nums">
                           ${tx.amountUsd.toFixed(2)} USD
@@ -1015,65 +1566,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
               </div>
 
-              {/* TRADINGVIEW LIVE CANDLESTICK TERMINAL (Exact replica of user screenshot) */}
+              {/* TRADINGVIEW LIVE CANDLESTICK TERMINAL */}
               <TradingViewChart
-                pairName="LGNS/WPOL (Market Cap)"
-                dexUrl={DEX_PAIR_URL}
-                onBuyClick={() => onCopyText('0x3C12eCa24eBafd6795e731753879d5B629Dd2741')}
+                pairName="SPIKE (SPK) / USDT [BEP-20]"
+                dexUrl="#dashboard-testnet"
+                onBuyClick={() => onCopyText(spikeTokenInfo.contractAddress)}
               />
 
-              {/* Bottom Quick Bar with Direct DexScreener Details */}
+              {/* Bottom Quick Bar with Direct Contract Details */}
               <div className="flex flex-wrap items-center justify-between gap-2 mt-2 pt-2 border-t border-[#1c2b3b]/70 text-xs font-mono text-[#94a3b8]">
                 <div className="flex items-center gap-2">
-                  <span className="text-[#94a3b8]">Pair Address:</span>
+                  <span className="text-[#94a3b8]">
+                    SPIKE Contract (BEP-20):
+                  </span>
                   <button
-                    onClick={() => onCopyText('0x3C12eCa24eBafd6795e731753879d5B629Dd2741')}
+                    onClick={() => onCopyText(spikeTokenInfo.contractAddress)}
                     className="text-[#00F0FF] hover:underline flex items-center gap-1 font-semibold"
                     title="Click to copy contract"
                   >
-                    <span>0x3C12...2741</span>
+                    <span>
+                      {`${spikeTokenInfo.contractAddress.substring(0, 10)}...${spikeTokenInfo.contractAddress.substring(spikeTokenInfo.contractAddress.length - 6)}`}
+                    </span>
                     <span className="material-symbols-outlined text-[13px]">content_copy</span>
                   </button>
                 </div>
 
                 <a
-                  href={DEX_PAIR_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="#dashboard-testnet"
                   className="text-xs text-[#00F0FF] hover:underline flex items-center gap-1 font-headline font-bold"
                 >
-                  <span>Open DexScreener Full Terminal &amp; Trades</span>
-                  <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                </a>
-              </div>
-            </div>
-          )}
-
-          {/* ============================================================
-              VIEW 2: DEXSCREENER INTERACTIVE IFRAME EMBED
-             ============================================================ */}
-          {chartMode === 'dex-embed' && (
-            <div className="w-full flex flex-col justify-between relative">
-              <div className="w-full h-[400px] sm:h-[450px] rounded-xl overflow-hidden border border-[#1c2b3b] bg-[#051424] relative shadow-inner">
-                <iframe
-                  src={DEX_EMBED_URL}
-                  title="DexScreener Live Polygon Chart"
-                  className="w-full h-full border-0"
-                  allow="clipboard-write"
-                  loading="lazy"
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-[#1c2b3b]/70 text-xs font-mono text-[#94a3b8]">
-                <span>Uniswap v3 · Polygon Network · Verified Contract</span>
-                <a
-                  href={DEX_PAIR_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#00F0FF] hover:underline flex items-center gap-1 font-headline font-semibold"
-                >
-                  <span>View Full Chart &amp; Orders on DexScreener</span>
-                  <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                  <span>Go to SPIKE Testnet Auto-Buy Engine</span>
+                  <span className="material-symbols-outlined text-[14px]">
+                    arrow_upward
+                  </span>
                 </a>
               </div>
             </div>

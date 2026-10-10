@@ -372,13 +372,56 @@ async function verifyBscTxReceipt(txHash: string): Promise<{
 }
 
 app.get('/api/deposit/config', (_req: Request, res: Response) => {
+  const treasury = db.getTreasuryInfo();
   res.json({
     success: true,
-    officialWallet: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
-    amount: 15,
+    officialWallet: treasury.treasuryWalletAddress,
+    amount: 5,
+    miningActivationCost: 10,
+    totalProjectCost: 15,
     network: 'BNB Smart Chain (BEP-20)',
     autoVerify: true,
+    treasuryBalanceUsdt: treasury.treasuryBalanceUsdt,
   });
+});
+
+app.get('/api/treasury', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    ...db.getTreasuryInfo(),
+  });
+});
+
+app.post('/api/treasury/deposit', (req: Request, res: Response) => {
+  try {
+    const { userAddress, amount = 5, txHash } = req.body || {};
+    if (!userAddress) {
+      res.status(400).json({ success: false, error: 'userAddress is required' });
+      return;
+    }
+    const result = db.processTreasuryDeposit(userAddress, Number(amount) || 5, txHash);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to process treasury deposit' });
+  }
+});
+
+app.post('/api/mining/activate', (req: Request, res: Response) => {
+  try {
+    const { userAddress, nodeName, costUsdt = 10 } = req.body || {};
+    if (!userAddress) {
+      res.status(400).json({ success: false, error: 'userAddress is required' });
+      return;
+    }
+    const result = db.executeMiningActivation(userAddress, nodeName, Number(costUsdt) || 10);
+    if (!result.success) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to activate mining via smart contract' });
+  }
 });
 
 app.post('/api/deposit/verify-hash', async (req: Request, res: Response) => {
@@ -583,6 +626,121 @@ app.post('/api/transactions/record', (req: Request, res: Response) => {
   }
 
   res.json({ success: true, transaction: created });
+});
+
+// ============================================================
+// SPIKE (SPK) TESTNET & HARVEST AUTO-BUY ENGINE APIS
+// ============================================================
+app.get('/api/testnet/spike/info', (req: Request, res: Response) => {
+  try {
+    const token = db.getTestnetSpikeToken();
+    res.json({
+      success: true,
+      token,
+      metrics: {
+        totalSupply: token.totalSupply,
+        circulatingSupply: token.circulatingSupply,
+        symbol: token.symbol,
+        name: token.name,
+        decimals: token.decimals,
+        contractAddress: token.contractAddress,
+        pair: token.pair,
+        priceUsdt: token.currentPrice,
+        poolReserves: {
+          spk: token.poolSpkReserve,
+          usdt: token.poolUsdtReserve,
+        },
+        volume24h: token.volume24h,
+        high24h: token.high24h,
+        low24h: token.low24h,
+        change24h: token.change24h,
+        buyPressure: token.buyPressure,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Server error fetching testnet token info' });
+  }
+});
+
+app.get('/api/testnet/wallet/:address', (req: Request, res: Response) => {
+  try {
+    const { address } = req.params;
+    const wallet = db.getTestnetWallet(address);
+    const token = db.getTestnetSpikeToken();
+    const transactions = db.getTestnetTransactions(address, 20);
+    res.json({
+      success: true,
+      wallet,
+      tokenPrice: token.currentPrice,
+      transactions,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Server error fetching testnet wallet' });
+  }
+});
+
+app.post('/api/testnet/wallet/settings', (req: Request, res: Response) => {
+  try {
+    const { address, autoBuyEnabled = true, slippageTolerance = 0.5 } = req.body;
+    const wallet = db.updateTestnetWalletSettings(address, Boolean(autoBuyEnabled), Number(slippageTolerance));
+    res.json({ success: true, wallet });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Server error updating testnet settings' });
+  }
+});
+
+app.post('/api/testnet/wallet/faucet', (req: Request, res: Response) => {
+  try {
+    const { address, usdtAmount = 500, spkAmount = 100 } = req.body;
+    const result = db.topupTestnetWallet(address, Number(usdtAmount), Number(spkAmount));
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Server error crediting testnet faucet' });
+  }
+});
+
+app.post('/api/testnet/harvest-autobuy', (req: Request, res: Response) => {
+  try {
+    const { address, minedSpkAmount = 25.0, hashrate = 1.25, slippageTolerance = 0.2 } = req.body;
+    const result = db.executeTestnetHarvestAutoBuy(
+      address,
+      Number(minedSpkAmount),
+      Number(hashrate),
+      Number(slippageTolerance)
+    );
+    if (!result.success) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Server error executing harvest auto-buy' });
+  }
+});
+
+app.post('/api/testnet/swap', (req: Request, res: Response) => {
+  try {
+    const { address, fromToken, toToken, amountIn } = req.body;
+    const result = db.executeTestnetSwap(address, fromToken, toToken, Number(amountIn));
+    if (!result.success) {
+      res.status(400).json(result);
+      return;
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Server error executing testnet swap' });
+  }
+});
+
+app.get('/api/testnet/transactions', (req: Request, res: Response) => {
+  try {
+    const address = req.query.address as string | undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const txs = db.getTestnetTransactions(address, limit);
+    res.json({ success: true, transactions: txs });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Server error fetching testnet transactions' });
+  }
 });
 
 // ============================================================

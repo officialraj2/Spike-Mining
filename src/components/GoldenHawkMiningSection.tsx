@@ -4,9 +4,11 @@ import { SPIKE_LOGO_URL } from '../data/mockData';
 interface GoldenHawkMiningSectionProps {
   totalHashrate: number;
   walletBalance: number;
+  walletAddress?: string;
   isWalletConnected?: boolean;
   onClaimReward?: (amount: number) => void;
   onDeployMoreNodes?: () => void;
+  onAutoBuySuccess?: (tx: any, wallet: any, token: any) => void;
   activeNodesCount?: number;
   isNodeActive?: boolean;
 }
@@ -14,9 +16,11 @@ interface GoldenHawkMiningSectionProps {
 export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = ({
   totalHashrate,
   walletBalance,
+  walletAddress,
   isWalletConnected = true,
   onClaimReward,
   onDeployMoreNodes,
+  onAutoBuySuccess,
   activeNodesCount,
   isNodeActive,
 }) => {
@@ -38,6 +42,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   const [lastBlockTime, setLastBlockTime] = useState<string>('Standby');
   const [claimedNotice, setClaimedNotice] = useState<boolean>(false);
   const [strikeNotice, setStrikeNotice] = useState<string | null>(null);
+  const [isAutoBuying, setIsAutoBuying] = useState<boolean>(false);
+  const [lastAutoBuyTx, setLastAutoBuyTx] = useState<any | null>(null);
+  const [autoBuyNotice, setAutoBuyNotice] = useState<string | null>(null);
 
   // Effective Hashrate with fixed 10x Turbo speed (0 TH/s if no active nodes)
   const effectiveHashrate = isMining && totalHashrate > 0 ? totalHashrate * 10 : 0;
@@ -97,16 +104,52 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }, 3500);
   };
 
-  const handleClaim = () => {
-    if (accumulatedUsdt <= 0) return;
-    const claimedAmt = accumulatedUsdt;
-    setClaimedNotice(true);
-    if (onClaimReward) {
-      onClaimReward(claimedAmt);
+  const handleClaim = async () => {
+    // When this button is clicked: exact mined SPIKE amount is bought via PancakeSwap Router with best slippage (0.2%)
+    const spkToBuy = accumulatedSpike > 0 ? accumulatedSpike : (accumulatedUsdt > 0 ? +(accumulatedUsdt * 28.98).toFixed(4) : 0);
+    if (spkToBuy <= 0 || isAutoBuying) return;
+
+    setIsAutoBuying(true);
+    setAutoBuyNotice(null);
+
+    try {
+      const userAddr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+      const res = await fetch('/api/testnet/harvest-autobuy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: userAddr,
+          minedSpkAmount: spkToBuy,
+          hashrate: effectiveHashrate > 0 ? effectiveHashrate / 10 : (totalHashrate || 1.25),
+          slippageTolerance: 0.2, // Best slippage for ultra-fast execution
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setClaimedNotice(true);
+        setLastAutoBuyTx(data.tx);
+        setAutoBuyNotice(`🥞 PancakeSwap Route Confirmed: +${spkToBuy.toFixed(2)} SPK Auto-Bought with 0.2% Best Slippage!`);
+        setAccumulatedSpike(0);
+        setAccumulatedUsdt(0);
+
+        if (onAutoBuySuccess) {
+          onAutoBuySuccess(data.tx, data.wallet, data.token);
+        }
+        if (onClaimReward) {
+          onClaimReward(spkToBuy);
+        }
+
+        setTimeout(() => setClaimedNotice(false), 5000);
+        setTimeout(() => setAutoBuyNotice(null), 8000);
+      } else {
+        alert(data.error || 'Failed to execute PancakeSwap auto-buy');
+      }
+    } catch (err) {
+      console.error('PancakeSwap auto-buy execution error:', err);
+    } finally {
+      setIsAutoBuying(false);
     }
-    setAccumulatedSpike(0);
-    setAccumulatedUsdt(0);
-    setTimeout(() => setClaimedNotice(false), 3000);
   };
 
   return (
@@ -461,29 +504,72 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             </div>
 
             {/* Accrued Mining Loot Box */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-[#0c1d2e] to-[#0a1726] border border-[#D4AF37]/40 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="text-[10px] text-[#D4AF37] font-mono font-bold uppercase tracking-[0.14em] flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">savings</span>
-                  <span>Uncollected Mined Loot (Real-Time)</span>
+            <div className="p-4 rounded-xl bg-gradient-to-r from-[#0c1d2e] to-[#0a1726] border border-[#D4AF37]/40 shadow-sm space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] text-[#D4AF37] font-mono font-bold uppercase tracking-[0.14em] flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">savings</span>
+                    <span>Uncollected Mined Loot (PancakeSwap Auto-Buy)</span>
+                  </div>
+                  <div className="text-2xl font-extrabold font-headline text-white mt-1 tabular-nums">
+                    +{accumulatedSpike.toFixed(4)}{' '}
+                    <span className="text-sm font-semibold text-[#D4AF37]">SPIKE</span>
+                    <span className="text-xs text-[#94a3b8] font-mono ml-2">
+                      (≈ ${accumulatedUsdt.toFixed(2)} USDT)
+                    </span>
+                  </div>
                 </div>
-                <div className="text-2xl font-extrabold font-headline text-white mt-1 tabular-nums">
-                  +{accumulatedSpike.toFixed(4)}{' '}
-                  <span className="text-sm font-semibold text-[#D4AF37]">SPIKE</span>
-                  <span className="text-xs text-[#94a3b8] font-mono ml-2">
-                    (≈ ${accumulatedUsdt.toFixed(2)} USDT)
-                  </span>
+
+                <button
+                  onClick={handleClaim}
+                  disabled={(accumulatedSpike <= 0 && accumulatedUsdt <= 0) || isAutoBuying}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-40 disabled:cursor-not-allowed hover:scale-102 shrink-0 tracking-wide cursor-pointer"
+                  title="Auto-Buy exact mined SPIKE via PancakeSwap v2 Router (0.2% Best Slippage)"
+                >
+                  {isAutoBuying ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                      <span>PancakeSwap Route (0.2% Slippage)...</span>
+                    </>
+                  ) : claimedNotice ? (
+                    <>
+                      <span className="material-symbols-outlined text-[16px]">verified</span>
+                      <span>Auto-Bought via PancakeSwap!</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[16px]">bolt</span>
+                      <span>
+                        Harvest &amp; Auto-Buy {accumulatedSpike > 0 ? `${accumulatedSpike.toFixed(2)} SPK` : 'Mined SPK'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Route & Slippage Spec */}
+              <div className="pt-2 border-t border-[#1c2b3b] flex flex-wrap items-center justify-between text-[10px] font-mono text-[#94a3b8]">
+                <div className="flex items-center gap-1.5 text-[#00F0FF]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Router: PancakeSwap V2 (USDT ➔ SPK)</span>
+                </div>
+                <div className="text-[#D4AF37]">
+                  Best Slippage: <span className="text-white font-bold">0.2%</span> · Fast Finality (&lt;300ms)
                 </div>
               </div>
 
-              <button
-                onClick={handleClaim}
-                disabled={accumulatedUsdt <= 0}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#e6c35c] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(212,175,55,0.4)] disabled:opacity-40 disabled:cursor-not-allowed hover:scale-102 shrink-0 tracking-wide"
-              >
-                <span className="material-symbols-outlined text-[16px]">toll</span>
-                <span>{claimedNotice ? 'Loot Harvested!' : 'Harvest Mined Loot'}</span>
-              </button>
+              {/* Success Notification Bar */}
+              {autoBuyNotice && lastAutoBuyTx && (
+                <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 flex items-center justify-between text-xs font-mono text-emerald-300 animate-fade-in shadow-lg">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
+                    <span className="truncate">{autoBuyNotice}</span>
+                  </div>
+                  <span className="text-[10px] text-[#00F0FF] font-bold font-mono shrink-0 ml-2">
+                    Tx: {lastAutoBuyTx.txHash?.substring(0, 10)}...
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* 3 Telemetry Metrics */}

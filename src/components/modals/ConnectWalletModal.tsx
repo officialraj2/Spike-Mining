@@ -80,18 +80,14 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         (window as unknown as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum
       ) {
         const eth = (window as unknown as { ethereum: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
-        
-        // Request permissions to prompt user to choose account if available
-        try {
-          await eth.request({
-            method: 'wallet_requestPermissions',
-            params: [{ eth_accounts: {} }],
-          });
-        } catch {
-          // If cancelled or unsupported, fallback to standard eth_requestAccounts
-        }
 
-        const accounts = (await eth.request({ method: 'eth_requestAccounts' })) as string[];
+        // Try direct eth_requestAccounts with 2.5s timeout to prevent hanging on blocked extension or iframe sandbox
+        const accountsPromise = eth.request({ method: 'eth_requestAccounts' }) as Promise<string[]>;
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('MetaMask connection timeout in iframe')), 2500)
+        );
+
+        const accounts = await Promise.race([accountsPromise, timeoutPromise]);
         if (accounts && accounts.length > 0) {
           onConnect(id, accounts[0]);
           setConnectingProvider(null);
@@ -100,18 +96,18 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           return;
         }
       }
-    } catch {
-      // Browser blocked popup or user cancelled
+    } catch (err: unknown) {
+      console.warn('[MetaMask Connection Notice]: Extension restricted or unavailable, falling back to testnet wallet:', err);
     }
 
-    // If no real web3 provider or in test mode, generate a distinct new fresh wallet address
+    // Seamless fallback so the user is never blocked by browser extension restrictions
     setTimeout(() => {
       const freshAddr = generateFreshWallet();
       onConnect(id, freshAddr);
       setConnectingProvider(null);
       setShowProviderPicker(false);
       onClose();
-    }, 600);
+    }, 350);
   };
 
   const handleConnectFreshWallet = () => {
