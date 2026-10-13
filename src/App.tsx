@@ -29,6 +29,7 @@ const AuditModal = lazy(() => import('./components/modals/AuditModal').then(m =>
 const SwapModal = lazy(() => import('./components/modals/SwapModal').then(m => ({ default: m.SwapModal })));
 const TestnetTestingModal = lazy(() => import('./components/modals/TestnetTestingModal').then(m => ({ default: m.TestnetTestingModal })));
 const DepositUsdtModal = lazy(() => import('./components/modals/DepositUsdtModal').then(m => ({ default: m.DepositUsdtModal })));
+const ReferralVerificationModal = lazy(() => import('./components/modals/ReferralVerificationModal').then(m => ({ default: m.ReferralVerificationModal })));
 
 // Ultra-fast lightweight skeleton loader
 const ViewSkeleton: React.FC = () => (
@@ -59,7 +60,21 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'auto' | 'mobile' | 'desktop'>('auto');
 
   // Application Data States (Scoped to current connected wallet)
-  const [nodes, setNodes] = useState<MiningNode[]>([]);
+  const [nodes, setNodes] = useState<MiningNode[]>(() => {
+    try {
+      const savedAddr = localStorage.getItem('spike_wallet_address');
+      if (savedAddr) {
+        const cached = localStorage.getItem(`spike_nodes_${savedAddr.toLowerCase()}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  });
   const [rewards, setRewards] = useState<RewardTransaction[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [walletBNB, setWalletBNB] = useState<number>(0.005);
@@ -119,10 +134,16 @@ export default function App() {
         setActiveTab(tabParam as TabType);
       }
 
-      // Capture referral code or address from URL (?ref=..., ?referrer=..., or /ref/...)
+      // Capture referral code or address from URL (?ref=..., ?referrer=..., or /ref/..., /r/...)
       let refVal = params.get('ref') || params.get('referrer') || params.get('r');
       if (!refVal && window.location.pathname.includes('/ref/')) {
         const parts = window.location.pathname.split('/ref/');
+        if (parts[1]) {
+          refVal = decodeURIComponent(parts[1].split('/')[0].split('?')[0]);
+        }
+      }
+      if (!refVal && window.location.pathname.includes('/r/')) {
+        const parts = window.location.pathname.split('/r/');
         if (parts[1]) {
           refVal = decodeURIComponent(parts[1].split('/')[0].split('?')[0]);
         }
@@ -131,6 +152,9 @@ export default function App() {
       if (refVal && refVal.trim()) {
         const cleanRef = refVal.trim();
         localStorage.setItem('spike_pending_referrer', cleanRef);
+        setReferralCodeToVerify(cleanRef);
+        // Automatically prompt step-wise verification flow for referee
+        setIsReferralModalOpen(true);
         console.log('[App] Referral code detected from link:', cleanRef);
       }
     } catch {
@@ -140,6 +164,10 @@ export default function App() {
 
   // Update browser URL query param whenever activeTab changes
   const handleTabChange = (tab: TabType) => {
+    if (tab === 'swap') {
+      setIsSwapModalOpen(true);
+      return;
+    }
     setActiveTab(tab);
     try {
       localStorage.setItem('spike_active_tab', tab);
@@ -221,6 +249,20 @@ export default function App() {
         setWalletBNB(Number(cachedBnb));
       } else {
         setWalletBNB(0.005);
+      }
+
+      // Load cached nodes immediately so mining rigs stay persistent on refresh
+      const cachedNodes = localStorage.getItem(`spike_nodes_${norm}`);
+      if (cachedNodes) {
+        try {
+          const parsed = JSON.parse(cachedNodes);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setNodes(parsed);
+            const activeMining = parsed.filter((n: MiningNode) => n.status === 'mining');
+            const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
+            setDailyEarnings(+calculatedYield.toFixed(2));
+          }
+        } catch {}
       }
 
       // Load cached referral stats
@@ -330,12 +372,30 @@ export default function App() {
             } catch {}
           }
         }
-        // Set nodes array
+        // Set nodes array and persist
         if (data && Array.isArray(data.nodes) && data.nodes.length > 0) {
           setNodes(data.nodes);
+          try {
+            localStorage.setItem(`spike_nodes_${norm}`, JSON.stringify(data.nodes));
+          } catch {}
           const activeMining = data.nodes.filter((n: MiningNode) => n.status === 'mining');
           const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
           setDailyEarnings(+calculatedYield.toFixed(2));
+        } else {
+          // If server currently has no nodes recorded for user, sync active client-side nodes to server
+          try {
+            const localCachedNodes = localStorage.getItem(`spike_nodes_${norm}`);
+            if (localCachedNodes) {
+              const parsed = JSON.parse(localCachedNodes);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                fetch('/api/nodes/sync', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ userAddress: walletAddress, nodes: parsed }),
+                }).catch(() => {});
+              }
+            }
+          } catch {}
         }
         // Set rewards transactions
         if (data && Array.isArray(data.transactions) && data.transactions.length > 0) {
@@ -395,6 +455,8 @@ export default function App() {
   const [swapModalMode, setSwapModalMode] = useState<'sellSpike' | 'buySpike'>('sellSpike');
   const [isTestnetModalOpen, setIsTestnetModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
+  const [referralCodeToVerify, setReferralCodeToVerify] = useState<string>('');
 
   const handleOpenSwapModal = (mode: 'sellSpike' | 'buySpike' = 'sellSpike') => {
     setSwapModalMode(mode);
@@ -489,11 +551,12 @@ export default function App() {
 
   // Node Actions
   const handleRestartNode = (nodeId: string) => {
-    setNodes((prev) =>
-      prev.map((n) => {
+    setNodes((prev) => {
+      const updated = prev.map((n) => {
         if (n.id === nodeId) {
           return {
             ...n,
+            status: 'mining' as const,
             temperature: 58,
             logs: [
               `[${new Date().toLocaleTimeString()}] Cold restart initialized by operator`,
@@ -503,8 +566,14 @@ export default function App() {
           };
         }
         return n;
-      })
-    );
+      });
+      if (walletAddress) {
+        try {
+          localStorage.setItem(`spike_nodes_${walletAddress.toLowerCase()}`, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
     fetch(`/api/nodes/${nodeId}/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -514,9 +583,15 @@ export default function App() {
   };
 
   const handleStopNode = (nodeId: string) => {
-    setNodes((prev) =>
-      prev.map((n) => (n.id === nodeId ? { ...n, status: 'idle' as const, temperature: 45 } : n))
-    );
+    setNodes((prev) => {
+      const updated = prev.map((n) => (n.id === nodeId ? { ...n, status: 'idle' as const, temperature: 45 } : n));
+      if (walletAddress) {
+        try {
+          localStorage.setItem(`spike_nodes_${walletAddress.toLowerCase()}`, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
     fetch(`/api/nodes/${nodeId}/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -526,9 +601,15 @@ export default function App() {
   };
 
   const handleStartNode = (nodeId: string) => {
-    setNodes((prev) =>
-      prev.map((n) => (n.id === nodeId ? { ...n, status: 'mining' as const, temperature: 63 } : n))
-    );
+    setNodes((prev) => {
+      const updated = prev.map((n) => (n.id === nodeId ? { ...n, status: 'mining' as const, temperature: 63 } : n));
+      if (walletAddress) {
+        try {
+          localStorage.setItem(`spike_nodes_${walletAddress.toLowerCase()}`, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
     fetch(`/api/nodes/${nodeId}/action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -551,6 +632,19 @@ export default function App() {
     setWalletBalance(updatedBalance);
     const updatedNodes = [newNode, ...nodes];
     setNodes(updatedNodes);
+
+    if (walletAddress) {
+      try {
+        localStorage.setItem(`spike_nodes_${walletAddress.toLowerCase()}`, JSON.stringify(updatedNodes));
+        localStorage.setItem(`spike_bal_${walletAddress.toLowerCase()}`, String(updatedBalance));
+      } catch {}
+      // Sync node to backend fleet
+      fetch('/api/nodes/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userAddress: walletAddress, nodes: updatedNodes }),
+      }).catch(() => {});
+    }
 
     // Dynamically recalculate daily yield from all active rigs
     const activeMining = updatedNodes.filter((n) => n.status === 'mining');
@@ -649,11 +743,22 @@ export default function App() {
     toAmount: number
   ) => {
     if (fromToken === 'SPIKE' && toToken === 'USDT') {
-      // Selling SPIKE: USDT is credited directly to connected wallet!
-      setWalletBalance((prev) => +(prev + toAmount).toFixed(2));
+      // Selling SPIKE: USDT is credited directly to connected user's personal wallet!
+      const newBal = +(walletBalance + toAmount).toFixed(2);
+      setWalletBalance(newBal);
+      if (walletAddress) {
+        const norm = walletAddress.toLowerCase();
+        localStorage.setItem(`spike_bal_${norm}`, newBal.toFixed(2));
+        window.dispatchEvent(
+          new CustomEvent('spike_balance_updated', {
+            detail: { address: norm, balanceUsdt: newBal },
+          })
+        );
+      }
+      const shortAddr = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'your connected wallet';
       addToast(
         'PancakeSwap Sell Executed',
-        `+${toAmount.toFixed(2)} USDT credited directly into your connected wallet!`,
+        `+${toAmount.toFixed(2)} USDT directly credited into your personal Web3 wallet (${shortAddr})!`,
         'success'
       );
     } else if (fromToken === 'USDT' && toToken === 'SPIKE') {
@@ -748,7 +853,7 @@ export default function App() {
     const newTx: RewardTransaction = {
       id: `tx-dep-${Date.now()}`,
       txHash: cleanHash,
-      rewardSource: 'Step 1: 5 USDT Protocol Deposit to Official Treasury Wallet',
+      rewardSource: 'Step 1: 5 USDT Protocol Deposit to Official Treasury Vault',
       amount: -5,
       currency: 'USDT',
       timestamp: 'Just now',
@@ -757,7 +862,7 @@ export default function App() {
     setRewards((prev) => [newTx, ...prev]);
     addToast(
       'Phase 1 Deposit Verified!',
-      `5.00 USDT transferred directly to Official Protocol Treasury Wallet (0xDE7B...a4c7). Remaining: ${newBalance.toFixed(2)} USDT in your wallet for Mining Activation!`,
+      `5.00 USDT transferred directly to Official Protocol Treasury Vault. Remaining: ${newBalance.toFixed(2)} USDT in your wallet for Mining Activation!`,
       'success'
     );
   };
@@ -787,11 +892,24 @@ export default function App() {
       }
     } catch {}
 
-    setNodes([]);
+    // Check cached nodes for this wallet so active mining is never wiped on connect
+    let initialNodes: MiningNode[] = [];
+    try {
+      const cachedNodesStr = localStorage.getItem(`spike_nodes_${norm}`);
+      if (cachedNodesStr) {
+        const parsed = JSON.parse(cachedNodesStr);
+        if (Array.isArray(parsed)) initialNodes = parsed;
+      }
+    } catch {}
+
+    setNodes(initialNodes);
     setRewards([]);
     setWalletBalance(initialUsdt);
     setWalletBNB(initialBnb);
-    setDailyEarnings(0);
+    const activeYield = initialNodes
+      .filter((n) => n.status === 'mining')
+      .reduce((acc, n) => acc + (n.hashrate * 39), 0);
+    setDailyEarnings(+activeYield.toFixed(2));
 
     // Initial Referral stats check (never reset verified referrer to 0)
     let initRefStats: any = {
@@ -1035,6 +1153,7 @@ export default function App() {
           />
         );
         break;
+      case 'swap':
       case 'dashboard':
         currentComponent = (
           <DashboardView
@@ -1086,6 +1205,10 @@ export default function App() {
             referralStats={referralStats}
             onSimulateReferral={handleSimulateReferralJoin}
             onBindSponsor={handleBindSponsor}
+            onOpenVerificationModal={(code) => {
+              setReferralCodeToVerify(code || (walletAddress ? `SPK-${walletAddress.slice(2, 8).toUpperCase()}` : 'SPK-71C8A9'));
+              setIsReferralModalOpen(true);
+            }}
           />
         );
         break;
@@ -1280,6 +1403,18 @@ export default function App() {
               onDepositSuccess={handleDepositSuccess}
             />
           )}
+          {isReferralModalOpen && (
+            <ReferralVerificationModal
+              isOpen={isReferralModalOpen}
+              onClose={() => setIsReferralModalOpen(false)}
+              referralCodeOrAddr={referralCodeToVerify || (walletAddress ? `SPK-${walletAddress.slice(2, 8).toUpperCase()}` : 'SPK-71C8A9')}
+              currentWallet={walletAddress}
+              isConnected={isWalletConnected}
+              onConnectWallet={handleConnectWallet}
+              onBindSponsor={handleBindSponsor}
+              onOpenMining={() => handleTabChange('dashboard')}
+            />
+          )}
         </Suspense>
         <Toast toasts={toasts} onDismiss={handleDismissToast} />
       </div>
@@ -1448,6 +1583,19 @@ export default function App() {
             walletAddress={walletAddress}
             walletBalance={walletBalance}
             onDepositSuccess={handleDepositSuccess}
+          />
+        )}
+
+        {isReferralModalOpen && (
+          <ReferralVerificationModal
+            isOpen={isReferralModalOpen}
+            onClose={() => setIsReferralModalOpen(false)}
+            referralCodeOrAddr={referralCodeToVerify || (walletAddress ? `SPK-${walletAddress.slice(2, 8).toUpperCase()}` : 'SPK-71C8A9')}
+            currentWallet={walletAddress}
+            isConnected={isWalletConnected}
+            onConnectWallet={handleConnectWallet}
+            onBindSponsor={handleBindSponsor}
+            onOpenMining={() => handleTabChange('dashboard')}
           />
         )}
       </Suspense>

@@ -202,14 +202,25 @@ export const Header: React.FC<HeaderProps> = ({
                 { id: 'dashboard' as TabType, label: 'Dashboard', icon: 'dashboard' },
                 { id: 'mining-nodes' as TabType, label: 'Mining Nodes', icon: 'dns' },
                 { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups' },
+                { id: 'swap' as TabType, label: 'DEX Swap', icon: 'swap_horiz', badge: 'AMM' },
                 { id: 'announcements' as TabType, label: 'CEX Listings', icon: 'campaign', hot: true },
               ].map((item) => {
                 const isActive = activeTab === item.id;
                 return (
                   <button
                     key={item.id}
-                    onClick={() => onTabChange(item.id)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-headline font-semibold flex items-center gap-1.5 transition-all ${
+                    onClick={() => {
+                      if (item.id === 'swap') {
+                        if (onOpenSwapModal) {
+                          onOpenSwapModal();
+                        } else {
+                          onTabChange('swap');
+                        }
+                      } else {
+                        onTabChange(item.id);
+                      }
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-headline font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                       isActive
                         ? 'bg-[#1c2b3b] text-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.25)] border border-[#00F0FF]/30'
                         : 'text-[#94a3b8] hover:text-white hover:bg-[#122130]'
@@ -217,6 +228,11 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <span className="material-symbols-outlined text-[16px]">{item.icon}</span>
                     <span>{item.label}</span>
+                    {item.badge && (
+                      <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
+                        {item.badge}
+                      </span>
+                    )}
                     {item.hot && (
                       <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-ping" />
                     )}
@@ -555,6 +571,7 @@ export const Header: React.FC<HeaderProps> = ({
                     { id: 'dashboard' as TabType, label: 'Dashboard', icon: 'dashboard' },
                     { id: 'mining-nodes' as TabType, label: 'Mining Nodes', icon: 'dns' },
                     { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups', badge: 'REWARDS' },
+                    { id: 'swap' as TabType, label: 'Swap (DEX)', icon: 'swap_horiz', badge: 'AMM' },
                     { id: 'announcements' as TabType, label: 'CEX Announcements', icon: 'campaign', hot: true },
                     ...(isAdmin ? [{ id: 'admin' as TabType, label: 'Admin Panel & DB', icon: 'shield_person', badge: 'ROOT' }] : []),
                   ].map((item) => {
@@ -563,8 +580,16 @@ export const Header: React.FC<HeaderProps> = ({
                       <button
                         key={item.id}
                         onClick={() => {
-                          onTabChange(item.id);
                           setShowMobileDrawer(false);
+                          if (item.id === 'swap') {
+                            if (onOpenSwapModal) {
+                              onOpenSwapModal();
+                            } else {
+                              onTabChange('swap');
+                            }
+                          } else {
+                            onTabChange(item.id);
+                          }
                         }}
                         className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                           isActive

@@ -65,7 +65,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
             <button
               onClick={onOpenDepositModal}
               className="bg-gradient-to-r from-[#D4AF37]/20 to-[#00F0FF]/15 hover:from-[#D4AF37]/30 hover:to-[#00F0FF]/25 text-[#D4AF37] border border-[#D4AF37]/60 hover:border-[#D4AF37] font-headline font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
-              title="Deposit 5 USDT to Official Protocol Treasury Wallet (0xDE7B...a4c7)"
+              title="Deposit 5 USDT to Official Protocol Treasury Vault (Step 1)"
             >
               <span className="material-symbols-outlined text-[17px]">account_balance</span>
               <span>Deposit 5 USDT (Treasury)</span>

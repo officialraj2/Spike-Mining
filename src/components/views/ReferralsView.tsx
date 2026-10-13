@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TEAM_MILESTONE_TIERS } from '../../data/mockData';
 import { TeamRewardMilestonesSection } from '../TeamRewardMilestonesSection';
 
@@ -26,6 +26,7 @@ interface ReferralsViewProps {
   referralStats?: ReferralStatsData;
   onSimulateReferral?: () => void;
   onBindSponsor?: (codeOrAddr: string) => Promise<boolean>;
+  onOpenVerificationModal?: (code?: string) => void;
 }
 
 export const ReferralsView: React.FC<ReferralsViewProps> = ({
@@ -35,19 +36,37 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   referralStats,
   onSimulateReferral,
   onBindSponsor,
+  onOpenVerificationModal,
 }) => {
   const normAddr = walletAddress ? walletAddress.toLowerCase() : '';
   const shortAddr = walletAddress ? walletAddress.slice(2, 8).toUpperCase() : 'USER';
-  const refCode = `SPIKE-${shortAddr}`;
+  const refCode = `SPK-${shortAddr}`;
 
-  // Use the actual active origin so referral links work seamlessly on all domains (preview, firebase web.app, custom domain)
-  const baseDomain = typeof window !== 'undefined' && window.location.origin
-    ? window.location.origin
-    : 'https://spikenodes.com';
-  // Primary universal link with full wallet address for 100% foolproof resolution
-  const refLink = walletAddress ? `${baseDomain}/?ref=${walletAddress}` : `${baseDomain}/?ref=USER`;
+  // Domain state: managed in backend (defaults to official spikenodes.com)
+  const [serverDomain, setServerDomain] = useState<string>('https://spikenodes.com');
+
+  useEffect(() => {
+    fetch('/api/config/domain')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.domain) {
+          setServerDomain(`https://${d.domain}`);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Short referral link connected with domain name from backend
+  const shortRefLink = `${serverDomain}/ref/${refCode}`;
+  // Universal address link fallback
+  const fullRefLink = walletAddress ? `${serverDomain}/?ref=${walletAddress}` : `${serverDomain}/?ref=USER`;
+
+  const [linkFormat, setLinkFormat] = useState<'short' | 'full'>('short');
+  const activeLinkToCopy = linkFormat === 'short' ? shortRefLink : fullRefLink;
+
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
 
   // Sponsor input state for manual binding
   const [sponsorInput, setSponsorInput] = useState('');
@@ -112,7 +131,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   );
 
   const handleCopy = () => {
-    onCopyText(refLink);
+    onCopyText(activeLinkToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -140,7 +159,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             Build the Team. Unlock the Reward.
           </h1>
           <p className="text-xs md:text-sm text-[#94a3b8] mt-0.5">
-            Grow your network. Reach team milestones. Unlock higher rewards (tabhi milta hai jab total team partners milestone hit karte hain).
+            Grow your network, reach team milestones, and unlock higher USDT rewards.
           </p>
         </div>
 
@@ -175,21 +194,83 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
         {/* Referral Link & Code Box */}
       <div className="bg-[#122130] rounded-xl p-5 md:p-6 border border-[#1c2b3b]/60 shadow-md space-y-4">
+        {/* Short Referral Link & Code Inputs */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex-1">
-            <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Your Direct Referral Link (Universal 100% Reliable)</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+                Your Short Referral Link
+              </span>
+              <span className="text-[10px] text-emerald-400 font-mono">✓ 1-Click Auto-Copy & Send</span>
+            </div>
+            
             <div className="mt-2 flex items-center gap-2 bg-[#0a0f1d] border border-[#1c2b3b] rounded-xl p-2.5">
               <span className="material-symbols-outlined text-[#00F0FF] text-[18px] ml-1">link</span>
-              <span className="text-white font-mono text-xs sm:text-sm truncate flex-1 tracking-tight">{refLink}</span>
+              <input
+                type="text"
+                readOnly
+                value={activeLinkToCopy}
+                className="bg-transparent text-white font-mono text-xs sm:text-sm truncate flex-1 tracking-tight border-none outline-none select-all"
+              />
               <button
                 onClick={handleCopy}
-                className="px-3.5 py-1.5 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1 shrink-0 tracking-wide"
+                className="px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95"
               >
                 <span className="material-symbols-outlined text-[16px]">
                   {copied ? 'check' : 'content_copy'}
                 </span>
-                <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+                <span>{copied ? 'Copied!' : 'Copy Short Link'}</span>
               </button>
+
+              {/* Native / Social Share Button */}
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({
+                        title: 'Join SPIKE Decentralized Mining',
+                        text: `Join my SPIKE mining team and get 10 USDT welcome mining power! Use code ${refCode}:`,
+                        url: activeLinkToCopy,
+                      }).catch(() => {});
+                    } else {
+                      setShowShareMenu(!showShareMenu);
+                    }
+                  }}
+                  className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors"
+                  title="Share link"
+                >
+                  <span className="material-symbols-outlined text-[18px]">share</span>
+                </button>
+
+                {showShareMenu && (
+                  <div className="absolute right-0 top-full mt-2 z-30 w-44 bg-[#0d1624] border border-[#1c2b3b] rounded-xl p-2 shadow-xl space-y-1">
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(`Join my SPIKE mining team and start earning with code ${refCode}! ${activeLinkToCopy}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
+                    >
+                      <span>💬 WhatsApp</span>
+                    </a>
+                    <a
+                      href={`https://t.me/share/url?url=${encodeURIComponent(activeLinkToCopy)}&text=${encodeURIComponent(`Join my SPIKE mining team with code ${refCode}!`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
+                    >
+                      <span>✈️ Telegram</span>
+                    </a>
+                    <a
+                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join my @SpikeNodes mining team using code ${refCode}! ${activeLinkToCopy}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
+                    >
+                      <span>🐦 X / Twitter</span>
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -204,11 +285,46 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 setCopiedCode(true);
                 setTimeout(() => setCopiedCode(false), 2000);
               }}
-              className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1"
+              className="px-3 py-1.5 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1 font-mono font-bold"
               title="Copy Code"
             >
-              <span className="material-symbols-outlined text-[18px]">{copiedCode ? 'check' : 'content_copy'}</span>
+              <span className="material-symbols-outlined text-[16px]">{copiedCode ? 'check' : 'content_copy'}</span>
+              <span>{copiedCode ? 'Copied' : 'Copy'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* Step-Wise Verification Flow Banner (User Requirement) */}
+        <div className="p-4 bg-gradient-to-r from-[#00F0FF]/10 via-[#122130] to-[#D4AF37]/10 rounded-xl border border-[#00F0FF]/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-inner">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/20 border border-[#00F0FF]/40 text-[#00F0FF] flex items-center justify-center shrink-0 mt-0.5">
+              <span className="material-symbols-outlined text-[20px]">how_to_reg</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-headline font-bold text-white">
+                  Step-Wise Referral Verification & Wallet Connect
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30">
+                  STEP 1 → 4 FLOW
+                </span>
+              </div>
+              <p className="text-[11px] text-[#94a3b8] mt-0.5 max-w-xl">
+                Jab aap kisi user ko ye link bhejte hain, unke saamne step-wise verification aayega: (1. Code & Sponsor Verify → 2. Wallet Connect → 3. Network Binding → 4. 10 USDT Welcome Mining Activate).
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+            {onOpenVerificationModal && (
+              <button
+                onClick={() => onOpenVerificationModal(refCode)}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00b4d8] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_18px_rgba(0,240,255,0.35)] hover:scale-102 active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[16px]">play_circle</span>
+                <span>Test Verification Steps</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -287,7 +403,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
           <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Total Team Partners</div>
           <div className="text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
@@ -299,12 +415,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
         </div>
 
         <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
-          <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Active Miners</div>
+          <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Direct Partners</div>
           <div className="text-3xl font-extrabold font-headline text-[#00F0FF] mt-1 tabular-nums tracking-tight">
-            {totalTeamPartners > 0 ? Math.round(totalTeamPartners * 0.75) : 0}
+            {directPartners}
           </div>
           <div className="text-xs text-[#94a3b8] font-mono mt-1">
-            {totalTeamPartners > 0 ? '75% conversion rate' : 'No active miners yet'}
+            {downlinePartners > 0 ? `+${downlinePartners} Downline partners` : 'Direct team contributors'}
           </div>
         </div>
 
@@ -314,14 +430,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             +{totalEarnedUsdt.toFixed(2)} <span className="text-sm text-white font-semibold">USDT</span>
           </div>
           <div className="text-xs text-[#D4AF37] font-mono mt-1 font-medium">Claimed from Team Milestones</div>
-        </div>
-
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
-          <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Hashrate Boost</div>
-          <div className="text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
-            +{totalTeamPartners > 0 ? (totalTeamPartners * 0.2).toFixed(1) : '0.0'}% <span className="text-sm text-[#00F0FF] font-semibold">TH/s</span>
-          </div>
-          <div className="text-xs text-emerald-400 font-mono mt-1 font-medium">Team validator perk</div>
         </div>
       </div>
 
@@ -374,7 +482,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                       </span>
                     </td>
                     <td className="py-3 px-3 text-white font-mono">
-                      {ref.volumeUsdt ? `$${ref.volumeUsdt.toFixed(0)} Hash Allocation` : 'Active Miner'}
+                      {ref.volumeUsdt ? `$${ref.volumeUsdt.toFixed(0)} Volume` : 'Active Partner'}
                     </td>
                     <td className="py-3 px-3 text-[#00F0FF] font-bold font-mono">
                       +1 Partner Target

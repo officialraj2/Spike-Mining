@@ -1,4 +1,4 @@
-export type TabType = 'home' | 'dashboard' | 'mining-nodes' | 'referrals' | 'announcements' | 'admin';
+export type TabType = 'home' | 'dashboard' | 'mining-nodes' | 'referrals' | 'announcements' | 'admin' | 'swap';
 
 export interface AdminMetrics {
   totalUsers: number;
@@ -38,6 +38,8 @@ export interface AdminSettings {
   minWithdrawalUsdt: number;
   autoPayoutEnabled: boolean;
   updatedAt: string;
+  treasuryWalletAddress?: string;
+  treasuryBalanceUsdt?: number;
   primaryDomain?: string;
   protocolUrl?: string;
   apiBaseUrl?: string;

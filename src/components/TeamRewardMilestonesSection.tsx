@@ -69,99 +69,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
 
   return (
     <div className="space-y-6">
-      {/* ============================================================
-          TOP ALGORITHM & EMISSION CONTROL ARCHITECTURE (FROM DEMO FILE)
-         ============================================================ */}
-      <div className="bg-gradient-to-r from-[#071626] via-[#0b2138] to-[#071626] rounded-2xl p-5 md:p-6 border border-[#00F0FF]/30 shadow-[0_0_25px_rgba(0,240,255,0.12)] relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#00F0FF]/5 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#1c2b3b]">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">memory</span>
-            <span className="text-xs font-mono font-bold tracking-[0.16em] uppercase text-[#00F0FF]">
-              A Dynamic Hash-Rate Reward Architecture
-            </span>
-          </div>
-          <span className="text-[10px] font-mono text-[#94a3b8] px-2 py-0.5 rounded bg-[#0a0f1d] border border-[#1c2b3b]">
-            Verified Protocol Specification
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-          {/* Core Algorithm (5 cols) */}
-          <div className="md:col-span-5 p-4 rounded-xl bg-[#051424]/90 border border-[#00F0FF]/25 space-y-3">
-            <div className="flex items-center gap-2 text-white font-headline font-bold text-xs">
-              <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">settings</span>
-              <span>CORE ALGORITHM</span>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              <div className="p-2.5 rounded-lg bg-[#0a0f1d] border border-[#1c2b3b]/80">
-                <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#94a3b8]">
-                  <span className="material-symbols-outlined text-[14px] text-[#00F0FF]">group</span>
-                  <span>Mining Share:</span>
-                </div>
-                <div className="text-[11px] font-mono text-white mt-1 pl-5">
-                  <span className="text-[#00F0FF]">Mining Share</span> = <span className="underline decoration-[#00F0FF]/50">User Effective Hash Rate</span> / Total Effective Hash Rate
-                </div>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-[#0a0f1d] border border-[#1c2b3b]/80">
-                <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#94a3b8]">
-                  <span className="material-symbols-outlined text-[14px] text-[#D4AF37]">featured_seasonal_and_gifts</span>
-                  <span>User Reward:</span>
-                </div>
-                <div className="text-[11px] font-mono text-white mt-1 pl-5">
-                  <span className="text-[#D4AF37]">SPIKE Reward</span> = Mining Share × Period Emission
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Emission Control (3 cols) */}
-          <div className="md:col-span-3 p-4 rounded-xl bg-[#051424]/90 border border-[#00F0FF]/25 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-white font-headline font-bold text-xs mb-3">
-                <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">database</span>
-                <span>EMISSION CONTROL</span>
-              </div>
-              <div className="text-[10px] font-mono uppercase tracking-wider text-[#94a3b8]">
-                Maximum Mining Pool
-              </div>
-              <div className="text-xl lg:text-2xl font-extrabold font-headline text-[#00F0FF] mt-0.5 tracking-tight drop-shadow-[0_0_12px_rgba(0,240,255,0.4)]">
-                50,000,000
-              </div>
-              <div className="text-[10px] font-mono text-[#D4AF37] font-semibold">
-                SPIKE COINS (MAX CAPPED)
-              </div>
-            </div>
-            <div className="pt-2 mt-2 border-t border-[#1c2b3b] text-[10px] font-mono text-[#94a3b8]">
-              Remaining Supply = 50,000,000 − Total SPIKE Mined
-            </div>
-          </div>
-
-          {/* Powerful Formula (4 cols) */}
-          <div className="md:col-span-4 p-4 rounded-xl bg-[#051424]/90 border border-[#00F0FF]/25 space-y-2">
-            <div className="flex items-center gap-2 text-white font-headline font-bold text-xs">
-              <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">calculate</span>
-              <span>POWERFUL FORMULA</span>
-            </div>
-
-            <div className="p-2.5 rounded-lg bg-gradient-to-r from-[#00F0FF]/10 to-[#D4AF37]/10 border border-[#00F0FF]/40 text-center">
-              <div className="text-xs sm:text-sm font-mono font-extrabold text-[#00F0FF] tracking-wider">
-                Reward = min((<span className="text-white">Hu</span> / <span className="text-white">Ht</span>) × Ep, Rp)
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1 text-[10px] font-mono text-[#94a3b8] pt-1">
-              <div><strong className="text-white">Hu</strong> = User Effective Hash</div>
-              <div><strong className="text-white">Ht</strong> = Total Effective Hash</div>
-              <div><strong className="text-white">Ep</strong> = Period Emission</div>
-              <div><strong className="text-white">Rp</strong> = Remaining Mined</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ============================================================
           MAIN SPIKE TEAM-BASED REWARD PROGRAM CONSOLE (FROM ATTACHED PHOTO)
@@ -204,7 +112,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
         <div className="bg-[#0a1828] rounded-2xl p-4 md:p-5 border border-[#00F0FF]/30 shadow-inner mb-6 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             {/* Explanation & Breakdown */}
-            <div className="space-y-1.5 flex-1">
+            <div className="space-y-1 flex-1">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">groups</span>
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
@@ -214,9 +122,6 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                   ENTIRE TEAM CALCULATED
                 </span>
               </div>
-              <p className="text-xs text-[#94a3b8] leading-relaxed">
-                Yahan aapke <strong className="text-white">khud ke direct partners</strong> aur <strong className="text-white">baki sabhi partner teams ke downstream partners</strong> milakar <strong className="text-[#00F0FF]">Total Team</strong> calculate hoti hai. Jaise hi Total Team required target par pahunchti hai, reward unlock ho jata hai!
-              </p>
             </div>
 
             {/* Live Count Pill Cards */}

@@ -84,12 +84,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     { id: 'dashboard', label: 'Dash', icon: 'dashboard' },
     { id: 'mining-nodes', label: 'Nodes', icon: 'dns', badge: nodeCount },
     { id: 'referrals', label: 'Referrals', icon: 'groups' },
+    { id: 'swap', label: 'Swap', icon: 'swap_horiz' },
     { id: 'announcements', label: 'CEX', icon: 'campaign', hot: true },
   ];
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0d1d2c]/95 backdrop-blur-xl border-t border-[#1c2b3b] z-40 grid grid-cols-4 items-center px-1 safe-area-pb"
+      className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-[#0d1d2c]/95 backdrop-blur-xl border-t border-[#1c2b3b] z-40 grid grid-cols-5 items-center px-1 safe-area-pb"
       aria-label="Mobile Bottom Navigation"
     >
       {tabs.map((tab) => {

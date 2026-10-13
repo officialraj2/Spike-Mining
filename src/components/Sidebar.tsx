@@ -21,6 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'mining-nodes', label: 'Mining Nodes', icon: 'dns', count: nodeCount },
     { id: 'referrals', label: 'Referral system', icon: 'groups', badge: 'REWARDS' },
+    { id: 'swap', label: 'Swap (DEX)', icon: 'swap_horiz', badge: 'AMM' },
     { id: 'announcements', label: 'Announcements', icon: 'campaign', badge: 'TOP 10 CEX' },
     ...(isAdmin ? [{ id: 'admin' as TabType, label: 'Admin Panel', icon: 'shield_person', badge: 'ROOT' }] : []),
   ];
@@ -54,7 +55,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <button
               key={item.id}
-              onClick={() => onTabChange(item.id)}
+              onClick={() => {
+                if (item.id === 'swap') {
+                  if (onOpenSwapModal) {
+                    onOpenSwapModal();
+                  } else {
+                    onTabChange('swap');
+                  }
+                } else {
+                  onTabChange(item.id);
+                }
+              }}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium ${
                 isActive
                   ? 'bg-[#1c2b3b] text-[#00F0FF] font-semibold shadow-[0_0_18px_rgba(0,240,255,0.14)] border border-[#00F0FF]/25'

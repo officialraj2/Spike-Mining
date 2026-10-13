@@ -35,10 +35,40 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     : (totalHashrate > 0);
 
   const [isStriking, setIsStriking] = useState<boolean>(false);
-  const [accumulatedSpike, setAccumulatedSpike] = useState<number>(0);
-  const [accumulatedUsdt, setAccumulatedUsdt] = useState<number>(0);
+  const [accumulatedSpike, setAccumulatedSpike] = useState<number>(() => {
+    try {
+      if (walletAddress) {
+        const val = localStorage.getItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`);
+        if (val && !isNaN(Number(val))) return Number(val);
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [accumulatedUsdt, setAccumulatedUsdt] = useState<number>(() => {
+    try {
+      if (walletAddress) {
+        const val = localStorage.getItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
+        if (val && !isNaN(Number(val))) return Number(val);
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  });
   const [currentBlock, setCurrentBlock] = useState<number>(38192842);
-  const [sharesCount, setSharesCount] = useState<number>(0);
+  const [sharesCount, setSharesCount] = useState<number>(() => {
+    try {
+      if (walletAddress) {
+        const val = localStorage.getItem(`spike_mining_shares_${walletAddress.toLowerCase()}`);
+        if (val && !isNaN(Number(val))) return Number(val);
+      }
+      return 124;
+    } catch {
+      return 124;
+    }
+  });
   const [lastBlockTime, setLastBlockTime] = useState<string>('Standby');
   const [claimedNotice, setClaimedNotice] = useState<boolean>(false);
   const [strikeNotice, setStrikeNotice] = useState<string | null>(null);
@@ -46,15 +76,23 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   const [lastAutoBuyTx, setLastAutoBuyTx] = useState<any | null>(null);
   const [autoBuyNotice, setAutoBuyNotice] = useState<string | null>(null);
 
+  // Sync accumulated rewards to localStorage
+  useEffect(() => {
+    if (walletAddress && isMining && accumulatedSpike > 0) {
+      try {
+        localStorage.setItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`, String(accumulatedSpike));
+        localStorage.setItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`, String(accumulatedUsdt));
+        localStorage.setItem(`spike_mining_shares_${walletAddress.toLowerCase()}`, String(sharesCount));
+      } catch {}
+    }
+  }, [accumulatedSpike, accumulatedUsdt, sharesCount, walletAddress, isMining]);
+
   // Effective Hashrate with fixed 10x Turbo speed (0 TH/s if no active nodes)
   const effectiveHashrate = isMining && totalHashrate > 0 ? totalHashrate * 10 : 0;
 
   // Real-time mining ticker: accumulates tokens every 1.2 seconds when mining node is active
   useEffect(() => {
     if (!isMining || totalHashrate <= 0) {
-      setAccumulatedSpike(0);
-      setAccumulatedUsdt(0);
-      setSharesCount(0);
       setLastBlockTime('Standby');
       return;
     }
@@ -132,6 +170,12 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         setAutoBuyNotice(`⚡ Mined Loot Harvested: +${spkToBuy.toFixed(2)} SPK Credited to Wallet!`);
         setAccumulatedSpike(0);
         setAccumulatedUsdt(0);
+        if (walletAddress) {
+          try {
+            localStorage.removeItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`);
+            localStorage.removeItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
+          } catch {}
+        }
 
         if (onAutoBuySuccess) {
           onAutoBuySuccess(data.tx, data.wallet, data.token);

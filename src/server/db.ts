@@ -745,7 +745,12 @@ class PersistentDatabase {
   }
 
   public updateNodeStatus(id: string, status: DbMiningNode['status'], admin = 'user'): DbMiningNode | null {
-    const node = this.getNode(id);
+    let node = this.getNode(id);
+    if (!node) {
+      // Check if node matches by name or user
+      const normAdmin = admin.toLowerCase();
+      node = this.data.nodes.find((n) => n.name === id || (n.userAddress.toLowerCase() === normAdmin && n.id.includes(id)));
+    }
     if (!node) return null;
     node.status = status;
     if (status === 'mining') {
@@ -762,6 +767,47 @@ class PersistentDatabase {
     this.logAudit(admin, 'NODE_STATUS_CHANGE', node.id, `Status set to ${status}`);
     this.save();
     return node;
+  }
+
+  public syncUserNodes(userAddress: string, clientNodes: any[]): DbMiningNode[] {
+    const norm = (userAddress || '').toLowerCase();
+    if (!norm) return [];
+    if (!Array.isArray(clientNodes) || clientNodes.length === 0) {
+      return this.getNodes(norm);
+    }
+
+    clientNodes.forEach((cn) => {
+      const existing = this.data.nodes.find(
+        (n) => n.id === cn.id || (n.userAddress.toLowerCase() === norm && n.name === cn.name)
+      );
+      if (existing) {
+        existing.status = cn.status || existing.status;
+        existing.hashrate = Number(cn.hashrate) || existing.hashrate;
+        existing.temperature = Number(cn.temperature) || existing.temperature;
+        existing.userAddress = norm;
+      } else {
+        this.data.nodes.unshift({
+          id: cn.id || `spk-node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          userAddress: norm,
+          name: cn.name || `Mining Rig #${this.getNodes(norm).length + 1}`,
+          region: cn.region || 'Frankfurt (EU-Central BSC Pool)',
+          status: cn.status || 'mining',
+          hashrate: Number(cn.hashrate) || 142.8,
+          temperature: cn.temperature || 63,
+          shareAcceptance: Number(cn.shareAcceptance) || 99.9,
+          fanSpeed: Number(cn.fanSpeed) || 70,
+          powerUsage: Number(cn.powerUsage) || 2200,
+          uptimeDays: Number(cn.uptimeDays) || 0.1,
+          algorithm: cn.algorithm || 'SHA-256 (BSC Sublayer)',
+          logs: cn.logs || [`[${new Date().toLocaleTimeString()}] Active mining on BSC validator network.`],
+          costUsdt: Number(cn.costUsdt) || 15,
+          deployedAt: cn.deployedAt || new Date().toISOString(),
+        });
+      }
+    });
+
+    this.save();
+    return this.getNodes(norm);
   }
 
   public deleteNode(id: string, admin = 'admin'): boolean {
@@ -864,16 +910,26 @@ class PersistentDatabase {
     return this.data.referrals;
   }
 
-  public getReferralStats(userAddress: string) {
-    const norm = userAddress.toLowerCase();
+  public getReferralStats(userAddressOrCode: string) {
+    let targetAddress = (userAddressOrCode || '').toLowerCase();
+    let currentUser = this.getUser(targetAddress);
+
+    if (!currentUser) {
+      const byCode = this.findUserByReferralCodeOrAddress(userAddressOrCode);
+      if (byCode) {
+        currentUser = byCode;
+        targetAddress = byCode.address.toLowerCase();
+      }
+    }
+
+    const norm = targetAddress;
     const directs = this.data.referrals.filter(
       (r) => r.referrerAddress.toLowerCase() === norm
     );
     const totalCommissions = directs.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
 
-    const currentUser = this.getUser(userAddress);
-
     return {
+      address: currentUser?.address || targetAddress,
       directPartners: directs.length,
       downlinePartners: 0,
       totalPartners: directs.length,
@@ -1348,7 +1404,6 @@ class PersistentDatabase {
     return all.filter((t) => t.userAddress.toLowerCase() === norm).slice(0, limit);
   }
 
-  // ---- Protocol Treasury & $15 Project Flow ----
   public getTreasuryInfo() {
     return {
       treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
@@ -1360,6 +1415,22 @@ class PersistentDatabase {
       contractAddress: this.data.settings.bscContractAddress,
       lastUpdated: new Date().toISOString(),
     };
+  }
+
+  public updateTreasuryAddress(newAddress: string, adminUser = 'admin'): { success: boolean; treasuryWalletAddress: string; error?: string } {
+    if (!newAddress || typeof newAddress !== 'string') {
+      return { success: false, treasuryWalletAddress: this.data.settings.treasuryWalletAddress, error: 'Address string is required' };
+    }
+    const clean = newAddress.trim();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(clean)) {
+      return { success: false, treasuryWalletAddress: this.data.settings.treasuryWalletAddress, error: 'Invalid EVM/BEP-20 address format. Must be 42 characters starting with 0x.' };
+    }
+    const oldAddress = this.data.settings.treasuryWalletAddress;
+    this.data.settings.treasuryWalletAddress = clean;
+    this.data.settings.updatedAt = new Date().toISOString();
+    this.logAudit(adminUser, 'TREASURY_ADDRESS_UPDATED', clean, `Official Treasury address changed from ${oldAddress} to ${clean}`);
+    this.save();
+    return { success: true, treasuryWalletAddress: clean };
   }
 
   public processTreasuryDeposit(

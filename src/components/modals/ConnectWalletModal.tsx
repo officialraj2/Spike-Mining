@@ -24,14 +24,20 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   onCopyAddress,
 }) => {
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
+  const [connectingStatus, setConnectingStatus] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [customAddress, setCustomAddress] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [showProviderPicker, setShowProviderPicker] = useState(false);
 
-  if (!isOpen) return null;
+  // Check if running inside an iframe (like AI Studio preview)
+  const isInsideIframe = typeof window !== 'undefined' && window.self !== window.top;
 
   const walletProviders = [
     {
       id: 'metamask',
       name: 'MetaMask',
-      description: 'Connect via browser extension or mobile app',
+      description: isInsideIframe ? 'Connect Extension or Paste 0x Address' : 'Connect via browser extension or mobile app',
       icon: '🦊',
       color: 'border-orange-500/30',
     },
@@ -58,9 +64,28 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     },
   ];
 
-  const [customAddress, setCustomAddress] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  const [showProviderPicker, setShowProviderPicker] = useState(false);
+  if (!isOpen) return null;
+
+  // Safe helper to detect window.ethereum or MetaMask provider
+  const getEthereumProvider = () => {
+    if (typeof window === 'undefined') return null;
+    const win = window as unknown as {
+      ethereum?: {
+        isMetaMask?: boolean;
+        providers?: Array<{ isMetaMask?: boolean; request: (args: { method: string; params?: unknown[] }) => Promise<unknown> }>;
+        request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+      };
+    };
+    if (win.ethereum?.providers && Array.isArray(win.ethereum.providers)) {
+      const mm = win.ethereum.providers.find((p) => p.isMetaMask);
+      if (mm) return mm;
+      return win.ethereum.providers[0];
+    }
+    if (win.ethereum && typeof win.ethereum.request === 'function') {
+      return win.ethereum;
+    }
+    return null;
+  };
 
   const generateFreshWallet = () => {
     const chars = '0123456789abcdef';
@@ -72,35 +97,66 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   };
 
   const handleSelectProvider = async (id: string) => {
+    setErrorMessage(null);
+    setConnectingStatus(null);
     setConnectingProvider(id);
 
-    try {
-      if (
-        typeof window !== 'undefined' &&
-        (window as unknown as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum
-      ) {
-        const eth = (window as unknown as { ethereum: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
+    const eth = getEthereumProvider();
 
-        // Try direct eth_requestAccounts with 2.5s timeout to prevent hanging on blocked extension or iframe sandbox
-        const accountsPromise = eth.request({ method: 'eth_requestAccounts' }) as Promise<string[]>;
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('MetaMask connection timeout in iframe')), 2500)
-        );
+    // If attempting to connect a real Web3 wallet extension (MetaMask / Trust Wallet / Binance)
+    if (id === 'metamask' || id === 'trustwallet' || id === 'binance') {
+      if (eth) {
+        try {
+          setConnectingStatus(`MetaMask popup opening... Please approve account access in your browser extension.`);
+          
+          // Allow ample time (45s) for user to unlock and click 'Next / Connect' in MetaMask popup
+          const accountsPromise = eth.request({ method: 'eth_requestAccounts' }) as Promise<string[]>;
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('METAMASK_TIMEOUT')), 45000)
+          );
 
-        const accounts = await Promise.race([accountsPromise, timeoutPromise]);
-        if (accounts && accounts.length > 0) {
-          onConnect(id, accounts[0]);
+          const accounts = await Promise.race([accountsPromise, timeoutPromise]);
+          if (accounts && accounts.length > 0) {
+            onConnect('MetaMask', accounts[0]);
+            setConnectingProvider(null);
+            setConnectingStatus(null);
+            setShowProviderPicker(false);
+            onClose();
+            return;
+          }
+        } catch (err: unknown) {
           setConnectingProvider(null);
-          setShowProviderPicker(false);
-          onClose();
+          setConnectingStatus(null);
+          const errObj = err as { code?: number; message?: string };
+          if (errObj?.code === 4001 || errObj?.message?.includes('User rejected')) {
+            setErrorMessage('MetaMask connection was cancelled or rejected by user.');
+          } else if (errObj?.message === 'METAMASK_TIMEOUT') {
+            setErrorMessage('MetaMask did not respond within 45s. Please unlock your extension and try again.');
+          } else {
+            setErrorMessage(errObj?.message || 'MetaMask extension connection failed.');
+          }
+          setShowCustomInput(true);
           return;
         }
+      } else {
+        // Extension not detected in this context
+        setConnectingProvider(null);
+        setConnectingStatus(null);
+        if (isInsideIframe) {
+          setErrorMessage(
+            'Browser Security (iFrame Sandbox): Chrome/Brave extensions are restricted from injecting into embedded preview iframes. Aap apna real MetaMask address (0x...) niche paste karke turant connect kar sakte hain, ya app ko Full Tab me open karein!'
+          );
+        } else {
+          setErrorMessage(
+            'MetaMask extension is browser me detect nahi hui. Kripya MetaMask extension install karein ya apna address manually enter karein.'
+          );
+        }
+        setShowCustomInput(true);
+        return;
       }
-    } catch (err: unknown) {
-      console.warn('[MetaMask Connection Notice]: Extension restricted or unavailable, falling back to testnet wallet:', err);
     }
 
-    // Seamless fallback so the user is never blocked by browser extension restrictions
+    // Fallback for WalletConnect or other providers
     setTimeout(() => {
       const freshAddr = generateFreshWallet();
       onConnect(id, freshAddr);
@@ -108,6 +164,20 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
       setShowProviderPicker(false);
       onClose();
     }, 350);
+  };
+
+  const handlePasteClipboard = async () => {
+    try {
+      if (navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim().startsWith('0x')) {
+          setCustomAddress(text.trim());
+          setErrorMessage(null);
+        }
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const handleConnectFreshWallet = () => {
@@ -127,9 +197,10 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     e.preventDefault();
     const trimmed = customAddress.trim();
     if (!trimmed.startsWith('0x') || trimmed.length < 10) {
+      setErrorMessage('Please enter a valid BSC (BEP-20) address starting with 0x');
       return;
     }
-    onConnect('Custom Wallet', trimmed);
+    onConnect('MetaMask', trimmed);
     setShowProviderPicker(false);
     onClose();
   };
@@ -257,6 +328,47 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                 <span>Back to Connected Wallet</span>
               </button>
             )}
+            {/* Active Connecting Status Banner */}
+            {connectingStatus && (
+              <div className="p-3 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/40 text-xs text-[#00F0FF] flex items-start gap-2.5 animate-pulse">
+                <span className="material-symbols-outlined text-[18px] animate-spin shrink-0 mt-0.5">
+                  progress_activity
+                </span>
+                <div className="flex-1">
+                  <div className="font-bold">Waiting for MetaMask Approval...</div>
+                  <div className="text-[11px] text-[#cbd5e1] font-mono mt-0.5">{connectingStatus}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Error or Notice Banner */}
+            {errorMessage && (
+              <div className="p-3.5 rounded-xl bg-amber-950/50 border border-amber-500/50 text-xs text-amber-200 space-y-2.5">
+                <div className="flex items-start gap-2">
+                  <span className="material-symbols-outlined text-amber-400 text-[18px] shrink-0 mt-0.5">
+                    info
+                  </span>
+                  <div className="flex-1">
+                    <div className="font-bold text-amber-300">MetaMask Connection Notice:</div>
+                    <p className="text-[11px] font-mono leading-relaxed text-amber-100/90 mt-0.5">{errorMessage}</p>
+                  </div>
+                </div>
+                {isInsideIframe && (
+                  <div className="pt-1 flex flex-wrap items-center gap-2">
+                    <a
+                      href={typeof window !== 'undefined' ? window.location.href : '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-mono text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                    >
+                      <span>Open in Full Browser Tab (Native Extension)</span>
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="p-3 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-xs text-[#00F0FF] flex items-start gap-2">
               <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">verified_user</span>
               <span>
@@ -317,11 +429,14 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
               {!showCustomInput ? (
                 <div className="flex items-center justify-between gap-2">
                   <button
-                    onClick={() => setShowCustomInput(true)}
+                    onClick={() => {
+                      setShowCustomInput(true);
+                      setErrorMessage(null);
+                    }}
                     className="text-[11px] text-[#00F0FF] hover:underline font-mono flex items-center gap-1"
                   >
                     <span className="material-symbols-outlined text-[14px]">edit</span>
-                    <span>Enter Custom 0x Address</span>
+                    <span>Paste My MetaMask Address (0x...)</span>
                   </button>
                   <button
                     onClick={handleConnectDemoLeader}
@@ -333,29 +448,48 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleConnectCustom} className="space-y-2 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
+                <form onSubmit={handleConnectCustom} className="space-y-2.5 p-3.5 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
                   <div className="flex items-center justify-between text-[11px] text-[#94a3b8] font-mono">
-                    <span>Paste BSC Wallet Address:</span>
+                    <span className="font-semibold text-white">Enter / Paste MetaMask (BEP-20) Address:</span>
                     <button
                       type="button"
-                      onClick={() => setShowCustomInput(false)}
+                      onClick={() => {
+                        setShowCustomInput(false);
+                        setErrorMessage(null);
+                      }}
                       className="text-red-400 hover:underline"
                     >
-                      Cancel
+                      Close
                     </button>
                   </div>
-                  <input
-                    type="text"
-                    value={customAddress}
-                    onChange={(e) => setCustomAddress(e.target.value)}
-                    placeholder="0x71C... or your custom address"
-                    className="w-full px-3 py-2 rounded-lg bg-[#122130] border border-[#1c2b3b] text-white text-xs font-mono focus:border-[#00F0FF] focus:outline-none"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={customAddress}
+                      onChange={(e) => {
+                        setCustomAddress(e.target.value);
+                        setErrorMessage(null);
+                      }}
+                      placeholder="0x... (e.g. 0x71C8a914B97e889F12A0987cB32456Fa12349A2)"
+                      className="w-full pl-3 pr-20 py-2.5 rounded-lg bg-[#122130] border border-[#1c2b3b] text-white text-xs font-mono focus:border-[#00F0FF] focus:outline-none"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePasteClipboard}
+                      className="absolute right-1.5 top-1.5 px-2 py-1 rounded bg-[#1c2b3b] hover:bg-[#25394e] text-[11px] font-mono text-[#00F0FF] flex items-center gap-1 transition-colors border border-[#2d4257]"
+                      title="Paste from clipboard"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">content_paste</span>
+                      <span>Paste</span>
+                    </button>
+                  </div>
                   <button
                     type="submit"
-                    className="w-full py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff]"
+                    className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#00F0FF] to-[#0284c7] text-[#0A0F1D] font-black text-xs font-headline hover:brightness-110 shadow-md transition-all flex items-center justify-center gap-1.5"
                   >
-                    Connect Address
+                    <span className="material-symbols-outlined text-[16px]">login</span>
+                    <span>Connect My MetaMask Wallet</span>
                   </button>
                 </form>
               )}

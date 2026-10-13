@@ -85,17 +85,29 @@ export const AdminView: React.FC<AdminViewProps> = ({
   // Settings form state
   const [settingsForm, setSettingsForm] = useState<Partial<AdminSettings>>({});
 
+  // Treasury State
+  const [treasuryInfo, setTreasuryInfo] = useState<{
+    treasuryWalletAddress: string;
+    treasuryBalanceUsdt: number;
+  }>({
+    treasuryWalletAddress: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+    treasuryBalanceUsdt: 24850.0,
+  });
+  const [treasuryAddressInput, setTreasuryAddressInput] = useState('0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7');
+  const [isSavingTreasury, setIsSavingTreasury] = useState(false);
+
   // Fetch full admin dashboard data from backend API
   const fetchAllData = useCallback(async (quiet = false) => {
     if (!quiet) setIsRefreshing(true);
     try {
-      const [metricsRes, usersRes, nodesRes, txsRes, settingsRes, logsRes] = await Promise.all([
+      const [metricsRes, usersRes, nodesRes, txsRes, settingsRes, logsRes, treasuryRes] = await Promise.all([
         fetch('/api/admin/metrics'),
         fetch('/api/admin/users'),
         fetch('/api/admin/nodes'),
         fetch('/api/admin/transactions'),
         fetch('/api/admin/settings'),
         fetch('/api/admin/audit-logs'),
+        fetch('/api/treasury'),
       ]);
 
       if (metricsRes.ok) {
@@ -119,6 +131,26 @@ export const AdminView: React.FC<AdminViewProps> = ({
         if (data?.settings) {
           setSettings(data.settings);
           setSettingsForm(data.settings || {});
+          if (data.settings.treasuryWalletAddress) {
+            setTreasuryAddressInput((prev) => prev || data.settings.treasuryWalletAddress!);
+            setTreasuryInfo((prev) => ({
+              ...prev,
+              treasuryWalletAddress: data.settings.treasuryWalletAddress!,
+              treasuryBalanceUsdt: typeof data.settings.treasuryBalanceUsdt === 'number' ? data.settings.treasuryBalanceUsdt : prev.treasuryBalanceUsdt,
+            }));
+          }
+        }
+      }
+      if (treasuryRes && treasuryRes.ok) {
+        const tData = await safeJsonParse(treasuryRes);
+        if (tData) {
+          const addr = tData.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
+          const bal = typeof tData.treasuryBalanceUsdt === 'number' ? tData.treasuryBalanceUsdt : 24850.0;
+          setTreasuryInfo({
+            treasuryWalletAddress: addr,
+            treasuryBalanceUsdt: bal,
+          });
+          setTreasuryAddressInput((prev) => prev || addr);
         }
       }
       if (logsRes.ok) {
@@ -398,17 +430,89 @@ export const AdminView: React.FC<AdminViewProps> = ({
   // Handle Save Settings
   const handleSaveSettings = async () => {
     try {
+      const cleanTreasury = treasuryAddressInput.trim();
+      const payload = {
+        ...settingsForm,
+        ...(cleanTreasury ? { treasuryWalletAddress: cleanTreasury } : {}),
+        adminUser: 'Admin Dashboard',
+      };
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...settingsForm, adminUser: 'Admin Dashboard' }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
+        if (cleanTreasury) {
+          window.dispatchEvent(
+            new CustomEvent('treasuryUpdated', { detail: { treasuryWalletAddress: cleanTreasury } })
+          );
+        }
         onNotify?.('Settings Saved', 'System configuration updated in backend database', 'success');
         fetchAllData(true);
       }
     } catch {
       onNotify?.('Error', 'Failed to save settings', 'error');
+    }
+  };
+
+  // Dedicated Handler: Update Official Protocol Treasury Wallet Address
+  const handleUpdateTreasuryAddress = async (overrideAddress?: string) => {
+    const target = (overrideAddress || treasuryAddressInput).trim();
+    if (!target) {
+      onNotify?.('Missing Address', 'Please provide a valid wallet address', 'error');
+      return;
+    }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(target)) {
+      onNotify?.('Invalid Address', 'Must be a 42-character EVM / BEP-20 address starting with 0x', 'error');
+      return;
+    }
+
+    setIsSavingTreasury(true);
+    try {
+      const res = await fetch('/api/admin/treasury/update-address', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newAddress: target, adminUser: 'Admin Dashboard' }),
+      });
+      const data = await safeJsonParse(res);
+      if (res.ok && data?.success) {
+        // Cloud Firestore sync for multi-client persistence
+        try {
+          await setDoc(
+            doc(firestoreDb, 'system', 'treasury'),
+            {
+              treasuryWalletAddress: target,
+              updatedAt: new Date().toISOString(),
+              updatedBy: 'Admin',
+            },
+            { merge: true }
+          );
+        } catch (fbErr) {
+          console.warn('[Admin] Firestore treasury sync notice:', fbErr);
+        }
+
+        setTreasuryAddressInput(target);
+        setTreasuryInfo((prev) => ({ ...prev, treasuryWalletAddress: target }));
+        setSettingsForm((prev) => ({ ...prev, treasuryWalletAddress: target }));
+
+        onNotify?.(
+          'Treasury Wallet Updated!',
+          `Official Treasury Address set to ${target.slice(0, 8)}...${target.slice(-6)}. Live user deposit routing updated!`,
+          'success'
+        );
+
+        // Notify client modals, user dashboard, and background listeners
+        window.dispatchEvent(
+          new CustomEvent('treasuryUpdated', { detail: { treasuryWalletAddress: target } })
+        );
+        fetchAllData(true);
+      } else {
+        onNotify?.('Update Failed', data?.error || 'Failed to update treasury address in database', 'error');
+      }
+    } catch (err: any) {
+      onNotify?.('Error', err?.message || 'Network request failed', 'error');
+    } finally {
+      setIsSavingTreasury(false);
     }
   };
 
@@ -661,7 +765,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {/* ============================================================
           METRICS & KPI CARDS (6 Grid items)
          ============================================================ */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
         {/* Card 1: Registered Wallets */}
         <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] shadow-sm">
           <div className="flex items-center justify-between text-[#94a3b8] mb-1">
@@ -723,7 +827,22 @@ export const AdminView: React.FC<AdminViewProps> = ({
           <div className="text-[11px] text-[#94a3b8] font-mono mt-1">Pending In-App</div>
         </div>
 
-        {/* Card 6: Total Transactions */}
+        {/* Card 6: Official Protocol Treasury Vault (Company Reserve) */}
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#D4AF37]/50 shadow-sm relative overflow-hidden group">
+          <div className="flex items-center justify-between text-[#D4AF37] mb-1">
+            <span className="text-[10px] font-mono uppercase tracking-wider font-bold">Treasury Vault</span>
+            <span className="material-symbols-outlined text-[18px]">account_balance</span>
+          </div>
+          <div className="text-2xl font-extrabold text-[#D4AF37] font-headline">
+            ${treasuryInfo.treasuryBalanceUsdt.toLocaleString('en-US', { minimumFractionDigits: 1 })}
+          </div>
+          <div className="text-[10px] text-amber-300 font-mono mt-1 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Company Official Vault</span>
+          </div>
+        </div>
+
+        {/* Card 7: Total Transactions */}
         <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] shadow-sm">
           <div className="flex items-center justify-between text-[#94a3b8] mb-1">
             <span className="text-[10px] font-mono uppercase tracking-wider">Ledger Records</span>
@@ -2081,6 +2200,22 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
 
               <div>
+                <label className="block text-[#94a3b8] mb-1">
+                  Official Protocol Treasury Wallet Address (BEP-20 / EVM)
+                </label>
+                <input
+                  type="text"
+                  value={treasuryAddressInput}
+                  onChange={(e) => setTreasuryAddressInput(e.target.value)}
+                  placeholder="0x..."
+                  className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-[#D4AF37]"
+                />
+                <span className="text-[10px] text-amber-300/80 mt-1 block">
+                  Official company vault for all worldwide $5 USDT Step 1 deposits. Non-claimable by users.
+                </span>
+              </div>
+
+              <div>
                 <label className="block text-[#94a3b8] mb-1">Minimum Claim / Withdrawal (USDT)</label>
                 <input
                   type="number"
@@ -2118,8 +2253,155 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </div>
           </div>
 
-          {/* Right Column: Information & Help */}
+          {/* Right Column: Treasury Vault Controller + Access Control */}
           <div className="space-y-6">
+            {/* OFFICIAL PROTOCOL TREASURY WALLET CONTROLLER CARD */}
+            <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#D4AF37]/40 shadow-xl space-y-5 relative overflow-hidden">
+              <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-[#D4AF37]/5 rounded-full blur-2xl pointer-events-none" />
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
+                    <span className="material-symbols-outlined text-[24px]">account_balance</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
+                      <span>Official Treasury Vault Controller</span>
+                    </h3>
+                    <span className="text-[11px] text-amber-300 font-mono flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Company Official Vault • Non-Claimable Reserve
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-mono text-[#94a3b8] uppercase font-bold">Accumulated Vault Fund</div>
+                  <div className="text-xl font-black font-headline text-[#D4AF37]">
+                    ${treasuryInfo.treasuryBalanceUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })}{' '}
+                    <span className="text-xs font-mono text-white">USDT</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Protocol Architecture Explanation */}
+              <div className="p-3.5 rounded-xl bg-[#122130] border border-[#1c2b3b] space-y-2 text-xs font-mono">
+                <div className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px]">verified_user</span>
+                  <span>Protocol Architecture & Worldwide Rules:</span>
+                </div>
+                <ul className="space-y-1.5 text-[#94a3b8] text-[11px] pl-1">
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-[#00F0FF]">1.</span>
+                    <span>
+                      <strong className="text-white">Worldwide Inflow:</strong> All users worldwide deposit their Step 1 ($5 USDT Protocol Entry Fee) directly to this address.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-[#00F0FF]">2.</span>
+                    <span>
+                      <strong className="text-white">Non-Claimable by Users:</strong> Ye company ka official wallet hai. Is fund ko koi bhi regular user claim ya withdraw nahi kar sakta.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-[#00F0FF]">3.</span>
+                    <span>
+                      <strong className="text-white">Mining Activation Gate:</strong> Treasury wallet me fund aane ke baad hi mining activation (Step 2: $10 USDT) proceed hoti hai.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-[#00F0FF]">4.</span>
+                    <span>
+                      <strong className="text-white">Live User Synchronization:</strong> Is address ko yha change karne par user panel aur deposit modal me turant live implement ho jata hai.
+                    </span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Change / Edit Treasury Wallet Address Section */}
+              <div className="space-y-3 pt-1">
+                <div>
+                  <div className="flex items-center justify-between text-xs font-mono mb-1.5">
+                    <label className="text-white font-bold flex items-center gap-1">
+                      <span>Change Official Treasury Wallet Address</span>
+                    </label>
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                        /^0x[a-fA-F0-9]{40}$/.test(treasuryAddressInput.trim())
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                      }`}
+                    >
+                      {/^0x[a-fA-F0-9]{40}$/.test(treasuryAddressInput.trim())
+                        ? '✓ Valid EVM Address'
+                        : '⚠️ Enter 42-char 0x Address'}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={treasuryAddressInput}
+                      onChange={(e) => setTreasuryAddressInput(e.target.value)}
+                      placeholder="0x..."
+                      className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl pl-3.5 pr-20 py-2.5 text-white font-mono text-xs focus:outline-none focus:border-[#D4AF37]"
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(treasuryAddressInput);
+                        onNotify?.('Copied', 'Treasury address copied to clipboard', 'info');
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-[10px] font-mono"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preset Chips */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+                  <span className="text-[#94a3b8]">Quick Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => setTreasuryAddressInput('0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7')}
+                    className="px-2 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-[#D4AF37]"
+                    title="Default Protocol Multi-Sig Address"
+                  >
+                    Default Multi-Sig (0xDE7B...a4c7)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTreasuryAddressInput('0x96F86413D8E5d15ecE42E136CC8112c01b9A7306')}
+                    className="px-2 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-[#00F0FF]"
+                    title="BSC Testnet SPIKE Token Deployer Contract"
+                  >
+                    SPIKE Testnet (0x96F8...7306)
+                  </button>
+                </div>
+
+                {/* Submit Update Button */}
+                <button
+                  type="button"
+                  onClick={() => handleUpdateTreasuryAddress()}
+                  disabled={isSavingTreasury || !/^0x[a-fA-F0-9]{40}$/.test(treasuryAddressInput.trim())}
+                  className={`w-full py-3 rounded-xl font-bold font-headline text-xs flex items-center justify-center gap-2 transition-all shadow-md ${
+                    isSavingTreasury || !/^0x[a-fA-F0-9]{40}$/.test(treasuryAddressInput.trim())
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed opacity-60'
+                      : 'bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#fbbf24] text-[#051424] cursor-pointer shadow-[0_0_20px_rgba(212,175,55,0.3)]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isSavingTreasury ? 'sync' : 'upgrade'}
+                  </span>
+                  <span>
+                    {isSavingTreasury ? 'Updating Protocol Treasury...' : 'Save & Implement in User Panel'}
+                  </span>
+                </button>
+                <div className="text-[10px] text-center text-[#94a3b8] font-mono">
+                  Changes take effect immediately across all user screens without reloading.
+                </div>
+              </div>
+            </div>
+
+            {/* Access Control & Security Card */}
             <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-4">
               <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#D4AF37]">security</span>
