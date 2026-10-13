@@ -129,7 +129,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       if (data.success) {
         setClaimedNotice(true);
         setLastAutoBuyTx(data.tx);
-        setAutoBuyNotice(`🥞 PancakeSwap Route Confirmed: +${spkToBuy.toFixed(2)} SPK Auto-Bought with 0.2% Best Slippage!`);
+        setAutoBuyNotice(`⚡ Mined Loot Harvested: +${spkToBuy.toFixed(2)} SPK Credited to Wallet!`);
         setAccumulatedSpike(0);
         setAccumulatedUsdt(0);
 
@@ -165,40 +165,21 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       {/* Header Bar */}
       <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-[#1c2b3b]/80">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-[0.16em] bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1.5 shadow-[0_0_10px_rgba(212,175,55,0.3)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-ping" />
-              <span>APEX MINING ENGINE · SPIKE CORE</span>
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-headline tracking-tight flex flex-wrap items-center gap-3">
+            <span className="animate-shining-text tracking-tight">
+              SPIKE Apex Mining Engine: Live Medallion
             </span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
-              BEP-20 HIGH-VELOCITY STRATUM
-            </span>
-            {isTurbo && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-extrabold bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse">
-                ⚡ 10X TURBO OVERCLOCK ACTIVE
-              </span>
-            )}
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-white tracking-tight mt-1.5 flex items-center gap-2.5">
-            <span>SPIKE Apex Mining Engine: Live Medallion</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono font-normal">
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono font-normal shadow-[0_0_12px_rgba(16,185,129,0.35)]">
               {isMining ? '● HASHING LIVE' : '○ STANDBY'}
             </span>
           </h2>
-          <p className="text-xs sm:text-sm text-[#94a3b8] mt-1 max-w-2xl">
+          <p className="text-xs sm:text-sm text-[#94a3b8] mt-2 max-w-2xl">
             Live 3D Medallion Hashrate Core: Dynamic BSC Validator Cluster &amp; Stratum Telemetry Matrix running at 10X Turbo speed.
           </p>
         </div>
 
-        {/* Active Telemetry: Turbo 10x Fixed & Dynamic Active Mining Status */}
+        {/* Active Telemetry: Dynamic Active Mining Status */}
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <div className="px-3.5 py-2 rounded-xl bg-[#0c1d2e] border border-[#D4AF37]/50 flex items-center gap-2 shadow-[0_0_16px_rgba(212,175,55,0.25)]">
-            <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
-            <span className="text-xs font-mono font-extrabold text-[#D4AF37] tracking-wider">
-              ⚡ TURBO 10X (FIXED)
-            </span>
-          </div>
-
           <div
             className={`px-3.5 py-2 rounded-xl border flex items-center gap-2 transition-all ${
               isMining
@@ -473,11 +454,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                     {effectiveHashrate.toFixed(2)}
                   </span>
                   <span className="text-base sm:text-lg text-[#00F0FF] font-semibold">TH/s</span>
-                  {isTurbo && (
-                    <span className="text-xs font-mono px-2 py-0.5 rounded bg-red-500/20 text-red-400 font-bold border border-red-500/40 animate-pulse">
-                      OVERCLOCKED
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -509,7 +485,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 <div>
                   <div className="text-[10px] text-[#D4AF37] font-mono font-bold uppercase tracking-[0.14em] flex items-center gap-1">
                     <span className="material-symbols-outlined text-[14px]">savings</span>
-                    <span>Uncollected Mined Loot (PancakeSwap Auto-Buy)</span>
+                    <span>Uncollected Mined Loot</span>
                   </div>
                   <div className="text-2xl font-extrabold font-headline text-white mt-1 tabular-nums">
                     +{accumulatedSpike.toFixed(4)}{' '}
@@ -524,38 +500,26 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   onClick={handleClaim}
                   disabled={(accumulatedSpike <= 0 && accumulatedUsdt <= 0) || isAutoBuying}
                   className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-40 disabled:cursor-not-allowed hover:scale-102 shrink-0 tracking-wide cursor-pointer"
-                  title="Auto-Buy exact mined SPIKE via PancakeSwap v2 Router (0.2% Best Slippage)"
                 >
                   {isAutoBuying ? (
                     <>
                       <span className="w-3.5 h-3.5 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                      <span>PancakeSwap Route (0.2% Slippage)...</span>
+                      <span>Claiming Mined Loot...</span>
                     </>
                   ) : claimedNotice ? (
                     <>
                       <span className="material-symbols-outlined text-[16px]">verified</span>
-                      <span>Auto-Bought via PancakeSwap!</span>
+                      <span>Mined Loot Harvested!</span>
                     </>
                   ) : (
                     <>
                       <span className="material-symbols-outlined text-[16px]">bolt</span>
                       <span>
-                        Harvest &amp; Auto-Buy {accumulatedSpike > 0 ? `${accumulatedSpike.toFixed(2)} SPK` : 'Mined SPK'}
+                        Harvest &amp; Claim {accumulatedSpike > 0 ? `${accumulatedSpike.toFixed(2)} SPK` : 'Mined Loot'}
                       </span>
                     </>
                   )}
                 </button>
-              </div>
-
-              {/* Route & Slippage Spec */}
-              <div className="pt-2 border-t border-[#1c2b3b] flex flex-wrap items-center justify-between text-[10px] font-mono text-[#94a3b8]">
-                <div className="flex items-center gap-1.5 text-[#00F0FF]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Router: PancakeSwap V2 (USDT ➔ SPK)</span>
-                </div>
-                <div className="text-[#D4AF37]">
-                  Best Slippage: <span className="text-white font-bold">0.2%</span> · Fast Finality (&lt;300ms)
-                </div>
               </div>
 
               {/* Success Notification Bar */}

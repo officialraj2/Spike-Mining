@@ -335,9 +335,6 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                   Step 1: 5 USDT
                 </span>
               </h2>
-              <p className="text-xs text-[#94a3b8] font-mono">
-                Official Treasury Wallet &bull; Sabhi users ke liye common protocol address
-              </p>
             </div>
           </div>
           <button
@@ -447,9 +444,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                     Copy
                   </button>
                 </div>
-                <p className="text-[11px] text-[#94a3b8] leading-relaxed">
-                  Yeh Treasury Wallet sabhi users ke liye common protocol wallet hai. Aapke 15$ budget me se <strong>5$ USDT</strong> seedha is Treasury wallet me deposit hoga. Baki bache <strong>10$ USDT</strong> se jab aap Mining Start karenge tab Smart Contract call execute hogi aur backend PancakeSwap par token buy karega!
-                </p>
+
               </div>
 
               {/* Real-Time Auto-Verification Live Radar */}

@@ -463,7 +463,7 @@ const INITIAL_DATA: DatabaseSchema = {
     totalSupply: 50_000_000,
     circulatingSupply: 12_450_000,
     decimals: 18,
-    contractAddress: '0x5P1KE777cE25a947C590823FaBe876610bFa3109',
+    contractAddress: '0x96F86413D8E5d15ecE42E136CC8112c01b9A7306',
     pair: 'SPIKE / USDT',
     poolSpkReserve: 2_500_000,
     poolUsdtReserve: 86_250,

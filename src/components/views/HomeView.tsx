@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SPIKE_LOGO_URL, SPIKE_TOKEN_METRICS } from '../../data/mockData';
 import { TabType } from '../../types';
+import { SparkleShatterMedallion } from '../SparkleShatterMedallion';
 
 const HERO_PHRASES = [
   'Decentralized Technology',
@@ -113,7 +114,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           {/* Hero Left Content */}
           <div className="lg:col-span-7 space-y-6 sm:space-y-7 pt-2 sm:pt-0">
             {/* HUD / System Labels from Official Whitepaper */}
-            <div className="mt-3 sm:mt-0 inline-flex max-w-full flex-nowrap items-center gap-1 min-[360px]:gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#122130]/95 border border-[#00F0FF]/50 text-[9px] min-[360px]:text-[10px] min-[410px]:text-[11px] sm:text-xs font-mono text-[#00F0FF] shadow-[0_0_18px_rgba(0,240,255,0.25)] whitespace-nowrap overflow-x-auto scrollbar-none">
+            <div className="inline-flex max-w-full flex-nowrap items-center gap-1 min-[360px]:gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#122130]/95 border border-[#00F0FF]/50 text-[9px] min-[360px]:text-[10px] min-[410px]:text-[11px] sm:text-xs font-mono text-[#00F0FF] shadow-[0_0_18px_rgba(0,240,255,0.25)] whitespace-nowrap overflow-x-auto scrollbar-none">
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00F0FF] animate-pulse shrink-0"></span>
               <span className="font-bold tracking-wide shrink-0 text-white">STATOR</span>
               <span className="text-[#94a3b8]/60 shrink-0">|</span>
@@ -339,19 +340,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ✦
               </span>
 
-              {/* Central Main Medallion */}
-              <div className="relative z-10 animate-float-slow">
-                <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-full p-3 bg-gradient-to-b from-[#D4AF37] via-[#00F0FF]/40 to-[#D4AF37]/60 shadow-[0_0_60px_rgba(212,175,55,0.45),0_0_30px_rgba(0,240,255,0.3)] flex items-center justify-center transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_0_80px_rgba(212,175,55,0.65),0_0_40px_rgba(0,240,255,0.45)]">
-                  <div className="absolute inset-1 rounded-full border border-white/20 pointer-events-none"></div>
-                  <img
-                    src={SPIKE_LOGO_URL}
-                    alt="SPIKE Falcon Medallion"
-                    onError={(e) => { e.currentTarget.src = '/spike_logo.png'; }}
-                    className="w-full h-full object-contain rounded-full drop-shadow-[0_15px_35px_rgba(0,0,0,0.9)] transition-transform duration-500 group-hover:scale-102"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/10 to-transparent pointer-events-none opacity-60 group-hover:opacity-90 transition-opacity"></div>
-                </div>
+              {/* Central Falcon Medallion with Quantum Nodes & Lightning Network Animation */}
+              <div className="relative z-20">
+                <SparkleShatterMedallion
+                  logoUrl={SPIKE_LOGO_URL}
+                  fallbackUrl="/spike_logo.png"
+                />
               </div>
 
               {/* Floating Stat Badge 1: Global Hashrate */}

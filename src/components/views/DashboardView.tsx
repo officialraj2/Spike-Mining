@@ -111,7 +111,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     currentPrice: 0.0345,
     poolSpkReserve: 2_500_000,
     poolUsdtReserve: 86_250,
-    contractAddress: '0x5P1KE777cE25a947C590823FaBe876610bFa3109',
+    contractAddress: '0x96F86413D8E5d15ecE42E136CC8112c01b9A7306',
     buyPressure: 88.5,
     volume24h: 1_420_000,
     change24h: 8.42,
@@ -582,32 +582,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="flex flex-col w-full space-y-6 md:space-y-8 pb-12">
       {/* ============================================================
-          DASHBOARD EXECUTIVE OVERVIEW & FAST ACCESS
-         ============================================================ */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#122130] p-5 rounded-2xl border border-[#1c2b3b] shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#00F0FF] to-[#D4AF37] p-0.5 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(0,240,255,0.3)]">
-            <div className="w-full h-full bg-[#0a0f1d] rounded-2xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-[24px] text-[#00F0FF]">dashboard</span>
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-black font-headline text-white tracking-tight">
-                Miner Executive Dashboard
-              </h1>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                ACTIVE
-              </span>
-            </div>
-            <p className="text-xs text-[#94a3b8] mt-0.5">
-              Live Hashrate Monitoring, BSC Validator Clusters, and SPIKE DEX Protocol.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ============================================================
           GOLDEN HAWK (BAAZ) APEX MINING PROTOCOL ENGINE
          ============================================================ */}
       <GoldenHawkMiningSection
@@ -644,19 +618,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
          ============================================================ */}
       <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-[#071b2d] via-[#0b243b] to-[#071b2d] border border-[#00F0FF]/30 shadow-xl relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">account_tree</span>
-                <span>15$ Project Protocol Workflow</span>
-              </span>
-              <span className="text-xs text-[#94a3b8] font-mono">
-                Budget: <strong className="text-white">15.00 USDT</strong> (5$ Treasury Deposit + 10$ Mining Call)
-              </span>
-            </div>
-            <p className="text-xs text-[#94a3b8]">
-              Step 1 me 5$ seedha Official Treasury me deposit hoga, baki bache 10$ se Smart Contract call execute hokar mining activate hogi (backend PancakeSwap buy route).
-            </p>
+          <div className="flex items-center">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">account_tree</span>
+              <span>15$ Project Protocol Workflow</span>
+            </span>
           </div>
 
           {/* Stepper Cards */}

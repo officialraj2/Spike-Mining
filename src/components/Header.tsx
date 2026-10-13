@@ -78,8 +78,15 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo Branding */}
           <div
             className="flex items-center gap-2.5 cursor-pointer group select-none"
-            onClick={() => onTabChange('home')}
-            title="SPIKE Mining Protocol"
+            onClick={() => {
+              if (isWalletConnected) {
+                // When wallet is connected, stay in user dashboard terminal (never jump to home until logout)
+                onTabChange('dashboard');
+              } else {
+                onTabChange('home');
+              }
+            }}
+            title={isWalletConnected ? "SPIKE Miner Dashboard" : "SPIKE Mining Protocol"}
           >
             <div className="relative">
               <img
@@ -313,14 +320,14 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
 
                     <div className="space-y-1 pt-1 border-t border-[#1c2b3b]/60">
-                      {/* BUTTON 1: REAL USDT DEPOSIT (+$15 MINING BALANCE) */}
+                      {/* BUTTON 1: REAL USDT DEPOSIT (+$5 TO PROTOCOL TREASURY) */}
                       <button
                         onClick={() => {
                           setShowUserMenu(false);
                           onOpenDepositModal?.();
                         }}
                         className="w-full text-left px-3 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF]/25 via-[#00F0FF]/15 to-[#122130] hover:from-[#00F0FF]/35 hover:via-[#00F0FF]/25 border border-[#00F0FF]/60 hover:border-[#00F0FF] flex items-center justify-between text-xs transition-all shadow-[0_0_15px_rgba(0,240,255,0.25)] group"
-                        title="Send Real USDT (BEP-20) to Protocol Official Wallet (+$15 to Mining Balance)"
+                        title="Deposit 5 USDT (BEP-20) to Protocol Treasury Wallet"
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-[#00F0FF]/20 border border-[#00F0FF]/60 flex items-center justify-center text-[#00F0FF] group-hover:scale-110 transition-transform shadow-sm">
@@ -328,7 +335,7 @@ export const Header: React.FC<HeaderProps> = ({
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[#00F0FF] font-headline font-bold text-xs tracking-wide">
-                              Deposit 15 USDT
+                              Deposit 5 USDT
                             </span>
                           </div>
                         </div>
