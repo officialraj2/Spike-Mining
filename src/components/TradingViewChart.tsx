@@ -1,124 +1,266 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { LiveTxn } from '../types';
 
-interface TVCandle {
+export const PANCAKESWAP_ROUTER_CONTRACT = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
+
+export interface TVCandle {
   time: string;
   open: number;
   high: number;
   low: number;
   close: number;
   volume: number;
+  volumeUsd: number;
+  txCount: number;
+  buyCount: number;
+  sellCount: number;
 }
 
 interface TradingViewChartProps {
   pairName?: string;
   dexUrl?: string;
+  routerAddress?: string;
+  transactions?: LiveTxn[];
+  currentPrice?: number;
   onBuyClick?: () => void;
+  onCopyText?: (text: string) => void;
+}
+
+// Generate base candles derived from chronological seed transactions of SPIKE / USDT pair
+function generateSeedCandles(): TVCandle[] {
+  const seedTimes = [
+    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+    '15:00', '15:30', '16:00', '16:30', '17:00', '17:30',
+    '18:00', '18:30', '19:00', '19:30', '20:00', '20:30',
+    '21:00', '21:30', '22:00', '22:30', '23:00', '23:30',
+  ];
+
+  let prevClose = 0.03150;
+  return seedTimes.map((t, idx) => {
+    const isUp = idx % 3 !== 1;
+    const delta = (isUp ? 1 : -1) * (0.0002 + (idx * 0.00003));
+    const open = prevClose;
+    const close = +(open + delta).toFixed(5);
+    const high = +(Math.max(open, close) + 0.00035 + Math.random() * 0.0002).toFixed(5);
+    const low = +(Math.min(open, close) - 0.00025 - Math.random() * 0.0002).toFixed(5);
+    const vol = Math.floor(45000 + Math.random() * 95000 + (idx > 16 ? 120000 : 0));
+    const volUsd = +(vol * close).toFixed(2);
+    const txCount = Math.floor(vol / 4000);
+    const buyCount = Math.floor(txCount * (isUp ? 0.85 : 0.45));
+    const sellCount = txCount - buyCount;
+    prevClose = close;
+
+    return {
+      time: t,
+      open,
+      high,
+      low,
+      close,
+      volume: vol,
+      volumeUsd: volUsd,
+      txCount,
+      buyCount,
+      sellCount,
+    };
+  });
 }
 
 export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   pairName = 'SPIKE (SPK) / USDT [BEP-20]',
-  dexUrl = '#dashboard-testnet',
+  routerAddress = PANCAKESWAP_ROUTER_CONTRACT,
+  transactions = [],
+  currentPrice,
   onBuyClick,
+  onCopyText,
 }) => {
   const [selectedInterval, setSelectedInterval] = useState<'1s' | '1m' | '5m' | '15m' | '1h' | '4h' | 'D'>('15m');
+  const [chartType, setChartType] = useState<'candles' | 'area'>('candles');
   const [hoveredCandle, setHoveredCandle] = useState<TVCandle | null>(null);
   const [crosshairPos, setCrosshairPos] = useState<{ x: number; y: number } | null>(null);
+  const [copiedRouter, setCopiedRouter] = useState(false);
+  const [lastTxNotice, setLastTxNotice] = useState<string | null>(null);
 
-  // Candlesticks for SPIKE (SPK) / USDT (Base Price ~ $0.03450 USDT, Total Supply 50M)
-  const [spikeCandles, setSpikeCandles] = useState<TVCandle[]>([
-    { time: '12:00', open: 0.0315, high: 0.0322, low: 0.0312, close: 0.0320, volume: 45000 },
-    { time: '12:30', open: 0.0320, high: 0.0328, low: 0.0318, close: 0.0325, volume: 62000 },
-    { time: '13:00', open: 0.0325, high: 0.0329, low: 0.0321, close: 0.0322, volume: 38000 },
-    { time: '13:30', open: 0.0322, high: 0.0331, low: 0.0320, close: 0.0328, volume: 54000 },
-    { time: '14:00', open: 0.0328, high: 0.0334, low: 0.0326, close: 0.0332, volume: 82000 },
-    { time: '14:30', open: 0.0332, high: 0.0335, low: 0.0330, close: 0.0333, volume: 49000 },
-    { time: '15:00', open: 0.0333, high: 0.0348, low: 0.0331, close: 0.0345, volume: 145000 },
-    { time: '15:30', open: 0.0345, high: 0.0349, low: 0.0338, close: 0.0340, volume: 88000 },
-    { time: '16:00', open: 0.0340, high: 0.0344, low: 0.0337, close: 0.0341, volume: 72000 },
-    { time: '16:30', open: 0.0341, high: 0.0356, low: 0.0340, close: 0.0352, volume: 195000 },
-    { time: '17:00', open: 0.0352, high: 0.0354, low: 0.0346, close: 0.0348, volume: 110000 },
-    { time: '17:30', open: 0.0348, high: 0.0350, low: 0.0345, close: 0.0347, volume: 65000 },
-    { time: '18:00', open: 0.0347, high: 0.0349, low: 0.0344, close: 0.0346, volume: 52000 },
-    { time: '18:30', open: 0.0346, high: 0.0359, low: 0.0345, close: 0.0355, volume: 240000 },
-    { time: '19:00', open: 0.0355, high: 0.0356, low: 0.0335, close: 0.0338, volume: 310000 },
-    { time: '19:30', open: 0.0338, high: 0.0351, low: 0.0336, close: 0.0348, volume: 215000 },
-    { time: '20:00', open: 0.0348, high: 0.0352, low: 0.0346, close: 0.0350, volume: 175000 },
-    { time: '20:30', open: 0.0350, high: 0.0368, low: 0.0348, close: 0.0365, volume: 490000 },
-    { time: '21:00', open: 0.0365, high: 0.0367, low: 0.0352, close: 0.0355, volume: 280000 },
-    { time: '21:30', open: 0.0355, high: 0.0360, low: 0.0353, close: 0.0358, volume: 160000 },
-    { time: '22:00', open: 0.0358, high: 0.0361, low: 0.0345, close: 0.0348, volume: 320000 },
-    { time: '22:30', open: 0.0348, high: 0.0352, low: 0.0342, close: 0.0345, volume: 190000 },
-    { time: '23:00', open: 0.0345, high: 0.0348, low: 0.0342, close: 0.03450, volume: 145000 },
-  ]);
+  // Candlesticks built and maintained from SPIKE / USDT pair transactions
+  const [candles, setCandles] = useState<TVCandle[]>(() => generateSeedCandles());
+  const [livePrice, setLivePrice] = useState<number>(currentPrice || 0.03450);
+  const [basePrice24h] = useState<number>(0.03150);
 
-  const [currentSpikePrice, setCurrentSpikePrice] = useState<number>(0.03450);
-  const [deltaPct, setDeltaPct] = useState<number>(8.84);
-  const [isTickUp, setIsTickUp] = useState<boolean>(true);
+  const processedTxIds = useRef<Set<string>>(new Set());
 
-  // Live real-time tick simulator
+  // Copy helper for Router Contract
+  const handleCopyRouter = () => {
+    const text = routerAddress || PANCAKESWAP_ROUTER_CONTRACT;
+    if (onCopyText) {
+      onCopyText(text);
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedRouter(true);
+    setTimeout(() => setCopiedRouter(false), 2000);
+  };
+
+  // Process incoming transactions of the SPIKE / USDT pair and dynamically update graph
   useEffect(() => {
-    const interval = setInterval(() => {
-      const tickDelta = (Math.random() - 0.44) * 0.00015;
-      setCurrentSpikePrice((prev) => {
-        const next = Math.max(0.0310, Math.min(0.0375, +(prev + tickDelta).toFixed(5)));
-        setIsTickUp(next >= prev);
-        return next;
-      });
-      setDeltaPct((prev) => +(prev + (Math.random() - 0.46) * 0.08).toFixed(2));
+    if (!transactions || transactions.length === 0) return;
 
-      // Micro update last candle
-      setSpikeCandles((prev) => {
+    // Filter unseen transactions
+    const newTxs: LiveTxn[] = [];
+    for (const tx of transactions) {
+      if (!processedTxIds.current.has(tx.id)) {
+        processedTxIds.current.add(tx.id);
+        newTxs.push(tx);
+      }
+    }
+
+    if (newTxs.length === 0) return;
+
+    // Apply transactions sequentially to the candlestick chart
+    setCandles((prevCandles) => {
+      let updated = [...prevCandles];
+      if (updated.length === 0) {
+        updated = generateSeedCandles();
+      }
+
+      for (const tx of newTxs) {
+        const isBuy = tx.type === 'buy';
+        const tradePrice = tx.price > 0 ? tx.price : livePrice;
+        const tradeVol = tx.amountSpk || 1000;
+        const tradeUsd = tx.amountUsd || +(tradeVol * tradePrice).toFixed(2);
+
+        // Flash transaction toast on graph
+        setLastTxNotice(
+          `${isBuy ? '🟢 BUY' : '🔴 SELL'}: ${tradeVol.toLocaleString()} SPK ($${tradeUsd.toFixed(2)}) via Router 0xd74e...b38b`
+        );
+
+        // Update active candle with this transaction's execution
+        const lastIdx = updated.length - 1;
+        const activeCandle = { ...updated[lastIdx] };
+
+        activeCandle.close = tradePrice;
+        activeCandle.high = Math.max(activeCandle.high, tradePrice);
+        activeCandle.low = Math.min(activeCandle.low, tradePrice);
+        activeCandle.volume += tradeVol;
+        activeCandle.volumeUsd = +(activeCandle.volumeUsd + tradeUsd).toFixed(2);
+        activeCandle.txCount += 1;
+        if (isBuy) {
+          activeCandle.buyCount += 1;
+        } else {
+          activeCandle.sellCount += 1;
+        }
+
+        updated[lastIdx] = activeCandle;
+        setLivePrice(tradePrice);
+      }
+
+      return updated;
+    });
+
+    const timer = setTimeout(() => setLastTxNotice(null), 3000);
+    return () => clearTimeout(timer);
+  }, [transactions]);
+
+  // Sync if currentPrice changes externally
+  useEffect(() => {
+    if (currentPrice && currentPrice > 0 && Math.abs(currentPrice - livePrice) > 0.00001) {
+      setLivePrice(currentPrice);
+      setCandles((prev) => {
         if (!prev.length) return prev;
         const last = { ...prev[prev.length - 1] };
-        last.close = +(last.close + tickDelta).toFixed(5);
-        last.high = Math.max(last.high, last.close);
-        last.low = Math.min(last.low, last.close);
-        last.volume += Math.floor(Math.random() * 500);
+        last.close = currentPrice;
+        last.high = Math.max(last.high, currentPrice);
+        last.low = Math.min(last.low, currentPrice);
         return [...prev.slice(0, prev.length - 1), last];
       });
-    }, 2400);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const candles = spikeCandles;
+    }
+  }, [currentPrice]);
 
   // SVG Chart Coordinate Mapping
   const chartHeight = 360;
-  const chartWidth = 720;
-  const paddingLeft = 10;
-  const paddingRight = 10;
-  const volumeHeight = 65;
-  const mainPlotHeight = chartHeight - volumeHeight - 30;
+  const chartWidth = 760;
+  const paddingLeft = 14;
+  const paddingRight = 14;
+  const volumeHeight = 70;
+  const mainPlotHeight = chartHeight - volumeHeight - 35;
 
-  // Y-Scale levels based on SPIKE (SPK)
-  const yMin = 0.0300;
-  const yMax = 0.0380;
-  const yRange = yMax - yMin;
+  // Dynamic Y-Scale calculated from actual transaction high/low in candles
+  const { yMin, yMax, yRange, priceLadder } = useMemo(() => {
+    if (candles.length === 0) {
+      return { yMin: 0.0300, yMax: 0.0380, yRange: 0.008, priceLadder: [0.038, 0.036, 0.034, 0.032, 0.03] };
+    }
+    const allLows = candles.map((c) => c.low);
+    const allHighs = candles.map((c) => c.high);
+    const minVal = Math.min(...allLows, livePrice);
+    const maxVal = Math.max(...allHighs, livePrice);
+
+    const pad = Math.max((maxVal - minVal) * 0.18, 0.0006);
+    const lowBound = Math.max(0.005, +(minVal - pad).toFixed(5));
+    const highBound = +(maxVal + pad).toFixed(5);
+    const range = highBound - lowBound;
+
+    // 5 clean steps for right ladder
+    const step = range / 4;
+    const ladder = [
+      highBound,
+      +(highBound - step).toFixed(5),
+      +(highBound - step * 2).toFixed(5),
+      +(highBound - step * 3).toFixed(5),
+      lowBound,
+    ];
+
+    return {
+      yMin: lowBound,
+      yMax: highBound,
+      yRange: range,
+      priceLadder: ladder,
+    };
+  }, [candles, livePrice]);
 
   const yToCoord = (val: number) => {
+    if (yRange <= 0) return mainPlotHeight / 2;
     return 15 + mainPlotHeight - ((val - yMin) / yRange) * mainPlotHeight;
   };
 
-  const maxVolume = useMemo(() => Math.max(...candles.map((c) => c.volume), 1000), [candles]);
+  const maxVolume = useMemo(() => Math.max(...candles.map((c) => c.volume), 5000), [candles]);
   const candleSpacing = (chartWidth - paddingLeft - paddingRight) / candles.length;
-  const candleBarWidth = Math.max(6, candleSpacing * 0.72);
+  const candleBarWidth = Math.max(7, candleSpacing * 0.72);
 
-  const activeDisplayPrice = currentSpikePrice;
-  const priceY = yToCoord(activeDisplayPrice);
+  const priceY = yToCoord(livePrice);
+  const deltaPct = +(((livePrice - basePrice24h) / basePrice24h) * 100).toFixed(2);
+  const isPositive = deltaPct >= 0;
 
-  const priceLadder = [0.0380, 0.0360, 0.0340, 0.0320, 0.0300];
+  // Build SVG path for Area Chart
+  const areaSvgPath = useMemo(() => {
+    if (candles.length < 2) return '';
+    let d = `M ${paddingLeft + candleSpacing / 2} ${yToCoord(candles[0].close)}`;
+    candles.forEach((c, idx) => {
+      const x = paddingLeft + idx * candleSpacing + candleSpacing / 2;
+      const y = yToCoord(c.close);
+      d += ` L ${x} ${y}`;
+    });
+    return d;
+  }, [candles, candleSpacing, yRange, yMin]);
+
+  const areaFillPath = useMemo(() => {
+    if (candles.length < 2) return '';
+    const firstX = paddingLeft + candleSpacing / 2;
+    const lastX = paddingLeft + (candles.length - 1) * candleSpacing + candleSpacing / 2;
+    const bottomY = 15 + mainPlotHeight;
+    return `${areaSvgPath} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+  }, [areaSvgPath, candles.length, candleSpacing, mainPlotHeight]);
 
   return (
-    <div className="w-full bg-[#131722] text-[#d1d4dc] font-sans rounded-2xl border border-[#2a2e39] overflow-hidden shadow-2xl flex flex-col select-none">
+    <div className="w-full bg-[#131722] text-[#d1d4dc] font-sans rounded-2xl border border-[#2a2e39] overflow-hidden shadow-2xl flex flex-col select-none relative">
       {/* ============================================================
-          1. TOP TRADINGVIEW TOOLBAR
+          1. TOP TRADINGVIEW TOOLBAR WITH PANCAKESWAP ROUTER
          ============================================================ */}
-      <div className="flex items-center justify-between px-3 py-2 bg-[#131722] border-b border-[#2a2e39] text-xs font-medium">
-        {/* Left items: + icon, intervals, chart type, indicators */}
+      <div className="flex flex-wrap items-center justify-between px-3 py-2 bg-[#131722] border-b border-[#2a2e39] text-xs font-medium gap-2">
+        {/* Left items: Intervals, Chart style, Indicators */}
         <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
           {/* Compare (+) button */}
-          <button className="w-7 h-7 rounded flex items-center justify-center text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39] transition-colors">
+          <button
+            className="w-7 h-7 rounded flex items-center justify-center text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39] transition-colors"
+            title="Add Compare Pair"
+          >
             <span className="material-symbols-outlined text-[17px]">add_circle</span>
           </button>
 
@@ -139,40 +281,76 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             </button>
           ))}
 
-          {/* Interval dropdown arrow */}
-          <button className="text-[#787b86] hover:text-[#d1d4dc] p-1">
-            <span className="material-symbols-outlined text-[14px]">expand_more</span>
-          </button>
-
           <div className="w-[1px] h-4 bg-[#2a2e39] mx-0.5"></div>
 
-          {/* Chart style: Line / Candles */}
-          <button className="p-1 rounded text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39] flex items-center gap-0.5">
+          {/* Chart style toggle: Candlesticks vs Area Line */}
+          <button
+            onClick={() => setChartType('area')}
+            className={`p-1 rounded flex items-center gap-0.5 transition-colors cursor-pointer ${
+              chartType === 'area'
+                ? 'text-[#2962FF] bg-[#2962FF]/15 font-bold'
+                : 'text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39]'
+            }`}
+            title="Line / Area Chart"
+          >
             <span className="material-symbols-outlined text-[16px]">show_chart</span>
           </button>
 
-          <button className="p-1 rounded text-[#2962FF] bg-[#2962FF]/15 hover:bg-[#2962FF]/25 flex items-center gap-0.5 font-bold">
+          <button
+            onClick={() => setChartType('candles')}
+            className={`p-1 rounded flex items-center gap-0.5 transition-colors cursor-pointer ${
+              chartType === 'candles'
+                ? 'text-[#2962FF] bg-[#2962FF]/15 font-bold'
+                : 'text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39]'
+            }`}
+            title="Japanese Candlesticks"
+          >
             <span className="material-symbols-outlined text-[16px]">candlestick_chart</span>
-            <span className="material-symbols-outlined text-[12px]">expand_more</span>
           </button>
 
           <div className="w-[1px] h-4 bg-[#2a2e39] mx-0.5"></div>
 
           {/* Indicators fx */}
-          <button className="px-2 py-1 rounded text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39] flex items-center gap-1 font-mono text-xs">
-            <span>fx</span>
-            <span className="hidden sm:inline text-[11px]">Indicators</span>
-          </button>
+          <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded text-[#787b86] font-mono text-xs">
+            <span className="text-[#00F0FF] font-bold">AMM</span>
+            <span className="text-[11px]">Formula Active</span>
+          </div>
         </div>
 
-        {/* Right tools */}
+        {/* Right Tools: PancakeSwap Router Contract Badge with One-Click Copy */}
         <div className="flex items-center gap-2 shrink-0">
-          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>PancakeSwap V2 AMM</span>
-          </span>
+          <div className="flex items-center gap-1.5 bg-[#0a1827] border border-[#00F0FF]/30 px-2.5 py-1 rounded-lg text-xs font-mono">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[#94a3b8] hidden md:inline">PancakeSwap Router:</span>
+            <button
+              onClick={handleCopyRouter}
+              className="text-[#00F0FF] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+              title="Click to copy PancakeSwap Router Contract Address"
+            >
+              <span>{`${routerAddress.substring(0, 6)}...${routerAddress.substring(routerAddress.length - 4)}`}</span>
+              <span className="material-symbols-outlined text-[12px]">
+                {copiedRouter ? 'check' : 'content_copy'}
+              </span>
+            </button>
+            {copiedRouter && (
+              <span className="text-emerald-400 text-[10px] font-bold">Copied!</span>
+            )}
+            <a
+              href={`https://bscscan.com/address/${routerAddress}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#94a3b8] hover:text-white"
+              title="View Router on BSCScan"
+            >
+              <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+            </a>
+          </div>
 
-          <button className="w-7 h-7 rounded flex items-center justify-center text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39]">
+          <button
+            onClick={() => window.print?.()}
+            className="w-7 h-7 rounded flex items-center justify-center text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39]"
+            title="Snapshot Chart"
+          >
             <span className="material-symbols-outlined text-[16px]">photo_camera</span>
           </button>
         </div>
@@ -189,24 +367,22 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             <span>{pairName}</span>
           </div>
 
-          {/* Network and Token Standard Badge */}
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
-            BEP-20 (50M SPK Supply)
+          {/* Transaction Synced Badge */}
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>Transaction-Driven Graph</span>
           </span>
 
-          <span className="text-[#787b86]">· {selectedInterval} · Testnet Live</span>
+          <span className="text-[#787b86]">· {selectedInterval} · BSC Mainnet/Testnet AMM</span>
 
-          {/* Live pulsing green dot */}
-          <span className="w-2 h-2 rounded-full bg-[#089981] animate-pulse"></span>
-
-          {/* Current Price */}
-          <span className="font-bold tabular-nums text-sm text-emerald-400">
-            ${activeDisplayPrice.toFixed(5)} USDT
+          {/* Current Execution Price */}
+          <span className="font-bold tabular-nums text-sm text-emerald-400 ml-1">
+            ${livePrice.toFixed(5)} USDT
           </span>
 
           {/* Change Delta */}
-          <span className="font-mono text-xs tabular-nums text-emerald-400">
-            +{deltaPct.toFixed(2)}%
+          <span className={`font-mono text-xs tabular-nums ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+            {isPositive ? '+' : ''}{deltaPct.toFixed(2)}%
           </span>
         </div>
 
@@ -215,15 +391,24 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
           {onBuyClick && (
             <button
               onClick={onBuyClick}
-              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#00F0FF] to-emerald-400 text-[#051424] font-headline font-bold text-[11px] shadow-sm hover:brightness-110 transition-all cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#00F0FF] to-emerald-400 text-[#051424] font-headline font-bold text-[11px] shadow-sm hover:brightness-110 transition-all cursor-pointer flex items-center gap-1"
             >
-              + Copy Contract
+              <span className="material-symbols-outlined text-[14px]">swap_horiz</span>
+              <span>Swap on Router</span>
             </button>
           )}
-          <span>Volume</span>
-          <span className="material-symbols-outlined text-[14px]">keyboard_arrow_up</span>
+          <span>24h Trades:</span>
+          <span className="text-white font-bold">{candles.reduce((acc, c) => acc + c.txCount, 0)}</span>
         </div>
       </div>
+
+      {/* Floating Trade Notification Banner when trades occur on PancakeSwap Router */}
+      {lastTxNotice && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 bg-[#0d2238]/95 border border-[#00F0FF] text-white px-3 py-1 rounded-full text-xs font-mono shadow-2xl flex items-center gap-2 animate-bounce">
+          <span className="w-2 h-2 rounded-full bg-[#00F0FF]" />
+          <span>{lastTxNotice}</span>
+        </div>
+      )}
 
       {/* ============================================================
           3. MAIN VIEWPORT: LEFT TOOLBAR + SVG CANVAS + RIGHT Y-AXIS
@@ -252,7 +437,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             <button className="w-7 h-7 rounded flex items-center justify-center hover:text-[#d1d4dc] hover:bg-[#2a2e39] font-serif font-bold text-sm" title="Text">
               T
             </button>
-            {/* Emoji */}
+            {/* Icons */}
             <button className="w-7 h-7 rounded flex items-center justify-center hover:text-[#d1d4dc] hover:bg-[#2a2e39]" title="Icons">
               <span className="material-symbols-outlined text-[17px]">sentiment_satisfied</span>
             </button>
@@ -302,19 +487,26 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             <div className="w-[1px] h-full bg-[#1e222d]" />
           </div>
 
-          {/* SVG Rendering: Candlesticks & Volume */}
+          {/* SVG Rendering: Candlesticks, Area Fill & Volume according to trades */}
           <svg
             className="w-full h-full overflow-visible"
             viewBox={`0 0 ${chartWidth} ${chartHeight}`}
             preserveAspectRatio="none"
           >
-            {/* 1. Volume Histogram at Bottom */}
+            <defs>
+              <linearGradient id="spikeChartAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#089981" stopOpacity="0.38" />
+                <stop offset="100%" stopColor="#089981" stopOpacity="0.0" />
+              </linearGradient>
+            </defs>
+
+            {/* 1. Volume Histogram at Bottom - built from SPK/USDT transactions */}
             <g opacity="0.85">
               {candles.map((c, idx) => {
                 const isGreen = c.close >= c.open;
                 const color = isGreen ? '#089981' : '#f23645';
                 const x = paddingLeft + idx * candleSpacing + candleSpacing / 2;
-                const vHeight = (c.volume / maxVolume) * volumeHeight;
+                const vHeight = Math.max(3, (c.volume / maxVolume) * volumeHeight);
                 const vY = chartHeight - 20 - vHeight;
 
                 return (
@@ -331,53 +523,63 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
               })}
             </g>
 
-            {/* 2. Japanese Candlesticks (Wicks + Bodies) */}
-            <g>
-              {candles.map((c, idx) => {
-                const isGreen = c.close >= c.open;
-                const color = isGreen ? '#089981' : '#f23645';
-                const x = paddingLeft + idx * candleSpacing + candleSpacing / 2;
+            {/* 2. Area Chart Render (if selected) */}
+            {chartType === 'area' && (
+              <g>
+                <path d={areaFillPath} fill="url(#spikeChartAreaGradient)" />
+                <path d={areaSvgPath} fill="none" stroke="#089981" strokeWidth="2" />
+              </g>
+            )}
 
-                const yOpen = yToCoord(c.open);
-                const yClose = yToCoord(c.close);
-                const yHigh = yToCoord(c.high);
-                const yLow = yToCoord(c.low);
+            {/* 3. Japanese Candlesticks (Wicks + Bodies) - formed by real transaction ticks */}
+            {chartType === 'candles' && (
+              <g>
+                {candles.map((c, idx) => {
+                  const isGreen = c.close >= c.open;
+                  const color = isGreen ? '#089981' : '#f23645';
+                  const x = paddingLeft + idx * candleSpacing + candleSpacing / 2;
 
-                const bodyTop = Math.min(yOpen, yClose);
-                const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
+                  const yOpen = yToCoord(c.open);
+                  const yClose = yToCoord(c.close);
+                  const yHigh = yToCoord(c.high);
+                  const yLow = yToCoord(c.low);
 
-                return (
-                  <g
-                    key={`candle-${idx}`}
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHoveredCandle(c)}
-                  >
-                    {/* Candle Wick (High to Low) */}
-                    <line
-                      x1={x}
-                      y1={yHigh}
-                      x2={x}
-                      y2={yLow}
-                      stroke={color}
-                      strokeWidth="1.2"
-                    />
+                  const bodyTop = Math.min(yOpen, yClose);
+                  const bodyHeight = Math.max(2, Math.abs(yClose - yOpen));
 
-                    {/* Candle Body */}
-                    <rect
-                      x={x - candleBarWidth / 2}
-                      y={bodyTop}
-                      width={candleBarWidth}
-                      height={bodyHeight}
-                      fill={color}
-                      stroke={color}
-                      strokeWidth="1"
-                    />
-                  </g>
-                );
-              })}
-            </g>
+                  return (
+                    <g
+                      key={`candle-${idx}`}
+                      className="cursor-pointer"
+                      onMouseEnter={() => setHoveredCandle(c)}
+                    >
+                      {/* Candle Wick (High to Low) */}
+                      <line
+                        x1={x}
+                        y1={yHigh}
+                        x2={x}
+                        y2={yLow}
+                        stroke={color}
+                        strokeWidth="1.2"
+                      />
 
-            {/* 3. Horizontal Dotted Active Price Line */}
+                      {/* Candle Body */}
+                      <rect
+                        x={x - candleBarWidth / 2}
+                        y={bodyTop}
+                        width={candleBarWidth}
+                        height={bodyHeight}
+                        fill={color}
+                        stroke={color}
+                        strokeWidth="1"
+                      />
+                    </g>
+                  );
+                })}
+              </g>
+            )}
+
+            {/* 4. Horizontal Dotted Active Price Line */}
             <g>
               <line
                 x1={0}
@@ -390,7 +592,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
               />
             </g>
 
-            {/* 4. Active Interactive Crosshairs */}
+            {/* 5. Active Interactive Crosshairs */}
             {crosshairPos && (
               <g pointerEvents="none">
                 <line
@@ -415,22 +617,25 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             )}
           </svg>
 
-          {/* Candle Hover Tooltip */}
+          {/* Candle Hover Tooltip with complete transaction analytics */}
           {hoveredCandle && (
-            <div className="absolute top-2 left-3 bg-[#1e222d]/95 backdrop-blur-md border border-[#2a2e39] rounded px-2.5 py-1 text-[11px] font-mono shadow-xl z-20 flex items-center gap-3">
-              <span className="text-[#787b86]">{hoveredCandle.time}</span>
+            <div className="absolute top-2 left-3 bg-[#1e222d]/95 backdrop-blur-md border border-[#2a2e39] rounded px-3 py-1.5 text-[11px] font-mono shadow-xl z-20 flex flex-wrap items-center gap-3">
+              <span className="text-[#00F0FF] font-bold">{hoveredCandle.time}</span>
               <span>O: <span className="text-white font-bold">${hoveredCandle.open.toFixed(5)}</span></span>
               <span>H: <span className="text-white font-bold">${hoveredCandle.high.toFixed(5)}</span></span>
               <span>L: <span className="text-white font-bold">${hoveredCandle.low.toFixed(5)}</span></span>
               <span>C: <span className={hoveredCandle.close >= hoveredCandle.open ? 'text-[#089981] font-bold' : 'text-[#f23645] font-bold'}>
                 ${hoveredCandle.close.toFixed(5)}
               </span></span>
+              <span className="text-[#94a3b8]">Vol: <span className="text-white font-bold">{hoveredCandle.volume.toLocaleString()} SPK</span></span>
+              <span className="text-[#D4AF37] font-semibold">${hoveredCandle.volumeUsd.toLocaleString()} USD</span>
+              <span className="text-emerald-400 text-[10px]">({hoveredCandle.buyCount} Buys, {hoveredCandle.sellCount} Sells)</span>
             </div>
           )}
         </div>
 
         {/* Right TradingView Y-Axis Ladder */}
-        <div className="w-16 sm:w-20 bg-[#131722] border-l border-[#2a2e39] relative flex flex-col justify-between py-4 text-[11px] font-mono text-[#787b86] shrink-0 select-none">
+        <div className="w-18 sm:w-22 bg-[#131722] border-l border-[#2a2e39] relative flex flex-col justify-between py-4 text-[11px] font-mono text-[#787b86] shrink-0 select-none">
           {priceLadder.map((val) => {
             const yPos = yToCoord(val);
             return (
@@ -439,7 +644,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
                 className="absolute right-2 transform -translate-y-1/2 text-right tabular-nums text-[10px]"
                 style={{ top: `${(yPos / chartHeight) * 100}%` }}
               >
-                ${val.toFixed(4)}
+                ${val.toFixed(5)}
               </div>
             );
           })}
@@ -452,21 +657,24 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
               transform: 'translateY(-50%)',
             }}
           >
-            ${activeDisplayPrice.toFixed(5)}
+            ${livePrice.toFixed(5)}
           </div>
         </div>
       </div>
 
       {/* ============================================================
-          4. BOTTOM TIME AXIS SCALE
+          4. BOTTOM TIME AXIS SCALE WITH ROUTER VERIFICATION
          ============================================================ */}
-      <div className="flex items-center justify-between pl-12 pr-20 py-1.5 bg-[#131722] border-t border-[#2a2e39] text-[10px] font-mono text-[#787b86]">
+      <div className="flex flex-wrap items-center justify-between pl-12 pr-20 py-1.5 bg-[#131722] border-t border-[#2a2e39] text-[10px] font-mono text-[#787b86]">
         <span>12:00</span>
         <span>15:00</span>
         <span>18:00</span>
         <span>21:00</span>
         <span>00:00</span>
-        <span className="text-white font-bold">Now (Live)</span>
+        <div className="flex items-center gap-1.5 text-white font-bold">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Live AMM Feed · Router {`${routerAddress.substring(0, 6)}...${routerAddress.substring(routerAddress.length - 4)}`}</span>
+        </div>
       </div>
     </div>
   );

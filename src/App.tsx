@@ -779,6 +779,19 @@ export default function App() {
     } else if (toToken === 'BNB') {
       setWalletBNB((prev) => +(prev + toAmount).toFixed(4));
     }
+
+    // Broadcast executed trade so TradingView chart & transactions stream update in real time
+    window.dispatchEvent(
+      new CustomEvent('spike_trade_executed', {
+        detail: {
+          fromToken,
+          toToken,
+          fromAmount,
+          toAmount,
+          walletAddress,
+        },
+      })
+    );
   };
 
   const handleSimulateReferralJoin = async () => {

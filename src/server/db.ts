@@ -398,7 +398,7 @@ const INITIAL_DATA: DatabaseSchema = {
     miningCycleHours: 24,
     dailyRewardSpk: 35.0,
     minDepositUsdt: 5.0,
-    pancakeRouterAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+    pancakeRouterAddress: '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b',
     testnetFastCycleEnabled: true,
     maintenanceMode: false,
     stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
@@ -530,6 +530,9 @@ class PersistentDatabase {
           }
           if (!loadedSettings.treasuryWalletAddress) {
             loadedSettings.treasuryWalletAddress = '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
+          }
+          if (!loadedSettings.pancakeRouterAddress || loadedSettings.pancakeRouterAddress === '0x10ED43C718714eb63d5aA57B78B54704E256024E') {
+            loadedSettings.pancakeRouterAddress = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
           }
           if (typeof loadedSettings.treasuryBalanceUsdt !== 'number') {
             loadedSettings.treasuryBalanceUsdt = 24850.0;
@@ -1379,7 +1382,7 @@ class PersistentDatabase {
       token,
       tx,
       route: ['USDT', 'SPK'],
-      routerAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+      routerAddress: this.data.settings.pancakeRouterAddress || '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b',
       slippageUsed: effectiveSlippage,
     };
   }

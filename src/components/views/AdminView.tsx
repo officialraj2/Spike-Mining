@@ -2229,7 +2229,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <label className="block text-[#94a3b8] mb-1">PancakeSwap V2 Router Contract</label>
                 <input
                   type="text"
-                  value={settingsForm.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'}
+                  value={settingsForm.pancakeRouterAddress || '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b'}
                   onChange={(e) =>
                     setSettingsForm((prev) => ({ ...prev, pancakeRouterAddress: e.target.value }))
                   }

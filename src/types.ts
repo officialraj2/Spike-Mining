@@ -15,6 +15,21 @@ export interface AdminMetrics {
   dailyYieldPercent: number;
 }
 
+export const DEFAULT_PANCAKESWAP_ROUTER_ADDRESS = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
+
+export interface LiveTxn {
+  id: string;
+  type: 'buy' | 'sell';
+  amountSpk: number;
+  amountUsd: number;
+  price: number;
+  timeAgo: string;
+  wallet: string;
+  isWhale?: boolean;
+  txHash?: string;
+  timestamp?: number;
+}
+
 export interface AdminUser {
   address: string;
   balanceUsdt: number;

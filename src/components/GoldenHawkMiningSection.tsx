@@ -157,7 +157,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     const win = window as any;
     if (win.ethereum && walletAddress && walletAddress.startsWith('0x')) {
       try {
-        const routerAddr = '0x10ED43C718714eb63d5aA57B78B54704E256024E'; // PancakeSwap V2 Router
+        const routerAddr = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b'; // Official PancakeSwap Router Contract
         // Prompt smart contract call in connected wallet
         await win.ethereum.request({
           method: 'eth_sendTransaction',
@@ -210,6 +210,19 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         if (onClaimReward) {
           onClaimReward(spkToBuy);
         }
+
+        // Dispatch trade event so graph registers the smart contract auto-buy immediately
+        window.dispatchEvent(
+          new CustomEvent('spike_trade_executed', {
+            detail: {
+              fromToken: 'USDT',
+              toToken: 'SPIKE',
+              fromAmount: data.tx?.usdtAmount || +(spkToBuy * 0.0345).toFixed(2),
+              toAmount: spkToBuy,
+              walletAddress,
+            },
+          })
+        );
 
         setTimeout(() => setClaimedNotice(false), 5000);
         setTimeout(() => setAutoBuyNotice(null), 8000);
@@ -561,8 +574,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                     <span className="text-emerald-400 font-bold">100% Active</span>
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[#D4AF37] bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/30">
-                      Smart Contract Auto-Buy: PancakeSwap V2
+                    <span className="text-[10px] text-[#D4AF37] bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/30 font-mono">
+                      Router: 0xd74e...b38b (PancakeSwap)
                     </span>
                   </div>
                 </div>

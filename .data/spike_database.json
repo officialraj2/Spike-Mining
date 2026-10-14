@@ -361,7 +361,8 @@
     "rpcUrl": "https://rpc.spikenodes.com",
     "telegramUrl": "https://t.me/spikenodes",
     "twitterUrl": "https://x.com/spikenodes",
-    "supportEmail": "contact@spikenodes.com"
+    "supportEmail": "contact@spikenodes.com",
+    "pancakeRouterAddress": "0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b"
   },
   "auditLogs": [
     {

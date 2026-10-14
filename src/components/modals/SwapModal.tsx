@@ -394,7 +394,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   <div className="flex items-center justify-between text-[#cbd5e1]">
                     <span>PancakeSwap Route:</span>
                     <span className="text-white font-bold">
-                      {confirmedDetails.fromToken} ➔ PancakeSwap V2 ➔ {confirmedDetails.toToken}
+                      {confirmedDetails.fromToken} ➔ PancakeSwap (0xd74e...b38b) ➔ {confirmedDetails.toToken}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -608,7 +608,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="font-mono text-[11px]">Liquidity Route</span>
               <span className="font-mono text-white text-[11px]">
-                {fromToken.symbol} ➔ PancakeSwap V3 ➔ {toToken.symbol}
+                {fromToken.symbol} ➔ PancakeSwap (0xd74e...b38b) ➔ {toToken.symbol}
               </span>
             </div>
           </div>

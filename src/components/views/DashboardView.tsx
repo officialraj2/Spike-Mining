@@ -5,6 +5,8 @@ import { TradingViewChart } from '../TradingViewChart';
 import { GoldenHawkMiningSection } from '../GoldenHawkMiningSection';
 
 const BSCSCAN_TOKEN_URL = 'https://bscscan.com/token/0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+export const PANCAKESWAP_ROUTER_ADDRESS = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
+export const BSCSCAN_ROUTER_URL = 'https://bscscan.com/address/0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
 const PANCAKESWAP_ROUTER_URL = 'https://pancakeswap.finance/swap?outputCurrency=0x71C8a914B97e889F12A0987cB32456Fa12349A2';
 
 interface CandleTick {
@@ -342,6 +344,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     return () => clearInterval(interval);
   }, []);
+
+  // Listen to completed trade events (from DEX swaps or Harvest claims) to drive graph
+  useEffect(() => {
+    const handleTradeExecuted = (e: any) => {
+      const detail = e.detail;
+      if (!detail) return;
+      const isBuy = detail.toToken === 'SPIKE' || detail.toToken === 'SPK';
+      const spkAmount = isBuy ? detail.toAmount : detail.fromAmount;
+      const usdtAmount = isBuy ? detail.fromAmount : detail.toAmount;
+      const tradePrice = spkAmount > 0 ? +(usdtAmount / spkAmount).toFixed(5) : currentPrice;
+      const userWallet = detail.walletAddress || walletAddress || '0xUser...Wallet';
+      const shortW = `${userWallet.substring(0, 6)}...${userWallet.substring(userWallet.length - 4)}`;
+
+      const tradeTx: LiveTxn = {
+        id: `user-tx-${Date.now()}`,
+        type: isBuy ? 'buy' : 'sell',
+        amountSpk: Math.round(spkAmount),
+        amountUsd: +usdtAmount.toFixed(2),
+        price: tradePrice,
+        timeAgo: 'Just now',
+        wallet: shortW,
+        isWhale: spkAmount >= 5000,
+      };
+
+      setLiveTxns((prev) => [tradeTx, ...prev.slice(0, 5)]);
+      if (isBuy) {
+        setTotalBuysCount((c) => c + 1);
+        setBuyPressure((p) => Math.min(96, +(p + 0.3).toFixed(1)));
+        setCurrentPrice((prev) => +(prev + 0.00015).toFixed(5));
+      } else {
+        setTotalSellsCount((c) => c + 1);
+        setBuyPressure((p) => Math.max(70, +(p - 0.4).toFixed(1)));
+        setCurrentPrice((prev) => Math.max(0.01, +(prev - 0.00015).toFixed(5)));
+      }
+    };
+
+    window.addEventListener('spike_trade_executed', handleTradeExecuted);
+    return () => window.removeEventListener('spike_trade_executed', handleTradeExecuted);
+  }, [currentPrice, walletAddress]);
 
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{
     x: number;
@@ -1058,9 +1099,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
               </div>
 
-              {/* TRADINGVIEW LIVE CANDLESTICK TERMINAL */}
+              {/* TRADINGVIEW LIVE CANDLESTICK TERMINAL ACCORDING TO SPIKE & USDT TRANSACTIONS */}
               <TradingViewChart
                 pairName="SPIKE (SPK) / USDT [BEP-20]"
+                routerAddress={PANCAKESWAP_ROUTER_ADDRESS}
+                transactions={liveTxns}
+                currentPrice={currentPrice}
+                onCopyText={onCopyText}
                 onBuyClick={() => {
                   if (onOpenSwapModal) {
                     onOpenSwapModal('buySpike');
@@ -1070,28 +1115,54 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 }}
               />
 
-              {/* Bottom Quick Bar with Direct Contract Details & Swap Launch */}
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-2 pt-2 border-t border-[#1c2b3b]/70 text-xs font-mono text-[#94a3b8]">
-                <div className="flex items-center gap-2">
-                  <span className="text-[#94a3b8]">
-                    SPIKE Contract (BEP-20):
-                  </span>
-                  <button
-                    onClick={() => onCopyText(spikeTokenInfo.contractAddress)}
-                    className="text-[#00F0FF] hover:underline flex items-center gap-1 font-semibold"
-                    title="Click to copy contract"
-                  >
-                    <span>
-                      {`${spikeTokenInfo.contractAddress.substring(0, 10)}...${spikeTokenInfo.contractAddress.substring(spikeTokenInfo.contractAddress.length - 6)}`}
-                    </span>
-                    <span className="material-symbols-outlined text-[13px]">content_copy</span>
-                  </button>
+              {/* Bottom Quick Bar with Direct Contract Details & PancakeSwap Router Details */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-2 pt-2 border-t border-[#1c2b3b]/70 text-xs font-mono text-[#94a3b8]">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* SPIKE BEP-20 Token Contract */}
+                  <div className="flex items-center gap-1.5 bg-[#0a1827] px-2.5 py-1 rounded-lg border border-[#1e2d42]">
+                    <span className="text-[#94a3b8]">SPIKE (BEP-20):</span>
+                    <button
+                      onClick={() => onCopyText(spikeTokenInfo.contractAddress)}
+                      className="text-[#00F0FF] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                      title="Click to copy SPIKE Token Contract"
+                    >
+                      <span>
+                        {`${spikeTokenInfo.contractAddress.substring(0, 8)}...${spikeTokenInfo.contractAddress.substring(spikeTokenInfo.contractAddress.length - 4)}`}
+                      </span>
+                      <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                    </button>
+                  </div>
+
+                  {/* Official PancakeSwap Router Contract */}
+                  <div className="flex items-center gap-1.5 bg-[#0a1827] px-2.5 py-1 rounded-lg border border-[#00F0FF]/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[#94a3b8]">Router Contract:</span>
+                    <button
+                      onClick={() => onCopyText(PANCAKESWAP_ROUTER_ADDRESS)}
+                      className="text-emerald-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                      title="Click to copy PancakeSwap Router Contract (0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b)"
+                    >
+                      <span>
+                        {`${PANCAKESWAP_ROUTER_ADDRESS.substring(0, 8)}...${PANCAKESWAP_ROUTER_ADDRESS.substring(PANCAKESWAP_ROUTER_ADDRESS.length - 4)}`}
+                      </span>
+                      <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                    </button>
+                    <a
+                      href={BSCSCAN_ROUTER_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#94a3b8] hover:text-white"
+                      title="Open PancakeSwap Router on BSCScan"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </a>
+                  </div>
                 </div>
 
                 {onOpenSwapModal && (
                   <button
                     onClick={() => onOpenSwapModal()}
-                    className="text-xs text-[#00F0FF] hover:text-[#7df4ff] flex items-center gap-1.5 font-headline font-bold cursor-pointer transition-colors"
+                    className="text-xs text-[#00F0FF] hover:text-[#7df4ff] flex items-center gap-1.5 font-headline font-bold cursor-pointer transition-colors bg-[#00F0FF]/10 hover:bg-[#00F0FF]/20 px-3 py-1.5 rounded-xl border border-[#00F0FF]/30"
                   >
                     <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
                     <span>Launch SPIKE DEX Swap Terminal</span>
