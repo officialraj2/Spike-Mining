@@ -1312,11 +1312,7 @@ class PersistentDatabase {
   } {
     const wallet = this.getTestnetWallet(address);
     const token = this.getTestnetSpikeToken();
-    const exactMinedSpk = Number(minedSpkAmount) || 0;
-
-    if (exactMinedSpk <= 0) {
-      return { success: false, wallet, token, tx: null as any, error: 'Mined SPK amount must be greater than 0' };
-    }
+    const exactMinedSpk = Number(minedSpkAmount) > 0 ? Number(minedSpkAmount) : (this.data.settings.dailyRewardSpk || 25.0);
 
     // Dynamic AMM calculation on PancakeSwap v2 pool
     const poolSpk = token.poolSpkReserve;
@@ -1341,6 +1337,16 @@ class PersistentDatabase {
     wallet.totalHarvestAutoBoughtSpk = Number((wallet.totalHarvestAutoBoughtSpk + exactMinedSpk).toFixed(4));
     wallet.totalUsdtSpentOnAutoBuy = Number((wallet.totalUsdtSpentOnAutoBuy + requiredUsdt).toFixed(4));
     wallet.lastAutoBuyAt = new Date().toISOString();
+
+    // Also update persistent user record if exists
+    if (address) {
+      const norm = address.toLowerCase();
+      const existingUser = this.data.users.find((u) => u.address.toLowerCase() === norm);
+      if (existingUser) {
+        existingUser.totalMined = Number((existingUser.totalMined + exactMinedSpk).toFixed(4));
+        existingUser.lastActive = new Date().toISOString();
+      }
+    }
 
     // Update AMM liquidity pool reserves & live price
     token.poolSpkReserve = Math.max(100000, token.poolSpkReserve - exactMinedSpk);

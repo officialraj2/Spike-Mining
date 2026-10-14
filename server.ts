@@ -787,16 +787,14 @@ app.post('/api/testnet/wallet/faucet', (req: Request, res: Response) => {
 app.post('/api/testnet/harvest-autobuy', (req: Request, res: Response) => {
   try {
     const { address, minedSpkAmount = 25.0, hashrate = 1.25, slippageTolerance = 0.2 } = req.body;
+    const targetAddr = (address && typeof address === 'string' && address.trim()) ? address.trim() : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+    const numAmount = Number(minedSpkAmount) > 0 ? Number(minedSpkAmount) : 25.0;
     const result = db.executeTestnetHarvestAutoBuy(
-      address,
-      Number(minedSpkAmount),
-      Number(hashrate),
-      Number(slippageTolerance)
+      targetAddr,
+      numAmount,
+      Number(hashrate) || 1.25,
+      Number(slippageTolerance) || 0.2
     );
-    if (!result.success) {
-      res.status(400).json(result);
-      return;
-    }
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Server error executing harvest auto-buy' });
