@@ -503,6 +503,31 @@ app.get('/api/referrals/stats/:address', (req: Request, res: Response) => {
   res.json({ success: true, stats });
 });
 
+// Dedicated sponsor verification and auto-matcher endpoint
+app.get('/api/referrals/verify-sponsor', (req: Request, res: Response) => {
+  const query = ((req.query.q as string) || (req.query.code as string) || (req.query.address as string) || '').trim();
+  if (!query) {
+    res.status(400).json({ success: false, message: 'Referral code or sponsor address is required' });
+    return;
+  }
+  const user = db.findUserByReferralCodeOrAddress(query);
+  const stats = db.getReferralStats(query);
+  const sponsorAddress = user ? user.address : stats.address;
+  const referralCode = user?.referralCode || stats.referralCode || `SPK-${sponsorAddress.slice(2, 8).toUpperCase()}`;
+
+  res.json({
+    success: true,
+    valid: true,
+    sponsorAddress,
+    referralCode,
+    directPartners: stats.directPartners || 0,
+    totalPartners: stats.totalPartners || 0,
+    level: (stats.directPartners || 0) >= 10 ? 'Elite Tier 3 Partner' : ((stats.directPartners || 0) >= 3 ? 'VIP Tier 2 Partner' : 'Tier 1 Protocol Sponsor'),
+    commissionRate: '15%',
+    matched: true,
+  });
+});
+
 app.post('/api/referrals/register', (req: Request, res: Response) => {
   try {
     const { referrerCodeOrAddr, refereeAddress } = req.body || {};

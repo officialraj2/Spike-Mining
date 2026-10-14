@@ -2163,6 +2163,84 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
 
               <div>
+                <label className="block text-[#94a3b8] mb-1">
+                  Base Hashrate Per $5 Mining Node (TH/s)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="20"
+                    step="0.05"
+                    value={settingsForm.baseHashrateTh || 1.25}
+                    onChange={(e) =>
+                      setSettingsForm((prev) => ({ ...prev, baseHashrateTh: Number(e.target.value) }))
+                    }
+                    className="flex-1 accent-[#00F0FF] cursor-pointer"
+                  />
+                  <input
+                    type="number"
+                    step="0.05"
+                    value={settingsForm.baseHashrateTh || 1.25}
+                    onChange={(e) =>
+                      setSettingsForm((prev) => ({ ...prev, baseHashrateTh: Number(e.target.value) }))
+                    }
+                    className="w-24 bg-[#122130] border border-[#1c2b3b] rounded-xl px-3 py-1.5 text-white font-mono text-center focus:outline-none focus:border-[#00F0FF]"
+                  />
+                  <span className="text-[#00F0FF] font-bold">TH/s</span>
+                </div>
+                <span className="text-[10px] text-emerald-400 mt-1 block">
+                  Admin-controlled hashrate allocated to users upon $5 treasury deposit.
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#94a3b8] mb-1">Mining Cycle Duration (Hours)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="72"
+                    value={settingsForm.miningCycleHours || 24}
+                    onChange={(e) =>
+                      setSettingsForm((prev) => ({ ...prev, miningCycleHours: Number(e.target.value) }))
+                    }
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#00F0FF]"
+                  />
+                  <span className="text-[10px] text-[#94a3b8] mt-1 block">Standard 24-hour cycle</span>
+                </div>
+
+                <div>
+                  <label className="block text-[#94a3b8] mb-1">24h Claim Reward Yield (SPIKE)</label>
+                  <input
+                    type="number"
+                    step="1"
+                    value={settingsForm.dailyRewardSpk || 35.0}
+                    onChange={(e) =>
+                      setSettingsForm((prev) => ({ ...prev, dailyRewardSpk: Number(e.target.value) }))
+                    }
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#00F0FF]"
+                  />
+                  <span className="text-[10px] text-[#94a3b8] mt-1 block">Amount auto-bought via PancakeSwap</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[#94a3b8] mb-1">PancakeSwap V2 Router Contract</label>
+                <input
+                  type="text"
+                  value={settingsForm.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'}
+                  onChange={(e) =>
+                    setSettingsForm((prev) => ({ ...prev, pancakeRouterAddress: e.target.value }))
+                  }
+                  className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                />
+                <span className="text-[10px] text-[#00F0FF]/80 mt-1 block">
+                  Router executing smart contract auto-buy swaps into user's MetaMask/Web3 wallet upon claim.
+                </span>
+              </div>
+
+              <div>
                 <label className="block text-[#94a3b8] mb-1">Daily Yield ROI (%)</label>
                 <input
                   type="number"

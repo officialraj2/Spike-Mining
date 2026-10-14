@@ -859,12 +859,35 @@ export default function App() {
       timestamp: 'Just now',
       status: 'Confirmed',
     };
-    setRewards((prev) => [newTx, ...prev]);
+    // Activate mining node upon 5$ deposit to treasury
+    const activeNode: MiningNode = {
+      id: `node-${Date.now()}`,
+      name: `SPIKE ASIC Rig #${nodes.length + 1}`,
+      region: 'US-East (Stratum Cluster)',
+      status: 'mining',
+      hashrate: 1.25,
+      temperature: 64,
+      shareAcceptance: 99.98,
+      fanSpeed: 75,
+      powerUsage: 1400,
+      uptimeDays: 1,
+      algorithm: 'SHA-256 (Stratum)',
+      logs: [
+        'Deposit of 5.00 USDT received in Official Protocol Treasury Vault',
+        'Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443',
+        '24-Hour Mining Cycle Started · Automated PancakeSwap Buyback Enabled',
+      ],
+      userAddress: walletAddress,
+    };
+    setNodes((prev) => (prev.some((n) => n.status === 'mining') ? prev : [activeNode, ...prev]));
+
     addToast(
-      'Phase 1 Deposit Verified!',
-      `5.00 USDT transferred directly to Official Protocol Treasury Vault. Remaining: ${newBalance.toFixed(2)} USDT in your wallet for Mining Activation!`,
+      '5$ Treasury Deposit Confirmed!',
+      `Funds received in Treasury Vault. ASIC Mining Rig activated and 24-Hour Mining Cycle is running live!`,
       'success'
     );
+    // Switch to dashboard to show live mining
+    setActiveTab('dashboard');
   };
 
   const handleConnectWallet = (provider: string, realAddress?: string) => {

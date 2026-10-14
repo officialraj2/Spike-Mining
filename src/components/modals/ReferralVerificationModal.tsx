@@ -35,10 +35,18 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   const [bindError, setBindError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
-  // Normalize referral code
-  const code = referralCodeOrAddr || 'SPK-71C8A9';
+  // Active query being verified (code or address)
+  const [activeQuery, setActiveQuery] = useState<string>(referralCodeOrAddr || 'SPK-71C8A9');
+  const activeCode = sponsorDetails?.code || (activeQuery.startsWith('0x') ? `SPK-${activeQuery.slice(2, 8).toUpperCase()}` : activeQuery);
 
-  // Step 1: Sponsor auto-verification look up on open
+  // Sync with prop changes
+  useEffect(() => {
+    if (referralCodeOrAddr) {
+      setActiveQuery(referralCodeOrAddr);
+    }
+  }, [referralCodeOrAddr]);
+
+  // Step 1: Sponsor auto-verification look up on open or query change
   useEffect(() => {
     if (!isOpen) {
       setCurrentStep(1);
@@ -46,34 +54,46 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
       return;
     }
 
+    const q = activeQuery.trim();
+    if (!q) return;
+
     setLoadingVerify(true);
-    // Fetch sponsor details from backend
-    fetch(`/api/referrals/stats/${encodeURIComponent(code)}`)
+    setBindError(null);
+
+    // Call dedicated verify-sponsor endpoint which resolves both code and address together
+    fetch(`/api/referrals/verify-sponsor?q=${encodeURIComponent(q)}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data && data.stats) {
+        if (data && data.success) {
           setSponsorDetails({
-            code: data.stats.referralCode || (code.startsWith('0x') ? `SPK-${code.slice(2, 8).toUpperCase()}` : code),
-            address: data.stats.address || (code.startsWith('0x') ? code : '0x71C8a914B97e889F12A0987cB32456Fa12349A2'),
-            level: 'VIP Partner / Tier 1',
-            bonusPercent: '15%',
+            code: data.referralCode,
+            address: data.sponsorAddress,
+            level: data.level || 'Tier 1 Protocol Sponsor',
+            bonusPercent: data.commissionRate || '15%',
             verified: true,
           });
         } else {
+          // Fallback derivation
+          const isAddr = q.startsWith('0x') && q.length >= 8;
+          const derivedCode = isAddr ? `SPK-${q.slice(2, 8).toUpperCase()}` : q.toUpperCase();
+          const derivedAddr = isAddr ? q : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
           setSponsorDetails({
-            code: code.startsWith('0x') ? `SPK-${code.slice(2, 8).toUpperCase()}` : code,
-            address: code.startsWith('0x') ? code : '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-            level: 'Verified Affiliate',
+            code: derivedCode,
+            address: derivedAddr,
+            level: 'Verified Sponsor',
             bonusPercent: '15%',
             verified: true,
           });
         }
       })
       .catch(() => {
+        const isAddr = q.startsWith('0x') && q.length >= 8;
+        const derivedCode = isAddr ? `SPK-${q.slice(2, 8).toUpperCase()}` : q.toUpperCase();
+        const derivedAddr = isAddr ? q : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
         setSponsorDetails({
-          code: code.startsWith('0x') ? `SPK-${code.slice(2, 8).toUpperCase()}` : code,
-          address: code.startsWith('0x') ? code : '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-          level: 'Verified Affiliate',
+          code: derivedCode,
+          address: derivedAddr,
+          level: 'Verified Sponsor',
           bonusPercent: '15%',
           verified: true,
         });
@@ -81,7 +101,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
       .finally(() => {
         setLoadingVerify(false);
       });
-  }, [isOpen, code]);
+  }, [isOpen, activeQuery]);
 
   if (!isOpen) return null;
 
@@ -107,7 +127,8 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
     setLoadingBinding(true);
     setBindError(null);
     try {
-      const ok = await onBindSponsor(code);
+      const targetSponsor = sponsorDetails?.address || sponsorDetails?.code || activeQuery;
+      const ok = await onBindSponsor(targetSponsor);
       if (ok) {
         setCurrentStep(4);
       } else {
@@ -121,7 +142,8 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   };
 
   const copyShortCode = () => {
-    navigator.clipboard?.writeText(code);
+    const textToCopy = sponsorDetails?.code || activeQuery;
+    navigator.clipboard?.writeText(textToCopy);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
@@ -206,54 +228,71 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
           {/* STEP 1: Verify Sponsor Invitation */}
           {currentStep === 1 && (
             <div className="space-y-4 animate-in fade-in duration-150">
-              <div className="bg-[#122130] rounded-xl p-4 border border-[#1c2b3b]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-mono uppercase text-[#00F0FF] tracking-wider font-semibold">
-                      Detected Referral Code
-                    </span>
-                    <div className="text-xl font-mono font-black text-[#D4AF37] mt-1 flex items-center gap-2">
-                      <span>{code}</span>
-                      <button
-                        onClick={copyShortCode}
-                        className="text-xs px-2 py-0.5 rounded bg-[#1c2b3b] hover:bg-[#273647] text-gray-300 font-normal transition-colors"
-                      >
-                        {isCopied ? 'Copied' : 'Copy'}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono text-xs flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span>Verified Code</span>
+              <div className="bg-[#122130] rounded-xl p-4 sm:p-5 border border-[#1c2b3b] space-y-4">
+                {/* Search / Input Box for Address or Code */}
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-[#00F0FF] tracking-wider font-semibold block mb-1.5">
+                    Enter or Verify Sponsor Code / BSC Wallet Address
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. SPK-71C8A9 or 0x71C8a914B97e889F12A0987cB32456Fa12349A2"
+                      value={activeQuery}
+                      onChange={(e) => setActiveQuery(e.target.value)}
+                      className="flex-1 bg-[#0a0f1d] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder-gray-500 focus:outline-none transition-colors"
+                    />
+                    <button
+                      onClick={() => {
+                        const trimmed = activeQuery.trim();
+                        if (trimmed) setActiveQuery(trimmed);
+                      }}
+                      className="px-4 py-2 bg-[#1c2b3b] hover:bg-[#00F0FF] hover:text-[#0A0F1D] text-[#00F0FF] rounded-xl text-xs font-mono font-bold transition-all"
+                    >
+                      Verify
+                    </button>
                   </div>
                 </div>
 
-                {loadingVerify ? (
-                  <div className="mt-4 p-3 bg-[#0a0f1d] rounded-lg text-center text-xs text-gray-400 font-mono flex items-center justify-center gap-2">
-                    <span className="w-3.5 h-3.5 border-2 border-[#00F0FF] border-t-transparent rounded-full animate-spin" />
-                    Resolving sponsor on BSC stratum network...
+                {/* Match Result Card */}
+                <div className="p-4 bg-[#0a0f1d] rounded-xl border border-emerald-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span>Code &amp; Address 100% Matched</span>
+                    </span>
+                    <button
+                      onClick={copyShortCode}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[#D4AF37] border border-[#D4AF37]/30 font-mono transition-colors"
+                    >
+                      {isCopied ? 'Copied' : 'Copy Code'}
+                    </button>
                   </div>
-                ) : (
-                  <div className="mt-3 pt-3 border-t border-[#1c2b3b] grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-mono block">Sponsor Address</span>
-                      <span className="font-mono text-white text-[11px] truncate block">
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                    <div className="p-3 bg-[#122130] rounded-lg border border-[#1c2b3b]">
+                      <span className="text-[10px] text-gray-400 font-mono block">Matched Referral Code</span>
+                      <span className="font-mono text-lg font-black text-[#D4AF37] block mt-0.5">
+                        {sponsorDetails?.code || (activeQuery.startsWith('0x') ? `SPK-${activeQuery.slice(2, 8).toUpperCase()}` : activeQuery.toUpperCase())}
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-[#122130] rounded-lg border border-[#1c2b3b]">
+                      <span className="text-[10px] text-gray-400 font-mono block">Matching Sponsor Wallet</span>
+                      <span className="font-mono text-white text-xs font-bold truncate block mt-1.5" title={sponsorDetails?.address}>
                         {sponsorDetails?.address
-                          ? `${sponsorDetails.address.slice(0, 8)}...${sponsorDetails.address.slice(-6)}`
-                          : 'Valid Sponsor'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-mono block">Affiliate Level</span>
-                      <span className="font-mono text-[#00F0FF] text-[11px] font-bold block">
-                        {sponsorDetails?.level || 'Tier 1 Partner'}
+                          ? `${sponsorDetails.address.slice(0, 10)}...${sponsorDetails.address.slice(-8)}`
+                          : (activeQuery.startsWith('0x') ? `${activeQuery.slice(0, 10)}...${activeQuery.slice(-8)}` : '0x71C8a914B97e889F12A0987cB32456Fa12349A2')}
                       </span>
                     </div>
                   </div>
-                )}
+
+                  <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 pt-1 border-t border-[#1c2b3b]">
+                    <span>Sponsor Tier:</span>
+                    <span className="text-[#00F0FF] font-semibold">{sponsorDetails?.level || 'Tier 1 Protocol Sponsor'}</span>
+                  </div>
+                </div>
               </div>
-
-
 
               <div className="flex items-center justify-between pt-2">
                 <button
@@ -266,7 +305,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                   onClick={handleNextFromStep1}
                   className="px-6 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-102"
                 >
-                  <span>Verify & Proceed to Step 2</span>
+                  <span>Confirm Match &amp; Proceed to Step 2</span>
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </button>
               </div>
@@ -282,7 +321,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                 </span>
                 <p className="text-xs text-[#94a3b8] mt-1">
                   Connect your Web3 crypto wallet to authenticate as the referee and bind your account to sponsor{' '}
-                  <span className="font-mono text-[#D4AF37] font-bold">{code}</span>.
+                  <span className="font-mono text-[#D4AF37] font-bold">{activeCode}</span>.
                 </p>
 
                 {isConnected ? (
@@ -411,7 +450,16 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                 <div className="p-3.5 bg-[#0a0f1d] rounded-xl border border-[#1c2b3b] space-y-2.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-400 font-mono">Inviting Sponsor:</span>
-                    <span className="font-mono text-[#D4AF37] font-bold">{code}</span>
+                    <div className="text-right">
+                      <span className="font-mono text-[#D4AF37] font-bold block">
+                        {sponsorDetails?.code || 'SPK-71C8A9'}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-mono block">
+                        {sponsorDetails?.address
+                          ? `${sponsorDetails.address.slice(0, 10)}...${sponsorDetails.address.slice(-8)}`
+                          : 'Official Protocol Sponsor'}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-400 font-mono">Your Wallet Address:</span>
@@ -477,7 +525,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                 </h3>
                 <p className="text-xs text-gray-300 mt-1 max-w-md mx-auto">
                   Your wallet has been officially verified and linked under sponsor{' '}
-                  <span className="text-[#D4AF37] font-mono font-bold">{code}</span>.
+                  <span className="text-[#D4AF37] font-mono font-bold">{activeCode}</span>.
                 </p>
               </div>
 
@@ -492,7 +540,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                 </div>
                 <div className="flex items-center justify-between text-gray-300">
                   <span>Assigned Sponsor:</span>
-                  <span className="text-[#D4AF37] font-bold">{code}</span>
+                  <span className="text-[#D4AF37] font-bold">{activeCode}</span>
                 </div>
                 <div className="flex items-center justify-between text-gray-300">
                   <span>Affiliation Status:</span>

@@ -72,6 +72,12 @@ export interface DbAnnouncement {
 export interface DbSettings {
   turboMultiplier: number;
   dailyYieldPercent: number;
+  baseHashrateTh: number;
+  miningCycleHours: number;
+  dailyRewardSpk: number;
+  minDepositUsdt: number;
+  pancakeRouterAddress: string;
+  testnetFastCycleEnabled: boolean;
   maintenanceMode: boolean;
   stratumPoolUrl: string;
   bscContractAddress: string;
@@ -388,6 +394,12 @@ const INITIAL_DATA: DatabaseSchema = {
   settings: {
     turboMultiplier: 10,
     dailyYieldPercent: 3.88,
+    baseHashrateTh: 1.25,
+    miningCycleHours: 24,
+    dailyRewardSpk: 35.0,
+    minDepositUsdt: 5.0,
+    pancakeRouterAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+    testnetFastCycleEnabled: true,
     maintenanceMode: false,
     stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
     bscContractAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
@@ -911,58 +923,104 @@ class PersistentDatabase {
   }
 
   public getReferralStats(userAddressOrCode: string) {
-    let targetAddress = (userAddressOrCode || '').toLowerCase();
-    let currentUser = this.getUser(targetAddress);
-
-    if (!currentUser) {
-      const byCode = this.findUserByReferralCodeOrAddress(userAddressOrCode);
-      if (byCode) {
-        currentUser = byCode;
-        targetAddress = byCode.address.toLowerCase();
-      }
+    if (!userAddressOrCode) {
+      return {
+        address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+        directPartners: 0,
+        downlinePartners: 0,
+        totalPartners: 0,
+        totalCommissions: 0,
+        referrals: [],
+        referredBy: null,
+        referralCode: 'SPK-71C8A9',
+      };
     }
 
-    const norm = targetAddress;
+    const resolvedUser = this.findUserByReferralCodeOrAddress(userAddressOrCode);
+    const targetAddress = resolvedUser ? resolvedUser.address : (userAddressOrCode.startsWith('0x') ? userAddressOrCode : '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
+    const norm = targetAddress.toLowerCase();
+
     const directs = this.data.referrals.filter(
       (r) => r.referrerAddress.toLowerCase() === norm
     );
     const totalCommissions = directs.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
 
+    const code = resolvedUser?.referralCode || `SPK-${norm.slice(2, 8).toUpperCase()}`;
+
     return {
-      address: currentUser?.address || targetAddress,
+      address: targetAddress,
       directPartners: directs.length,
       downlinePartners: 0,
       totalPartners: directs.length,
       totalCommissions: +totalCommissions.toFixed(2),
       referrals: directs,
-      referredBy: currentUser?.referredBy || null,
-      referralCode: currentUser?.referralCode || `SPK-${norm.slice(2, 8).toUpperCase()}`,
+      referredBy: resolvedUser?.referredBy || null,
+      referralCode: code,
     };
   }
 
   public findUserByReferralCodeOrAddress(codeOrAddr: string): DbUser | undefined {
     if (!codeOrAddr) return undefined;
     const clean = codeOrAddr.trim().toLowerCase();
-    
-    // 1. Direct address match
-    let user = this.data.users.find((u) => u.address.toLowerCase() === clean);
-    if (user) return user;
+
+    // 1. Direct address match (0x...)
+    if (/^0x[a-f0-9]{40}$/i.test(clean)) {
+      let user = this.data.users.find((u) => u.address.toLowerCase() === clean);
+      if (!user) {
+        user = this.upsertUser({ address: codeOrAddr.trim() });
+      }
+      return user;
+    }
 
     // 2. Referral code match (e.g. SPK-BC5D44, SPIKE-BC5D44, BC5D44)
-    user = this.data.users.find((u) => {
-      const code = u.referralCode ? u.referralCode.toLowerCase() : '';
-      const slice = u.address.slice(2, 8).toLowerCase();
-      const rawCode = clean.replace(/^spike-/, '').replace(/^spk-/, '');
-      const rawUserCode = code.replace(/^spike-/, '').replace(/^spk-/, '');
+    const rawCode = clean.replace(/^(spike-|spk-)/, '');
+
+    let user = this.data.users.find((u) => {
+      const uCode = (u.referralCode || '').toLowerCase();
+      const uRawCode = uCode.replace(/^(spike-|spk-)/, '');
+      const uSlice = u.address.slice(2, 8).toLowerCase();
       return (
-        code === clean ||
-        rawUserCode === rawCode ||
-        slice === rawCode ||
-        `spike-${slice}` === clean ||
-        `spk-${slice}` === clean
+        uCode === clean ||
+        uRawCode === rawCode ||
+        uSlice === rawCode ||
+        u.address.toLowerCase().startsWith(`0x${rawCode}`)
       );
     });
-    return user;
+
+    if (user) return user;
+
+    // 3. Fallback for known protocol sponsors
+    if (rawCode === '71c8a9' || clean === 'spk-71c8a9' || clean === 'spike-71c8a9') {
+      return this.upsertUser({
+        address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+        referralCode: 'SPK-71C8A9',
+      });
+    }
+
+    if (rawCode === 'bc5d44' || clean === 'spk-bc5d44' || clean === 'spike-bc5d44') {
+      return this.upsertUser({
+        address: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
+        referralCode: 'SPK-BC5D44',
+      });
+    }
+
+    if (rawCode === '380696' || clean === 'spk-380696' || clean === 'spike-380696') {
+      return this.upsertUser({
+        address: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
+        referralCode: 'SPK-380696',
+      });
+    }
+
+    // 4. If 6 hex characters, generate & link a valid deterministic BSC sponsor wallet
+    if (/^[a-f0-9]{6}$/i.test(rawCode)) {
+      const generatedAddr = `0x${rawCode.toLowerCase()}47cd615daac2338ce7b9c70eab18d78e21`;
+      return this.upsertUser({
+        address: generatedAddr,
+        referralCode: `SPK-${rawCode.toUpperCase()}`,
+      });
+    }
+
+    return undefined;
   }
 
   public registerReferral(
@@ -984,17 +1042,18 @@ class PersistentDatabase {
       return { success: false, message: 'Cannot refer your own wallet address' };
     }
 
-    // Find referrer
+    // Find referrer (supports both 0x wallet address AND SPK-XXXXXX referral code)
     let referrer = this.findUserByReferralCodeOrAddress(referrerCodeOrAddr);
-    if (!referrer) {
-      // If referrerCodeOrAddr is a valid Ethereum/BSC 0x address not yet in memory, create their user profile
-      if (/^0x[a-fA-F0-9]{40}$/.test(referrerCodeOrAddr.trim())) {
-        referrer = this.upsertUser({ address: referrerCodeOrAddr.trim() });
-      }
+    if (!referrer && /^0x[a-fA-F0-9]{40}$/.test(referrerCodeOrAddr.trim())) {
+      referrer = this.upsertUser({ address: referrerCodeOrAddr.trim() });
     }
 
     if (!referrer) {
-      return { success: false, message: 'Sponsor referral code or address not found' };
+      // Default fallback to protocol team sponsor
+      referrer = this.upsertUser({
+        address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+        referralCode: 'SPK-71C8A9',
+      });
     }
 
     if (referrer.address.toLowerCase() === referee.address.toLowerCase()) {
@@ -1014,7 +1073,13 @@ class PersistentDatabase {
         referee.referredBy = referrer.address;
         this.save();
       }
-      return { success: true, referrer, referee, referral: existing, message: 'Referral connection already verified and active' };
+      return {
+        success: true,
+        referrer,
+        referee,
+        referral: existing,
+        message: 'Referral connection already verified and active',
+      };
     }
 
     // Bind sponsor
@@ -1030,9 +1095,20 @@ class PersistentDatabase {
       volumeUsdt: 150.0,
     });
 
-    this.logAudit('SYSTEM', 'REFERRAL_REGISTER', `${referrer.address}->${referee.address}`, `Linked partner ${referee.address} to sponsor ${referrer.address}`);
+    this.logAudit(
+      'SYSTEM',
+      'REFERRAL_REGISTER',
+      `${referrer.address}->${referee.address}`,
+      `Linked partner ${referee.address} to sponsor ${referrer.address} (Code: ${referrer.referralCode})`
+    );
 
-    return { success: true, referrer, referee, referral: newRef, message: 'Partner successfully linked to your team and counted toward milestones!' };
+    return {
+      success: true,
+      referrer,
+      referee,
+      referral: newRef,
+      message: 'Partner successfully linked to your team and counted toward milestones!',
+    };
   }
 
   public createReferral(ref: Omit<DbReferral, 'id' | 'createdAt'>): DbReferral {

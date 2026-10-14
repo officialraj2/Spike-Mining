@@ -409,9 +409,10 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[#94a3b8]">
-                  <span>Next Step 2:</span>
-                  <span className="text-amber-300 font-bold">
-                    Start Mining (10 USDT Smart Contract Call)
+                  <span>Mining Protocol Status:</span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>Mining Rig Activated (24h Cycle Started)</span>
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[#94a3b8]">
@@ -425,7 +426,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                   <span>Treasury Destination:</span>
                   <span className="text-white font-mono flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span>Official Protocol Vault (Backend Routed)</span>
+                    <span>Official Protocol Treasury Vault</span>
                   </span>
                 </div>
               </div>
@@ -434,7 +435,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                 onClick={onClose}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00F0FF] hover:opacity-90 text-[#051424] font-headline font-bold text-sm shadow-[0_0_20px_rgba(52,211,153,0.4)] transition-all hover:scale-[1.01]"
               >
-                Proceed to Step 2: Start Mining (10 USDT)
+                Go to Live Mining Engine (24h Claim Ready)
               </button>
             </div>
           ) : (

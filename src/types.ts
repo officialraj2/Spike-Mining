@@ -32,6 +32,12 @@ export interface AdminUser {
 export interface AdminSettings {
   turboMultiplier: number;
   dailyYieldPercent: number;
+  baseHashrateTh?: number;
+  miningCycleHours?: number;
+  dailyRewardSpk?: number;
+  minDepositUsdt?: number;
+  pancakeRouterAddress?: string;
+  testnetFastCycleEnabled?: boolean;
   maintenanceMode: boolean;
   stratumPoolUrl: string;
   bscContractAddress: string;
