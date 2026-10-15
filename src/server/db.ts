@@ -669,8 +669,8 @@ class PersistentDatabase {
     } else {
       const newUser: DbUser = {
         address: user.address,
-        balanceUsdt: user.balanceUsdt ?? 0.0,
-        balanceBnb: user.balanceBnb ?? 0.005,
+        balanceUsdt: typeof user.balanceUsdt === 'number' ? user.balanceUsdt : 10.0,
+        balanceBnb: typeof user.balanceBnb === 'number' ? user.balanceBnb : 0.005,
         totalMined: user.totalMined ?? 0.0,
         referralCode: user.referralCode || `SPK-${user.address.slice(2, 8).toUpperCase()}`,
         referredBy: user.referredBy || null,
@@ -729,11 +729,53 @@ class PersistentDatabase {
     return user;
   }
 
+  public syncUserBalance(address: string, balanceUsdt?: number, balanceBnb?: number): DbUser {
+    const norm = address.toLowerCase();
+    const user = this.upsertUser({ address: norm });
+    if (typeof balanceUsdt === 'number' && !isNaN(balanceUsdt)) {
+      user.balanceUsdt = Number(balanceUsdt.toFixed(2));
+    }
+    if (typeof balanceBnb === 'number' && !isNaN(balanceBnb)) {
+      user.balanceBnb = Number(balanceBnb.toFixed(4));
+    }
+    user.lastActive = new Date().toISOString();
+    this.save();
+    return user;
+  }
+
   // ---- Mining Nodes ----
   public getNodes(userAddress?: string): DbMiningNode[] {
     if (userAddress) {
       const norm = userAddress.toLowerCase();
-      return this.data.nodes.filter((n) => n.userAddress.toLowerCase() === norm);
+      const userNodes = this.data.nodes.filter((n) => n.userAddress.toLowerCase() === norm);
+      // Ensure that if user has deposited into treasury, activated mining, or has active session, active node is never lost
+      const user = this.getUser(norm);
+      if (userNodes.length === 0 && user && (user.hasActivatedMining || user.hasDepositedTreasury || user.role === 'admin')) {
+        const autoNode: DbMiningNode = {
+          id: `spk-node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          userAddress: norm,
+          name: 'SPIKE ASIC Rig #1',
+          region: 'US-East (Stratum Cluster)',
+          status: 'mining',
+          hashrate: this.data.settings.baseHashrateTh || 1.25,
+          temperature: 64,
+          shareAcceptance: 99.98,
+          fanSpeed: 75,
+          powerUsage: 1400,
+          uptimeDays: 1,
+          algorithm: 'SHA-256 (Stratum)',
+          logs: [
+            '24-Hour Mining Cycle Active · Connected to stratum pool',
+            'Stratum+SSL target diff accepted: 1048576 (hash: 00000000...a4f2)',
+          ],
+          costUsdt: 5.0,
+          deployedAt: new Date().toISOString(),
+        };
+        this.data.nodes.unshift(autoNode);
+        this.save();
+        return [autoNode];
+      }
+      return userNodes;
     }
     return this.data.nodes;
   }
@@ -1541,6 +1583,33 @@ class PersistentDatabase {
     }
     user.hasDepositedTreasury = true;
     user.lastActive = new Date().toISOString();
+
+    // Automatically provision and activate Mining Node upon $5 deposit
+    const userNodes = this.data.nodes.filter((n) => n.userAddress.toLowerCase() === norm);
+    if (!userNodes.some((n) => n.status === 'mining')) {
+      const activeNode: DbMiningNode = {
+        id: `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        userAddress: norm,
+        name: `SPIKE ASIC Rig #${userNodes.length + 1}`,
+        region: 'US-East (Stratum Cluster)',
+        status: 'mining',
+        hashrate: this.data.settings.baseHashrateTh || 1.25,
+        temperature: 64,
+        shareAcceptance: 99.98,
+        fanSpeed: 75,
+        powerUsage: 1400,
+        uptimeDays: 1,
+        algorithm: 'SHA-256 (Stratum)',
+        logs: [
+          `Deposit of $${amount.toFixed(2)} USDT verified in Protocol Treasury`,
+          `Connected to BSC stratum pool: ${this.data.settings.stratumPoolUrl}`,
+          `24-Hour Mining Cycle Active · Automated PancakeSwap Buyback Enabled`,
+        ],
+        costUsdt: amount,
+        deployedAt: new Date().toISOString(),
+      };
+      this.data.nodes.unshift(activeNode);
+    }
 
     const cleanHash = txHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
 

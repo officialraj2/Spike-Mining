@@ -392,12 +392,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   } | null>(null);
 
   // Calculate live total hashrate from active mining nodes
-  const totalHashrate = nodes
+  const hasPersistentMining = typeof window !== 'undefined' && localStorage.getItem('spike_active_mining') === 'true';
+  const computedHashrate = nodes
     .filter((n) => n.status === 'mining')
     .reduce((acc, curr) => acc + curr.hashrate, 0);
+  const totalHashrate = computedHashrate > 0 ? computedHashrate : (hasPersistentMining ? 1.25 : 0);
 
-  const activeNodeCount = nodes.filter((n) => n.status === 'mining').length;
-  const operationalEfficiency = nodes.length > 0 ? Math.round((activeNodeCount / nodes.length) * 100) : 0;
+  const activeNodeCount = Math.max(nodes.filter((n) => n.status === 'mining').length, hasPersistentMining ? 1 : 0);
+  const operationalEfficiency = nodes.length > 0 ? Math.round((activeNodeCount / nodes.length) * 100) : (hasPersistentMining ? 100 : 0);
 
   // Timeframe chart curve data configurations
   const chartConfigs = {
@@ -701,15 +703,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             {/* Step 2: 10$ Start Mining */}
             <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-              nodes.some(n => n.status === 'mining')
+              (nodes.some(n => n.status === 'mining') || hasPersistentMining)
                 ? 'bg-emerald-950/30 border-emerald-500/40'
                 : 'bg-[#0a1826] border-[#00F0FF]/40'
             }`}>
               <div className="flex items-center gap-2.5">
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
-                  nodes.some(n => n.status === 'mining') ? 'bg-emerald-500 text-[#051424]' : 'bg-[#00F0FF] text-[#051424]'
+                  (nodes.some(n => n.status === 'mining') || hasPersistentMining) ? 'bg-emerald-500 text-[#051424]' : 'bg-[#00F0FF] text-[#051424]'
                 }`}>
-                  {nodes.some(n => n.status === 'mining') ? '✓' : '2'}
+                  {(nodes.some(n => n.status === 'mining') || hasPersistentMining) ? '✓' : '2'}
                 </div>
                 <div>
                   <div className="text-xs font-bold font-headline text-white">Step 2: Start Mining 10$</div>
@@ -720,13 +722,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 onClick={() => {
                   if (nodes.length > 0 && nodes[0].status !== 'mining') {
                     onStartNode(nodes[0].id);
+                  } else if (hasPersistentMining) {
+                    // Already active
                   } else {
                     onOpenDeployModal();
                   }
                 }}
                 className="px-2.5 py-1 rounded-lg bg-[#00F0FF] hover:bg-[#7df4ff] text-[#051424] font-headline font-bold text-[11px] transition-all cursor-pointer shadow-sm shrink-0"
               >
-                {nodes.some(n => n.status === 'mining') ? 'Mining Active' : 'Start Mining'}
+                {(nodes.some(n => n.status === 'mining') || hasPersistentMining) ? 'Mining Active' : 'Start Mining'}
               </button>
             </div>
           </div>

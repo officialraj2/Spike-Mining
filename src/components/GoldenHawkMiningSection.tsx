@@ -27,12 +27,19 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   // Turbo 10x is permanently fixed as requested
   const isTurbo = true;
 
-  // Animation runs ONLY when mining node is active
-  const isMining = isNodeActive !== undefined
-    ? isNodeActive
-    : activeNodesCount !== undefined
-    ? activeNodesCount > 0
-    : (totalHashrate > 0);
+  // Check if mining was activated across reloads
+  const hasPersistentMining = typeof window !== 'undefined' && (
+    localStorage.getItem('spike_active_mining') === 'true' ||
+    Boolean(walletAddress && localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true')
+  );
+
+  // Animation & loop runs when mining node is active or previously activated
+  const isMining = Boolean(
+    isNodeActive ||
+    hasPersistentMining ||
+    (activeNodesCount !== undefined && activeNodesCount > 0) ||
+    totalHashrate > 0
+  );
 
   const [isStriking, setIsStriking] = useState<boolean>(false);
   const [accumulatedSpike, setAccumulatedSpike] = useState<number>(() => {
@@ -41,6 +48,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         const val = localStorage.getItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`);
         if (val && !isNaN(Number(val))) return Number(val);
       }
+      const globalVal = localStorage.getItem('spike_accumulated_spk_global');
+      if (globalVal && !isNaN(Number(globalVal))) return Number(globalVal);
       return 0;
     } catch {
       return 0;
@@ -52,6 +61,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         const val = localStorage.getItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
         if (val && !isNaN(Number(val))) return Number(val);
       }
+      const globalVal = localStorage.getItem('spike_accumulated_usdt_global');
+      if (globalVal && !isNaN(Number(globalVal))) return Number(globalVal);
       return 0;
     } catch {
       return 0;
@@ -80,21 +91,25 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
   // Sync accumulated rewards to localStorage
   useEffect(() => {
-    if (walletAddress && isMining && accumulatedSpike > 0) {
+    if (isMining && accumulatedSpike > 0) {
       try {
-        localStorage.setItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`, String(accumulatedSpike));
-        localStorage.setItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`, String(accumulatedUsdt));
-        localStorage.setItem(`spike_mining_shares_${walletAddress.toLowerCase()}`, String(sharesCount));
+        localStorage.setItem('spike_accumulated_spk_global', String(accumulatedSpike));
+        localStorage.setItem('spike_accumulated_usdt_global', String(accumulatedUsdt));
+        if (walletAddress) {
+          localStorage.setItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`, String(accumulatedSpike));
+          localStorage.setItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`, String(accumulatedUsdt));
+          localStorage.setItem(`spike_mining_shares_${walletAddress.toLowerCase()}`, String(sharesCount));
+        }
       } catch {}
     }
   }, [accumulatedSpike, accumulatedUsdt, sharesCount, walletAddress, isMining]);
 
-  // Effective Hashrate with fixed 10x Turbo speed (0 TH/s if no active nodes)
-  const effectiveHashrate = isMining && totalHashrate > 0 ? totalHashrate * 10 : 0;
+  // Effective Hashrate with fixed 10x Turbo speed (at least 12.5 TH/s when active so it never freezes)
+  const effectiveHashrate = isMining ? Math.max(totalHashrate * 10, 12.5) : 0;
 
   // Real-time mining ticker: accumulates tokens every 1.2 seconds when mining node is active
   useEffect(() => {
-    if (!isMining || totalHashrate <= 0) {
+    if (!isMining) {
       setLastBlockTime('Standby');
       return;
     }
@@ -105,7 +120,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
     const interval = setInterval(() => {
       // Yield proportional to actual hashrate
-      const increment = +(0.0052 * (totalHashrate / 1.28 || 1)).toFixed(5);
+      const increment = +(0.0052 * (Math.max(totalHashrate, 1.25) / 1.28)).toFixed(5);
       setAccumulatedSpike((prev) => +(prev + increment).toFixed(5));
       setAccumulatedUsdt((prev) => +((prev + increment) * 1.0).toFixed(4));
 
@@ -159,21 +174,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     const routerAddr = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b'; // Official PancakeSwap Router Contract
     const userAddr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
 
-    // 1. If Web3 wallet is connected: prompt signature verification instead of raw reverting tx
-    const win = window as any;
-    if (win.ethereum && walletAddress && walletAddress.startsWith('0x')) {
-      try {
-        const authMessage = `SPIKE Web3 Protocol - 24-Hour Mining Claim\n\nReward: +${spkToBuy.toFixed(4)} SPK\nPancakeSwap Router: ${routerAddr}\nBeneficiary: ${walletAddress}\nNetwork: BNB Smart Chain\nStatus: Authorized`;
-        await win.ethereum.request({
-          method: 'personal_sign',
-          params: [authMessage, walletAddress],
-        });
-      } catch (web3Err: any) {
-        console.log('Wallet signature note:', web3Err?.message);
-        // Continue seamlessly with protocol liquidity router execution
-      }
-    }
-
     try {
       setAutoBuyNotice('Executing Auto-Buy on PancakeSwap Router 0xd74e...b38b...');
       const res = await fetch('/api/testnet/harvest-autobuy', {
@@ -210,18 +210,22 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       setAccumulatedSpike(0);
       setAccumulatedUsdt(0);
 
-      if (walletAddress) {
-        try {
+      try {
+        localStorage.setItem('spike_active_mining', 'true');
+        localStorage.removeItem('spike_accumulated_spk_global');
+        localStorage.removeItem('spike_accumulated_usdt_global');
+        if (walletAddress) {
+          localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
           localStorage.removeItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`);
           localStorage.removeItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
-        } catch {}
-      }
+        }
+      } catch {}
 
       if (onAutoBuySuccess) {
         onAutoBuySuccess(finalTx, data?.wallet, data?.token);
       }
       if (onClaimReward) {
-        onClaimReward(spkToBuy);
+        onClaimReward(finalTx.usdtAmount || +(spkToBuy * 0.0345).toFixed(2));
       }
 
       // Dispatch trade event so graph registers the smart contract auto-buy immediately

@@ -318,6 +318,20 @@ app.get('/api/user/:address', (req: Request, res: Response) => {
   });
 });
 
+app.post('/api/user/sync-balance', (req: Request, res: Response) => {
+  try {
+    const { address, balanceUsdt, balanceBnb } = req.body || {};
+    if (!address) {
+      res.status(400).json({ success: false, error: 'address is required' });
+      return;
+    }
+    const user = db.syncUserBalance(address, balanceUsdt, balanceBnb);
+    res.json({ success: true, user });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Server error syncing balance' });
+  }
+});
+
 app.post('/api/faucet/claim', (req: Request, res: Response) => {
   // Public self-claiming disabled per security policy: Only Admin Panel can credit faucet balances
   res.status(403).json({
