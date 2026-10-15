@@ -6,7 +6,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { db as firestoreDb } from './firebase';
 import { doc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
-import { TabType, MiningNode, RewardTransaction, ToastMessage } from './types';
+import { TabType, MiningNode, RewardTransaction, ToastMessage, HashrateLevelInfo } from './types';
 import { INITIAL_NODES, INITIAL_REWARDS } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -141,6 +141,40 @@ export default function App() {
     totalPartners: 0,
     totalCommissions: 0,
     referrals: [],
+  });
+
+  // Dedicated Hashrate Tier Info state (Protocol formula: 100 * (60 / Target Days))
+  const [hashrateInfo, setHashrateInfo] = useState<HashrateLevelInfo | null>(() => {
+    try {
+      const savedAddr = localStorage.getItem('spike_wallet_address');
+      if (savedAddr) {
+        const cached = localStorage.getItem(`spike_hashrate_${savedAddr.toLowerCase()}`);
+        if (cached) return JSON.parse(cached);
+      }
+      const globalInfo = localStorage.getItem('spike_hashrate_info');
+      if (globalInfo) return JSON.parse(globalInfo);
+      return {
+        level: 'Fresh user',
+        levelNumber: 0,
+        hashrate: 100,
+        unit: 'VH/s',
+        targetDays: 60,
+        dailySpkYield: 0.01667,
+        requirementText: '0 referrals (Base Tier)',
+        directCount: 0,
+        totalTeamCount: 0,
+        isCustomOverride: false,
+        nextTier: {
+          level: 'Level 1',
+          hashrate: 200,
+          requirementText: '10 direct referrals',
+          neededDirects: 10,
+          neededTeam: 0,
+        },
+      };
+    } catch {
+      return null;
+    }
   });
 
   // Wallet Auth State
@@ -446,6 +480,16 @@ export default function App() {
     };
     window.addEventListener('spike_balance_updated', handleBalanceEvent);
 
+    const handleHashrateEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && (!customEvent.detail.address || customEvent.detail.address.toLowerCase() === norm)) {
+        if (customEvent.detail.hashrateInfo) {
+          setHashrateInfo(customEvent.detail.hashrateInfo);
+        }
+      }
+    };
+    window.addEventListener('spike_hashrate_updated', handleHashrateEvent);
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === `spike_bal_${norm}` && e.newValue !== null) {
         setWalletBalance(Number(e.newValue));
@@ -570,6 +614,14 @@ export default function App() {
             localStorage.setItem(`spike_referral_stats_${norm}`, JSON.stringify(data.referralStats));
           } catch {}
         }
+        // Set real hashrate tier info
+        if (data && data.hashrateInfo) {
+          setHashrateInfo(data.hashrateInfo);
+          try {
+            localStorage.setItem('spike_hashrate_info', JSON.stringify(data.hashrateInfo));
+            localStorage.setItem(`spike_hashrate_${norm}`, JSON.stringify(data.hashrateInfo));
+          } catch {}
+        }
       })
       .catch((err) => {
         console.warn('[App] Backend DB sync notice (Firebase fallback active):', err);
@@ -594,6 +646,7 @@ export default function App() {
     return () => {
       if (unsubscribeFirestore) unsubscribeFirestore();
       window.removeEventListener('spike_balance_updated', handleBalanceEvent);
+      window.removeEventListener('spike_hashrate_updated', handleHashrateEvent);
       window.removeEventListener('storage', handleStorageChange);
     };
   }, [walletAddress]);
@@ -1060,9 +1113,28 @@ export default function App() {
     };
     setNodes((prev) => (prev.some((n) => n.status === 'mining') ? prev : [activeNode, ...prev]));
 
+    // Start 24-hour harvesting cycle from 0 SPIKE
+    try {
+      localStorage.setItem('spike_active_mining', 'true');
+      if (walletAddress) {
+        const norm = walletAddress.toLowerCase();
+        localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+        localStorage.setItem(`spike_cycle_start_${norm}`, String(Date.now()));
+        localStorage.setItem(`spike_accumulated_spk_${norm}`, '0');
+        localStorage.setItem(`spike_accumulated_usdt_${norm}`, '0');
+      }
+      localStorage.setItem('spike_accumulated_spk_global', '0');
+      localStorage.setItem('spike_accumulated_usdt_global', '0');
+      window.dispatchEvent(
+        new CustomEvent('spike_mining_started', {
+          detail: { address: walletAddress, startTime: Date.now() },
+        })
+      );
+    } catch {}
+
     addToast(
-      '5$ Treasury Deposit Confirmed!',
-      `Funds received in Treasury Vault. ASIC Mining Rig activated and 24-Hour Mining Cycle is running live!`,
+      '5 USDT Deposit Confirmed!',
+      'Funds deposited to Protocol Treasury. Mining started and 24-hour harvesting cycle active from 0 SPIKE!',
       'success'
     );
     // Switch to dashboard to show live mining
@@ -1375,6 +1447,7 @@ export default function App() {
             onSwapSuccess={handleSwapSuccess}
             onCopyText={copyToClipboard}
             walletAddress={walletAddress}
+            hashrateInfo={hashrateInfo}
             onNavigateToReferrals={() => handleTabChange('referrals')}
             onClaimReferralBonus={(amt) => {
               setWalletBalance((prev) => {
@@ -1397,6 +1470,7 @@ export default function App() {
         currentComponent = (
           <MiningNodesView
             nodes={nodes}
+            hashrateInfo={hashrateInfo}
             onRestartNode={handleRestartNode}
             onStopNode={handleStopNode}
             onStartNode={handleStartNode}
@@ -1412,6 +1486,7 @@ export default function App() {
         currentComponent = (
           <ReferralsView
             walletAddress={walletAddress}
+            hashrateInfo={hashrateInfo}
             onCopyText={copyToClipboard}
             onClaimReferralRewards={handleClaimReferralMilestone}
             referralStats={referralStats}

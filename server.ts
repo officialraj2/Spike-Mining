@@ -215,7 +215,23 @@ app.post('/api/admin/users/:address/status', (req: Request, res: Response) => {
     res.status(404).json({ error: 'User not found' });
     return;
   }
-  res.json({ success: true, user: updated });
+  res.json({ user: updated });
+});
+
+app.post('/api/admin/users/:address/hashrate', (req: Request, res: Response) => {
+  try {
+    const { address } = req.params;
+    const { hashrate, reason = 'Admin Override', adminUser = 'Admin Portal' } = req.body || {};
+    const norm = (address || '').toLowerCase();
+    const result = db.setUserCustomHashrate(norm, hashrate !== undefined ? hashrate : null, reason, adminUser);
+    if (result.user) {
+      syncDocument('users', norm, result.user).catch(() => {});
+    }
+    res.json(result);
+  } catch (err: any) {
+    console.error('[API Error] hashrate override:', err);
+    res.status(500).json({ success: false, error: err?.message || 'Server error setting hashrate' });
+  }
 });
 
 app.get('/api/admin/nodes', (req: Request, res: Response) => {
@@ -309,23 +325,25 @@ app.get('/api/user/:address', (req: Request, res: Response) => {
   const transactions = db.getTransactions(address, 20);
   const settings = db.getSettings();
   const referralStats = db.getReferralStats(address);
+  const hashrateInfo = db.calculateUserHashrate(address);
   res.json({
     user,
     nodes,
     transactions,
     settings,
     referralStats,
+    hashrateInfo,
   });
 });
 
 app.post('/api/user/sync-balance', (req: Request, res: Response) => {
   try {
-    const { address, balanceUsdt, balanceBnb } = req.body || {};
+    const { address, balanceUsdt, balanceBnb, balanceSpk } = req.body || {};
     if (!address) {
       res.status(400).json({ success: false, error: 'address is required' });
       return;
     }
-    const user = db.syncUserBalance(address, balanceUsdt, balanceBnb);
+    const user = db.syncUserBalance(address, balanceUsdt, balanceBnb, balanceSpk);
     res.json({ success: true, user });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Server error syncing balance' });

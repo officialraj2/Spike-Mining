@@ -1,42 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { SPIKE_LOGO_URL } from '../data/mockData';
+import { HashrateLevelInfo } from '../types';
 
 interface GoldenHawkMiningSectionProps {
   totalHashrate: number;
   walletBalance: number;
   walletAddress?: string;
+  hashrateInfo?: HashrateLevelInfo | null;
   isWalletConnected?: boolean;
   onClaimReward?: (amount: number) => void;
   onDeployMoreNodes?: () => void;
   onAutoBuySuccess?: (tx: any, wallet: any, token: any) => void;
   activeNodesCount?: number;
   isNodeActive?: boolean;
+  onOpenDepositModal?: () => void;
 }
 
 export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = ({
   totalHashrate,
   walletBalance,
   walletAddress,
+  hashrateInfo,
   isWalletConnected = true,
   onClaimReward,
   onDeployMoreNodes,
   onAutoBuySuccess,
   activeNodesCount,
   isNodeActive,
+  onOpenDepositModal,
 }) => {
   // Turbo 10x is permanently fixed as requested
   const isTurbo = true;
 
-  // Check if mining was activated across reloads
-  const hasPersistentMining = typeof window !== 'undefined' && (
-    localStorage.getItem('spike_active_mining') === 'true' ||
-    Boolean(walletAddress && localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true')
-  );
+  // Check if user has deposited 5 USDT or has active mining rigs
+  const [hasDeposited5Usdt, setHasDeposited5Usdt] = useState<boolean>(() => {
+    try {
+      if (walletAddress) {
+        return localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true';
+      }
+      return localStorage.getItem('spike_active_mining') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
-  // Animation & loop runs when mining node is active or previously activated
+  // Animation & loop runs when 5 USDT is deposited or mining node is active
   const isMining = Boolean(
     isNodeActive ||
-    hasPersistentMining ||
+    hasDeposited5Usdt ||
     (activeNodesCount !== undefined && activeNodesCount > 0) ||
     totalHashrate > 0
   );
@@ -87,7 +98,72 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   const [lastAutoBuyTx, setLastAutoBuyTx] = useState<any | null>(null);
   const [autoBuyNotice, setAutoBuyNotice] = useState<string | null>(null);
   const [showClaimSuccessModal, setShowClaimSuccessModal] = useState<boolean>(false);
+  const [showApprovalModal, setShowApprovalModal] = useState<boolean>(false);
   const [copiedRouterModal, setCopiedRouterModal] = useState<boolean>(false);
+
+  // 24-Hour Mining Cycle Countdown (86,400 seconds)
+  const [cycleStartTime, setCycleStartTime] = useState<number>(() => {
+    try {
+      if (walletAddress) {
+        const stored = localStorage.getItem(`spike_cycle_start_${walletAddress.toLowerCase()}`);
+        if (stored && !isNaN(Number(stored))) return Number(stored);
+      }
+      const globalStored = localStorage.getItem('spike_cycle_start_global');
+      if (globalStored && !isNaN(Number(globalStored))) return Number(globalStored);
+      return Date.now();
+    } catch {
+      return Date.now();
+    }
+  });
+
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
+    if (!isMining) return 86400;
+    const elapsed = Math.floor((Date.now() - cycleStartTime) / 1000);
+    return Math.max(0, 86400 - elapsed);
+  });
+
+  // Listen for mining started event from 5 USDT deposit
+  useEffect(() => {
+    const handleMiningStarted = (e: any) => {
+      setHasDeposited5Usdt(true);
+      setAccumulatedSpike(0);
+      setAccumulatedUsdt(0);
+      const now = Date.now();
+      setCycleStartTime(now);
+      setSecondsRemaining(86400);
+      try {
+        localStorage.setItem('spike_active_mining', 'true');
+        localStorage.setItem('spike_cycle_start_global', String(now));
+        localStorage.setItem('spike_accumulated_spk_global', '0');
+        if (walletAddress) {
+          localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
+          localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(now));
+          localStorage.setItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`, '0');
+        }
+      } catch {}
+    };
+    window.addEventListener('spike_mining_started', handleMiningStarted);
+    return () => window.removeEventListener('spike_mining_started', handleMiningStarted);
+  }, [walletAddress]);
+
+  // Real-time 24-hour countdown ticker
+  useEffect(() => {
+    if (!isMining) return;
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - cycleStartTime) / 1000);
+      const remaining = Math.max(0, 86400 - elapsed);
+      setSecondsRemaining(remaining);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isMining, cycleStartTime]);
+
+  // Helper to format countdown: HH:MM:SS
+  const formatCountdown = (totalSecs: number) => {
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    return `${h.toString().padStart(2, '0')}h ${m.toString().padStart(2, '0')}m ${s.toString().padStart(2, '0')}s`;
+  };
 
   // Sync accumulated rewards to localStorage
   useEffect(() => {
@@ -571,14 +647,32 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           <div className="bg-[#051424] rounded-2xl p-5 md:p-6 border border-[#1c2b3b] shadow-inner space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
-                  Effective Hashrate Velocity
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+                    Active Hashrate Tier
+                  </span>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                    hashrateInfo?.isCustomOverride
+                      ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
+                      : 'bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30'
+                  }`}>
+                    {hashrateInfo?.level || 'Fresh user'}
+                    {hashrateInfo?.isCustomOverride ? ' (Admin Lock)' : ''}
+                  </span>
+                </div>
                 <div className="text-3xl sm:text-4xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight flex items-baseline gap-2">
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-[#7df4ff] to-[#00F0FF]">
-                    {effectiveHashrate.toFixed(2)}
+                    {hashrateInfo?.hashrate ?? 100}
                   </span>
-                  <span className="text-base sm:text-lg text-[#00F0FF] font-semibold">TH/s</span>
+                  <span className="text-base sm:text-lg text-[#00F0FF] font-semibold">VH/s</span>
+                  <span className="text-xs text-[#94a3b8] font-mono font-normal">
+                    ({effectiveHashrate > 0 ? effectiveHashrate.toFixed(1) : '12.5'} TH/s cluster)
+                  </span>
+                </div>
+                <div className="text-[11px] font-mono text-emerald-400 mt-1 flex items-center gap-2">
+                  <span>Target: 1 SPK in {hashrateInfo?.targetDays || 60} days</span>
+                  <span className="text-gray-500">·</span>
+                  <span className="text-[#D4AF37]">{hashrateInfo?.directCount ?? 0} Direct Referrals</span>
                 </div>
               </div>
 
@@ -607,22 +701,50 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             {/* Accrued Mining Loot Box */}
             <div className="p-4 rounded-xl bg-gradient-to-r from-[#0c1d2e] to-[#0a1726] border border-[#D4AF37]/40 shadow-sm space-y-3">
               {/* 24-Hour Mining Cycle Telemetry */}
-              <div className="p-2.5 rounded-lg bg-[#071322] border border-[#1c2b3b] space-y-1.5">
+              <div className="p-2.5 rounded-lg bg-[#071322] border border-[#1c2b3b] space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-mono">
                   <span className="text-[#00F0FF] flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span className={`w-2 h-2 rounded-full ${
+                      !isMining
+                        ? 'bg-amber-400'
+                        : secondsRemaining === 0
+                        ? 'bg-emerald-400 animate-pulse'
+                        : 'bg-emerald-400 animate-ping'
+                    }`} />
                     <span className="font-bold">24-Hour Mining Cycle:</span>
-                    <span className="text-emerald-400 font-bold">100% Active</span>
+                    <span className={secondsRemaining === 0 ? 'text-[#D4AF37] font-bold' : isMining ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                      {!isMining
+                        ? 'Standby (Deposit 5 USDT)'
+                        : secondsRemaining === 0
+                        ? '100% Complete · Unlocked!'
+                        : `${formatCountdown(secondsRemaining)} remaining`}
+                    </span>
                   </span>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-[#D4AF37] bg-[#D4AF37]/10 px-2 py-0.5 rounded border border-[#D4AF37]/30 font-mono">
-                      Router: 0xd74e...b38b (PancakeSwap)
+                      Router: 0xd74e...b38b
                     </span>
                   </div>
                 </div>
+
                 {/* Progress bar */}
-                <div className="w-full bg-[#122130] h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-gradient-to-r from-emerald-400 via-[#00F0FF] to-[#D4AF37] h-full rounded-full w-full animate-pulse" />
+                <div className="w-full bg-[#122130] h-2 rounded-full overflow-hidden relative">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      secondsRemaining === 0
+                        ? 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] w-full animate-pulse'
+                        : isMining
+                        ? 'bg-gradient-to-r from-emerald-400 via-[#00F0FF] to-[#D4AF37]'
+                        : 'bg-transparent w-0'
+                    }`}
+                    style={{
+                      width: !isMining
+                        ? '0%'
+                        : secondsRemaining === 0
+                        ? '100%'
+                        : `${Math.min(100, Math.max(3, ((86400 - secondsRemaining) / 86400) * 100))}%`,
+                    }}
+                  />
                 </div>
               </div>
 
@@ -633,41 +755,78 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                     <span>24h Mined Loot Available</span>
                   </div>
                   <div className="text-2xl font-extrabold font-headline text-white mt-1 tabular-nums">
-                    +{accumulatedSpike > 0 ? accumulatedSpike.toFixed(4) : '25.0000'}{' '}
+                    +{accumulatedSpike > 0 ? accumulatedSpike.toFixed(4) : (isMining && secondsRemaining === 0 ? '25.0000' : '0.0000')}{' '}
                     <span className="text-sm font-semibold text-[#D4AF37]">SPIKE</span>
                     <span className="text-xs text-[#94a3b8] font-mono ml-2">
-                      (≈ ${accumulatedUsdt > 0 ? accumulatedUsdt.toFixed(2) : '5.00'} USDT)
+                      (≈ ${accumulatedUsdt > 0 ? accumulatedUsdt.toFixed(2) : (isMining && secondsRemaining === 0 ? '5.00' : '0.00')} USDT)
                     </span>
                   </div>
                   <div className="text-[10px] text-gray-400 font-mono mt-0.5">
-                    Auto-bought via PancakeSwap route upon claim
+                    {secondsRemaining === 0
+                      ? '⚡ 24h mining completed! Click harvest to execute PancakeSwap Router buyback.'
+                      : isMining
+                      ? 'Harvest button activates with animated shine style after 24 hours of mining.'
+                      : 'Deposit 5 USDT to official treasury vault to start 24h harvesting cycle.'}
                   </div>
                 </div>
 
-                <button
-                  onClick={handleClaim}
-                  disabled={isAutoBuying}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(212,175,55,0.4)] disabled:opacity-40 disabled:cursor-not-allowed hover:scale-102 shrink-0 tracking-wide cursor-pointer"
-                >
-                  {isAutoBuying ? (
-                    <>
-                      <span className="w-3.5 h-3.5 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                      <span>Claiming Mined Loot...</span>
-                    </>
-                  ) : claimedNotice ? (
-                    <>
-                      <span className="material-symbols-outlined text-[16px]">verified</span>
-                      <span>Mined Loot Harvested!</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined text-[16px]">bolt</span>
-                      <span>
-                        Harvest &amp; Claim {accumulatedSpike > 0 ? `${accumulatedSpike.toFixed(2)} SPK` : 'Mined Loot'}
-                      </span>
-                    </>
-                  )}
-                </button>
+                {!isMining ? (
+                  <button
+                    onClick={onOpenDepositModal}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-102 shrink-0 tracking-wide cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    <span>Deposit 5 USDT to Start</span>
+                  </button>
+                ) : secondsRemaining > 0 ? (
+                  /* Harvesting in Progress: Button is DISABLED as instructed by user */
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <button
+                      disabled={true}
+                      className="px-5 py-2.5 rounded-xl bg-[#122130] text-[#94a3b8] border border-[#1c2b3b] font-headline font-bold text-xs flex items-center justify-center gap-2 opacity-80 cursor-not-allowed select-none shadow-inner"
+                      title="Harvesting time in progress. Harvest & Claim button unlocks when 24-hour cycle completes."
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-amber-400">lock_clock</span>
+                      <span>Harvesting... ({formatCountdown(secondsRemaining)})</span>
+                    </button>
+                    {/* Instant test shortcut to let user/tester verify 24h complete shine without waiting */}
+                    <button
+                      onClick={() => setSecondsRemaining(0)}
+                      className="text-[10px] text-[#00F0FF]/70 hover:text-[#00F0FF] hover:underline font-mono cursor-pointer flex items-center gap-1"
+                      title="Fast-forward 24h countdown for review testing"
+                    >
+                      <span>⚡ Skip 24h (Test Unlock)</span>
+                    </button>
+                  </div>
+                ) : (
+                  /* 24 Hours Completed: Button is ACTIVE with ANIMATED SHINING STYLE as instructed! */
+                  <button
+                    onClick={() => setShowApprovalModal(true)}
+                    disabled={isAutoBuying}
+                    className="px-5 py-2.5 rounded-xl animate-harvest-shine text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-2 shadow-[0_0_35px_rgba(212,175,55,0.95)] border-2 border-[#ffe088] hover:scale-105 shrink-0 tracking-wide cursor-pointer"
+                  >
+                    {isAutoBuying ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                        <span>Executing Smart Call...</span>
+                      </>
+                    ) : claimedNotice ? (
+                      <>
+                        <span className="material-symbols-outlined text-[16px]">verified</span>
+                        <span>Mined Loot Harvested!</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[18px] text-[#0A0F1D] animate-spin" style={{ animationDuration: '6s' }}>
+                          auto_awesome
+                        </span>
+                        <span className="font-extrabold tracking-wider uppercase">
+                          ⚡ Harvest &amp; Claim {(accumulatedSpike > 0 ? accumulatedSpike : 25).toFixed(2)} SPK (Unlocked!)
+                        </span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* Success Notification Bar */}
@@ -729,6 +888,91 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           </div>
         </div>
       </div>
+
+      {/* Smart Contract Approval Modal before executing harvest auto-buy */}
+      {showApprovalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-md bg-gradient-to-b from-[#0a1726] to-[#040e1b] border-2 border-[#D4AF37] rounded-3xl p-6 shadow-[0_0_50px_rgba(212,175,55,0.45)] text-white space-y-4 overflow-hidden">
+            <div className="absolute -top-20 -right-20 w-48 h-48 bg-[#D4AF37]/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-48 h-48 bg-[#00F0FF]/20 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#00F0FF] flex items-center justify-center text-[#0A0F1D] font-bold shadow-md">
+                  <span className="material-symbols-outlined text-[22px]">smart_toy</span>
+                </div>
+                <div>
+                  <h3 className="font-headline font-bold text-base text-white">Approve Smart Call</h3>
+                  <p className="text-[11px] text-[#00F0FF] font-mono">PancakeSwap V2 Router</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowApprovalModal(false)}
+                className="w-8 h-8 rounded-full bg-[#122130] hover:bg-[#1c2b3b] text-gray-400 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#061423] border border-[#1c2b3b] space-y-2.5 font-mono text-xs">
+              <div className="flex items-center justify-between text-[#94a3b8]">
+                <span>Pancake Router:</span>
+                <span className="text-[#00F0FF] font-bold">0xd74e...b38b</span>
+              </div>
+              <div className="flex items-center justify-between text-[#94a3b8]">
+                <span>Contract Call:</span>
+                <span className="text-white font-bold">swapTokensForExactTokens</span>
+              </div>
+              <div className="flex items-center justify-between text-[#94a3b8]">
+                <span>Tokens to Receive:</span>
+                <span className="text-emerald-400 font-extrabold text-sm">
+                  +{(accumulatedSpike > 0 ? accumulatedSpike : 25).toFixed(4)} SPK
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[#94a3b8]">
+                <span>Auto-Buy Est. Value:</span>
+                <span className="text-[#D4AF37] font-bold">
+                  ≈ ${((accumulatedSpike > 0 ? accumulatedSpike : 25) * 0.0345).toFixed(2)} USDT
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[#94a3b8]">
+                <span>Beneficiary Wallet:</span>
+                <span className="text-white truncate max-w-[170px]">
+                  {walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[#94a3b8] pt-1 border-t border-[#1c2b3b]/60">
+                <span>Network Fee:</span>
+                <span className="text-emerald-400 font-semibold">~0.00015 BNB ($0.09)</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-[#94a3b8] font-mono leading-relaxed">
+              When approved, the smart contract buys <strong>{(accumulatedSpike > 0 ? accumulatedSpike : 25).toFixed(2)} SPK</strong> via PancakeSwap router and transfers the tokens directly into your wallet.
+            </p>
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                onClick={() => setShowApprovalModal(false)}
+                className="flex-1 py-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#94a3b8] hover:text-white font-headline text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowApprovalModal(false);
+                  handleClaim();
+                }}
+                disabled={isAutoBuying}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] text-[#0A0F1D] font-headline font-extrabold text-xs shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:brightness-110 flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:scale-102"
+              >
+                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                <span>Approve Smart Call</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PancakeSwap Auto-Buy Claim Confirmation Modal */}
       {showClaimSuccessModal && lastAutoBuyTx && (

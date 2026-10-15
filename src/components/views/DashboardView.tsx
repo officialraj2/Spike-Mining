@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MiningNode, RewardTransaction } from '../../types';
+import { MiningNode, RewardTransaction, HashrateLevelInfo } from '../../types';
 import { SPIKE_LOGO_URL } from '../../data/mockData';
 import { TradingViewChart } from '../TradingViewChart';
 import { GoldenHawkMiningSection } from '../GoldenHawkMiningSection';
@@ -48,6 +48,7 @@ interface DashboardViewProps {
   walletBNB?: number;
   onCopyText: (text: string) => void;
   walletAddress?: string;
+  hashrateInfo?: HashrateLevelInfo | null;
   onClaimReferralBonus?: (amount: number) => void;
   onNavigateToReferrals?: () => void;
 }
@@ -69,6 +70,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   walletBNB = 0.005,
   onCopyText,
   walletAddress = '',
+  hashrateInfo,
   onClaimReferralBonus,
   onNavigateToReferrals,
 }) => {
@@ -635,10 +637,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         totalHashrate={totalHashrate}
         walletBalance={walletBalance}
         walletAddress={walletAddress}
+        hashrateInfo={hashrateInfo}
         isNodeActive={activeNodeCount > 0}
         activeNodesCount={activeNodeCount}
         onClaimReward={onClaimReferralBonus}
         onDeployMoreNodes={onOpenDeployModal}
+        onOpenDepositModal={onOpenDepositModal}
         onAutoBuySuccess={(tx, wallet, token) => {
           if (wallet) setTestnetWallet(wallet);
           if (token) setSpikeTokenInfo(token);
@@ -668,7 +672,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1">
               <span className="material-symbols-outlined text-[14px]">account_tree</span>
-              <span>15$ Project Protocol Workflow</span>
+              <span>SPIKE Mining Protocol Flow</span>
             </span>
           </div>
 
@@ -687,7 +691,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {walletBalance < 15 ? '✓' : '1'}
                 </div>
                 <div>
-                  <div className="text-xs font-bold font-headline text-white">Step 1: Deposit 5$</div>
+                  <div className="text-xs font-bold font-headline text-white">Step 1: Deposit 5 USDT</div>
                   <div className="text-[10px] text-[#94a3b8] font-mono">To Protocol Official Vault</div>
                 </div>
               </div>
@@ -701,7 +705,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
             </div>
 
-            {/* Step 2: 10$ Start Mining */}
+            {/* Step 2: 24h Harvesting & Router Buyback */}
             <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
               (nodes.some(n => n.status === 'mining') || hasPersistentMining)
                 ? 'bg-emerald-950/30 border-emerald-500/40'
@@ -714,24 +718,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {(nodes.some(n => n.status === 'mining') || hasPersistentMining) ? '✓' : '2'}
                 </div>
                 <div>
-                  <div className="text-xs font-bold font-headline text-white">Step 2: Start Mining 10$</div>
-                  <div className="text-[10px] text-[#94a3b8] font-mono">Smart Contract + PancakeSwap Buy</div>
+                  <div className="text-xs font-bold font-headline text-white">Step 2: 24h Harvesting</div>
+                  <div className="text-[10px] text-[#94a3b8] font-mono">PancakeRouter Buyback after 24h</div>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  if (nodes.length > 0 && nodes[0].status !== 'mining') {
-                    onStartNode(nodes[0].id);
-                  } else if (hasPersistentMining) {
-                    // Already active
-                  } else {
-                    onOpenDeployModal();
-                  }
-                }}
-                className="px-2.5 py-1 rounded-lg bg-[#00F0FF] hover:bg-[#7df4ff] text-[#051424] font-headline font-bold text-[11px] transition-all cursor-pointer shadow-sm shrink-0"
-              >
-                {(nodes.some(n => n.status === 'mining') || hasPersistentMining) ? 'Mining Active' : 'Start Mining'}
-              </button>
+              <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-headline font-bold text-[11px] shrink-0">
+                {(nodes.some(n => n.status === 'mining') || hasPersistentMining) ? 'Harvesting Live' : 'Starts on Deposit'}
+              </div>
             </div>
           </div>
         </div>
@@ -739,13 +732,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* 4 Metric Cards matching Image 2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        {/* Card 1: Total Hashrate */}
+        {/* Card 1: Protocol Hashrate Velocity (Image Spec: Direct Referral Tier) */}
         <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
           <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#00F0FF]/5 rounded-full blur-xl group-hover:bg-[#00F0FF]/15 transition-all"></div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">
-              Total Hashrate
-            </span>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em] block">
+                Hashrate Tier
+              </span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className={`inline-flex items-center gap-1 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full ${
+                  hashrateInfo?.isCustomOverride
+                    ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
+                    : 'bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30'
+                }`}>
+                  {hashrateInfo?.level || 'Fresh user'}
+                  {hashrateInfo?.isCustomOverride && ' (Admin Override)'}
+                </span>
+              </div>
+            </div>
             <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 flex items-center justify-center text-[#00F0FF]">
               <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                 speed
@@ -753,14 +758,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-1 tabular-nums tracking-tight">
-              {totalHashrate.toFixed(2)}{' '}
-              <span className="text-lg lg:text-xl text-[#00F0FF] font-semibold tracking-normal">TH/s</span>
+            <div className="text-3xl lg:text-[38px] leading-tight font-extrabold font-headline text-white mb-1 tabular-nums tracking-tight flex items-baseline gap-2">
+              <span>{hashrateInfo?.hashrate ?? 100}</span>
+              <span className="text-lg lg:text-xl text-[#00F0FF] font-semibold tracking-normal">VH/s</span>
+              <span className="text-xs text-[#94a3b8] font-mono font-normal">
+                ({totalHashrate > 0 ? totalHashrate.toFixed(2) : '1.25'} TH/s cluster)
+              </span>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-[#7df4ff] font-medium">
-              <span className="material-symbols-outlined text-[14px]">trending_up</span>
-              <span>+4.2% from last epoch</span>
+            <div className="flex items-center justify-between text-xs text-[#7df4ff] font-mono font-medium pt-1.5 border-t border-[#1c2b3b]/60">
+              <span className="text-emerald-400">1 SPK in {hashrateInfo?.targetDays || 60} Days</span>
+              <span className="text-[#94a3b8]">{hashrateInfo?.directCount ?? 0} Directs</span>
             </div>
+            {hashrateInfo?.nextTier && (
+              <div className="text-[10px] text-[#D4AF37] font-mono mt-1 truncate">
+                Next: {hashrateInfo.nextTier.level} ({hashrateInfo.nextTier.neededDirects} directs needed)
+              </div>
+            )}
           </div>
         </div>
 
@@ -830,9 +843,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     }
                   }}
                   className="text-xs text-[#D4AF37] hover:underline font-headline font-semibold flex items-center gap-1 transition-all group/btn cursor-pointer"
-                  title="Open PancakeSwap Sell Route: Sell SPK for USDT"
+                  title="Open PancakeSwap Sell Route: Sell up to 10% of your SPIKE balance for USDT"
                 >
-                  <span>Swap Now</span>
+                  <span>Swap Now (10% Sell Limit)</span>
                   <span className="material-symbols-outlined text-[14px] group-hover/btn:translate-x-0.5 transition-transform">
                     arrow_forward
                   </span>

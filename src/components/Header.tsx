@@ -243,46 +243,8 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </nav>
 
-        {/* Right Side: Viewport Switcher & Single Prominent DEX Swap + Connect Wallet */}
+        {/* Right Side: Single Prominent DEX Swap + Connect Wallet */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Responsive / Device Switcher */}
-          <div className="hidden xl:flex items-center bg-[#0d1d2c] p-1 rounded-xl border border-[#1c2b3b]">
-            <button
-              onClick={() => onViewModeChange('auto')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-headline tracking-wide uppercase transition-colors ${
-                viewMode === 'auto'
-                  ? 'bg-[#1c2b3b] text-[#00F0FF] font-bold shadow-sm'
-                  : 'text-[#94a3b8] hover:text-white font-medium'
-              }`}
-              title="Responsive Viewport"
-            >
-              Auto
-            </button>
-            <button
-              onClick={() => onViewModeChange('desktop')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-headline tracking-wide uppercase transition-colors ${
-                viewMode === 'desktop'
-                  ? 'bg-[#1c2b3b] text-[#00F0FF] font-bold shadow-sm'
-                  : 'text-[#94a3b8] hover:text-white font-medium'
-              }`}
-              title="Desktop Mode"
-            >
-              Desktop
-            </button>
-            <button
-              onClick={() => onViewModeChange('mobile')}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-headline tracking-wide uppercase flex items-center gap-1 transition-colors ${
-                viewMode === 'mobile'
-                  ? 'bg-[#00F0FF] text-[#0A0F1D] font-bold shadow-sm'
-                  : 'text-[#94a3b8] hover:text-white font-medium'
-              }`}
-              title="Mobile Simulator"
-            >
-              <span className="material-symbols-outlined text-[13px]">smartphone</span>
-              Mobile
-            </button>
-          </div>
-
           {/* ==========================================================
               CONNECT WALLET BUTTON (PROMINENT AT TOP / HOME MENU)
              ========================================================== */}
@@ -306,8 +268,9 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="font-mono text-white font-bold text-xs">
                     {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                   </span>
-                  <span className="font-mono text-[10px] text-[#00F0FF] tabular-nums font-semibold">
-                    {walletBalance.toFixed(2)} USDT
+                  <span className="font-mono text-[10px] text-emerald-400 tabular-nums font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                    <span>BSC (BEP-20)</span>
                   </span>
                 </div>
                 <span className="material-symbols-outlined text-[18px] text-[#94a3b8] group-hover:text-white transition-colors">
@@ -329,10 +292,6 @@ export const Header: React.FC<HeaderProps> = ({
                         </span>
                       </div>
                       <div className="text-xs font-mono text-white font-bold break-all">{walletAddress}</div>
-                      <div className="text-xs text-[#00F0FF] font-mono font-semibold pt-1 flex justify-between items-center">
-                        <span>Mining Balance:</span>
-                        <span className="text-[#00F0FF] font-bold">{walletBalance.toFixed(2)} USDT</span>
-                      </div>
                     </div>
 
                     <div className="space-y-1 pt-1 border-t border-[#1c2b3b]/60">
@@ -628,10 +587,10 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <span className="material-symbols-outlined text-[18px]">add</span>
-                      <span>Deposit 15 USDT</span>
+                      <span>Deposit 5 USDT</span>
                     </div>
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-400/20 text-emerald-400 border border-emerald-400/40 font-bold">
-                      +$15
+                      +$5
                     </span>
                   </button>
 

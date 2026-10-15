@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { MiningNode } from '../../types';
+import { MiningNode, HashrateLevelInfo } from '../../types';
 
 interface MiningNodesViewProps {
   nodes: MiningNode[];
+  hashrateInfo?: HashrateLevelInfo | null;
   onRestartNode: (nodeId: string) => void;
   onStopNode: (nodeId: string) => void;
   onStartNode: (nodeId: string) => void;
@@ -15,6 +16,7 @@ interface MiningNodesViewProps {
 
 export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
   nodes,
+  hashrateInfo,
   onRestartNode,
   onStopNode,
   onStartNode,
@@ -81,6 +83,55 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
             <span className="material-symbols-outlined text-[18px]">add</span>
             <span>Deploy New Node</span>
           </button>
+        </div>
+      </div>
+
+      {/* Protocol Hashrate Tier Telemetry (Direct Referral Based) */}
+      <div className="rounded-2xl p-4 md:p-5 bg-gradient-to-r from-[#0b1d2e] via-[#081726] to-[#050f1a] border border-[#00F0FF]/30 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/30 flex items-center justify-center text-[#00F0FF] shrink-0">
+            <span className="material-symbols-outlined text-[26px]">speed</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-white font-headline font-bold text-base md:text-lg">
+                Active Protocol Rate: <span className="text-[#00F0FF] font-mono">{hashrateInfo?.hashrate ?? 100} VH/s</span>
+              </span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                hashrateInfo?.isCustomOverride
+                  ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
+                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+              }`}>
+                {hashrateInfo?.level || 'Fresh user'}
+                {hashrateInfo?.isCustomOverride && ' · Admin Locked'}
+              </span>
+            </div>
+            <div className="text-xs text-[#94a3b8] font-mono mt-0.5 flex flex-wrap items-center gap-3">
+              <span>Target: <strong className="text-white">1 SPK in {hashrateInfo?.targetDays || 60} Days</strong></span>
+              <span>·</span>
+              <span>Directs: <strong className="text-[#00F0FF]">{hashrateInfo?.directCount ?? 0} Direct Referrals</strong></span>
+              <span>·</span>
+              <span className="text-emerald-400 font-semibold">{hashrateInfo?.requirementText || '0 referrals'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          {hashrateInfo?.nextTier && (
+            <div className="text-right text-xs font-mono bg-[#0c1d2e] px-3.5 py-2 rounded-xl border border-[#1c2b3b]">
+              <div className="text-[#D4AF37] font-bold">Next Tier: {hashrateInfo.nextTier.level} ({hashrateInfo.nextTier.hashrate} VH/s)</div>
+              <div className="text-[#94a3b8] text-[11px]">{hashrateInfo.nextTier.neededDirects} more direct referrals needed</div>
+            </div>
+          )}
+          {onNavigateToReferrals && (
+            <button
+              onClick={onNavigateToReferrals}
+              className="px-3.5 py-2 rounded-xl bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] font-mono text-xs border border-[#1c2b3b] transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <span>View Tiers</span>
+              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
+          )}
         </div>
       </div>
 

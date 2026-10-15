@@ -55,9 +55,9 @@ export const SwapModal: React.FC<SwapModalProps> = ({
       if (initialMode === 'sellSpike') {
         setFromTokenSymbol('SPIKE');
         setToTokenSymbol('USDT');
-        // Preset an appropriate amount based on available spike
-        const suggested = spikeBalance > 0 ? (spikeBalance > 100 ? '100' : spikeBalance.toString()) : '50';
-        setFromAmount(suggested);
+        // Preset max allowable 10% of SPIKE balance
+        const max10 = +(spikeBalance * 0.10).toFixed(2);
+        setFromAmount(max10 > 0 ? max10.toString() : '10');
       } else if (initialMode === 'buySpike') {
         setFromTokenSymbol('USDT');
         setToTokenSymbol('SPIKE');
@@ -126,13 +126,20 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   const exchangeRate = fromToken.rateToUsd / toToken.rateToUsd;
   const toAmount = numericFrom * exchangeRate;
 
-  // Preset Mode Selectors for maximum user-friendliness
+  const isSellSpike = fromTokenSymbol === 'SPIKE' && toTokenSymbol === 'USDT';
+  const isBuySpike = fromTokenSymbol === 'USDT' && toTokenSymbol === 'SPIKE';
+  const isBnbToSpike = fromTokenSymbol === 'BNB' && toTokenSymbol === 'SPIKE';
+
+  // Strict 10% Sell Limit policy: user can only sell up to 10% of their SPIKE balance
+  const maxSellableSpk = isSellSpike ? +(spikeBalance * 0.10).toFixed(4) : fromToken.balance;
+  const isExceeding10Percent = isSellSpike && numericFrom > maxSellableSpk;
+
   const setPresetMode = (mode: 'sellSpike' | 'buySpike' | 'bnbToSpike') => {
     if (mode === 'sellSpike') {
       setFromTokenSymbol('SPIKE');
       setToTokenSymbol('USDT');
-      const suggested = spikeBalance > 0 ? (spikeBalance > 100 ? '100' : spikeBalance.toString()) : '50';
-      setFromAmount(suggested);
+      const max10 = +(spikeBalance * 0.10).toFixed(2);
+      setFromAmount(max10 > 0 ? max10.toString() : '10');
     } else if (mode === 'buySpike') {
       setFromTokenSymbol('USDT');
       setToTokenSymbol('SPIKE');
@@ -144,22 +151,26 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     }
   };
 
-  const isSellSpike = fromTokenSymbol === 'SPIKE' && toTokenSymbol === 'USDT';
-  const isBuySpike = fromTokenSymbol === 'USDT' && toTokenSymbol === 'SPIKE';
-  const isBnbToSpike = fromTokenSymbol === 'BNB' && toTokenSymbol === 'SPIKE';
-
   const handleFlipTokens = () => {
     setFromTokenSymbol(toTokenSymbol);
     setToTokenSymbol(fromTokenSymbol);
   };
 
   const handlePercentage = (pct: number) => {
-    const val = (fromToken.balance * pct).toFixed(fromToken.symbol === 'BNB' ? 4 : 2);
-    setFromAmount(val);
+    if (isSellSpike) {
+      // Percentage of the 10% maximum sell limit (e.g. 100% of the 10% limit = 10% total balance)
+      const max10 = +(spikeBalance * 0.10);
+      const val = (max10 * pct).toFixed(2);
+      setFromAmount(val);
+    } else {
+      const val = (fromToken.balance * pct).toFixed(fromToken.symbol === 'BNB' ? 4 : 2);
+      setFromAmount(val);
+    }
   };
 
   const handleExecuteSwap = async () => {
     if (numericFrom <= 0 || numericFrom > fromToken.balance) return;
+    if (isSellSpike && isExceeding10Percent) return;
 
     setIsSwapping(true);
     setSwapTxSuccess(null);
@@ -465,35 +476,94 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               </div>
 
               {/* Quick Percentage Chips */}
-              <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-[#1c2b3b]/60">
-                <div className="text-[11px] text-[#94a3b8] font-mono">
-                  ≈ ${(numericFrom * fromToken.rateToUsd).toFixed(2)} USD
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => handlePercentage(0.25)}
-                    className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                  >
-                    25%
-                  </button>
-                  <button
-                    onClick={() => handlePercentage(0.5)}
-                    className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                  >
-                    50%
-                  </button>
-                  <button
-                    onClick={() => handlePercentage(0.75)}
-                    className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                  >
-                    75%
-                  </button>
-                  <button
-                    onClick={() => handlePercentage(1.0)}
-                    className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-[10px] text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-mono transition-colors"
-                  >
-                    MAX
-                  </button>
+              <div className="flex flex-col gap-2 pt-2.5 mt-2 border-t border-[#1c2b3b]/60">
+                {isSellSpike && (
+                  <div className={`p-2 rounded-xl text-xs font-mono flex items-center justify-between ${
+                    isExceeding10Percent
+                      ? 'bg-red-950/40 border border-red-500/50 text-red-400'
+                      : 'bg-[#D4AF37]/10 border border-[#D4AF37]/35 text-[#D4AF37]'
+                  }`}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[15px]">
+                        {isExceeding10Percent ? 'warning' : 'security'}
+                      </span>
+                      <span>
+                        {isExceeding10Percent
+                          ? `Exceeds 10% limit: Maximum sellable is ${maxSellableSpk.toFixed(2)} SPK`
+                          : `10% Sell Limit Policy: Max ${maxSellableSpk.toFixed(2)} SPK allowed`}
+                      </span>
+                    </div>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37]">
+                      10% Max
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] text-[#94a3b8] font-mono">
+                    ≈ ${(numericFrom * fromToken.rateToUsd).toFixed(2)} USD
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {isSellSpike ? (
+                      <>
+                        <button
+                          onClick={() => handlePercentage(0.25)}
+                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                          title="Sell 2.5% of SPIKE Balance"
+                        >
+                          2.5%
+                        </button>
+                        <button
+                          onClick={() => handlePercentage(0.5)}
+                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                          title="Sell 5% of SPIKE Balance"
+                        >
+                          5.0%
+                        </button>
+                        <button
+                          onClick={() => handlePercentage(0.75)}
+                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                          title="Sell 7.5% of SPIKE Balance"
+                        >
+                          7.5%
+                        </button>
+                        <button
+                          onClick={() => handlePercentage(1.0)}
+                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-[10px] text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-mono transition-colors"
+                          title="Sell Maximum Allowable 10% of SPIKE Balance"
+                        >
+                          10% (MAX)
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handlePercentage(0.25)}
+                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                        >
+                          25%
+                        </button>
+                        <button
+                          onClick={() => handlePercentage(0.5)}
+                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                        >
+                          50%
+                        </button>
+                        <button
+                          onClick={() => handlePercentage(0.75)}
+                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                        >
+                          75%
+                        </button>
+                        <button
+                          onClick={() => handlePercentage(1.0)}
+                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-[10px] text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-mono transition-colors"
+                        >
+                          MAX
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -630,7 +700,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             {/* Primary Swap Button */}
             <button
               onClick={handleExecuteSwap}
-              disabled={isSwapping || numericFrom <= 0 || numericFrom > fromToken.balance}
+              disabled={isSwapping || numericFrom <= 0 || numericFrom > fromToken.balance || isExceeding10Percent}
               className="flex-1 py-3.5 rounded-2xl font-headline font-extrabold text-xs sm:text-sm bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] shadow-[0_0_25px_rgba(212,175,55,0.45)] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.98]"
             >
               {isSwapping ? (
@@ -640,13 +710,15 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 </>
               ) : numericFrom > fromToken.balance ? (
                 <span>Insufficient {fromToken.symbol} Balance</span>
+              ) : isExceeding10Percent ? (
+                <span>Exceeds 10% Limit (Max {maxSellableSpk.toFixed(2)} SPK)</span>
               ) : numericFrom <= 0 ? (
                 <span>Enter Amount</span>
               ) : isSellSpike ? (
                 <>
                   <span className="material-symbols-outlined text-[20px] font-bold">swap_horiz</span>
                   <span>
-                    Sell {numericFrom} SPK ➔ Get {toAmount.toFixed(2)} USDT in My Wallet
+                    Sell {numericFrom} SPK (10% Limit OK) ➔ Get {toAmount.toFixed(2)} USDT
                   </span>
                 </>
               ) : (

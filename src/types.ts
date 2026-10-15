@@ -30,6 +30,26 @@ export interface LiveTxn {
   timestamp?: number;
 }
 
+export interface HashrateLevelInfo {
+  level: string; // 'Fresh user' | 'Level 1' | 'Level 2' | 'Level 3' | 'Level 4' | 'Custom Admin'
+  levelNumber: number; // 0, 1, 2, 3, 4, -1
+  hashrate: number; // in VH/s (e.g. 100, 200, 400, 600, 857.14)
+  unit: string; // 'VH/s'
+  targetDays: number; // 60, 30, 15, 10, 7
+  dailySpkYield: number; // hashrate / 6000
+  requirementText: string;
+  directCount: number;
+  totalTeamCount: number;
+  isCustomOverride: boolean;
+  nextTier?: {
+    level: string;
+    hashrate: number;
+    requirementText: string;
+    neededDirects: number;
+    neededTeam: number;
+  } | null;
+}
+
 export interface AdminUser {
   address: string;
   balanceUsdt: number;
@@ -42,6 +62,11 @@ export interface AdminUser {
   createdAt: string;
   lastActive: string;
   notes?: string;
+  customHashrate?: number | null;
+  customHashrateReason?: string;
+  directPartners?: number;
+  totalPartners?: number;
+  hashrateInfo?: HashrateLevelInfo;
 }
 
 export interface AdminSettings {

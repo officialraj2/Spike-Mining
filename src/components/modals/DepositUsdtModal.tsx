@@ -108,12 +108,12 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
     setErrorMsg(null);
     setIsSendingWeb3(true);
     setVerificationStage(1);
-    setVerificationMessage('Please confirm the transfer of 15 USDT in your connected Web3 wallet...');
+    setVerificationMessage('Please confirm the transfer of 5 USDT in your connected Web3 wallet...');
 
     try {
       const win = window as any;
       if (!win.ethereum) {
-        setErrorMsg('Web3 wallet extension (e.g. MetaMask / Trust Wallet) not detected in this browser. Please transfer 15 USDT directly and enter the transaction hash below.');
+        setErrorMsg('Web3 wallet extension (e.g. MetaMask / Trust Wallet) not detected in this browser. Please transfer 5 USDT directly and enter the transaction hash below.');
         setIsSendingWeb3(false);
         setVerificationStage(0);
         return;
@@ -255,7 +255,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
       } else if (errString.includes('gas limit too high') || errString.includes('cap: 16777216')) {
         setErrorMsg('RPC gas limit cap resolved. Gas limit locked to 100,000 gas. Please try again.');
       } else if (errString.includes('insufficient funds') || errString.includes('exceeds balance') || errString.includes('transfer amount exceeds')) {
-        setErrorMsg('Insufficient balance: Your connected wallet needs at least 15 BEP-20 USDT and a small amount of BNB for gas fees.');
+        setErrorMsg('Insufficient balance: Your connected wallet needs at least 5 BEP-20 USDT and a small amount of BNB for gas fees.');
       } else if (errString.includes('execution reverted')) {
         setErrorMsg('Transaction execution reverted by smart contract (likely insufficient BEP-20 USDT balance in wallet).');
       } else {
@@ -265,7 +265,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
     }
   };
 
-  // 2. Auto-Verify Hash on BNB Smart Chain and Add $15 to Mining Balance
+  // 2. Auto-Verify Hash on BNB Smart Chain and Add $5 to Protocol Treasury
   const handleVerifyHash = async (hashToVerify?: string) => {
     const hash = (hashToVerify || txHashInput).trim();
     if (!hash) {

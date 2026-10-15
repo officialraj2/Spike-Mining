@@ -15,6 +15,10 @@ export interface DbUser {
   createdAt: string;
   lastActive: string;
   notes?: string;
+  customHashrate?: number | null;
+  customHashrateReason?: string;
+  balanceSpk?: number;
+  miningCycleStartTime?: number;
 }
 
 export interface DbMiningNode {
@@ -645,9 +649,226 @@ class PersistentDatabase {
     };
   }
 
+  // ---- Hashrate Level Calculation (Image Spec) ----
+  // Formula: Required Hashrate = 100 * (60 / Target Days)
+  // Fresh user: 0 referrals -> 60 days -> 100 VH/s
+  // Level 1: 10 directs -> 30 days -> 200 VH/s
+  // Level 2: 100 total team -> 15 days -> 400 VH/s
+  // Level 3: 1,000 total team -> 10 days -> 600 VH/s
+  // Level 4: 5,000 total team -> 7 days -> 857.14 VH/s
+  public getUserTeamStats(userAddress: string): { directCount: number; downlineCount: number; totalTeamCount: number } {
+    const norm = (userAddress || '').toLowerCase();
+    if (!norm) return { directCount: 0, downlineCount: 0, totalTeamCount: 0 };
+
+    const directs = this.data.referrals.filter(
+      (r) => r.referrerAddress.toLowerCase() === norm
+    );
+    const directCount = directs.length;
+
+    // Multi-tier downline traversal
+    const visited = new Set<string>();
+    visited.add(norm);
+
+    let queue = directs.map((d) => d.refereeAddress.toLowerCase()).filter((a) => !visited.has(a));
+    queue.forEach((a) => visited.add(a));
+
+    let downlineCount = 0;
+    while (queue.length > 0) {
+      const nextTier: string[] = [];
+      for (const parent of queue) {
+        const subReferrals = this.data.referrals.filter((r) => r.referrerAddress.toLowerCase() === parent);
+        for (const sr of subReferrals) {
+          const child = sr.refereeAddress.toLowerCase();
+          if (!visited.has(child)) {
+            visited.add(child);
+            nextTier.push(child);
+            downlineCount++;
+          }
+        }
+      }
+      queue = nextTier;
+    }
+
+    return {
+      directCount,
+      downlineCount,
+      totalTeamCount: directCount + downlineCount,
+    };
+  }
+
+  public calculateUserHashrate(address: string) {
+    const norm = (address || '').toLowerCase();
+    const user = this.getUser(norm);
+    const { directCount, totalTeamCount } = this.getUserTeamStats(norm);
+
+    // If admin has set a custom hashrate override for this wallet address
+    if (user && typeof user.customHashrate === 'number' && user.customHashrate > 0) {
+      const customDays = +(6000 / user.customHashrate).toFixed(1);
+      return {
+        level: 'Custom Admin',
+        levelNumber: -1,
+        hashrate: user.customHashrate,
+        unit: 'VH/s',
+        targetDays: customDays,
+        dailySpkYield: +(user.customHashrate / 6000).toFixed(5),
+        requirementText: `Admin Override (${user.customHashrateReason || 'Manual Rate'})`,
+        directCount,
+        totalTeamCount,
+        isCustomOverride: true,
+        nextTier: null,
+      };
+    }
+
+    // Determine based on uploaded image rules (evaluating direct referrals and team size):
+    if (directCount >= 100 || totalTeamCount >= 5000) {
+      return {
+        level: 'Level 4',
+        levelNumber: 4,
+        hashrate: 857.14,
+        unit: 'VH/s',
+        targetDays: 7,
+        dailySpkYield: +(857.14 / 6000).toFixed(5),
+        requirementText: directCount >= 100 ? '100 direct referrals' : '5,000 total team',
+        directCount,
+        totalTeamCount,
+        isCustomOverride: false,
+        nextTier: null,
+      };
+    } else if (directCount >= 50 || totalTeamCount >= 1000) {
+      return {
+        level: 'Level 3',
+        levelNumber: 3,
+        hashrate: 600,
+        unit: 'VH/s',
+        targetDays: 10,
+        dailySpkYield: 0.1,
+        requirementText: directCount >= 50 ? '50 direct referrals' : '1,000 total team',
+        directCount,
+        totalTeamCount,
+        isCustomOverride: false,
+        nextTier: {
+          level: 'Level 4',
+          hashrate: 857.14,
+          requirementText: '100 directs or 5,000 team',
+          neededDirects: Math.max(0, 100 - directCount),
+          neededTeam: Math.max(0, 5000 - totalTeamCount),
+        },
+      };
+    } else if (directCount >= 25 || totalTeamCount >= 100) {
+      return {
+        level: 'Level 2',
+        levelNumber: 2,
+        hashrate: 400,
+        unit: 'VH/s',
+        targetDays: 15,
+        dailySpkYield: +(400 / 6000).toFixed(5),
+        requirementText: directCount >= 25 ? '25 direct referrals' : '100 total team',
+        directCount,
+        totalTeamCount,
+        isCustomOverride: false,
+        nextTier: {
+          level: 'Level 3',
+          hashrate: 600,
+          requirementText: '50 directs or 1,000 team',
+          neededDirects: Math.max(0, 50 - directCount),
+          neededTeam: Math.max(0, 1000 - totalTeamCount),
+        },
+      };
+    } else if (directCount >= 10) {
+      return {
+        level: 'Level 1',
+        levelNumber: 1,
+        hashrate: 200,
+        unit: 'VH/s',
+        targetDays: 30,
+        dailySpkYield: +(200 / 6000).toFixed(5),
+        requirementText: '10 direct referrals',
+        directCount,
+        totalTeamCount,
+        isCustomOverride: false,
+        nextTier: {
+          level: 'Level 2',
+          hashrate: 400,
+          requirementText: '25 directs or 100 team',
+          neededDirects: Math.max(0, 25 - directCount),
+          neededTeam: Math.max(0, 100 - totalTeamCount),
+        },
+      };
+    } else {
+      return {
+        level: 'Fresh user',
+        levelNumber: 0,
+        hashrate: 100,
+        unit: 'VH/s',
+        targetDays: 60,
+        dailySpkYield: +(100 / 6000).toFixed(5),
+        requirementText: '0 referrals (Base Tier)',
+        directCount,
+        totalTeamCount,
+        isCustomOverride: false,
+        nextTier: {
+          level: 'Level 1',
+          hashrate: 200,
+          requirementText: '10 direct referrals',
+          neededDirects: Math.max(0, 10 - directCount),
+          neededTeam: 0,
+        },
+      };
+    }
+  }
+
+  public setUserCustomHashrate(
+    address: string,
+    hashrate: number | null,
+    reason?: string,
+    admin = 'Admin Portal'
+  ): { success: boolean; user: DbUser; hashrateInfo: any } {
+    const norm = (address || '').toLowerCase();
+    let user = this.getUser(norm);
+    if (!user) {
+      user = this.upsertUser({ address: norm });
+    }
+
+    if (hashrate === null || isNaN(Number(hashrate)) || Number(hashrate) <= 0) {
+      delete user.customHashrate;
+      delete user.customHashrateReason;
+    } else {
+      user.customHashrate = Number(hashrate);
+      user.customHashrateReason = reason || 'Admin Override';
+    }
+    user.lastActive = new Date().toISOString();
+
+    const info = this.calculateUserHashrate(norm);
+
+    // Update active nodes for this user to reflect new hashrate
+    this.data.nodes.forEach((n) => {
+      if (n.userAddress.toLowerCase() === norm) {
+        n.hashrate = info.hashrate;
+      }
+    });
+
+    this.logAudit(
+      admin,
+      'SET_HASHRATE',
+      norm,
+      hashrate === null ? 'Reset to Referral Auto Tier' : `Set custom hashrate to ${info.hashrate} VH/s (${info.level})`
+    );
+    this.save();
+    return { success: true, user, hashrateInfo: info };
+  }
+
   // ---- Users ----
-  public getUsers(): DbUser[] {
-    return this.data.users;
+  public getUsers(): (DbUser & { directPartners: number; totalPartners: number; hashrateInfo: any })[] {
+    return this.data.users.map((u) => {
+      const stats = this.getUserTeamStats(u.address);
+      const hashrateInfo = this.calculateUserHashrate(u.address);
+      return {
+        ...u,
+        directPartners: stats.directCount,
+        totalPartners: stats.totalTeamCount,
+        hashrateInfo,
+      };
+    });
   }
 
   public getUser(address: string): DbUser | undefined {
@@ -729,7 +950,7 @@ class PersistentDatabase {
     return user;
   }
 
-  public syncUserBalance(address: string, balanceUsdt?: number, balanceBnb?: number): DbUser {
+  public syncUserBalance(address: string, balanceUsdt?: number, balanceBnb?: number, balanceSpk?: number): DbUser {
     const norm = address.toLowerCase();
     const user = this.upsertUser({ address: norm });
     if (typeof balanceUsdt === 'number' && !isNaN(balanceUsdt)) {
@@ -737,6 +958,9 @@ class PersistentDatabase {
     }
     if (typeof balanceBnb === 'number' && !isNaN(balanceBnb)) {
       user.balanceBnb = Number(balanceBnb.toFixed(4));
+    }
+    if (typeof balanceSpk === 'number' && !isNaN(balanceSpk)) {
+      user.balanceSpk = Number(balanceSpk.toFixed(4));
     }
     user.lastActive = new Date().toISOString();
     this.save();
@@ -747,17 +971,28 @@ class PersistentDatabase {
   public getNodes(userAddress?: string): DbMiningNode[] {
     if (userAddress) {
       const norm = userAddress.toLowerCase();
+      const hashrateInfo = this.calculateUserHashrate(norm);
       const userNodes = this.data.nodes.filter((n) => n.userAddress.toLowerCase() === norm);
+
+      if (userNodes.length > 0) {
+        userNodes.forEach((n) => {
+          if (n.status === 'mining') {
+            n.hashrate = hashrateInfo.hashrate;
+          }
+        });
+        return userNodes;
+      }
+
       // Ensure that if user has deposited into treasury, activated mining, or has active session, active node is never lost
       const user = this.getUser(norm);
-      if (userNodes.length === 0 && user && (user.hasActivatedMining || user.hasDepositedTreasury || user.role === 'admin')) {
+      if (user && (user.hasActivatedMining || user.hasDepositedTreasury || user.role === 'admin')) {
         const autoNode: DbMiningNode = {
           id: `spk-node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           userAddress: norm,
           name: 'SPIKE ASIC Rig #1',
           region: 'US-East (Stratum Cluster)',
           status: 'mining',
-          hashrate: this.data.settings.baseHashrateTh || 1.25,
+          hashrate: hashrateInfo.hashrate,
           temperature: 64,
           shareAcceptance: 99.98,
           fanSpeed: 75,
@@ -765,7 +1000,7 @@ class PersistentDatabase {
           uptimeDays: 1,
           algorithm: 'SHA-256 (Stratum)',
           logs: [
-            '24-Hour Mining Cycle Active · Connected to stratum pool',
+            `24-Hour Mining Cycle Active [Level: ${hashrateInfo.level} · ${hashrateInfo.hashrate} VH/s]`,
             'Stratum+SSL target diff accepted: 1048576 (hash: 00000000...a4f2)',
           ],
           costUsdt: 5.0,
@@ -988,19 +1223,22 @@ class PersistentDatabase {
     const directs = this.data.referrals.filter(
       (r) => r.referrerAddress.toLowerCase() === norm
     );
+    const teamStats = this.getUserTeamStats(norm);
+    const hashrateInfo = this.calculateUserHashrate(norm);
     const totalCommissions = directs.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
 
     const code = resolvedUser?.referralCode || `SPK-${norm.slice(2, 8).toUpperCase()}`;
 
     return {
       address: targetAddress,
-      directPartners: directs.length,
-      downlinePartners: 0,
-      totalPartners: directs.length,
+      directPartners: teamStats.directCount,
+      downlinePartners: teamStats.downlineCount,
+      totalPartners: teamStats.totalTeamCount,
       totalCommissions: +totalCommissions.toFixed(2),
       referrals: directs,
       referredBy: resolvedUser?.referredBy || null,
       referralCode: code,
+      hashrateInfo,
     };
   }
 
@@ -1386,6 +1624,8 @@ class PersistentDatabase {
       const existingUser = this.data.users.find((u) => u.address.toLowerCase() === norm);
       if (existingUser) {
         existingUser.totalMined = Number((existingUser.totalMined + exactMinedSpk).toFixed(4));
+        existingUser.balanceSpk = Number(((existingUser.balanceSpk || 0) + exactMinedSpk).toFixed(4));
+        existingUser.miningCycleStartTime = Date.now();
         existingUser.lastActive = new Date().toISOString();
       }
     }
@@ -1465,6 +1705,16 @@ class PersistentDatabase {
       token.volume24h += amountOut;
       token.buyPressure = Math.min(95, token.buyPressure + 0.1);
 
+      if (address) {
+        const norm = address.toLowerCase();
+        const existingUser = this.data.users.find((u) => u.address.toLowerCase() === norm);
+        if (existingUser) {
+          existingUser.balanceUsdt = Math.max(0, Number(((existingUser.balanceUsdt || 0) - numIn).toFixed(2)));
+          existingUser.balanceSpk = Number(((existingUser.balanceSpk || 0) + amountOut).toFixed(4));
+          existingUser.lastActive = new Date().toISOString();
+        }
+      }
+
       const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
       const tx: DbTestnetTx = {
         id: `test-tx-${Date.now()}`,
@@ -1486,6 +1736,19 @@ class PersistentDatabase {
       this.save();
       return { success: true, wallet, token, tx };
     } else {
+      // Selling SPK for USDT: ENFORCE 10% MAX SELL LIMIT
+      const currentSpkBal = wallet.testnetSpk;
+      const maxAllowedSell = +(currentSpkBal * 0.10).toFixed(4);
+      if (currentSpkBal > 0 && numIn > maxAllowedSell) {
+        return {
+          success: false,
+          wallet,
+          token,
+          tx: null as any,
+          error: `10% Max Daily Sell Limit: You can only sell up to ${maxAllowedSell} SPK (10% of your ${currentSpkBal.toFixed(2)} SPK balance) at this time.`,
+        };
+      }
+
       if (wallet.testnetSpk < numIn) {
         return { success: false, wallet, token, tx: null as any, error: 'Insufficient testnet SPK balance' };
       }
@@ -1500,6 +1763,16 @@ class PersistentDatabase {
       token.currentPrice = Number((token.poolUsdtReserve / token.poolSpkReserve).toFixed(6));
       token.volume24h += numIn;
       token.buyPressure = Math.max(70, token.buyPressure - 0.2);
+
+      if (address) {
+        const norm = address.toLowerCase();
+        const existingUser = this.data.users.find((u) => u.address.toLowerCase() === norm);
+        if (existingUser) {
+          existingUser.balanceSpk = Math.max(0, Number(((existingUser.balanceSpk || 0) - numIn).toFixed(4)));
+          existingUser.balanceUsdt = Number(((existingUser.balanceUsdt || 0) + amountOut).toFixed(2));
+          existingUser.lastActive = new Date().toISOString();
+        }
+      }
 
       const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
       const tx: DbTestnetTx = {

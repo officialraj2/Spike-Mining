@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "lastSaved": "2026-10-09T09:43:03.244Z",
+  "lastSaved": "2026-10-15T16:27:44.121Z",
   "users": [
     {
-      "address": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "address": "0x71c8a914b97e889f12a0987cb32456fa12349a2",
       "balanceUsdt": 1250,
       "balanceBnb": 0.428,
       "totalMined": 4892.45,
@@ -12,7 +12,7 @@
       "role": "admin",
       "status": "active",
       "createdAt": "2025-01-15T08:00:00.000Z",
-      "lastActive": "2026-10-08T17:13:39.708Z",
+      "lastActive": "2026-10-15T16:27:44.089Z",
       "notes": "Super Admin & Primary Validator Node Owner"
     },
     {
@@ -104,6 +104,19 @@
       "createdAt": "2026-10-09T09:26:00.800Z",
       "lastActive": "2026-10-09T09:26:00.800Z",
       "notes": ""
+    },
+    {
+      "address": "0x997e00a582b65cac1c4f9a90af6ae9a857b637aa",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-997E00",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-09T09:43:43.924Z",
+      "lastActive": "2026-10-15T14:26:59.625Z",
+      "notes": ""
     }
   ],
   "nodes": [
@@ -133,7 +146,7 @@
       "name": "Falcon Titan Apex Rig #1",
       "region": "Frankfurt (EU-Central)",
       "status": "mining",
-      "hashrate": 142.8,
+      "hashrate": 100,
       "temperature": 63,
       "shareAcceptance": 99.94,
       "fanSpeed": 74,
@@ -154,7 +167,7 @@
       "name": "Falcon Quantum Rig #2",
       "region": "Singapore (AP-East)",
       "status": "mining",
-      "hashrate": 118.4,
+      "hashrate": 100,
       "temperature": 61,
       "shareAcceptance": 99.88,
       "fanSpeed": 68,
@@ -174,7 +187,7 @@
       "name": "Falcon Micro Cluster #3",
       "region": "Virginia (US-East)",
       "status": "mining",
-      "hashrate": 86.5,
+      "hashrate": 100,
       "temperature": 58,
       "shareAcceptance": 99.91,
       "fanSpeed": 62,
@@ -301,31 +314,22 @@
   ],
   "referrals": [
     {
+      "referrerAddress": "0x997e00a582b65cac1c4f9a90af6ae9a857b637aa",
+      "refereeAddress": "0xf0523daad388",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "id": "ref-1792080952746-818",
+      "createdAt": "2026-10-15T16:15:52.746Z"
+    },
+    {
       "id": "ref-bc5d-3806",
       "referrerAddress": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
       "refereeAddress": "0x38069663d6408dff184bafc65e247e37ae84a1c2",
       "tier": 1,
-      "commissionUsdt": 15,
+      "commissionUsdt": 0,
       "volumeUsdt": 150,
       "createdAt": "2026-10-09T08:22:38.726Z"
-    },
-    {
-      "id": "ref-1",
-      "referrerAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
-      "refereeAddress": "0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239",
-      "tier": 1,
-      "commissionUsdt": 64.02,
-      "volumeUsdt": 640.2,
-      "createdAt": "2025-02-10T12:30:00.000Z"
-    },
-    {
-      "id": "ref-2",
-      "referrerAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
-      "refereeAddress": "0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08",
-      "tier": 1,
-      "commissionUsdt": 32,
-      "volumeUsdt": 320,
-      "createdAt": "2025-02-28T16:15:00.000Z"
     }
   ],
   "announcements": [
@@ -353,9 +357,17 @@
   "settings": {
     "turboMultiplier": 10,
     "dailyYieldPercent": 3.88,
+    "baseHashrateTh": 1.25,
+    "miningCycleHours": 24,
+    "dailyRewardSpk": 35,
+    "minDepositUsdt": 5,
+    "pancakeRouterAddress": "0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b",
+    "testnetFastCycleEnabled": true,
     "maintenanceMode": false,
     "stratumPoolUrl": "stratum+tcp://pool.spikenodes.com:443",
     "bscContractAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+    "treasuryWalletAddress": "0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7",
+    "treasuryBalanceUsdt": 24850,
     "minWithdrawalUsdt": 5,
     "autoPayoutEnabled": true,
     "updatedAt": "2026-10-08T17:13:39.708Z",
@@ -366,10 +378,73 @@
     "rpcUrl": "https://rpc.spikenodes.com",
     "telegramUrl": "https://t.me/spikenodes",
     "twitterUrl": "https://x.com/spikenodes",
-    "supportEmail": "contact@spikenodes.com",
-    "pancakeRouterAddress": "0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b"
+    "supportEmail": "contact@spikenodes.com"
   },
   "auditLogs": [
+    {
+      "id": "audit-1792081664087-962",
+      "adminUser": "Admin Portal",
+      "action": "SET_HASHRATE",
+      "target": "0x71c8a914b97e889f12a0987cb32456fa12349a2",
+      "details": "Reset to Referral Auto Tier",
+      "timestamp": "2026-10-15T16:27:44.087Z"
+    },
+    {
+      "id": "audit-1792081664071-27",
+      "adminUser": "Admin Portal",
+      "action": "SET_HASHRATE",
+      "target": "0x71c8a914b97e889f12a0987cb32456fa12349a2",
+      "details": "Set custom hashrate to 600 VH/s (Custom Admin)",
+      "timestamp": "2026-10-15T16:27:44.071Z"
+    },
+    {
+      "id": "audit-1792081126685-143",
+      "adminUser": "Admin Portal",
+      "action": "SET_HASHRATE",
+      "target": "0x71c8a914b97e889f12a0987cb32456fa12349a2",
+      "details": "Reset to Referral Auto Tier",
+      "timestamp": "2026-10-15T16:18:46.686Z"
+    },
+    {
+      "id": "audit-1792081122440-619",
+      "adminUser": "Admin Portal",
+      "action": "SET_HASHRATE",
+      "target": "0x71c8a914b97e889f12a0987cb32456fa12349a2",
+      "details": "Set custom hashrate to 400 VH/s (Custom Admin)",
+      "timestamp": "2026-10-15T16:18:42.440Z"
+    },
+    {
+      "id": "audit-1791540235117-818",
+      "adminUser": "SYSTEM_VERIFIER",
+      "action": "DEPOSIT_VERIFIED",
+      "target": "0x71c8a914b97e889f12a0987cb32456fa12349a2",
+      "details": "Hash: 0x88888888888888... | Amount: +15 USDT | Official: 0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7",
+      "timestamp": "2026-10-09T10:03:55.117Z"
+    },
+    {
+      "id": "audit-1791539564141-716",
+      "adminUser": "SYSTEM_VERIFIER",
+      "action": "DEPOSIT_VERIFIED",
+      "target": "0x1111111111111111111111111111111111111111",
+      "details": "Hash: 0xtestvalidation... | Amount: +15 USDT | Official: 0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7",
+      "timestamp": "2026-10-09T09:52:44.141Z"
+    },
+    {
+      "id": "audit-1791539564141-783",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x1111111111111111111111111111111111111111",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-09T09:52:44.141Z"
+    },
+    {
+      "id": "audit-1791539023924-596",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x997e00a582b65cac1c4f9a90af6ae9a857b637aa",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-09T09:43:43.924Z"
+    },
     {
       "id": "audit-1791538957868-946",
       "adminUser": "SYSTEM_VERIFIER",
@@ -474,5 +549,64 @@
       "details": "Database initialized with persistent ACID JSON engine and schema v1.",
       "timestamp": "2026-10-08T17:13:39.708Z"
     }
-  ]
+  ],
+  "testnetWallets": [
+    {
+      "address": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "testnetUsdt": 1000,
+      "testnetSpk": 250,
+      "autoBuyEnabled": true,
+      "slippageTolerance": 0.5,
+      "totalHarvestAutoBoughtSpk": 125,
+      "totalUsdtSpentOnAutoBuy": 4.31,
+      "lastAutoBuyAt": "2026-10-15T13:26:51.961Z"
+    }
+  ],
+  "testnetTransactions": [
+    {
+      "id": "test-tx-init-1",
+      "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "txHash": "0x7f3e829a1b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2",
+      "type": "harvest_autobuy",
+      "spkAmount": 25,
+      "usdtAmount": 0.8625,
+      "priceUsdt": 0.0345,
+      "status": "Confirmed",
+      "blockNumber": 42918490,
+      "gasFeeBnb": 0.00012,
+      "details": "PancakeRouter.swapTokensForExactTokens(amountOut=25 SPK, maxIn=0.87 USDT)",
+      "timestamp": "2026-10-15T12:26:51.961Z"
+    },
+    {
+      "id": "test-tx-init-2",
+      "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
+      "txHash": "0x81b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c27f3e829a",
+      "type": "faucet",
+      "spkAmount": 100,
+      "usdtAmount": 1000,
+      "priceUsdt": 0.0345,
+      "status": "Confirmed",
+      "blockNumber": 42918400,
+      "gasFeeBnb": 0,
+      "details": "Testnet Faucet Initial Allocation (+1000 tUSDT, +100 SPK)",
+      "timestamp": "2026-10-15T09:26:51.961Z"
+    }
+  ],
+  "testnetSpikeToken": {
+    "name": "SPIKE",
+    "symbol": "SPK",
+    "totalSupply": 50000000,
+    "circulatingSupply": 12450000,
+    "decimals": 18,
+    "contractAddress": "0x96F86413D8E5d15ecE42E136CC8112c01b9A7306",
+    "pair": "SPIKE / USDT",
+    "poolSpkReserve": 2500000,
+    "poolUsdtReserve": 86250,
+    "currentPrice": 0.0345,
+    "volume24h": 1420000,
+    "high24h": 0.0382,
+    "low24h": 0.0315,
+    "change24h": 8.42,
+    "buyPressure": 86.5
+  }
 }

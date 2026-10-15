@@ -385,3 +385,21 @@
   animation: shiningShimmer 4.5s linear infinite;
   filter: drop-shadow(0 0 16px rgba(212, 175, 55, 0.4)) drop-shadow(0 0 28px rgba(0, 240, 255, 0.25));
 }
+
+/* Animated Golden Shine Button for Harvest Unlock */
+@keyframes harvestGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.6), 0 0 40px rgba(0, 240, 255, 0.4), inset 0 0 12px rgba(255, 255, 255, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(212, 175, 55, 0.95), 0 0 65px rgba(0, 240, 255, 0.7), inset 0 0 22px rgba(255, 255, 255, 0.85);
+    transform: scale(1.025);
+  }
+}
+
+.animate-harvest-shine {
+  background-size: 200% auto;
+  background-image: linear-gradient(110deg, #D4AF37 0%, #fff0a8 25%, #ffffff 50%, #00F0FF 75%, #D4AF37 100%);
+  animation: harvestGlowPulse 2.2s ease-in-out infinite, shiningShimmer 3.5s linear infinite;
+}

@@ -96,6 +96,85 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [treasuryAddressInput, setTreasuryAddressInput] = useState('0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7');
   const [isSavingTreasury, setIsSavingTreasury] = useState(false);
 
+  // Dedicated Hashrate Controller State (Per Image Spec)
+  const [hashrateModalUser, setHashrateModalUser] = useState<AdminUser | null>(null);
+  const [targetHashrateAddr, setTargetHashrateAddr] = useState<string>('');
+  const [selectedHashratePreset, setSelectedHashratePreset] = useState<number>(100);
+  const [customHashrateVal, setCustomHashrateVal] = useState<string>('100');
+  const [hashrateChangeReason, setHashrateChangeReason] = useState<string>('Hashrate level adjustment');
+  const [isUpdatingHashrate, setIsUpdatingHashrate] = useState<boolean>(false);
+  const [hashrateBannerMsg, setHashrateBannerMsg] = useState<{
+    address: string;
+    level: string;
+    hashrate: number;
+    days: number;
+  } | null>(null);
+
+  const HASHRATE_LEVEL_TIERS = [
+    { level: 'Fresh user', directs: '0 referrals', targetDays: 60, hashrate: 100, desc: '100 VH/s · 1 SPK in 60 days' },
+    { level: 'Level 1', directs: '10 directs', targetDays: 30, hashrate: 200, desc: '200 VH/s · 1 SPK in 30 days' },
+    { level: 'Level 2', directs: '100 total team', targetDays: 15, hashrate: 400, desc: '400 VH/s · 1 SPK in 15 days' },
+    { level: 'Level 3', directs: '1,000 total team', targetDays: 10, hashrate: 600, desc: '600 VH/s · 1 SPK in 10 days' },
+    { level: 'Level 4', directs: '5,000 total team', targetDays: 7, hashrate: 857.14, desc: '857.14 VH/s · 1 SPK in 7 days' },
+  ];
+
+  const handleSaveUserHashrate = async (address: string, hashrateVal: number | null, reasonStr: string) => {
+    const cleanAddr = (address || '').trim().toLowerCase();
+    if (!cleanAddr) {
+      onNotify?.('Error', 'Please provide a valid wallet address', 'error');
+      return;
+    }
+    setIsUpdatingHashrate(true);
+    try {
+      const res = await fetch(`/api/admin/users/${cleanAddr}/hashrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hashrate: hashrateVal,
+          reason: reasonStr,
+          adminUser: 'Admin Portal',
+        }),
+      });
+      const data = await safeJsonParse(res);
+      if (data?.success) {
+        const info = data.hashrateInfo;
+        try {
+          window.dispatchEvent(
+            new CustomEvent('spike_hashrate_updated', {
+              detail: {
+                address: cleanAddr,
+                hashrateInfo: info,
+              },
+            })
+          );
+          localStorage.setItem(`spike_hashrate_${cleanAddr}`, JSON.stringify(info));
+          localStorage.setItem('spike_hashrate_info', JSON.stringify(info));
+        } catch {}
+
+        setHashrateBannerMsg({
+          address: cleanAddr,
+          level: info?.level || 'Custom',
+          hashrate: info?.hashrate || Number(hashrateVal),
+          days: info?.targetDays || 60,
+        });
+        onNotify?.(
+          'Hashrate Updated',
+          `Wallet ${cleanAddr.slice(0, 8)}... hashrate set to ${info?.hashrate || hashrateVal} VH/s (${info?.level || 'Custom'})`,
+          'success'
+        );
+        fetchAllData(true);
+        setHashrateModalUser(null);
+        setTimeout(() => setHashrateBannerMsg(null), 6000);
+      } else {
+        onNotify?.('Error', data?.error || 'Failed to update hashrate', 'error');
+      }
+    } catch (err: any) {
+      onNotify?.('Error', err?.message || 'Network error updating hashrate', 'error');
+    } finally {
+      setIsUpdatingHashrate(false);
+    }
+  };
+
   // Fetch full admin dashboard data from backend API
   const fetchAllData = useCallback(async (quiet = false) => {
     if (!quiet) setIsRefreshing(true);
@@ -1839,8 +1918,182 @@ export const AdminView: React.FC<AdminViewProps> = ({
           TAB CONTENT 2: USER & WALLET MANAGEMENT
          ============================================================ */}
       {activeSubTab === 'users' && (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-6">
+          {/* Hashrate Notification Banner */}
+          {hashrateBannerMsg && (
+            <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 flex items-center justify-between text-xs font-mono text-emerald-300 shadow-lg animate-fade-in">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-400 text-[18px]">verified</span>
+                <span>
+                  Hashrate for <strong>{hashrateBannerMsg.address}</strong> updated to{' '}
+                  <span className="text-[#00F0FF] font-bold">{hashrateBannerMsg.hashrate} VH/s</span> ({hashrateBannerMsg.level}) · 1 SPIKE in {hashrateBannerMsg.days} days!
+                </span>
+              </div>
+              <button
+                onClick={() => setHashrateBannerMsg(null)}
+                className="text-gray-400 hover:text-white cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            </div>
+          )}
+
+          {/* ============================================================
+              DEDICATED PROTOCOL HASHRATE CONTROLLER (PER IMAGE SPEC)
+             ============================================================ */}
+          <div className="bg-[#0a1826] border-2 border-[#00F0FF]/40 rounded-2xl p-5 md:p-6 space-y-5 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[#1c2b3b] pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#00F0FF] text-[22px]">speed</span>
+                  <h3 className="text-base font-bold font-headline text-white">
+                    Protocol Mining Hashrate &amp; Referral Tier Controller
+                  </h3>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30 font-mono">
+                    VH/s Engine
+                  </span>
+                </div>
+                <p className="text-xs text-[#94a3b8] mt-1">
+                  Formula: <code className="text-[#00F0FF] font-bold">Required Hashrate = 100 × (60 / Target Days)</code>. Direct referrals aur team size se user ka speed automatically upgrade hota hai, ya admin kisi bhi address ka custom hashrate lock kar sakta hai.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] font-mono text-[#D4AF37] bg-[#D4AF37]/10 px-2.5 py-1 rounded-lg border border-[#D4AF37]/30">
+                  Base: 100 VH/s (60d)
+                </span>
+                <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/30">
+                  Max: 857.14 VH/s (7d)
+                </span>
+              </div>
+            </div>
+
+            {/* 5-Level Reference Matrix Matching Image */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {HASHRATE_LEVEL_TIERS.map((tier, idx) => (
+                <div
+                  key={tier.level}
+                  onClick={() => {
+                    setSelectedHashratePreset(tier.hashrate);
+                    setCustomHashrateVal(String(tier.hashrate));
+                  }}
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                    selectedHashratePreset === tier.hashrate
+                      ? 'bg-[#00F0FF]/15 border-[#00F0FF] shadow-[0_0_15px_rgba(0,240,255,0.25)]'
+                      : 'bg-[#0d1d2c] border-[#1c2b3b] hover:border-[#00F0FF]/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[11px] font-bold font-headline">
+                    <span className="text-white">{tier.level}</span>
+                    <span className="text-[#00F0FF] font-mono">{tier.hashrate} VH/s</span>
+                  </div>
+                  <div className="text-[10px] text-[#D4AF37] font-mono mt-1 font-semibold">
+                    {tier.directs}
+                  </div>
+                  <div className="text-[10px] text-emerald-400 font-mono mt-0.5">
+                    1 SPK in {tier.targetDays} days
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Target Address Control Form */}
+            <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] space-y-4">
+              <div className="text-xs font-mono font-bold text-white flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">tune</span>
+                <span>Override Hashrate for Specific Wallet Address</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs font-mono">
+                {/* Address Input / Select */}
+                <div className="md:col-span-5 space-y-1">
+                  <label className="text-[#94a3b8] text-[11px]">Target Wallet Address</label>
+                  <input
+                    type="text"
+                    placeholder="0x... paste BEP-20 address"
+                    value={targetHashrateAddr}
+                    onChange={(e) => setTargetHashrateAddr(e.target.value)}
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono placeholder-gray-500 focus:outline-none focus:border-[#00F0FF]"
+                  />
+                  {users.length > 0 && (
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setTargetHashrateAddr(e.target.value);
+                          const sel = users.find((u) => u.address.toLowerCase() === e.target.value.toLowerCase());
+                          if (sel?.hashrateInfo?.hashrate) {
+                            setSelectedHashratePreset(sel.hashrateInfo.hashrate);
+                            setCustomHashrateVal(String(sel.hashrateInfo.hashrate));
+                          }
+                        }
+                      }}
+                      className="w-full bg-[#071322] border border-[#1c2b3b] rounded-lg px-2 py-1 text-[10px] text-[#94a3b8] mt-1"
+                    >
+                      <option value="">Quick select from registered users ({users.length})...</option>
+                      {users.map((u) => (
+                        <option key={u.address} value={u.address}>
+                          {u.address.slice(0, 10)}...{u.address.slice(-6)} - {u.hashrateInfo?.level || 'Fresh'} ({u.hashrateInfo?.hashrate || 100} VH/s)
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Hashrate Value */}
+                <div className="md:col-span-3 space-y-1">
+                  <label className="text-[#94a3b8] text-[11px]">Hashrate (VH/s units)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    placeholder="e.g. 200"
+                    value={customHashrateVal}
+                    onChange={(e) => {
+                      setCustomHashrateVal(e.target.value);
+                      setSelectedHashratePreset(Number(e.target.value));
+                    }}
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-[#00F0FF] font-mono font-bold focus:outline-none focus:border-[#00F0FF]"
+                  />
+                  <div className="text-[10px] text-gray-400">
+                    Target: 1 SPK in {Number(customHashrateVal) > 0 ? +(6000 / Number(customHashrateVal)).toFixed(1) : 60} days
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div className="md:col-span-4 space-y-1">
+                  <label className="text-[#94a3b8] text-[11px]">Reason / Note</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Tier qualification grant"
+                    value={hashrateChangeReason}
+                    onChange={(e) => setHashrateChangeReason(e.target.value)}
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono placeholder-gray-500 focus:outline-none focus:border-[#00F0FF]"
+                  />
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={isUpdatingHashrate || !targetHashrateAddr.trim()}
+                      onClick={() => handleSaveUserHashrate(targetHashrateAddr, Number(customHashrateVal) || 100, hashrateChangeReason)}
+                      className="flex-1 py-1.5 px-3 rounded-lg bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm flex items-center justify-center gap-1"
+                    >
+                      {isUpdatingHashrate ? 'Saving...' : 'Apply Hashrate'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isUpdatingHashrate || !targetHashrateAddr.trim()}
+                      onClick={() => handleSaveUserHashrate(targetHashrateAddr, null, 'Reset to auto-calculated tier')}
+                      className="py-1.5 px-3 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#94a3b8] hover:text-white font-mono text-[11px] disabled:opacity-40 cursor-pointer"
+                      title="Reset to referral calculation"
+                    >
+                      Reset Auto
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
             <div className="relative flex-1 max-w-md">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-[#94a3b8]">
                 search
@@ -1865,10 +2118,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <thead>
                   <tr className="bg-[#122130] text-[#94a3b8] border-b border-[#1c2b3b]">
                     <th className="p-4">Wallet Address</th>
+                    <th className="p-4">Directs / Team</th>
+                    <th className="p-4">Mining Hashrate</th>
+                    <th className="p-4">1 SPK Time</th>
                     <th className="p-4">Balance (USDT)</th>
                     <th className="p-4">Gas (BNB)</th>
-                    <th className="p-4">Total Mined</th>
-                    <th className="p-4">Role / Status</th>
+                    <th className="p-4">Status</th>
                     <th className="p-4">Ref Code</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
@@ -1888,16 +2143,37 @@ export const AdminView: React.FC<AdminViewProps> = ({
                         <div className="text-[10px] text-[#94a3b8]">Joined: {new Date(user.createdAt).toLocaleDateString()}</div>
                       </td>
 
+                      <td className="p-4">
+                        <div className="text-white font-bold">{user.directPartners ?? 0} Directs</div>
+                        <div className="text-[10px] text-[#D4AF37] font-semibold">{user.totalPartners ?? 0} Total Team</div>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
+                            {user.hashrateInfo?.hashrate || user.customHashrate || 100} VH/s
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-emerald-400 font-semibold mt-0.5">
+                          {user.hashrateInfo?.level || 'Fresh user'}
+                        </div>
+                        {user.customHashrate && (
+                          <span className="text-[9px] text-[#D4AF37] block font-mono">
+                            Admin Lock
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="p-4 text-white font-bold font-mono">
+                        {user.hashrateInfo?.targetDays || 60} Days
+                      </td>
+
                       <td className="p-4 text-white font-bold tabular-nums">
                         ${user.balanceUsdt.toFixed(2)}
                       </td>
 
                       <td className="p-4 text-amber-400 font-bold tabular-nums">
                         {user.balanceBnb.toFixed(4)} BNB
-                      </td>
-
-                      <td className="p-4 text-emerald-400 font-bold tabular-nums">
-                        ${user.totalMined.toFixed(2)}
                       </td>
 
                       <td className="p-4">
@@ -1922,14 +2198,27 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       </td>
 
                       <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => {
+                              setHashrateModalUser(user);
+                              setCustomHashrateVal(String(user.hashrateInfo?.hashrate || user.customHashrate || 100));
+                              setSelectedHashratePreset(user.hashrateInfo?.hashrate || user.customHashrate || 100);
+                            }}
+                            className="px-2 py-1.5 rounded-lg bg-[#D4AF37]/15 hover:bg-[#D4AF37]/25 text-[#D4AF37] border border-[#D4AF37]/30 text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer"
+                            title="Set Hashrate for Wallet"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">speed</span>
+                            Hashrate
+                          </button>
+
                           <button
                             onClick={() => {
                               setAdjustModalUser(user);
                               setAdjustAmount(50);
                               setAdjustType('credit');
                             }}
-                            className="px-2.5 py-1.5 rounded-lg bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 text-[#00F0FF] border border-[#00F0FF]/30 text-[11px] font-semibold transition-all flex items-center gap-1"
+                            className="px-2 py-1.5 rounded-lg bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 text-[#00F0FF] border border-[#00F0FF]/30 text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer"
                             title="Credit or Debit Balance in DB"
                           >
                             <span className="material-symbols-outlined text-[14px]">tune</span>
@@ -1938,7 +2227,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
                           <button
                             onClick={() => handleToggleUserStatus(user)}
-                            className={`p-1.5 rounded-lg border text-[11px] transition-all ${
+                            className={`p-1.5 rounded-lg border text-[11px] transition-all cursor-pointer ${
                               user.status === 'active'
                                 ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30'
                                 : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
@@ -2723,6 +3012,135 @@ export const AdminView: React.FC<AdminViewProps> = ({
               >
                 Confirm in DB
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================
+          MODAL: SET USER HASHRATE (IMAGE SPECIFICATION)
+         ============================================================ */}
+      {hashrateModalUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#0d1d2c] rounded-2xl max-w-lg w-full border border-[#00F0FF]/40 p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#00F0FF]">speed</span>
+                <h3 className="text-lg font-bold font-headline text-white">Set Wallet Hashrate Level</h3>
+              </div>
+              <button
+                onClick={() => setHashrateModalUser(null)}
+                className="text-[#94a3b8] hover:text-white cursor-pointer"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="text-xs font-mono space-y-1.5 p-3 rounded-xl bg-[#071322] border border-[#1c2b3b]">
+              <div className="text-[#94a3b8]">Target Wallet:</div>
+              <div className="text-[#00F0FF] font-bold break-all">{hashrateModalUser.address}</div>
+              <div className="flex items-center gap-3 pt-1 text-[11px]">
+                <span className="text-white font-bold">{hashrateModalUser.directPartners || 0} Directs</span>
+                <span className="text-[#94a3b8]">·</span>
+                <span className="text-[#D4AF37] font-bold">{hashrateModalUser.totalPartners || 0} Total Team</span>
+                <span className="text-[#94a3b8]">·</span>
+                <span className="text-emerald-400 font-bold">Current: {hashrateModalUser.hashrateInfo?.hashrate || 100} VH/s</span>
+              </div>
+            </div>
+
+            {/* Presets Grid */}
+            <div className="space-y-2">
+              <label className="text-[11px] text-[#94a3b8] font-mono">Select Level Preset (Image Formula):</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                {HASHRATE_LEVEL_TIERS.map((tier) => (
+                  <button
+                    key={tier.level}
+                    type="button"
+                    onClick={() => {
+                      setSelectedHashratePreset(tier.hashrate);
+                      setCustomHashrateVal(String(tier.hashrate));
+                    }}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      Number(customHashrateVal) === tier.hashrate
+                        ? 'bg-[#00F0FF]/15 border-[#00F0FF] text-white shadow-sm'
+                        : 'bg-[#122130] border-[#1c2b3b] text-[#94a3b8] hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between font-bold">
+                      <span className="text-white">{tier.level}</span>
+                      <span className="text-[#00F0FF]">{tier.hashrate} VH/s</span>
+                    </div>
+                    <div className="text-[10px] text-[#D4AF37] mt-0.5">{tier.directs}</div>
+                    <div className="text-[10px] text-emerald-400">1 SPK in {tier.targetDays} days</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs font-mono">
+              <div>
+                <label className="block text-[#94a3b8] mb-1">Custom Hashrate (VH/s units)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1"
+                  value={customHashrateVal}
+                  onChange={(e) => setCustomHashrateVal(e.target.value)}
+                  className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-[#00F0FF] font-bold text-sm focus:outline-none focus:border-[#00F0FF]"
+                />
+                <div className="text-[10px] text-[#94a3b8] mt-1">
+                  1 SPIKE mine hone ka time:{' '}
+                  <span className="text-white font-bold">
+                    {Number(customHashrateVal) > 0 ? +(6000 / Number(customHashrateVal)).toFixed(1) : 60} days
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[#94a3b8] mb-1">Reason / Admin Note</label>
+                <input
+                  type="text"
+                  value={hashrateChangeReason}
+                  onChange={(e) => setHashrateChangeReason(e.target.value)}
+                  placeholder="e.g. VIP hashrate upgrade"
+                  className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#00F0FF]"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isUpdatingHashrate}
+                onClick={() => handleSaveUserHashrate(hashrateModalUser.address, null, 'Reset to auto-calculated tier')}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#1c2b3b] hover:bg-[#273647] text-[#94a3b8] hover:text-white font-mono text-xs cursor-pointer"
+                title="Remove custom lock and calculate from referrals"
+              >
+                Reset to Auto Tier
+              </button>
+              <div className="flex-1 w-full flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHashrateModalUser(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#94a3b8] font-mono text-xs cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdatingHashrate || !Number(customHashrateVal)}
+                  onClick={() =>
+                    handleSaveUserHashrate(
+                      hashrateModalUser.address,
+                      Number(customHashrateVal) || 100,
+                      hashrateChangeReason
+                    )
+                  }
+                  className="flex-1 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline text-xs font-bold shadow-[0_0_15px_rgba(0,240,255,0.3)] disabled:opacity-40 cursor-pointer"
+                >
+                  {isUpdatingHashrate ? 'Saving...' : 'Apply Hashrate'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
