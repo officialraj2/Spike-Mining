@@ -252,11 +252,16 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
         setSmartCallStatus('broadcasting');
         setSmartCallMessage('Broadcasting affiliation smart call to BSC Stratum validator cluster...');
 
-        const tx = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-        setSmartCallTx(tx);
+        const isCurrentWalletSponsor = Boolean(
+          currentWallet &&
+          sponsorDetails?.address &&
+          currentWallet.toLowerCase() === sponsorDetails.address.toLowerCase()
+        );
 
-        // Connect wallet in applet without forcing tab switch
-        await onConnectWallet(provider, account, true);
+        // Only switch active wallet if the visitor is not the sponsor testing their own link
+        if (!isCurrentWalletSponsor) {
+          await onConnectWallet(provider, account, true);
+        }
 
         // Execute registration on backend & increment sponsor partner count
         const ok = await onBindSponsor(targetSponsor, account);
@@ -290,8 +295,16 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
       const tx = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
       setSmartCallTx(tx);
 
-      // Connect wallet in applet without forcing tab switch
-      await onConnectWallet('smart_call', finalAddr, true);
+      const isCurrentWalletSponsor = Boolean(
+        currentWallet &&
+        sponsorDetails?.address &&
+        currentWallet.toLowerCase() === sponsorDetails.address.toLowerCase()
+      );
+
+      // Only switch active wallet if visitor is not the sponsor testing their own link
+      if (!isCurrentWalletSponsor) {
+        await onConnectWallet('smart_call', finalAddr, true);
+      }
 
       // Bind sponsor & count partner
       const ok = await onBindSponsor(targetSponsor, finalAddr);

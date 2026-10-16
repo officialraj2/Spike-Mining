@@ -1501,18 +1501,29 @@ class PersistentDatabase {
   }
 
   public simulateReferral(referrerAddress: string): { referral: DbReferral; commissionAdded: number } {
-    const randomHex = Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-    const randomHexEnd = Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-    const referee = `0x${randomHex}${Date.now().toString(16).slice(-4)}${randomHexEnd}`;
+    let cleanRef = (referrerAddress || '').trim();
+    const user = this.findUserByReferralCodeOrAddress(cleanRef);
+    const finalReferrerAddr = user ? user.address : (cleanRef.startsWith('0x') ? cleanRef : '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
+
+    const chars = '0123456789abcdef';
+    let randAddr = '0x';
+    for (let i = 0; i < 40; i++) randAddr += chars[Math.floor(Math.random() * chars.length)];
+
+    this.upsertUser({
+      address: randAddr,
+      referralCode: `SPK-${randAddr.slice(2, 8).toUpperCase()}`,
+      referredBy: finalReferrerAddr,
+    });
 
     const newRef = this.createReferral({
-      referrerAddress,
-      refereeAddress: referee,
+      referrerAddress: finalReferrerAddr,
+      refereeAddress: randAddr,
       tier: 1,
       commissionUsdt: 0,
       volumeUsdt: 150.0,
     });
 
+    this.save();
     return { referral: newRef, commissionAdded: 0 };
   }
 

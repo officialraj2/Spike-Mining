@@ -1049,6 +1049,10 @@ export default function App() {
       } catch {}
       if (data && data.success) {
         setReferralStats(data.stats);
+        try {
+          localStorage.setItem(`spike_referral_stats_${walletAddress.toLowerCase()}`, JSON.stringify(data.stats));
+        } catch {}
+        window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
         addToast('Referral Joined!', `+1 Partner joined via your link! Counted toward your Team Milestones.`, 'success');
       }
     } catch {
@@ -1217,7 +1221,7 @@ export default function App() {
       .reduce((acc, n) => acc + (n.hashrate * 39), 0);
     setDailyEarnings(+activeYield.toFixed(2));
 
-    // Initial Referral stats check (never reset verified referrer to 0)
+    // Initial Referral stats check (read cache first for zero latency)
     let initRefStats: any = {
       directPartners: 0,
       downlinePartners: 0,
@@ -1226,32 +1230,24 @@ export default function App() {
       referrals: [],
       referredBy: null,
     };
-    if (norm === '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21'.toLowerCase()) {
-      initRefStats = {
-        directPartners: 1,
-        downlinePartners: 0,
-        totalPartners: 1,
-        totalCommissions: 0,
-        referrals: [
-          {
-            id: 'ref-bc5d-3806',
-            referrerAddress: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
-            refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
-            tier: 1,
-            commissionUsdt: 0,
-            volumeUsdt: 150.0,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-        referredBy: null,
-      };
-    } else {
-      try {
-        const cachedRef = localStorage.getItem(`spike_referral_stats_${norm}`);
-        if (cachedRef) initRefStats = JSON.parse(cachedRef);
-      } catch {}
-    }
+    try {
+      const cachedRef = localStorage.getItem(`spike_referral_stats_${norm}`);
+      if (cachedRef) initRefStats = JSON.parse(cachedRef);
+    } catch {}
     setReferralStats(initRefStats);
+
+    // Immediately fetch fresh on-chain referral stats from server for this wallet
+    fetch(`/api/referrals/stats/${finalAddress}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.stats) {
+          setReferralStats(d.stats);
+          try {
+            localStorage.setItem(`spike_referral_stats_${norm}`, JSON.stringify(d.stats));
+          } catch {}
+        }
+      })
+      .catch(() => {});
 
     setIsWalletConnected(true);
     setWalletAddress(finalAddress);

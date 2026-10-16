@@ -81,14 +81,62 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const [bindingSponsor, setBindingSponsor] = useState(false);
   const [bindMessage, setBindMessage] = useState<string | null>(null);
 
-  // Real-time calculated partners state
-  const directPartners = referralStats?.directPartners ?? 0;
-  const downlinePartners = referralStats?.downlinePartners ?? 0;
+  // Local real-time synchronized stats
+  const [localStats, setLocalStats] = useState<ReferralStatsData | null>(referralStats || null);
+  const [isSyncingStats, setIsSyncingStats] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (referralStats) {
+      setLocalStats(referralStats);
+    }
+  }, [referralStats]);
+
+  // Real-time synchronization callback with backend stratum database
+  const refreshLiveStats = React.useCallback(async () => {
+    if (!walletAddress || !walletAddress.startsWith('0x')) return;
+    try {
+      const res = await fetch(`/api/referrals/stats/${walletAddress}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.stats) {
+          setLocalStats(data.stats);
+          try {
+            localStorage.setItem(`spike_referral_stats_${walletAddress.toLowerCase()}`, JSON.stringify(data.stats));
+          } catch {}
+        }
+      }
+    } catch {}
+  }, [walletAddress]);
+
+  // Auto-sync on mount, on wallet change, on window focus, and on background periodic intervals
+  useEffect(() => {
+    refreshLiveStats();
+
+    // Fast live poll every 3 seconds so partners joining reflect smoothly
+    const interval = setInterval(refreshLiveStats, 3000);
+
+    const handlePartnerEvent = () => {
+      refreshLiveStats();
+    };
+    window.addEventListener('spike_partner_registered', handlePartnerEvent);
+    window.addEventListener('focus', refreshLiveStats);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('spike_partner_registered', handlePartnerEvent);
+      window.removeEventListener('focus', refreshLiveStats);
+    };
+  }, [refreshLiveStats]);
+
+  // Real-time calculated partners state from live stats
+  const effectiveStats = localStats || referralStats;
+  const directPartners = effectiveStats?.directPartners ?? 0;
+  const downlinePartners = effectiveStats?.downlinePartners ?? 0;
   const totalTeamPartners = directPartners + downlinePartners;
-  const totalEarnedUsdt = referralStats?.totalCommissions ?? 0;
+  const totalEarnedUsdt = effectiveStats?.totalCommissions ?? 0;
   
-  const referralsList = referralStats?.referrals || [];
-  const activeSponsor = referralStats?.referredBy || null;
+  const referralsList = effectiveStats?.referrals || [];
+  const activeSponsor = effectiveStats?.referredBy || null;
 
   // Track claimed milestone IDs per wallet
   const storageKey = `spike_claimed_milestones_${walletAddress || 'default'}`;
@@ -393,13 +441,29 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
-          <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Total Team Partners</div>
+        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+              Total Team Partners
+            </div>
+            <button
+              onClick={() => {
+                setIsSyncingStats(true);
+                refreshLiveStats().finally(() => setTimeout(() => setIsSyncingStats(false), 500));
+              }}
+              className="text-[10px] font-mono text-[#00F0FF] hover:text-white flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded bg-[#0a0f1d] border border-[#1c2b3b]"
+              title="Click to sync latest referral team count"
+            >
+              <span className={`material-symbols-outlined text-[13px] ${isSyncingStats ? 'animate-spin' : ''}`}>sync</span>
+              <span className="hidden xs:inline">Live Sync</span>
+            </button>
+          </div>
           <div className="text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
             {totalTeamPartners}
           </div>
-          <div className="text-xs text-[#7df4ff] font-mono mt-1 font-medium">
-            {totalTeamPartners} Active Partners in Network
+          <div className="text-xs text-[#7df4ff] font-mono mt-1 font-medium flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>{totalTeamPartners} Active Partners in Network</span>
           </div>
         </div>
 
