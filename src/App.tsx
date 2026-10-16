@@ -1159,8 +1159,22 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
-  const handleConnectWallet = (provider: string, realAddress?: string) => {
+  const handleConnectWallet = async (provider: string, realAddress?: string, keepCurrentTab?: boolean): Promise<string> => {
     let finalAddress = realAddress;
+    if (!finalAddress && typeof window !== 'undefined') {
+      const win = window as any;
+      if (win.ethereum && typeof win.ethereum.request === 'function' && (provider.toLowerCase().includes('meta') || provider.toLowerCase().includes('trust') || provider.toLowerCase().includes('web3'))) {
+        try {
+          const accounts = await win.ethereum.request({ method: 'eth_requestAccounts' });
+          if (Array.isArray(accounts) && accounts.length > 0) {
+            finalAddress = accounts[0];
+          }
+        } catch (err) {
+          console.warn('[App] Real Web3 connection popup was closed or rejected:', err);
+        }
+      }
+    }
+
     if (!finalAddress) {
       const chars = '0123456789abcdef';
       let addr = '0x';
@@ -1241,11 +1255,15 @@ export default function App() {
 
     setIsWalletConnected(true);
     setWalletAddress(finalAddress);
-    setActiveTab('dashboard');
+    if (!keepCurrentTab) {
+      setActiveTab('dashboard');
+    }
     try {
       localStorage.setItem('spike_wallet_connected', 'true');
       localStorage.setItem('spike_wallet_address', finalAddress);
-      localStorage.setItem('spike_active_tab', 'dashboard');
+      if (!keepCurrentTab) {
+        localStorage.setItem('spike_active_tab', 'dashboard');
+      }
     } catch {}
 
     // Register connected wallet as an active sponsor on backend immediately
@@ -1315,15 +1333,17 @@ export default function App() {
       `Logged in via ${provider} (${finalAddress.slice(0, 6)}...${finalAddress.slice(-4)}). Initialized personal dashboard!`,
       'success'
     );
+    return finalAddress;
   };
 
-  const handleBindSponsor = async (codeOrAddr: string): Promise<boolean> => {
-    if (!walletAddress) {
+  const handleBindSponsor = async (codeOrAddr: string, explicitReferee?: string): Promise<boolean> => {
+    const referee = explicitReferee || walletAddress;
+    if (!referee) {
       addToast('Connect Wallet', 'Please connect your wallet first to bind a sponsor.', 'warning');
       return false;
     }
     const clean = codeOrAddr.trim();
-    if (clean.toLowerCase() === walletAddress.toLowerCase()) {
+    if (clean.toLowerCase() === referee.toLowerCase()) {
       addToast('Invalid Sponsor', 'Cannot refer your own wallet address.', 'warning');
       return false;
     }
@@ -1333,13 +1353,49 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           referrerCodeOrAddr: clean,
-          refereeAddress: walletAddress,
+          refereeAddress: referee,
         }),
       });
       const data = await res.json();
       if (data && data.success) {
-        if (data.refereeStats) setReferralStats(data.refereeStats);
-        addToast('Sponsor Linked', data.message || 'Sponsor verified and partner commission credited!', 'success');
+        // Cache stats for both parties
+        if (data.referrer && data.referrerStats) {
+          try {
+            localStorage.setItem(
+              `spike_referral_stats_${data.referrer.address.toLowerCase()}`,
+              JSON.stringify(data.referrerStats)
+            );
+          } catch {}
+        }
+        if (data.referee && data.refereeStats) {
+          try {
+            localStorage.setItem(
+              `spike_referral_stats_${data.referee.address.toLowerCase()}`,
+              JSON.stringify(data.refereeStats)
+            );
+          } catch {}
+        }
+
+        // If current connected wallet is the referee, update referee stats
+        if (walletAddress && walletAddress.toLowerCase() === referee.toLowerCase()) {
+          if (data.refereeStats) setReferralStats(data.refereeStats);
+        } else if (walletAddress && data.referrer && walletAddress.toLowerCase() === data.referrer.address.toLowerCase()) {
+          // If current wallet is the sponsor, update sponsor stats (+1 partner counted!)
+          if (data.referrerStats) setReferralStats(data.referrerStats);
+        }
+
+        // Always sync the active wallet's stats
+        if (walletAddress) {
+          fetch(`/api/referrals/stats/${walletAddress}`)
+            .then((r) => r.json())
+            .then((s) => {
+              if (s && s.stats) setReferralStats(s.stats);
+            })
+            .catch(() => {});
+        }
+
+        window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
+        addToast('Sponsor Linked & Counted', data.message || 'Sponsor verified and partner counted toward team milestones!', 'success');
         return true;
       } else {
         addToast('Referral Error', data?.message || data?.error || 'Failed to bind sponsor', 'error');
