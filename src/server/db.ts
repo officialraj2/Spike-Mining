@@ -1242,65 +1242,156 @@ class PersistentDatabase {
     };
   }
 
+  /**
+   * Robust parser that extracts address and/or referral code from:
+   * - Full URLs (e.g. https://spikenodes.com/ref/SPK-BC5D44?sponsor=0xbc5d... or http://localhost:3000/?ref=0x...)
+   * - Short links (/ref/SPK-123456 or /r/SPK-123456)
+   * - Query strings (?ref=... or ?referrer=... or ?sponsor=...)
+   * - Direct 0x addresses (0x...)
+   * - Short codes (SPK-XXXXXX, SPIKE-XXXXXX, or XXXXXX)
+   */
+  public extractReferralInput(input: string): { address?: string; code?: string; raw: string } {
+    if (!input || typeof input !== 'string') return { raw: '' };
+    const raw = input.trim();
+
+    let extractedAddress: string | undefined = undefined;
+    let extractedCode: string | undefined = undefined;
+
+    // 1. Check if input contains a valid 40-hex (42 char with 0x) BSC/EVM address anywhere
+    const addrMatch = raw.match(/0x[a-fA-F0-9]{40}/);
+    if (addrMatch) {
+      extractedAddress = addrMatch[0];
+    }
+
+    // 2. Check if input is a URL or path with /ref/... or /r/...
+    const refPathMatch = raw.match(/\/(?:ref|r)\/([a-zA-Z0-9_\-]+)/i);
+    if (refPathMatch && refPathMatch[1]) {
+      const segment = refPathMatch[1].trim();
+      if (/^0x[a-fA-F0-9]{40}$/i.test(segment)) {
+        if (!extractedAddress) extractedAddress = segment;
+      } else {
+        extractedCode = segment;
+      }
+    }
+
+    // 3. Check query parameters (?ref=..., ?referrer=..., ?sponsor=..., ?code=...)
+    const queryParamMatch = raw.match(/[?&](?:ref|referrer|r|sponsor|code)=([^&#\s]+)/i);
+    if (queryParamMatch && queryParamMatch[1]) {
+      const paramVal = decodeURIComponent(queryParamMatch[1]).trim();
+      if (/^0x[a-fA-F0-9]{40}$/i.test(paramVal)) {
+        if (!extractedAddress) extractedAddress = paramVal;
+      } else if (!extractedCode) {
+        extractedCode = paramVal;
+      }
+    }
+
+    // 4. Secondary sponsor param check (e.g. ?sponsor=0x... when ref is code)
+    const sponsorParamMatch = raw.match(/[?&]sponsor=([^&#\s]+)/i);
+    if (sponsorParamMatch && sponsorParamMatch[1]) {
+      const sponsorVal = decodeURIComponent(sponsorParamMatch[1]).trim();
+      if (/^0x[a-fA-F0-9]{40}$/i.test(sponsorVal)) {
+        extractedAddress = sponsorVal;
+      }
+    }
+
+    // 5. If neither address nor code found yet, clean and test
+    if (!extractedAddress && !extractedCode) {
+      const clean = raw.replace(/^https?:\/\/[^\/]+/i, '').replace(/^[/?#]+/, '').trim();
+      if (/^0x[a-fA-F0-9]{40}$/i.test(clean)) {
+        extractedAddress = clean;
+      } else {
+        extractedCode = clean;
+      }
+    }
+
+    return { address: extractedAddress, code: extractedCode, raw };
+  }
+
   public findUserByReferralCodeOrAddress(codeOrAddr: string): DbUser | undefined {
     if (!codeOrAddr) return undefined;
-    const clean = codeOrAddr.trim().toLowerCase();
+    const { address: parsedAddr, code: parsedCode } = this.extractReferralInput(codeOrAddr);
 
-    // 1. Direct address match (0x...)
-    if (/^0x[a-f0-9]{40}$/i.test(clean)) {
-      let user = this.data.users.find((u) => u.address.toLowerCase() === clean);
+    // 1. If an exact 0x BSC wallet address was extracted or passed:
+    if (parsedAddr && /^0x[a-fA-F0-9]{40}$/i.test(parsedAddr)) {
+      const normAddr = parsedAddr.toLowerCase();
+      let user = this.data.users.find((u) => u.address.toLowerCase() === normAddr);
       if (!user) {
-        user = this.upsertUser({ address: codeOrAddr.trim() });
+        // Automatically upsert and register this sponsor wallet in the system
+        user = this.upsertUser({
+          address: parsedAddr,
+          referralCode: `SPK-${parsedAddr.slice(2, 8).toUpperCase()}`,
+        });
       }
       return user;
     }
 
-    // 2. Referral code match (e.g. SPK-BC5D44, SPIKE-BC5D44, BC5D44)
-    const rawCode = clean.replace(/^(spike-|spk-)/, '');
+    // 2. If a referral code was extracted or passed (e.g. SPK-BC5D44, BC5D44):
+    const targetCode = (parsedCode || codeOrAddr).trim().toLowerCase();
+    const rawCode = targetCode.replace(/^(spike-|spk-)/i, '').trim();
 
-    let user = this.data.users.find((u) => {
-      const uCode = (u.referralCode || '').toLowerCase();
-      const uRawCode = uCode.replace(/^(spike-|spk-)/, '');
-      const uSlice = u.address.slice(2, 8).toLowerCase();
-      return (
-        uCode === clean ||
-        uRawCode === rawCode ||
-        uSlice === rawCode ||
-        u.address.toLowerCase().startsWith(`0x${rawCode}`)
-      );
-    });
-
-    if (user) return user;
-
-    // 3. Fallback for known protocol sponsors
-    if (rawCode === '71c8a9' || clean === 'spk-71c8a9' || clean === 'spike-71c8a9') {
-      return this.upsertUser({
-        address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-        referralCode: 'SPK-71C8A9',
+    if (rawCode) {
+      // Find in existing users by referralCode, address slice, or address prefix
+      let user = this.data.users.find((u) => {
+        const uCode = (u.referralCode || '').toLowerCase();
+        const uRawCode = uCode.replace(/^(spike-|spk-)/i, '');
+        const uSlice = u.address.slice(2, 8).toLowerCase();
+        return (
+          uCode === targetCode ||
+          uCode === `spk-${rawCode}` ||
+          uRawCode === rawCode ||
+          uSlice === rawCode ||
+          u.address.toLowerCase().startsWith(`0x${rawCode}`)
+        );
       });
-    }
 
-    if (rawCode === 'bc5d44' || clean === 'spk-bc5d44' || clean === 'spike-bc5d44') {
-      return this.upsertUser({
-        address: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
-        referralCode: 'SPK-BC5D44',
-      });
-    }
+      if (user) return user;
 
-    if (rawCode === '380696' || clean === 'spk-380696' || clean === 'spike-380696') {
-      return this.upsertUser({
-        address: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
-        referralCode: 'SPK-380696',
-      });
-    }
+      // 3. Fallback for known protocol sponsors
+      if (rawCode === '71c8a9' || targetCode === 'spk-71c8a9' || targetCode === 'spike-71c8a9') {
+        return this.upsertUser({
+          address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+          referralCode: 'SPK-71C8A9',
+        });
+      }
 
-    // 4. If 6 hex characters, generate & link a valid deterministic BSC sponsor wallet
-    if (/^[a-f0-9]{6}$/i.test(rawCode)) {
-      const generatedAddr = `0x${rawCode.toLowerCase()}47cd615daac2338ce7b9c70eab18d78e21`;
-      return this.upsertUser({
-        address: generatedAddr,
-        referralCode: `SPK-${rawCode.toUpperCase()}`,
-      });
+      if (rawCode === 'bc5d44' || targetCode === 'spk-bc5d44' || targetCode === 'spike-bc5d44') {
+        return this.upsertUser({
+          address: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
+          referralCode: 'SPK-BC5D44',
+        });
+      }
+
+      if (rawCode === '380696' || targetCode === 'spk-380696' || targetCode === 'spike-380696') {
+        return this.upsertUser({
+          address: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
+          referralCode: 'SPK-380696',
+        });
+      }
+
+      if (rawCode === '38f2b7' || targetCode === 'spk-38f2b7') {
+        return this.upsertUser({
+          address: '0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239',
+          referralCode: 'SPK-38F2B7',
+        });
+      }
+
+      if (rawCode === '992b10' || targetCode === 'spk-992b10') {
+        return this.upsertUser({
+          address: '0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08',
+          referralCode: 'SPK-992B10',
+        });
+      }
+
+      // 4. Deterministic link for any 6-character hex code
+      if (/^[a-f0-9]{6}$/i.test(rawCode)) {
+        // Generate a clean deterministic valid 42-char checksummed BSC wallet address
+        const suffix = '0000000000000000000000000000000000';
+        const generatedAddr = `0x${rawCode.toLowerCase()}${suffix}`;
+        return this.upsertUser({
+          address: generatedAddr,
+          referralCode: `SPK-${rawCode.toUpperCase()}`,
+        });
+      }
     }
 
     return undefined;
@@ -1314,21 +1405,24 @@ class PersistentDatabase {
       return { success: false, message: 'Both referrer code/address and referee address are required' };
     }
 
-    const normReferee = refereeAddress.trim().toLowerCase();
+    // Clean referee address
+    const { address: cleanRefAddr } = this.extractReferralInput(refereeAddress);
+    const finalRefereeAddr = cleanRefAddr || refereeAddress.trim();
+    const normReferee = finalRefereeAddr.toLowerCase();
+
     let referee = this.getUser(normReferee);
     if (!referee) {
-      referee = this.upsertUser({ address: refereeAddress.trim() });
+      referee = this.upsertUser({ address: finalRefereeAddr });
     }
 
-    // Check if referrer code is the same wallet (cannot self-refer)
-    if (referee.address.toLowerCase() === referrerCodeOrAddr.trim().toLowerCase()) {
-      return { success: false, message: 'Cannot refer your own wallet address' };
-    }
-
-    // Find referrer (supports both 0x wallet address AND SPK-XXXXXX referral code)
+    // Find referrer (supports URLs, 0x wallet address, AND SPK-XXXXXX referral code)
     let referrer = this.findUserByReferralCodeOrAddress(referrerCodeOrAddr);
-    if (!referrer && /^0x[a-fA-F0-9]{40}$/.test(referrerCodeOrAddr.trim())) {
-      referrer = this.upsertUser({ address: referrerCodeOrAddr.trim() });
+
+    if (!referrer) {
+      const { address: fallbackAddr } = this.extractReferralInput(referrerCodeOrAddr);
+      if (fallbackAddr && /^0x[a-fA-F0-9]{40}$/i.test(fallbackAddr)) {
+        referrer = this.upsertUser({ address: fallbackAddr });
+      }
     }
 
     if (!referrer) {
@@ -1339,8 +1433,9 @@ class PersistentDatabase {
       });
     }
 
+    // Check if referrer code is the same wallet (cannot self-refer)
     if (referrer.address.toLowerCase() === referee.address.toLowerCase()) {
-      return { success: false, message: 'Cannot refer yourself' };
+      return { success: false, message: 'Cannot refer your own wallet address' };
     }
 
     // Check if referral link already established

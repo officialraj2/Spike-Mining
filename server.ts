@@ -543,9 +543,10 @@ app.get('/api/referrals/verify-sponsor', (req: Request, res: Response) => {
     return;
   }
   const user = db.findUserByReferralCodeOrAddress(query);
-  const stats = db.getReferralStats(query);
-  const sponsorAddress = user ? user.address : stats.address;
-  const referralCode = user?.referralCode || stats.referralCode || `SPK-${sponsorAddress.slice(2, 8).toUpperCase()}`;
+  const { address: extractedAddr } = db.extractReferralInput(query);
+  const sponsorAddress = user ? user.address : (extractedAddr || '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
+  const referralCode = user?.referralCode || (sponsorAddress.startsWith('0x') ? `SPK-${sponsorAddress.slice(2, 8).toUpperCase()}` : 'SPK-71C8A9');
+  const stats = db.getReferralStats(sponsorAddress);
 
   res.json({
     success: true,
@@ -558,6 +559,19 @@ app.get('/api/referrals/verify-sponsor', (req: Request, res: Response) => {
     commissionRate: '15%',
     matched: true,
   });
+});
+
+// Sync / register sponsor wallet explicitly from client
+app.post('/api/referrals/sync-sponsor', (req: Request, res: Response) => {
+  const { address, referralCode } = req.body || {};
+  if (!address || typeof address !== 'string' || !address.startsWith('0x')) {
+    res.status(400).json({ success: false, message: 'Valid BSC address required' });
+    return;
+  }
+  const cleanAddr = address.trim();
+  const code = referralCode || `SPK-${cleanAddr.slice(2, 8).toUpperCase()}`;
+  const user = db.upsertUser({ address: cleanAddr, referralCode: code });
+  res.json({ success: true, user, referralCode: user.referralCode });
 });
 
 app.post('/api/referrals/register', (req: Request, res: Response) => {

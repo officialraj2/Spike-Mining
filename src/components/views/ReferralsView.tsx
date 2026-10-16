@@ -45,24 +45,29 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const shortAddr = walletAddress ? walletAddress.slice(2, 8).toUpperCase() : 'USER';
   const refCode = `SPK-${shortAddr}`;
 
-  // Domain state: managed in backend (defaults to official spikenodes.com)
-  const [serverDomain, setServerDomain] = useState<string>('https://spikenodes.com');
-
+  // Automatically register and sync this connected wallet as an active sponsor on the backend
   useEffect(() => {
-    fetch('/api/config/domain')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.domain) {
-          setServerDomain(`https://${d.domain}`);
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (walletAddress && walletAddress.startsWith('0x')) {
+      fetch('/api/referrals/sync-sponsor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: walletAddress, referralCode: refCode }),
+      }).catch(() => {});
+    }
+  }, [walletAddress, refCode]);
 
-  // Short referral link connected with domain name from backend
-  const shortRefLink = `${serverDomain}/ref/${refCode}`;
+  // Current active origin (auto-adapts to testing preview, localhost, or production)
+  const currentOrigin = typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'https://spikenodes.com';
+
+  // Short referral link with sponsor wallet parameter for 100% deterministic matching
+  const shortRefLink = walletAddress
+    ? `${currentOrigin}/ref/${refCode}?sponsor=${walletAddress}`
+    : `${currentOrigin}/ref/${refCode}`;
+
   // Universal address link fallback
-  const fullRefLink = walletAddress ? `${serverDomain}/?ref=${walletAddress}` : `${serverDomain}/?ref=USER`;
+  const fullRefLink = walletAddress ? `${currentOrigin}/?ref=${walletAddress}` : `${currentOrigin}/?ref=USER`;
 
   const [linkFormat, setLinkFormat] = useState<'short' | 'full'>('short');
   const activeLinkToCopy = linkFormat === 'short' ? shortRefLink : fullRefLink;
@@ -76,33 +81,14 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const [bindingSponsor, setBindingSponsor] = useState(false);
   const [bindMessage, setBindMessage] = useState<string | null>(null);
 
-  // Fallback check specifically for primary referrer and referee wallets
-  const isTargetReferrer = normAddr === '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21'.toLowerCase();
-  const isTargetReferee = normAddr === '0x38069663d6408dff184bafc65e247e37ae84a1c2'.toLowerCase();
-
-  // Calculated partners state
-  const directPartners = referralStats?.directPartners ?? (isTargetReferrer ? 1 : 0);
+  // Real-time calculated partners state
+  const directPartners = referralStats?.directPartners ?? 0;
   const downlinePartners = referralStats?.downlinePartners ?? 0;
   const totalTeamPartners = directPartners + downlinePartners;
   const totalEarnedUsdt = referralStats?.totalCommissions ?? 0;
   
-  const referralsList = (referralStats?.referrals && referralStats.referrals.length > 0)
-    ? referralStats.referrals
-    : isTargetReferrer
-    ? [
-        {
-          id: 'ref-bc5d-3806',
-          referrerAddress: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
-          refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
-          tier: 1,
-          commissionUsdt: 0,
-          volumeUsdt: 150.0,
-          createdAt: new Date().toISOString(),
-        },
-      ]
-    : [];
-
-  const activeSponsor = referralStats?.referredBy || (isTargetReferee ? '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21' : null);
+  const referralsList = referralStats?.referrals || [];
+  const activeSponsor = referralStats?.referredBy || null;
 
   // Track claimed milestone IDs per wallet
   const storageKey = `spike_claimed_milestones_${walletAddress || 'default'}`;

@@ -35,9 +35,34 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   const [bindError, setBindError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
-  // Active query being verified (code or address)
-  const [activeQuery, setActiveQuery] = useState<string>(referralCodeOrAddr || 'SPK-71C8A9');
-  const activeCode = sponsorDetails?.code || (activeQuery.startsWith('0x') ? `SPK-${activeQuery.slice(2, 8).toUpperCase()}` : activeQuery);
+  // Helper to extract clean address or code from full URLs, shortlinks, or query params
+  const extractCodeOrAddress = (str: string): { address?: string; code?: string } => {
+    if (!str) return {};
+    const trimmed = str.trim();
+    const addr = trimmed.match(/0x[a-fA-F0-9]{40}/i);
+    if (addr) return { address: addr[0] };
+    const sponsorParam = trimmed.match(/[?&]sponsor=(0x[a-fA-F0-9]{40})/i);
+    if (sponsorParam) return { address: sponsorParam[1] };
+    const refMatch = trimmed.match(/\/(?:ref|r)\/([a-zA-Z0-9_\-]+)/i);
+    if (refMatch && refMatch[1]) {
+      const seg = refMatch[1];
+      if (/^0x[a-fA-F0-9]{40}$/i.test(seg)) return { address: seg };
+      return { code: seg };
+    }
+    const qMatch = trimmed.match(/[?&](?:ref|referrer|r|code)=([^&#\s]+)/i);
+    if (qMatch && qMatch[1]) {
+      const val = decodeURIComponent(qMatch[1]);
+      if (/^0x[a-fA-F0-9]{40}$/i.test(val)) return { address: val };
+      return { code: val };
+    }
+    const clean = trimmed.replace(/^https?:\/\/[^\/]+/i, '').replace(/^[/?#]+/, '').trim();
+    if (/^0x[a-fA-F0-9]{40}$/i.test(clean)) return { address: clean };
+    return { code: clean };
+  };
+
+  // Active query being verified (link, code, or address)
+  const [activeQuery, setActiveQuery] = useState<string>(referralCodeOrAddr || '');
+  const activeCode = sponsorDetails?.code || (activeQuery.startsWith('0x') ? `SPK-${activeQuery.slice(2, 8).toUpperCase()}` : (activeQuery || 'SPK-71C8A9'));
 
   // Sync with prop changes
   useEffect(() => {
@@ -55,12 +80,22 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
     }
 
     const q = activeQuery.trim();
-    if (!q) return;
+    if (!q) {
+      // Default protocol fallback if empty
+      setSponsorDetails({
+        code: 'SPK-71C8A9',
+        address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+        level: 'Protocol Official Team Sponsor',
+        bonusPercent: '15%',
+        verified: true,
+      });
+      return;
+    }
 
     setLoadingVerify(true);
     setBindError(null);
 
-    // Call dedicated verify-sponsor endpoint which resolves both code and address together
+    // Call dedicated verify-sponsor endpoint which resolves both code, address, and URLs
     fetch(`/api/referrals/verify-sponsor?q=${encodeURIComponent(q)}`)
       .then((r) => r.json())
       .then((data) => {
@@ -73,12 +108,13 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
             verified: true,
           });
         } else {
-          // Fallback derivation
-          const isAddr = q.startsWith('0x') && q.length >= 8;
-          const derivedCode = isAddr ? `SPK-${q.slice(2, 8).toUpperCase()}` : q.toUpperCase();
-          const derivedAddr = isAddr ? q : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+          // Smart local fallback derivation
+          const parsed = extractCodeOrAddress(q);
+          const isAddr = parsed.address || (/^0x[a-fA-F0-9]{40}$/i.test(q) ? q : null);
+          const derivedAddr = isAddr || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+          const derivedCode = isAddr ? `SPK-${isAddr.slice(2, 8).toUpperCase()}` : (parsed.code || q).toUpperCase();
           setSponsorDetails({
-            code: derivedCode,
+            code: derivedCode.startsWith('SPK-') ? derivedCode : `SPK-${derivedCode}`,
             address: derivedAddr,
             level: 'Verified Sponsor',
             bonusPercent: '15%',
@@ -87,11 +123,12 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
         }
       })
       .catch(() => {
-        const isAddr = q.startsWith('0x') && q.length >= 8;
-        const derivedCode = isAddr ? `SPK-${q.slice(2, 8).toUpperCase()}` : q.toUpperCase();
-        const derivedAddr = isAddr ? q : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+        const parsed = extractCodeOrAddress(q);
+        const isAddr = parsed.address || (/^0x[a-fA-F0-9]{40}$/i.test(q) ? q : null);
+        const derivedAddr = isAddr || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+        const derivedCode = isAddr ? `SPK-${isAddr.slice(2, 8).toUpperCase()}` : (parsed.code || q).toUpperCase();
         setSponsorDetails({
-          code: derivedCode,
+          code: derivedCode.startsWith('SPK-') ? derivedCode : `SPK-${derivedCode}`,
           address: derivedAddr,
           level: 'Verified Sponsor',
           bonusPercent: '15%',
@@ -105,7 +142,19 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
 
   if (!isOpen) return null;
 
+  // Self-referral detection check
+  const isSelfReferral = Boolean(
+    isConnected &&
+    currentWallet &&
+    sponsorDetails?.address &&
+    currentWallet.toLowerCase() === sponsorDetails.address.toLowerCase()
+  );
+
   const handleNextFromStep1 = () => {
+    if (isSelfReferral) {
+      setBindError('Cannot bind yourself as sponsor. Please enter an inviter wallet address or referral code.');
+      return;
+    }
     if (isConnected) {
       // If already connected, jump straight to confirmation step 3
       setCurrentStep(3);
@@ -119,11 +168,19 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
       setBindError('Please connect your wallet first to proceed with verification.');
       return;
     }
+    if (currentWallet && sponsorDetails?.address && currentWallet.toLowerCase() === sponsorDetails.address.toLowerCase()) {
+      setBindError('Cannot bind your own connected wallet as sponsor.');
+      return;
+    }
     setBindError(null);
     setCurrentStep(3);
   };
 
   const handleExecuteBinding = async () => {
+    if (isSelfReferral) {
+      setBindError('Cannot refer your own wallet address.');
+      return;
+    }
     setLoadingBinding(true);
     setBindError(null);
     try {
@@ -229,18 +286,26 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
           {currentStep === 1 && (
             <div className="space-y-4 animate-in fade-in duration-150">
               <div className="bg-[#122130] rounded-xl p-4 sm:p-5 border border-[#1c2b3b] space-y-4">
-                {/* Search / Input Box for Address or Code */}
+                {/* Search / Input Box for Address or Code or Link */}
                 <div>
-                  <label className="text-[10px] font-mono uppercase text-[#00F0FF] tracking-wider font-semibold block mb-1.5">
-                    Enter or Verify Sponsor Code / BSC Wallet Address
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-mono uppercase text-[#00F0FF] tracking-wider font-semibold block">
+                      Enter or Verify Sponsor Code, Wallet Address, or Referral Link
+                    </label>
+                    {loadingVerify && (
+                      <span className="text-[10px] font-mono text-[#00F0FF] animate-pulse flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-ping" />
+                        Verifying...
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="e.g. SPK-71C8A9 or 0x71C8a914B97e889F12A0987cB32456Fa12349A2"
+                      placeholder="Paste referral link (e.g. spikenodes.com/ref/...) or code (SPK-BC5D44) or 0x..."
                       value={activeQuery}
                       onChange={(e) => setActiveQuery(e.target.value)}
-                      className="flex-1 bg-[#0a0f1d] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-3.5 py-2 text-xs font-mono text-white placeholder-gray-500 focus:outline-none transition-colors"
+                      className="flex-1 bg-[#0a0f1d] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-gray-500 focus:outline-none transition-colors"
                     />
                     <button
                       onClick={() => {
@@ -252,14 +317,50 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                       Verify
                     </button>
                   </div>
+
+                  {/* Quick Preset Sponsor Buttons */}
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <span className="text-[10px] font-mono text-gray-500">Quick Test:</span>
+                    {[
+                      { label: 'SPK-BC5D44', desc: 'VIP Sponsor' },
+                      { label: 'SPK-71C8A9', desc: 'Protocol Core' },
+                      { label: 'SPK-380696', desc: 'Elite Sponsor' },
+                    ].map((s) => (
+                      <button
+                        key={s.label}
+                        type="button"
+                        onClick={() => setActiveQuery(s.label)}
+                        className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border transition-all ${
+                          activeQuery.includes(s.label)
+                            ? 'bg-[#00F0FF]/20 text-[#00F0FF] border-[#00F0FF]/40 font-bold'
+                            : 'bg-[#0a0f1d] text-gray-400 border-[#1c2b3b] hover:text-white hover:border-gray-600'
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
+                {/* Self Referral Alert Warning */}
+                {isSelfReferral && (
+                  <div className="p-3 bg-amber-500/15 border border-amber-500/40 rounded-xl text-xs font-mono text-amber-300 flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-amber-400 shrink-0">warning</span>
+                    <div>
+                      <div className="font-bold">Self-Referral Detected</div>
+                      <div className="text-[11px] text-amber-300/80 mt-0.5">
+                        You entered your own connected wallet address. Decentralized protocol rules require binding to a different sponsor wallet to earn team milestone bonuses.
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Match Result Card */}
-                <div className="p-4 bg-[#0a0f1d] rounded-xl border border-emerald-500/30 space-y-3">
+                <div className={`p-4 bg-[#0a0f1d] rounded-xl border space-y-3 ${isSelfReferral ? 'border-amber-500/30' : 'border-emerald-500/30'}`}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                      <span>Code &amp; Address 100% Matched</span>
+                    <span className={`text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 ${isSelfReferral ? 'text-amber-400' : 'text-emerald-400'}`}>
+                      <span className={`w-2 h-2 rounded-full ${isSelfReferral ? 'bg-amber-400' : 'bg-emerald-400'} animate-ping`} />
+                      <span>{isSelfReferral ? 'Self-Address Identified' : 'Code & Address 100% Matched'}</span>
                     </span>
                     <button
                       onClick={copyShortCode}
@@ -273,26 +374,30 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                     <div className="p-3 bg-[#122130] rounded-lg border border-[#1c2b3b]">
                       <span className="text-[10px] text-gray-400 font-mono block">Matched Referral Code</span>
                       <span className="font-mono text-lg font-black text-[#D4AF37] block mt-0.5">
-                        {sponsorDetails?.code || (activeQuery.startsWith('0x') ? `SPK-${activeQuery.slice(2, 8).toUpperCase()}` : activeQuery.toUpperCase())}
+                        {sponsorDetails?.code || 'SPK-71C8A9'}
                       </span>
                     </div>
 
                     <div className="p-3 bg-[#122130] rounded-lg border border-[#1c2b3b]">
                       <span className="text-[10px] text-gray-400 font-mono block">Matching Sponsor Wallet</span>
                       <span className="font-mono text-white text-xs font-bold truncate block mt-1.5" title={sponsorDetails?.address}>
-                        {sponsorDetails?.address
-                          ? `${sponsorDetails.address.slice(0, 10)}...${sponsorDetails.address.slice(-8)}`
-                          : (activeQuery.startsWith('0x') ? `${activeQuery.slice(0, 10)}...${activeQuery.slice(-8)}` : '0x71C8a914B97e889F12A0987cB32456Fa12349A2')}
+                        {sponsorDetails?.address || '0x71C8a914B97e889F12A0987cB32456Fa12349A2'}
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 pt-1 border-t border-[#1c2b3b]">
-                    <span>Sponsor Tier:</span>
-                    <span className="text-[#00F0FF] font-semibold">{sponsorDetails?.level || 'Tier 1 Protocol Sponsor'}</span>
+                    <span>Sponsor Tier & Commission:</span>
+                    <span className="text-[#00F0FF] font-semibold">{sponsorDetails?.level || 'Tier 1 Protocol Sponsor'} (15%)</span>
                   </div>
                 </div>
               </div>
+
+              {bindError && (
+                <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-400 font-mono">
+                  {bindError}
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-2">
                 <button
@@ -302,8 +407,9 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                   Cancel
                 </button>
                 <button
+                  disabled={loadingVerify || isSelfReferral}
                   onClick={handleNextFromStep1}
-                  className="px-6 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-102"
+                  className="px-6 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.3)] disabled:opacity-40 disabled:hover:scale-100 hover:scale-102"
                 >
                   <span>Confirm Match &amp; Proceed to Step 2</span>
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>

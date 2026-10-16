@@ -225,6 +225,11 @@ export default function App() {
 
       // Capture referral code or address from URL (?ref=..., ?referrer=..., or /ref/..., /r/...)
       let refVal = params.get('ref') || params.get('referrer') || params.get('r');
+      const sponsorParam = params.get('sponsor');
+      if (sponsorParam && /^0x[a-fA-F0-9]{40}$/i.test(sponsorParam.trim())) {
+        refVal = sponsorParam.trim();
+      }
+
       if (!refVal && window.location.pathname.includes('/ref/')) {
         const parts = window.location.pathname.split('/ref/');
         if (parts[1]) {
@@ -258,6 +263,19 @@ export default function App() {
       return;
     }
     setActiveTab(tab);
+    if (tab === 'referrals' && walletAddress) {
+      fetch(`/api/referrals/stats/${walletAddress}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (d && d.stats) {
+            setReferralStats(d.stats);
+            try {
+              localStorage.setItem(`spike_referral_stats_${walletAddress.toLowerCase()}`, JSON.stringify(d.stats));
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    }
     try {
       localStorage.setItem('spike_active_tab', tab);
       const url = new URL(window.location.href);
@@ -1230,6 +1248,16 @@ export default function App() {
       localStorage.setItem('spike_active_tab', 'dashboard');
     } catch {}
 
+    // Register connected wallet as an active sponsor on backend immediately
+    fetch('/api/referrals/sync-sponsor', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        address: finalAddress,
+        referralCode: `SPK-${finalAddress.slice(2, 8).toUpperCase()}`,
+      }),
+    }).catch(() => {});
+
     // Check if user came from a referral link (?ref=...) and bind sponsor
     const pendingReferrer = localStorage.getItem('spike_pending_referrer');
     if (pendingReferrer && pendingReferrer.toLowerCase() !== norm) {
@@ -1493,7 +1521,7 @@ export default function App() {
             onSimulateReferral={handleSimulateReferralJoin}
             onBindSponsor={handleBindSponsor}
             onOpenVerificationModal={(code) => {
-              setReferralCodeToVerify(code || (walletAddress ? `SPK-${walletAddress.slice(2, 8).toUpperCase()}` : 'SPK-71C8A9'));
+              setReferralCodeToVerify(code || '');
               setIsReferralModalOpen(true);
             }}
           />
@@ -1694,7 +1722,7 @@ export default function App() {
             <ReferralVerificationModal
               isOpen={isReferralModalOpen}
               onClose={() => setIsReferralModalOpen(false)}
-              referralCodeOrAddr={referralCodeToVerify || (walletAddress ? `SPK-${walletAddress.slice(2, 8).toUpperCase()}` : 'SPK-71C8A9')}
+              referralCodeOrAddr={referralCodeToVerify || ''}
               currentWallet={walletAddress}
               isConnected={isWalletConnected}
               onConnectWallet={handleConnectWallet}
@@ -1877,7 +1905,7 @@ export default function App() {
           <ReferralVerificationModal
             isOpen={isReferralModalOpen}
             onClose={() => setIsReferralModalOpen(false)}
-            referralCodeOrAddr={referralCodeToVerify || (walletAddress ? `SPK-${walletAddress.slice(2, 8).toUpperCase()}` : 'SPK-71C8A9')}
+            referralCodeOrAddr={referralCodeToVerify || ''}
             currentWallet={walletAddress}
             isConnected={isWalletConnected}
             onConnectWallet={handleConnectWallet}
