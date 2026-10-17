@@ -373,23 +373,23 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </div>
         </div>
 
-        {/* Step-Wise Verification Flow Banner (User Requirement) */}
-        <div className="p-4 bg-gradient-to-r from-[#00F0FF]/10 via-[#122130] to-[#D4AF37]/10 rounded-xl border border-[#00F0FF]/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-inner">
+        {/* Automated Referral Tracking Banner */}
+        <div className="p-4 bg-[#0a1220] rounded-xl border border-[#1c2b3b] flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/20 border border-[#00F0FF]/40 text-[#00F0FF] flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/30 text-[#00F0FF] flex items-center justify-center shrink-0 mt-0.5">
               <span className="material-symbols-outlined text-[20px]">how_to_reg</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-headline font-bold text-white">
-                  Step-Wise Referral Verification & Wallet Connect
+                  Automated Sponsor & Referral Tracking
                 </span>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30">
-                  STEP 1 → 4 FLOW
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
+                  INSTANT SYNC
                 </span>
               </div>
               <p className="text-[11px] text-[#94a3b8] mt-0.5 max-w-xl">
-                Jab aap kisi user ko ye link bhejte hain, unke saamne step-wise verification aayega: (1. Code & Sponsor Verify → 2. Wallet Connect → 3. Network Binding → 4. 10 USDT Welcome Mining Activate).
+                When anyone connects their wallet using your referral link, they are automatically linked into your team and your milestone rewards update in real time.
               </p>
             </div>
           </div>
@@ -398,10 +398,10 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             {onOpenVerificationModal && (
               <button
                 onClick={() => onOpenVerificationModal(refCode)}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00b4d8] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_18px_rgba(0,240,255,0.35)] hover:scale-102 active:scale-95"
+                className="px-3.5 py-2 rounded-xl bg-[#142232] hover:bg-[#1e334c] text-white border border-[#1c2b3b] hover:border-[#00F0FF]/40 text-xs font-mono font-bold transition-all flex items-center gap-1.5 shadow-sm"
               >
-                <span className="material-symbols-outlined text-[16px]">play_circle</span>
-                <span>Test Verification Steps</span>
+                <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">verified</span>
+                <span>Verify Sponsor Link</span>
               </button>
             )}
           </div>

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastSaved": "2026-10-15T16:27:44.121Z",
+  "lastSaved": "2026-10-17T08:01:30.706Z",
   "users": [
     {
       "address": "0x71c8a914b97e889f12a0987cb32456fa12349a2",
@@ -25,8 +25,9 @@
       "role": "user",
       "status": "active",
       "createdAt": "2025-02-10T12:30:00.000Z",
-      "lastActive": "2026-10-08T17:13:39.708Z",
-      "notes": "Tier 1 Referral partner"
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "Tier 1 Referral partner",
+      "_syncedAt": "2026-10-17T08:01:26.659Z"
     },
     {
       "address": "0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08",
@@ -38,7 +39,8 @@
       "role": "user",
       "status": "active",
       "createdAt": "2025-02-28T16:15:00.000Z",
-      "lastActive": "2026-10-08T17:13:39.708Z"
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "_syncedAt": "2026-10-17T08:01:26.680Z"
     },
     {
       "address": "0x1234567890123456789012345678901234567890",
@@ -50,8 +52,9 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-08T17:17:04.546Z",
-      "lastActive": "2026-10-08T17:17:04.546Z",
-      "notes": ""
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.698Z"
     },
     {
       "address": "0x9876543210987654321098765432109876543210",
@@ -63,8 +66,9 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-08T17:26:15.340Z",
-      "lastActive": "2026-10-08T17:26:19.868Z",
-      "notes": ""
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.718Z"
     },
     {
       "address": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
@@ -76,8 +80,9 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T08:22:38.725Z",
-      "lastActive": "2026-10-09T08:53:06.026Z",
-      "notes": "Primary Referrer Wallet"
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "Primary Referrer Wallet",
+      "_syncedAt": "2026-10-17T08:01:26.736Z"
     },
     {
       "address": "0x38069663d6408dff184bafc65e247e37ae84a1c2",
@@ -89,8 +94,9 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T08:22:38.726Z",
-      "lastActive": "2026-10-09T09:43:03.193Z",
-      "notes": "Referee Partner"
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "Referee Partner",
+      "_syncedAt": "2026-10-17T08:01:26.755Z"
     },
     {
       "address": "0xb88469f37902d2bd14faeb164c7efd72775647c5",
@@ -102,8 +108,9 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T09:26:00.800Z",
-      "lastActive": "2026-10-09T09:26:00.800Z",
-      "notes": ""
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.777Z"
     },
     {
       "address": "0x997e00a582b65cac1c4f9a90af6ae9a857b637aa",
@@ -115,8 +122,401 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T09:43:43.924Z",
-      "lastActive": "2026-10-15T14:26:59.625Z",
-      "notes": ""
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.795Z"
+    },
+    {
+      "address": "0x1111111111111111111111111111111111111111",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-111111",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.813Z"
+    },
+    {
+      "address": "0x1111222233334444555566667777888899990000",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-111122",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.831Z"
+    },
+    {
+      "address": "0x16ee54796d74c3bd8fbe93954b339c629c1acf0c",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-16EE54",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.851Z"
+    },
+    {
+      "address": "0x2222333344445555666677778888999900001111",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-222233",
+      "referredBy": "0x1111222233334444555566667777888899990000",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.871Z"
+    },
+    {
+      "address": "0x2c69b9fe8f052309dd9094e62d97d16127f51f52",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-2C69B9",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.893Z"
+    },
+    {
+      "address": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-3471E0",
+      "referredBy": "SPK-3471E0",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.912Z"
+    },
+    {
+      "address": "0x439ae59ea572ceb6e7a51fcc1051dbdd04344a57",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-439AE5",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.929Z"
+    },
+    {
+      "address": "0x5512d577b94b8abf9308de15d43507075c43b167",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-5512D5",
+      "referredBy": "SPK-3471E0",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.950Z"
+    },
+    {
+      "address": "0x5dfea4b8aaeff82770710afa22332be6e0817b42",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-5DFEA4",
+      "referredBy": "SPK-3471E0",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.968Z"
+    },
+    {
+      "address": "0x5faebafdb9dcafbf845c9eb59ab7bb2ad4e7e712",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.055,
+      "totalMined": 0,
+      "referralCode": "SPK-5FAEBA",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:26.989Z"
+    },
+    {
+      "address": "0x7777888899990000111122223333444455556666",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-777788",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.006Z"
+    },
+    {
+      "address": "0x86f9b5c786a36b4b06a854f1ea3e24d9887e8852",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-86F9B5",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.027Z"
+    },
+    {
+      "address": "0x9999888877776666555544443333222211110000",
+      "balanceUsdt": 150,
+      "balanceBnb": 0.055,
+      "totalMined": 0,
+      "referralCode": "SPK-999988",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.045Z"
+    },
+    {
+      "address": "0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-DE7BFC",
+      "referredBy": "SPK-5512D5",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.064Z"
+    },
+    {
+      "address": "0xa0dcb94347e7b4ed957cbf51306bc1f6e8334147",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.055,
+      "totalMined": 0,
+      "referralCode": "SPK-A0DCB9",
+      "referredBy": "SPK-3471E0",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.083Z"
+    },
+    {
+      "address": "0xaaaaabbbbbcccccdddddeeeeefffff0000011111",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-AAAAAB",
+      "referredBy": "0x1111222233334444555566667777888899990000",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.104Z"
+    },
+    {
+      "address": "0xb955549766b1127bf5b8b834610d1427f47171a4",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-B95554",
+      "referredBy": "SPK-3471E0",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.126Z"
+    },
+    {
+      "address": "0xc117dcdd2e7197d0a61399288a994968dd05ce53",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-C117DC",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.149Z"
+    },
+    {
+      "address": "0xc8ae035c7bd0d6a043d7389f5defd3daee0e9006",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-C8AE03",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.168Z"
+    },
+    {
+      "address": "0xca9daa27d78377b43e17cf12313489eb67b529c9",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-CA9DAA",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.186Z"
+    },
+    {
+      "address": "0xd2565bbfe9fb455007039f0a43614824b127fd76",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-D2565B",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.209Z"
+    },
+    {
+      "address": "0xdeb6a0c82d9a8b3b66cd206a131dc2233971cd12",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-DEB6A0",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.230Z"
+    },
+    {
+      "address": "0xe367227508727ce15f2821ad03574145cecfdce3",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-E36722",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.247Z"
+    },
+    {
+      "address": "0xeeeeffff00001111222233334444555566667777",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-EEEEFF",
+      "referredBy": "0x7777888899990000111122223333444455556666",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.269Z"
+    },
+    {
+      "address": "0xf339c9dd3512b04d5b255eca323134e452098c90",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-F339C9",
+      "referredBy": null,
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.289Z"
+    },
+    {
+      "address": "0xaaaa111122223333444455556666777788889999",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-AAAA11",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T07:35:13.133Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.312Z"
+    },
+    {
+      "address": "0x3856175386ce7cc62ba595310392bd1e42a019f9",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-385617",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T07:43:17.268Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.333Z"
+    },
+    {
+      "address": "0xbbbb222233334444555566667777888899990000",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-BBBB22",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-17T07:43:22.822Z",
+      "lastActive": "2026-10-17T08:01:30.597Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:01:27.355Z"
     }
   ],
   "nodes": [
@@ -314,6 +714,33 @@
   ],
   "referrals": [
     {
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0xbbbb222233334444555566667777888899990000",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "id": "ref-1792223002822-897",
+      "createdAt": "2026-10-17T07:43:22.822Z"
+    },
+    {
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0x3856175386ce7cc62ba595310392bd1e42a019f9",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "id": "ref-1792222997268-18",
+      "createdAt": "2026-10-17T07:43:17.268Z"
+    },
+    {
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0xaaaa111122223333444455556666777788889999",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "id": "ref-1792222513134-784",
+      "createdAt": "2026-10-17T07:35:13.134Z"
+    },
+    {
       "referrerAddress": "0x997e00a582b65cac1c4f9a90af6ae9a857b637aa",
       "refereeAddress": "0xf0523daad388",
       "tier": 1,
@@ -330,6 +757,123 @@
       "commissionUsdt": 0,
       "volumeUsdt": 150,
       "createdAt": "2026-10-09T08:22:38.726Z"
+    },
+    {
+      "id": "ref-1791534455847-35",
+      "referrerAddress": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "refereeAddress": "0x1111111111111111111111111111111111111111",
+      "tier": 1,
+      "commissionUsdt": 15,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-09T08:27:35.847Z"
+    },
+    {
+      "id": "ref-1792136302434-216",
+      "referrerAddress": "0x1111222233334444555566667777888899990000",
+      "refereeAddress": "0x2222333344445555666677778888999900001111",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-16T07:38:22.434Z"
+    },
+    {
+      "id": "ref-1792143068624-696",
+      "referrerAddress": "0x1111222233334444555566667777888899990000",
+      "refereeAddress": "0xaaaaabbbbbcccccdddddeeeeefffff0000011111",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-16T09:31:08.624Z"
+    },
+    {
+      "id": "ref-1792143544795-721",
+      "referrerAddress": "0x7777888899990000111122223333444455556666",
+      "refereeAddress": "0xeeeeffff00001111222233334444555566667777",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-16T09:39:04.795Z"
+    },
+    {
+      "id": "ref_1791970036813",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0x5512d577b94b8abf9308de15d43507075c43b167",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-14T09:27:16.813Z"
+    },
+    {
+      "id": "ref_1791970621167",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0xa0dcb94347e7b4ed957cbf51306bc1f6e8334147",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-14T09:37:01.167Z"
+    },
+    {
+      "id": "ref_1791970626785",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0x5dfea4b8aaeff82770710afa22332be6e0817b42",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-14T09:37:06.785Z"
+    },
+    {
+      "id": "ref_1792074089092",
+      "referrerAddress": "0x5512d577b94b8abf9308de15d43507075c43b167",
+      "refereeAddress": "0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-15T14:21:29.092Z"
+    },
+    {
+      "id": "ref_1792087400955",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0xb955549766b1127bf5b8b834610d1427f47171a4",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-15T18:03:20.955Z"
+    },
+    {
+      "id": "ref_1792140933040",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0x2c69b9fe8f052309dd9094e62d97d16127f51f52",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-16T08:55:33.040Z"
+    },
+    {
+      "id": "ref_1792142718596",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0x16ee54796d74c3bd8fbe93954b339c629c1acf0c",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-16T09:25:18.596Z"
+    },
+    {
+      "id": "ref_1792145705139",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0x38069663d6408dff184bafc65e247e37ae84a1c2",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-16T10:15:05.139Z"
+    },
+    {
+      "id": "ref_1792145838496",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0xc8ae035c7bd0d6a043d7389f5defd3daee0e9006",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-10-16T10:17:18.496Z"
     }
   ],
   "announcements": [
@@ -381,6 +925,246 @@
     "supportEmail": "contact@spikenodes.com"
   },
   "auditLogs": [
+    {
+      "id": "audit-1792223002822-564",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715->0xbbbb222233334444555566667777888899990000",
+      "details": "Linked partner 0xbbbb222233334444555566667777888899990000 to sponsor 0x3471e07c4d2f7e11c155760a7b386e616b5c3715 (Code: SPK-3471E0)",
+      "timestamp": "2026-10-17T07:43:22.822Z"
+    },
+    {
+      "id": "audit-1792223002822-571",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xbbbb222233334444555566667777888899990000",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T07:43:22.822Z"
+    },
+    {
+      "id": "audit-1792222997268-578",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x3856175386ce7cc62ba595310392bd1e42a019f9",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T07:43:17.268Z"
+    },
+    {
+      "id": "audit-1792222513134-570",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715->0xaaaa111122223333444455556666777788889999",
+      "details": "Linked partner 0xaaaa111122223333444455556666777788889999 to sponsor 0x3471e07c4d2f7e11c155760a7b386e616b5c3715 (Code: SPK-3471E0)",
+      "timestamp": "2026-10-17T07:35:13.134Z"
+    },
+    {
+      "id": "audit-1792222513133-921",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xaaaa111122223333444455556666777788889999",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T07:35:13.133Z"
+    },
+    {
+      "id": "audit-1792219676593-539",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xf339c9dd3512b04d5b255eca323134e452098c90",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-710",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xeeeeffff00001111222233334444555566667777",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-620",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xe367227508727ce15f2821ad03574145cecfdce3",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-276",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xdeb6a0c82d9a8b3b66cd206a131dc2233971cd12",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-937",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xd2565bbfe9fb455007039f0a43614824b127fd76",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-248",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xca9daa27d78377b43e17cf12313489eb67b529c9",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-324",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xc8ae035c7bd0d6a043d7389f5defd3daee0e9006",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-538",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xc117dcdd2e7197d0a61399288a994968dd05ce53",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-466",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xb955549766b1127bf5b8b834610d1427f47171a4",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-933",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xaaaaabbbbbcccccdddddeeeeefffff0000011111",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-348",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xa0dcb94347e7b4ed957cbf51306bc1f6e8334147",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-666",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-720",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x9999888877776666555544443333222211110000",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676593-356",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x86f9b5c786a36b4b06a854f1ea3e24d9887e8852",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.593Z"
+    },
+    {
+      "id": "audit-1792219676592-763",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x7777888899990000111122223333444455556666",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-458",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x5faebafdb9dcafbf845c9eb59ab7bb2ad4e7e712",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-689",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x5dfea4b8aaeff82770710afa22332be6e0817b42",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-380",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x5512d577b94b8abf9308de15d43507075c43b167",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-850",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x439ae59ea572ceb6e7a51fcc1051dbdd04344a57",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-549",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-314",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x2c69b9fe8f052309dd9094e62d97d16127f51f52",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-544",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x2222333344445555666677778888999900001111",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-497",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x16ee54796d74c3bd8fbe93954b339c629c1acf0c",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-248",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x1111222233334444555566667777888899990000",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
+    {
+      "id": "audit-1792219676592-256",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x1111111111111111111111111111111111111111",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-17T06:47:56.592Z"
+    },
     {
       "id": "audit-1792081664087-962",
       "adminUser": "Admin Portal",
@@ -560,6 +1344,15 @@
       "totalHarvestAutoBoughtSpk": 125,
       "totalUsdtSpentOnAutoBuy": 4.31,
       "lastAutoBuyAt": "2026-10-15T13:26:51.961Z"
+    },
+    {
+      "address": "0xd2565bbfe9fb455007039f0a43614824b127fd76",
+      "testnetUsdt": 1000,
+      "testnetSpk": 150,
+      "autoBuyEnabled": true,
+      "slippageTolerance": 0.5,
+      "totalHarvestAutoBoughtSpk": 0,
+      "totalUsdtSpentOnAutoBuy": 0
     }
   ],
   "testnetTransactions": [
