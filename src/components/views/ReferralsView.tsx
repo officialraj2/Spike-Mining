@@ -61,15 +61,19 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     ? window.location.origin
     : 'https://spikenodes.com';
 
+  const [linkDomain, setLinkDomain] = useState<'official' | 'current'>('official');
+  const [linkFormat, setLinkFormat] = useState<'short' | 'full'>('short');
+
+  const selectedBaseOrigin = linkDomain === 'official' ? 'https://spikenodes.com' : currentOrigin;
+
   // Short referral link with sponsor wallet parameter for 100% deterministic matching
   const shortRefLink = walletAddress
-    ? `${currentOrigin}/ref/${refCode}?sponsor=${walletAddress}`
-    : `${currentOrigin}/ref/${refCode}`;
+    ? `${selectedBaseOrigin}/ref/${refCode}?sponsor=${walletAddress}`
+    : `${selectedBaseOrigin}/ref/${refCode}`;
 
   // Universal address link fallback
-  const fullRefLink = walletAddress ? `${currentOrigin}/?ref=${walletAddress}` : `${currentOrigin}/?ref=USER`;
+  const fullRefLink = walletAddress ? `${selectedBaseOrigin}/?ref=${walletAddress}` : `${selectedBaseOrigin}/?ref=USER`;
 
-  const [linkFormat, setLinkFormat] = useState<'short' | 'full'>('short');
   const activeLinkToCopy = linkFormat === 'short' ? shortRefLink : fullRefLink;
 
   const [copied, setCopied] = useState(false);
@@ -121,10 +125,18 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     window.addEventListener('spike_partner_registered', handlePartnerEvent);
     window.addEventListener('focus', refreshLiveStats);
 
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && e.key.includes('spike_referral')) {
+        refreshLiveStats();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('spike_partner_registered', handlePartnerEvent);
       window.removeEventListener('focus', refreshLiveStats);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, [refreshLiveStats]);
 
@@ -136,7 +148,15 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const totalEarnedUsdt = effectiveStats?.totalCommissions ?? 0;
   
   const referralsList = effectiveStats?.referrals || [];
-  const activeSponsor = effectiveStats?.referredBy || null;
+  const rawSponsor = effectiveStats?.referredBy || null;
+  const isSelfSponsor = Boolean(
+    rawSponsor &&
+    walletAddress &&
+    (rawSponsor.toLowerCase() === walletAddress.toLowerCase() ||
+     rawSponsor.toLowerCase() === refCode.toLowerCase() ||
+     rawSponsor.toLowerCase().replace(/^(spike-|spk-)/i, '') === walletAddress.toLowerCase().slice(2, 8))
+  );
+  const activeSponsor = isSelfSponsor ? null : rawSponsor;
 
   // Track claimed milestone IDs per wallet
   const storageKey = `spike_claimed_milestones_${walletAddress || 'default'}`;
@@ -235,9 +255,31 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
-                Your Short Referral Link
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+                  Referral Link
+                </span>
+                <div className="flex items-center bg-[#0a0f1d] p-0.5 rounded-lg border border-[#1c2b3b]">
+                  <button
+                    onClick={() => setLinkDomain('official')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
+                      linkDomain === 'official' ? 'bg-[#00F0FF] text-[#0A0F1D] font-bold' : 'text-[#94a3b8] hover:text-white'
+                    }`}
+                    title="Official production domain (spikenodes.com)"
+                  >
+                    spikenodes.com
+                  </button>
+                  <button
+                    onClick={() => setLinkDomain('current')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
+                      linkDomain === 'current' ? 'bg-[#00F0FF] text-[#0A0F1D] font-bold' : 'text-[#94a3b8] hover:text-white'
+                    }`}
+                    title="Direct preview app URL"
+                  >
+                    Preview App
+                  </button>
+                </div>
+              </div>
               <span className="text-[10px] text-emerald-400 font-mono">✓ 1-Click Auto-Copy & Send</span>
             </div>
             
@@ -391,26 +433,32 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <input
                 type="text"
-                placeholder="0x... or SPK-..."
+                placeholder="Paste link, SPK-..., or 0x..."
                 value={sponsorInput}
                 onChange={(e) => setSponsorInput(e.target.value)}
-                className="bg-[#122130] border border-[#1c2b3b] text-white font-mono text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-[#00F0FF] w-full sm:w-48 placeholder:text-gray-500"
+                className="bg-[#122130] border border-[#1c2b3b] text-white font-mono text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-[#00F0FF] w-full sm:w-64 placeholder:text-gray-500"
               />
               <button
                 disabled={bindingSponsor || !sponsorInput.trim()}
                 onClick={async () => {
+                  const input = sponsorInput.trim();
+                  if (!input) return;
                   setBindingSponsor(true);
-                  const ok = await onBindSponsor(sponsorInput.trim());
-                  setBindingSponsor(false);
-                  if (ok) {
-                    setBindMessage('Sponsor successfully linked!');
-                    setSponsorInput('');
-                    setTimeout(() => setBindMessage(null), 3500);
+                  try {
+                    const ok = await onBindSponsor(input);
+                    if (ok) {
+                      setBindMessage('✓ Sponsor processed & team partner updated!');
+                      setSponsorInput('');
+                      refreshLiveStats();
+                      setTimeout(() => setBindMessage(null), 4000);
+                    }
+                  } finally {
+                    setBindingSponsor(false);
                   }
                 }}
-                className="px-3.5 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] text-[#0A0F1D] font-bold text-xs font-headline transition-all disabled:opacity-50 shrink-0"
+                className="px-3.5 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] text-[#0A0F1D] font-bold text-xs font-headline transition-all disabled:opacity-50 shrink-0 shadow-sm"
               >
-                {bindingSponsor ? 'Binding...' : 'Bind Sponsor'}
+                {bindingSponsor ? 'Processing...' : 'Process / Bind'}
               </button>
             </div>
           )}

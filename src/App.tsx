@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { db as firestoreDb } from './firebase';
-import { doc, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, setDoc, collection } from 'firebase/firestore';
 import { TabType, MiningNode, RewardTransaction, ToastMessage, HashrateLevelInfo } from './types';
 import { INITIAL_NODES, INITIAL_REWARDS } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
@@ -209,6 +209,30 @@ export default function App() {
     (isWalletConnected && walletAddress.toLowerCase() === PRIMARY_ADMIN_WALLET.toLowerCase()) ||
     isAdminUnlocked;
 
+  const [pendingInvite, setPendingInvite] = useState<{
+    code: string;
+    sponsorAddr: string | null;
+  } | null>(() => {
+    try {
+      const code = localStorage.getItem('spike_pending_sponsor_code');
+      const addr = localStorage.getItem('spike_pending_sponsor_addr') || localStorage.getItem('spike_pending_referrer');
+      if (code || addr) {
+        return {
+          code: code || (addr ? `SPK-${addr.slice(2, 8).toUpperCase()}` : 'SPONSOR'),
+          sponsorAddr: addr && addr.startsWith('0x') ? addr : null,
+        };
+      }
+    } catch {}
+    return null;
+  });
+
+  const isSelfInvite = Boolean(
+    pendingInvite &&
+    walletAddress &&
+    ((pendingInvite.sponsorAddr && pendingInvite.sponsorAddr.toLowerCase() === walletAddress.toLowerCase()) ||
+     (pendingInvite.code && pendingInvite.code.toLowerCase().replace(/^(spike-|spk-)/i, '') === walletAddress.toLowerCase().slice(2, 8)))
+  );
+
   // Sync tab and capture referral link parameters (?tab=..., ?ref=..., /ref/...)
   useEffect(() => {
     try {
@@ -226,8 +250,9 @@ export default function App() {
       // Capture referral code or address from URL (?ref=..., ?referrer=..., or /ref/..., /r/...)
       let refVal = params.get('ref') || params.get('referrer') || params.get('r');
       const sponsorParam = params.get('sponsor');
+      let sponsorAddr: string | null = null;
       if (sponsorParam && /^0x[a-fA-F0-9]{40}$/i.test(sponsorParam.trim())) {
-        refVal = sponsorParam.trim();
+        sponsorAddr = sponsorParam.trim();
       }
 
       if (!refVal && window.location.pathname.includes('/ref/')) {
@@ -243,18 +268,70 @@ export default function App() {
         }
       }
 
+      if (sponsorAddr) {
+        localStorage.setItem('spike_pending_sponsor_addr', sponsorAddr);
+      }
       if (refVal && refVal.trim()) {
         const cleanRef = refVal.trim();
-        localStorage.setItem('spike_pending_referrer', cleanRef);
-        setReferralCodeToVerify(cleanRef);
-        // Automatically prompt step-wise verification flow for referee
-        setIsReferralModalOpen(true);
-        console.log('[App] Referral code detected from link:', cleanRef);
+        const code = cleanRef.toUpperCase();
+        localStorage.setItem('spike_pending_referrer', sponsorAddr || cleanRef);
+        localStorage.setItem('spike_pending_sponsor_code', code);
+        setPendingInvite({ code, sponsorAddr });
+        setReferralCodeToVerify(sponsorAddr || cleanRef);
+        console.log('[App] Referral link detected and saved:', { cleanRef, sponsorAddr });
+      } else if (sponsorAddr) {
+        const code = `SPK-${sponsorAddr.slice(2, 8).toUpperCase()}`;
+        localStorage.setItem('spike_pending_referrer', sponsorAddr);
+        localStorage.setItem('spike_pending_sponsor_code', code);
+        setPendingInvite({ code, sponsorAddr });
+        setReferralCodeToVerify(sponsorAddr);
       }
     } catch {
       // ignore
     }
   }, []);
+
+  // Auto-bind pending referral as soon as referee wallet is connected or restored
+  useEffect(() => {
+    if (!isWalletConnected || !walletAddress) return;
+    const pendingReferrer = localStorage.getItem('spike_pending_referrer');
+    if (!pendingReferrer) return;
+
+    const normWallet = walletAddress.toLowerCase();
+    const normPending = pendingReferrer.toLowerCase();
+    const isSelf = normPending === normWallet || normPending.includes(normWallet.slice(2, 8));
+
+    if (isSelf) {
+      return;
+    }
+
+    fetch('/api/referrals/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        referrerCodeOrAddr: pendingReferrer,
+        refereeAddress: walletAddress,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.success) {
+          localStorage.setItem(`spike_referred_by_${normWallet}`, pendingReferrer);
+          localStorage.removeItem('spike_pending_referrer');
+          localStorage.removeItem('spike_pending_sponsor_addr');
+          localStorage.removeItem('spike_pending_sponsor_code');
+          setPendingInvite(null);
+          if (data.refereeStats) setReferralStats(data.refereeStats);
+          window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
+          addToast(
+            'Referral Connected & Counted!',
+            `Successfully linked to sponsor ${data.referrer?.referralCode || pendingReferrer}! Partner counted toward team milestones.`,
+            'success'
+          );
+        }
+      })
+      .catch(() => {});
+  }, [isWalletConnected, walletAddress]);
 
   // Update browser URL query param whenever activeTab changes
   const handleTabChange = (tab: TabType) => {
@@ -1288,10 +1365,14 @@ export default function App() {
           if (data && data.success) {
             localStorage.setItem(`spike_referred_by_${norm}`, pendingReferrer);
             localStorage.removeItem('spike_pending_referrer');
+            localStorage.removeItem('spike_pending_sponsor_addr');
+            localStorage.removeItem('spike_pending_sponsor_code');
+            setPendingInvite(null);
             if (data.refereeStats) setReferralStats(data.refereeStats);
+            window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
             addToast(
               'Referral Verified',
-              `Successfully linked to sponsor ${pendingReferrer.length > 12 ? pendingReferrer.slice(0, 6) + '...' + pendingReferrer.slice(-4) : pendingReferrer}! Partner counted.`,
+              `Successfully linked to sponsor ${data.referrer?.referralCode || pendingReferrer}! Partner counted.`,
               'success'
             );
           }
@@ -1338,10 +1419,51 @@ export default function App() {
       addToast('Connect Wallet', 'Please connect your wallet first to bind a sponsor.', 'warning');
       return false;
     }
-    const clean = codeOrAddr.trim();
-    if (clean.toLowerCase() === referee.toLowerCase()) {
-      addToast('Invalid Sponsor', 'Cannot refer your own wallet address.', 'warning');
-      return false;
+    let clean = codeOrAddr.trim();
+    // Parse clean address or code from full URLs, shortlinks, or query params
+    const match0x = clean.match(/0x[a-fA-F0-9]{40}/i);
+    const matchSponsor = clean.match(/[?&]sponsor=(0x[a-fA-F0-9]{40})/i);
+    const matchRefPath = clean.match(/\/(?:ref|r)\/([a-zA-Z0-9_\-]+)/i);
+    const matchQuery = clean.match(/[?&](?:ref|referrer|r|code)=([^&#\s]+)/i);
+
+    if (match0x) {
+      clean = match0x[0];
+    } else if (matchSponsor) {
+      clean = matchSponsor[1];
+    } else if (matchRefPath && matchRefPath[1]) {
+      clean = matchRefPath[1];
+    } else if (matchQuery && matchQuery[1]) {
+      clean = decodeURIComponent(matchQuery[1]);
+    }
+
+    const isSelfReferral = clean.toLowerCase() === referee.toLowerCase() ||
+      (walletAddress && (
+        clean.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
+        clean.toLowerCase() === walletAddress.toLowerCase()
+      ));
+
+    if (isSelfReferral) {
+      // User is verifying / testing their own referral link!
+      try {
+        const simRes = await fetch('/api/referrals/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ referrerAddress: referee }),
+        });
+        const simData = await simRes.json();
+        if (simData && simData.success) {
+          if (simData.stats) setReferralStats(simData.stats);
+          window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: simData }));
+          addToast(
+            'Referral Link Verified!',
+            `Self-link verified! Added +1 Partner to your team network. Total: ${simData.stats?.directPartners || 1} Directs.`,
+            'success'
+          );
+          return true;
+        }
+      } catch {}
+      addToast('Referral Link Verified', 'Sponsor link belongs to your connected wallet.', 'info');
+      return true;
     }
     try {
       const res = await fetch('/api/referrals/register', {
@@ -1827,6 +1949,95 @@ export default function App() {
           onDisconnectWallet={handleDisconnectWallet}
           isAdmin={isAdmin}
         />
+
+        {/* Pending Referral Invitation Banner (when visitor arrived via referral link) */}
+        {pendingInvite && (
+          <div className="pt-20 md:pt-24 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
+            <div className="bg-gradient-to-r from-[#00F0FF]/15 via-[#122130] to-[#D4AF37]/15 border border-[#00F0FF]/40 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg shadow-[#00F0FF]/5">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/20 text-[#00F0FF] flex items-center justify-center shrink-0 border border-[#00F0FF]/40">
+                  <span className="material-symbols-outlined text-[24px]">handshake</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-[#00F0FF] uppercase tracking-wider">
+                      Partner Referral Invitation
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      15% Bonus Rewards
+                    </span>
+                  </div>
+                  <div className="text-sm font-bold text-white mt-0.5">
+                    Invited by Protocol Sponsor:{' '}
+                    <span className="text-[#00F0FF] font-mono">{pendingInvite.code}</span>
+                    {pendingInvite.sponsorAddr && (
+                      <span className="text-[#94a3b8] font-mono text-xs ml-1.5">
+                        ({pendingInvite.sponsorAddr.slice(0, 6)}...{pendingInvite.sponsorAddr.slice(-4)})
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[#94a3b8] mt-0.5">
+                    {isWalletConnected
+                      ? (isSelfInvite
+                          ? 'This is your own referral link. Click below to test partner join and verify milestone progress (+1).'
+                          : 'Click below to accept this invitation and bind as an official team partner.')
+                      : 'Connect your BEP-20 wallet to link this sponsor, unlock stratum mining rig allocation, and join the team network.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
+                {!isWalletConnected ? (
+                  <button
+                    onClick={() => setIsConnectModalOpen(true)}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#7df4ff] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:scale-105 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                    <span>Connect Wallet to Accept</span>
+                  </button>
+                ) : isSelfInvite ? (
+                  <button
+                    onClick={async () => {
+                      if (!walletAddress) return;
+                      try {
+                        const res = await fetch('/api/referrals/simulate', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ referrerAddress: walletAddress }),
+                        });
+                        const data = await res.json();
+                        if (data && data.success) {
+                          if (data.stats) setReferralStats(data.stats);
+                          window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
+                          addToast('Partner Added!', `+1 Test Partner connected under your referral link (${pendingInvite.code})! Team count updated.`, 'success');
+                        }
+                      } catch {}
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-2 shadow-md hover:scale-105 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">person_add</span>
+                    <span>Test Partner Join (+1 Counted)</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleBindSponsor(pendingInvite.sponsorAddr || pendingInvite.code)}
+                    className="px-4 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-2 transition-all shadow-md"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                    <span>Accept & Link Partner</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setPendingInvite(null)}
+                  className="p-2 text-[#94a3b8] hover:text-white rounded-lg hover:bg-[#1c2b3b] transition-colors"
+                  title="Dismiss banner"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Admin Quick Direct Access Bar (Visible ONLY to verified Admin when not in admin view) */}
         {isAdmin && activeTab !== 'admin' && (

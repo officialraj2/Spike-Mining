@@ -541,9 +541,16 @@ class PersistentDatabase {
           if (typeof loadedSettings.treasuryBalanceUsdt !== 'number') {
             loadedSettings.treasuryBalanceUsdt = 24850.0;
           }
+          const sanitizedUsers = (parsed.users || INITIAL_DATA.users).map((u: DbUser) => {
+            if (u.referredBy && (u.referredBy.toLowerCase() === u.address.toLowerCase() || u.referredBy.toLowerCase() === (u.referralCode || '').toLowerCase())) {
+              return { ...u, referredBy: null };
+            }
+            return u;
+          });
           return {
             ...INITIAL_DATA,
             ...parsed,
+            users: sanitizedUsers,
             settings: loadedSettings,
             testnetWallets: Array.isArray(parsed.testnetWallets) && parsed.testnetWallets.length ? parsed.testnetWallets : INITIAL_DATA.testnetWallets,
             testnetTransactions: Array.isArray(parsed.testnetTransactions) && parsed.testnetTransactions.length ? parsed.testnetTransactions : INITIAL_DATA.testnetTransactions,
@@ -660,26 +667,50 @@ class PersistentDatabase {
     const norm = (userAddress || '').toLowerCase();
     if (!norm) return { directCount: 0, downlineCount: 0, totalTeamCount: 0 };
 
-    const directs = this.data.referrals.filter(
-      (r) => r.referrerAddress.toLowerCase() === norm
-    );
-    const directCount = directs.length;
+    const slice6 = norm.startsWith('0x') ? norm.slice(2, 8) : norm.replace(/^(spike-|spk-)/i, '');
+    const userCode = `spk-${slice6}`.toLowerCase();
+
+    // Match both canonical 0x address, referral code (e.g. SPK-3471E0), and slice
+    const directs = this.data.referrals.filter((r) => {
+      const ref = (r.referrerAddress || '').toLowerCase();
+      return (
+        ref === norm ||
+        ref === userCode ||
+        ref === `spike-${slice6}` ||
+        ref === slice6 ||
+        ref.includes(slice6)
+      );
+    });
+
+    // Deduplicate unique direct referee wallets
+    const uniqueDirects = new Set<string>();
+    directs.forEach((d) => {
+      const refAddr = (d.refereeAddress || '').toLowerCase();
+      if (refAddr && refAddr !== norm && refAddr !== userCode) {
+        uniqueDirects.add(refAddr);
+      }
+    });
+
+    const directCount = uniqueDirects.size;
 
     // Multi-tier downline traversal
     const visited = new Set<string>();
     visited.add(norm);
+    visited.add(userCode);
+    uniqueDirects.forEach((a) => visited.add(a));
 
-    let queue = directs.map((d) => d.refereeAddress.toLowerCase()).filter((a) => !visited.has(a));
-    queue.forEach((a) => visited.add(a));
-
+    let queue = Array.from(uniqueDirects);
     let downlineCount = 0;
     while (queue.length > 0) {
       const nextTier: string[] = [];
       for (const parent of queue) {
-        const subReferrals = this.data.referrals.filter((r) => r.referrerAddress.toLowerCase() === parent);
+        const subReferrals = this.data.referrals.filter((r) => {
+          const ref = (r.referrerAddress || '').toLowerCase();
+          return ref === parent || (parent.startsWith('0x') && ref.includes(parent.slice(2, 8)));
+        });
         for (const sr of subReferrals) {
-          const child = sr.refereeAddress.toLowerCase();
-          if (!visited.has(child)) {
+          const child = (sr.refereeAddress || '').toLowerCase();
+          if (child && !visited.has(child)) {
             visited.add(child);
             nextTier.push(child);
             downlineCount++;
@@ -1220,9 +1251,19 @@ class PersistentDatabase {
     const targetAddress = resolvedUser ? resolvedUser.address : (userAddressOrCode.startsWith('0x') ? userAddressOrCode : '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
     const norm = targetAddress.toLowerCase();
 
-    const directs = this.data.referrals.filter(
-      (r) => r.referrerAddress.toLowerCase() === norm
-    );
+    const slice6 = norm.startsWith('0x') ? norm.slice(2, 8) : norm.replace(/^(spike-|spk-)/i, '');
+    const userCode = `spk-${slice6}`.toLowerCase();
+
+    const directs = this.data.referrals.filter((r) => {
+      const ref = (r.referrerAddress || '').toLowerCase();
+      return (
+        ref === norm ||
+        ref === userCode ||
+        ref === `spike-${slice6}` ||
+        ref === slice6 ||
+        ref.includes(slice6)
+      );
+    });
     const teamStats = this.getUserTeamStats(norm);
     const hashrateInfo = this.calculateUserHashrate(norm);
     const totalCommissions = directs.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
@@ -1384,9 +1425,19 @@ class PersistentDatabase {
 
       // 4. Deterministic link for any 6-character hex code
       if (/^[a-f0-9]{6}$/i.test(rawCode)) {
+        const hex = rawCode.toLowerCase();
+        // Check if there is already a real user with this hex prefix or referral code
+        const realUser = this.data.users.find(
+          (u) =>
+            u.address.toLowerCase().startsWith(`0x${hex}`) ||
+            u.address.toLowerCase().includes(hex) ||
+            (u.referralCode || '').toLowerCase().includes(hex)
+        );
+        if (realUser) return realUser;
+
         // Generate a clean deterministic valid 42-char checksummed BSC wallet address
         const suffix = '0000000000000000000000000000000000';
-        const generatedAddr = `0x${rawCode.toLowerCase()}${suffix}`;
+        const generatedAddr = `0x${hex}${suffix}`;
         return this.upsertUser({
           address: generatedAddr,
           referralCode: `SPK-${rawCode.toUpperCase()}`,

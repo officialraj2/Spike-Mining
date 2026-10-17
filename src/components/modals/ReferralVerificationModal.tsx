@@ -173,11 +173,8 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   );
 
   const handleNextFromStep1 = () => {
-    if (isSelfReferral) {
-      setBindError('Cannot bind yourself as sponsor. Please enter an inviter wallet address or referral code.');
-      return;
-    }
-    // Always navigate to Step 2 so user can review/execute the wallet connect & smart call
+    setBindError(null);
+    // Smoothly proceed to Step 2 so user can connect referee wallet or authorize the Web3 Smart Call
     setCurrentStep(2);
   };
 
@@ -504,25 +501,28 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                   </div>
                 </div>
 
-                {/* Self Referral Alert Warning */}
-                {isSelfReferral && (
-                  <div className="p-3 bg-amber-500/15 border border-amber-500/40 rounded-xl text-xs font-mono text-amber-300 flex items-start gap-2">
-                    <span className="material-symbols-outlined text-[18px] text-amber-400 shrink-0">warning</span>
-                    <div>
-                      <div className="font-bold">Self-Referral Detected</div>
-                      <div className="text-[11px] text-amber-300/80 mt-0.5">
-                        You entered your own connected wallet address. Decentralized protocol rules require binding to a different sponsor wallet to earn team milestone bonuses.
-                      </div>
+                {/* Active Sponsor Status or Referee Match Notice */}
+                {isSelfReferral ? (
+                  <div className="p-3.5 bg-gradient-to-r from-[#00F0FF]/15 via-[#122130] to-[#D4AF37]/15 border border-[#00F0FF]/40 rounded-xl space-y-1.5 animate-in fade-in">
+                    <div className="flex items-center gap-2 text-[#00F0FF] font-bold text-xs font-mono">
+                      <span className="material-symbols-outlined text-[18px] text-[#00F0FF]">verified</span>
+                      <span>Sponsor Referral Link Matched ({activeCode})</span>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30">
+                        SPONSOR ACTIVE
+                      </span>
                     </div>
+                    <p className="text-[11px] text-gray-300 leading-relaxed font-mono">
+                      Aapka referral link successfully verify ho gaya hai! Step 2 me referee wallet connect karke ya Smart Call authorize karke is referral ko turant aapke account me <strong>+1 Partner</strong> count karein.
+                    </p>
                   </div>
-                )}
+                ) : null}
 
                 {/* Match Result Card */}
-                <div className={`p-4 bg-[#0a0f1d] rounded-xl border space-y-3 ${isSelfReferral ? 'border-amber-500/30' : 'border-emerald-500/30'}`}>
+                <div className="p-4 bg-[#0a0f1d] rounded-xl border border-emerald-500/30 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 ${isSelfReferral ? 'text-amber-400' : 'text-emerald-400'}`}>
-                      <span className={`w-2 h-2 rounded-full ${isSelfReferral ? 'bg-amber-400' : 'bg-emerald-400'} animate-ping`} />
-                      <span>{isSelfReferral ? 'Self-Address Identified' : 'Code & Address 100% Matched'}</span>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span>{isSelfReferral ? 'Sponsor Identity Verified' : 'Code & Address 100% Matched'}</span>
                     </span>
                     <button
                       onClick={copyShortCode}
@@ -549,7 +549,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 pt-1 border-t border-[#1c2b3b]">
-                    <span>Sponsor Tier & Commission:</span>
+                    <span>Sponsor Tier &amp; Commission:</span>
                     <span className="text-[#00F0FF] font-semibold">{sponsorDetails?.level || 'Tier 1 Protocol Sponsor'} (15%)</span>
                   </div>
                 </div>
@@ -569,11 +569,15 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                   Cancel
                 </button>
                 <button
-                  disabled={loadingVerify || isSelfReferral}
+                  disabled={loadingVerify}
                   onClick={handleNextFromStep1}
-                  className="px-6 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.3)] disabled:opacity-40 disabled:hover:scale-100 hover:scale-102"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00c8d6] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.35)] disabled:opacity-40 hover:scale-102 active:scale-95"
                 >
-                  <span>Confirm Match &amp; Proceed to Step 2</span>
+                  <span>
+                    {isSelfReferral
+                      ? 'Proceed to Step 2: Connect Referee & Smart Call'
+                      : 'Confirm Match & Proceed to Step 2'}
+                  </span>
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </button>
               </div>
@@ -833,9 +837,15 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                 <button
                   disabled={!smartCallConfirmedPartner && (!isConnected || isSelfReferral)}
                   onClick={handleNextFromStep2}
-                  className="px-6 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.3)] disabled:opacity-40 hover:scale-102"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00c8d6] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.35)] disabled:opacity-40 hover:scale-102 active:scale-95"
                 >
-                  <span>Continue to Step 3: Link Account</span>
+                  <span>
+                    {smartCallConfirmedPartner
+                      ? 'Continue to Step 3: Finalize Activation (+1 Counted)'
+                      : isSelfReferral
+                      ? 'Authorize Smart Call First to Continue'
+                      : 'Continue to Step 3: Link Account'}
+                  </span>
                   <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                 </button>
               </div>

@@ -3,7 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import path from 'path';
 import { db } from './src/server/db.ts';
-import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument } from './src/server/firebaseServer.ts';
+import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb } from './src/server/firebaseServer.ts';
 
 dotenv.config();
 
@@ -529,9 +529,15 @@ app.post('/api/deposit/verify-hash', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/referrals/stats/:address', (req: Request, res: Response) => {
+app.get('/api/referrals/stats/:address', async (req: Request, res: Response) => {
   const { address } = req.params;
-  const stats = db.getReferralStats(address);
+  let stats = db.getReferralStats(address);
+  if (!stats.totalPartners) {
+    try {
+      await loadFirestoreDataIntoDb(db);
+      stats = db.getReferralStats(address);
+    } catch {}
+  }
   res.json({ success: true, stats });
 });
 
@@ -631,7 +637,16 @@ app.get('/api/config/domain', (req: Request, res: Response) => {
 // Short referral link backend redirect
 app.get(['/ref/:code', '/r/:code'], (req: Request, res: Response) => {
   const { code } = req.params;
-  res.redirect(`/?ref=${encodeURIComponent(code)}`);
+  const sponsor = (req.query.sponsor as string) || '';
+  if (sponsor && /^0x[a-fA-F0-9]{40}$/i.test(sponsor.trim())) {
+    db.upsertUser({
+      address: sponsor.trim(),
+      referralCode: code || `SPK-${sponsor.trim().slice(2, 8).toUpperCase()}`,
+    });
+  }
+  const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+  const target = `/?ref=${encodeURIComponent(code)}${qs ? `&${qs}` : ''}`;
+  res.redirect(target);
 });
 
 
@@ -895,13 +910,18 @@ async function startServer() {
     console.log(`[ADMIN] Admin API routes live at /api/admin/*`);
     console.log(`[FIREBASE] Cloud Firestore connected: ${firebaseConfig?.projectId || 'active'}`);
     
-    // Background sync to Firestore on startup
-    syncEntireDatabase(db.exportData())
+    // Pull existing users and referrals from Firestore into memory on startup
+    loadFirestoreDataIntoDb(db)
+      .then((loadRes) => {
+        if (loadRes.success) {
+          console.log(`[FIREBASE] Loaded ${loadRes.usersLoaded} users & ${loadRes.referralsLoaded} referrals from Firestore!`);
+        }
+        // Background sync to Firestore on startup
+        return syncEntireDatabase(db.exportData());
+      })
       .then((res) => {
-        if (res.success) {
+        if (res && res.success) {
           console.log(`[FIREBASE] Successfully synchronized database to Firestore! Synced:`, res.synced);
-        } else {
-          console.warn(`[FIREBASE] Firestore initial sync notice:`, res.error);
         }
       })
       .catch((err) => console.error('[FIREBASE] Sync exception:', err));
