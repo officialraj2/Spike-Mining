@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { db as firestoreDb } from './firebase';
-import { doc, onSnapshot, getDoc, setDoc, collection } from 'firebase/firestore';
-import { TabType, MiningNode, RewardTransaction, ToastMessage, HashrateLevelInfo } from './types';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { TabType, MiningNode, RewardTransaction, ToastMessage, HashrateLevelInfo, AdminSettings } from './types';
 import { INITIAL_NODES, INITIAL_REWARDS } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -19,7 +19,6 @@ import { BlockchainBackground } from './components/BlockchainBackground';
 const DashboardView = lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
 const MiningNodesView = lazy(() => import('./components/views/MiningNodesView').then(m => ({ default: m.MiningNodesView })));
 const ReferralsView = lazy(() => import('./components/views/ReferralsView').then(m => ({ default: m.ReferralsView })));
-const AnnouncementsView = lazy(() => import('./components/views/AnnouncementsView').then(m => ({ default: m.AnnouncementsView })));
 const AdminView = lazy(() => import('./components/views/AdminView').then(m => ({ default: m.AdminView })));
 
 const ConnectWalletModal = lazy(() => import('./components/modals/ConnectWalletModal').then(m => ({ default: m.ConnectWalletModal })));
@@ -193,10 +192,26 @@ export default function App() {
     }
   });
 
-  // Designated Protocol Primary Admin Wallet
-  const PRIMARY_ADMIN_WALLET = '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+  // Designated Master Wallets with root auto-recognition
+  const MASTER_WALLETS = [
+    '0x3471e07c4d2f7e11c155760a7b386e616b5c3715', // Project Creator Master Wallet
+    '0x71C8a914B97e889F12A0987cB32456Fa12349A2', // Protocol Co-Admin Wallet
+  ];
 
-  // Admin access state (checked via admin wallet or verified passcode session)
+  const [globalSettings, setGlobalSettings] = useState<AdminSettings | null>(null);
+
+  // Auto-recognition of Master User
+  const isMasterUser = Boolean(
+    isWalletConnected &&
+    walletAddress &&
+    (
+      MASTER_WALLETS.map((w) => w.toLowerCase()).includes(walletAddress.toLowerCase()) ||
+      (globalSettings?.masterWalletAddresses &&
+        globalSettings.masterWalletAddresses.map((w) => w.toLowerCase()).includes(walletAddress.toLowerCase()))
+    )
+  );
+
+  // Admin access state (checked via master wallet, admin wallet, or verified passcode session)
   const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
     try {
       return sessionStorage.getItem('spike_admin_authenticated') === 'true';
@@ -205,9 +220,25 @@ export default function App() {
     }
   });
 
-  const isAdmin =
-    (isWalletConnected && walletAddress.toLowerCase() === PRIMARY_ADMIN_WALLET.toLowerCase()) ||
-    isAdminUnlocked;
+  const isAdmin = isMasterUser || isAdminUnlocked;
+
+  // Real-time synchronization of project-wide global settings
+  useEffect(() => {
+    const fetchGlobalSettings = () => {
+      fetch('/api/settings')
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.settings) {
+            setGlobalSettings(data.settings);
+          }
+        })
+        .catch(() => {});
+    };
+    fetchGlobalSettings();
+    const handleSettingsUpdate = () => fetchGlobalSettings();
+    window.addEventListener('spike_settings_updated', handleSettingsUpdate);
+    return () => window.removeEventListener('spike_settings_updated', handleSettingsUpdate);
+  }, []);
 
   const [pendingInvite, setPendingInvite] = useState<{
     code: string;
@@ -242,7 +273,7 @@ export default function App() {
         setActiveTab('admin');
       } else if (
         tabParam &&
-        ['home', 'dashboard', 'mining-nodes', 'referrals', 'announcements'].includes(tabParam)
+        ['home', 'dashboard', 'mining-nodes', 'referrals'].includes(tabParam)
       ) {
         setActiveTab(tabParam as TabType);
       }
@@ -554,6 +585,15 @@ export default function App() {
           }
         },
         (err) => {
+          const msg = err?.message || String(err);
+          if (
+            msg.includes('RESOURCE_EXHAUSTED') ||
+            msg.includes('Quota limit exceeded') ||
+            (err as any)?.code === 'resource-exhausted'
+          ) {
+            // Firestore free tier quota reached; REST API continues serving real-time balance
+            return;
+          }
           console.warn('[App] Realtime Firestore sync note:', err);
         }
       );
@@ -1378,31 +1418,6 @@ export default function App() {
           }
         })
         .catch(() => {});
-
-      // Firebase Firestore static fallback write
-      try {
-        const refId = `ref_${Date.now()}`;
-        setDoc(doc(firestoreDb, 'referrals', refId), {
-          id: refId,
-          referrerAddress: pendingReferrer,
-          refereeAddress: finalAddress,
-          tier: 1,
-          commissionUsdt: 0,
-          volumeUsdt: 150.0,
-          createdAt: new Date().toISOString(),
-        }).catch(() => {});
-        setDoc(
-          doc(firestoreDb, 'users', norm),
-          {
-            address: finalAddress,
-            referredBy: pendingReferrer,
-            role: 'user',
-            status: 'active',
-            balanceUsdt: initialUsdt,
-          },
-          { merge: true }
-        ).catch(() => {});
-      } catch {}
     }
 
     addToast(
@@ -1574,7 +1589,7 @@ export default function App() {
       .reduce((acc, curr) => acc + curr.hashrate, 0);
 
     // If user attempts to view internal views without logging in, show login panel gate!
-    if (!isWalletConnected && activeTab !== 'home' && activeTab !== 'announcements' && activeTab !== 'admin') {
+    if (!isWalletConnected && activeTab !== 'home' && activeTab !== 'admin') {
       return (
         <div className="p-8 md:p-12 rounded-3xl bg-[#122130] border border-[#1c2b3b] shadow-2xl text-center max-w-xl mx-auto my-12 space-y-6">
           <div className="w-16 h-16 rounded-2xl bg-[#00F0FF]/10 text-[#00F0FF] flex items-center justify-center mx-auto border border-[#00F0FF]/30">
@@ -1701,20 +1716,14 @@ export default function App() {
           />
         );
         break;
-      case 'announcements':
-        currentComponent = (
-          <AnnouncementsView
-            onCopyText={copyToClipboard}
-            onNavigateHome={(tab) => handleTabChange(tab as TabType)}
-          />
-        );
-        break;
       case 'admin':
         currentComponent = (
           <AdminView
             onNotify={addToast}
             onNavigateTab={handleTabChange}
             isAdmin={isAdmin}
+            isMasterUser={isMasterUser}
+            currentWallet={walletAddress}
             network={network}
             onNetworkChange={setNetwork}
             onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
@@ -1743,36 +1752,36 @@ export default function App() {
   // If Mobile Simulator View is selected, wrap in an interactive smartphone frame
   if (viewMode === 'mobile') {
     return (
-      <div className="min-h-screen bg-[#010f1e] flex flex-col items-center justify-start p-4 py-8 select-none">
+      <div className="h-screen max-h-screen bg-[#010f1e] flex flex-col items-center justify-center p-2 sm:p-3 select-none overflow-hidden">
         {/* View Mode Bar */}
-        <div className="mb-4 flex items-center gap-3 bg-[#0d1d2c] border border-[#1c2b3b] px-4 py-2 rounded-xl text-xs">
-          <span className="text-[#c6c6cc]">Device Viewport:</span>
+        <div className="mb-2 shrink-0 flex items-center gap-2 sm:gap-3 bg-[#0d1d2c] border border-[#1c2b3b] px-3.5 py-1.5 rounded-xl text-xs shadow-md">
+          <span className="text-[#c6c6cc] font-medium">Device Viewport:</span>
           <button
             onClick={() => setViewMode('auto')}
-            className="px-2.5 py-1 rounded bg-[#1c2b3b] text-[#c6c6cc] hover:text-white"
+            className="px-2.5 py-1 rounded bg-[#1c2b3b] text-[#c6c6cc] hover:text-white transition-colors"
           >
             Auto Responsive
           </button>
           <button
             onClick={() => setViewMode('mobile')}
-            className="px-2.5 py-1 rounded bg-[#00F0FF] text-[#0A0F1D] font-bold"
+            className="px-2.5 py-1 rounded bg-[#00F0FF] text-[#0A0F1D] font-bold shadow-[0_0_10px_rgba(0,240,255,0.4)]"
           >
             Mobile Simulator
           </button>
           <button
             onClick={() => setViewMode('desktop')}
-            className="px-2.5 py-1 rounded bg-[#1c2b3b] text-[#c6c6cc] hover:text-white"
+            className="px-2.5 py-1 rounded bg-[#1c2b3b] text-[#c6c6cc] hover:text-white transition-colors"
           >
             Desktop Wide
           </button>
         </div>
 
-        {/* Mobile Device Frame */}
-        <div className="w-[390px] max-w-full h-[844px] bg-[#051424] rounded-[44px] border-[10px] border-[#1c2b3b] shadow-[0_0_50px_rgba(0,0,0,0.8),0_0_30px_rgba(0,240,255,0.15)] flex flex-col overflow-hidden relative">
+        {/* Mobile Device Frame - Perfectly fits into single screen without overflow */}
+        <div className="w-[390px] max-w-[calc(100vw-16px)] h-[min(844px,calc(100vh-64px))] bg-[#051424] rounded-[36px] sm:rounded-[44px] border-[7px] sm:border-[10px] border-[#1c2b3b] shadow-[0_0_60px_rgba(0,0,0,0.85),0_0_35px_rgba(0,240,255,0.18)] flex flex-col overflow-hidden relative">
           {/* Dynamic Island / Speaker Notch */}
           <div className="w-full h-8 bg-[#051424] flex items-center justify-between px-7 shrink-0 z-50 pt-1 text-[11px] font-mono text-[#c6c6cc]">
             <span>9:41</span>
-            <div className="w-20 h-4 bg-black rounded-full" />
+            <div className="w-20 h-4 bg-black rounded-full shadow-inner" />
             <div className="flex items-center gap-1.5 text-[12px]">
               <span className="material-symbols-outlined text-[13px]">wifi</span>
               <span className="material-symbols-outlined text-[13px]">battery_full</span>
@@ -1780,7 +1789,7 @@ export default function App() {
           </div>
 
           {/* Embedded Mobile Header */}
-          <div className="shrink-0">
+          <div className="shrink-0 relative z-30">
             <Header
               onConnectWalletClick={() => setIsConnectModalOpen(true)}
               isWalletConnected={isWalletConnected}
@@ -1799,15 +1808,16 @@ export default function App() {
               onNavigateHomeSection={handleNavigateHomeSection}
               onDisconnectWallet={handleDisconnectWallet}
               isAdmin={isAdmin}
+              isMasterUser={isMasterUser}
             />
           </div>
 
           {/* Scrollable Viewport Content */}
-          <div className="flex-1 overflow-y-auto pt-16 px-4 pb-20">
+          <div className="flex-1 overflow-y-auto pt-16 px-3.5 pb-6">
             {renderCurrentView()}
           </div>
 
-          {/* Fixed Mobile Bottom Bar */}
+          {/* Pinned Mobile Bottom Bar */}
           <MobileBottomNav
             activeTab={activeTab}
             onTabChange={handleTabChange}
@@ -1815,6 +1825,8 @@ export default function App() {
             isWalletConnected={isWalletConnected}
             onOpenLogin={() => setIsConnectModalOpen(true)}
             onNavigateHomeSection={handleNavigateHomeSection}
+            isSimulator={true}
+            isAdmin={isAdmin}
           />
         </div>
 
@@ -2063,7 +2075,7 @@ export default function App() {
         )}
 
         {/* Main Content Viewport */}
-        <main className={`flex-1 ${isAdmin && activeTab !== 'admin' ? 'pt-4 md:pt-6' : 'pt-20 sm:pt-24 md:pt-28'} px-4 sm:px-6 md:px-8 ${activeTab === 'home' ? 'max-w-7xl mx-auto w-full' : 'max-w-7xl w-full mx-auto'} pb-24 md:pb-12`}>
+        <main className={`flex-1 ${isAdmin && activeTab !== 'admin' ? 'pt-4 md:pt-6' : 'pt-20 sm:pt-24 md:pt-28'} px-4 sm:px-6 md:px-8 ${activeTab === 'home' ? 'max-w-7xl mx-auto w-full' : 'max-w-7xl w-full mx-auto'} pb-28 md:pb-12`}>
           {renderCurrentView()}
         </main>
       </div>
@@ -2076,6 +2088,8 @@ export default function App() {
         isWalletConnected={isWalletConnected}
         onOpenLogin={() => setIsConnectModalOpen(true)}
         onNavigateHomeSection={handleNavigateHomeSection}
+        isSimulator={false}
+        isAdmin={isAdmin}
       />
 
       {/* Modals & Dialogs (Mounted strictly on-demand for maximum speed) */}

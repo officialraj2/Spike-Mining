@@ -112,15 +112,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     symbol: 'SPK',
     totalSupply: 50_000_000,
     circulatingSupply: 12_450_000,
-    currentPrice: 0.0345,
+    currentPrice: 1.12,
     poolSpkReserve: 2_500_000,
-    poolUsdtReserve: 86_250,
+    poolUsdtReserve: 2_800_000,
     contractAddress: '0x96F86413D8E5d15ecE42E136CC8112c01b9A7306',
     buyPressure: 88.5,
     volume24h: 1_420_000,
     change24h: 8.42,
-    high24h: 0.0368,
-    low24h: 0.0332,
+    high24h: 1.20,
+    low24h: 1.00,
   });
 
   const [testnetTransactions, setTestnetTransactions] = useState<any[]>([]);
@@ -142,8 +142,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     miningCostUsdt: number;
     totalProjectCostUsdt: number;
   }>({
-    treasuryBalanceUsdt: 24850.0,
-    treasuryWalletAddress: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+    treasuryBalanceUsdt: 0.0,
+    treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
     depositRequiredUsdt: 5.0,
     miningCostUsdt: 10.0,
     totalProjectCostUsdt: 15.0,
@@ -156,8 +156,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         const data = await res.json();
         if (data && data.success) {
           setTreasuryData({
-            treasuryBalanceUsdt: data.treasuryBalanceUsdt || 24850.0,
-            treasuryWalletAddress: data.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+            treasuryBalanceUsdt: typeof data.treasuryBalanceUsdt === 'number' ? data.treasuryBalanceUsdt : 0.0,
+            treasuryWalletAddress: data.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
             depositRequiredUsdt: data.depositRequiredUsdt || 5.0,
             miningCostUsdt: data.miningCostUsdt || 10.0,
             totalProjectCostUsdt: data.totalProjectCostUsdt || 15.0,
@@ -242,7 +242,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [chartMode, setChartMode] = useState<'animated-stream' | 'hashrate'>('animated-stream');
   const [timeframe, setTimeframe] = useState<'24H' | '7D' | '30D'>('24H');
   const [streamInterval, setStreamInterval] = useState<'1M' | '5M' | '15M' | '1H' | '24H'>('1M');
-  const [currentPrice, setCurrentPrice] = useState<number>(0.03450);
+  const [currentPrice, setCurrentPrice] = useState<number>(1.1245);
   const [priceChange24h, setPriceChange24h] = useState<number>(8.42);
   const [lastTickDirection, setLastTickDirection] = useState<'up' | 'down'>('up');
   const [hoveredCandle, setHoveredCandle] = useState<{
@@ -251,50 +251,60 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     tick: CandleTick;
   } | null>(null);
 
-  // Initial live ticks series around SPIKE spot price ($0.03450 USDT)
+  // Initial live ticks series around SPIKE spot price ($1.00 - $1.20 USDT)
   const [ticks, setTicks] = useState<CandleTick[]>([
-    { time: '10:14', open: 0.0322, high: 0.0330, low: 0.0320, close: 0.0328, price: 0.0328, volume: 14200, isBuySurge: true },
-    { time: '10:15', open: 0.0328, high: 0.0335, low: 0.0325, close: 0.0332, price: 0.0332, volume: 18500, isBuySurge: true },
-    { time: '10:16', open: 0.0332, high: 0.0338, low: 0.0330, close: 0.0334, price: 0.0334, volume: 9200, isBuySurge: false },
-    { time: '10:17', open: 0.0334, high: 0.0342, low: 0.0332, close: 0.0340, price: 0.0340, volume: 24000, isBuySurge: true },
-    { time: '10:18', open: 0.0340, high: 0.0346, low: 0.0338, close: 0.0344, price: 0.0344, volume: 16800, isBuySurge: true },
-    { time: '10:19', open: 0.0344, high: 0.0349, low: 0.0341, close: 0.0345, price: 0.0345, volume: 21000, isBuySurge: true },
-    { time: '10:20', open: 0.0345, high: 0.0350, low: 0.0342, close: 0.0347, price: 0.0347, volume: 11500, isBuySurge: false },
-    { time: '10:21', open: 0.0347, high: 0.0352, low: 0.0344, close: 0.0349, price: 0.0349, volume: 32000, isBuySurge: true },
-    { time: '10:22', open: 0.0349, high: 0.0355, low: 0.0346, close: 0.0345, price: 0.0345, volume: 28500, isBuySurge: true },
+    { time: '10:14', open: 1.025, high: 1.055, low: 1.018, close: 1.048, price: 1.048, volume: 14200, isBuySurge: true },
+    { time: '10:15', open: 1.048, high: 1.078, low: 1.035, close: 1.065, price: 1.065, volume: 18500, isBuySurge: true },
+    { time: '10:16', open: 1.065, high: 1.095, low: 1.050, close: 1.082, price: 1.082, volume: 9200, isBuySurge: true },
+    { time: '10:17', open: 1.082, high: 1.115, low: 1.070, close: 1.104, price: 1.104, volume: 24000, isBuySurge: true },
+    { time: '10:18', open: 1.104, high: 1.140, low: 1.095, close: 1.125, price: 1.125, volume: 16800, isBuySurge: true },
+    { time: '10:19', open: 1.125, high: 1.155, low: 1.110, close: 1.138, price: 1.138, volume: 21000, isBuySurge: true },
+    { time: '10:20', open: 1.138, high: 1.168, low: 1.125, close: 1.152, price: 1.152, volume: 11500, isBuySurge: true },
+    { time: '10:21', open: 1.152, high: 1.185, low: 1.135, close: 1.168, price: 1.168, volume: 32000, isBuySurge: true },
+    { time: '10:22', open: 1.168, high: 1.192, low: 1.145, close: 1.158, price: 1.158, volume: 28500, isBuySurge: true },
   ]);
 
-  // Live Buy/Sell Transactions Stream for SPIKE (High Buy side hype 84%+)
+  // Live Buy/Sell Transactions Stream for SPIKE ($1.00 - $1.20)
   const [liveTxns, setLiveTxns] = useState<LiveTxn[]>([
-    { id: 'tx-1', type: 'buy', amountSpk: 1250, amountUsd: 43.12, price: 0.0345, timeAgo: 'Just now', wallet: '0x8a92...3f1c', isWhale: false },
-    { id: 'tx-2', type: 'buy', amountSpk: 6500, amountUsd: 224.25, price: 0.0345, timeAgo: '2s ago', wallet: '0x4f11...9cb2', isWhale: true },
-    { id: 'tx-3', type: 'buy', amountSpk: 850, amountUsd: 29.32, price: 0.0345, timeAgo: '5s ago', wallet: '0xd340...e17a', isWhale: false },
-    { id: 'tx-4', type: 'sell', amountSpk: 220, amountUsd: 7.59, price: 0.0344, timeAgo: '9s ago', wallet: '0x12bb...a840', isWhale: false },
-    { id: 'tx-5', type: 'buy', amountSpk: 2400, amountUsd: 82.80, price: 0.0345, timeAgo: '12s ago', wallet: '0x99cc...451a', isWhale: false },
-    { id: 'tx-6', type: 'buy', amountSpk: 15000, amountUsd: 517.50, price: 0.0345, timeAgo: '16s ago', wallet: '0x6e90...bb44', isWhale: true },
+    { id: 'tx-1', type: 'buy', amountSpk: 1250, amountUsd: 1405.00, price: 1.124, timeAgo: 'Just now', wallet: '0x8a92...3f1c', isWhale: false },
+    { id: 'tx-2', type: 'buy', amountSpk: 6500, amountUsd: 7371.00, price: 1.134, timeAgo: '2s ago', wallet: '0x4f11...9cb2', isWhale: true },
+    { id: 'tx-3', type: 'buy', amountSpk: 850, amountUsd: 952.00, price: 1.120, timeAgo: '5s ago', wallet: '0xd340...e17a', isWhale: false },
+    { id: 'tx-4', type: 'sell', amountSpk: 220, amountUsd: 244.20, price: 1.110, timeAgo: '9s ago', wallet: '0x12bb...a840', isWhale: false },
+    { id: 'tx-5', type: 'buy', amountSpk: 2400, amountUsd: 2712.00, price: 1.130, timeAgo: '12s ago', wallet: '0x99cc...451a', isWhale: false },
+    { id: 'tx-6', type: 'buy', amountSpk: 15000, amountUsd: 17175.00, price: 1.145, timeAgo: '16s ago', wallet: '0x6e90...bb44', isWhale: true },
   ]);
   const [buyPressure, setBuyPressure] = useState<number>(84.5);
   const [totalBuysCount, setTotalBuysCount] = useState<number>(1420);
   const [totalSellsCount, setTotalSellsCount] = useState<number>(270);
 
-  // Real-time animation ticker: updates price & adds live candle every 2 seconds
+  // Real-time animation ticker: gently moves price between $1.00 and $1.20
   useEffect(() => {
     const interval = setInterval(() => {
-      // Generate realistic micro delta with upward buy pressure bias for SPIKE
-      const delta = (Math.random() - 0.44) * 0.00008;
-
       setTicks((prev) => {
         const last = prev[prev.length - 1];
-        const newPrice = Math.max(0.0315, +(last.close + delta).toFixed(5));
+        // Mean reversion toward 1.10 with realistic random volatility, tightly bounded between $1.00 and $1.20
+        const center = 1.10;
+        const pull = (center - last.close) * 0.04;
+        const noise = (Math.random() - 0.48) * 0.012;
+        let newPrice = +(last.close + pull + noise).toFixed(4);
+        if (newPrice < 1.005) newPrice = +(1.005 + Math.random() * 0.02).toFixed(4);
+        if (newPrice > 1.195) newPrice = +(1.195 - Math.random() * 0.02).toFixed(4);
+
         const isUp = newPrice >= last.close;
-        const newHigh = +(Math.max(last.close, newPrice) + Math.random() * 0.00004).toFixed(5);
-        const newLow = +(Math.min(last.close, newPrice) - Math.random() * 0.00004).toFixed(5);
+        const newHigh = +(Math.min(1.20, Math.max(last.close, newPrice) + Math.random() * 0.008)).toFixed(4);
+        const newLow = +(Math.max(1.00, Math.min(last.close, newPrice) - Math.random() * 0.008)).toFixed(4);
         
         const now = new Date();
         const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
 
         setCurrentPrice(newPrice);
         setLastTickDirection(isUp ? 'up' : 'down');
+        setSpikeTokenInfo((prev) => ({
+          ...prev,
+          currentPrice: newPrice,
+          high24h: Math.max(prev.high24h ?? 1.20, newHigh),
+          low24h: Math.min(prev.low24h ?? 1.00, newLow),
+        }));
 
         const newTick: CandleTick = {
           time: timeStr,
@@ -664,72 +674,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }}
       />
 
-      {/* ============================================================
-          15$ PROTOCOL WORKFLOW: Step 1 (5$ Treasury Deposit) ➔ Step 2 (10$ Mining Start)
-         ============================================================ */}
-      <div className="p-4 md:p-5 rounded-2xl bg-gradient-to-r from-[#071b2d] via-[#0b243b] to-[#071b2d] border border-[#00F0FF]/30 shadow-xl relative overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1">
-              <span className="material-symbols-outlined text-[14px]">account_tree</span>
-              <span>SPIKE Mining Protocol Flow</span>
-            </span>
-          </div>
-
-          {/* Stepper Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
-            {/* Step 1: 5$ Deposit to Treasury */}
-            <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-              walletBalance < 15
-                ? 'bg-emerald-950/30 border-emerald-500/40'
-                : 'bg-[#0a1826] border-[#D4AF37]/40'
-            }`}>
-              <div className="flex items-center gap-2.5">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
-                  walletBalance < 15 ? 'bg-emerald-500 text-[#051424]' : 'bg-[#D4AF37] text-[#051424]'
-                }`}>
-                  {walletBalance < 15 ? '✓' : '1'}
-                </div>
-                <div>
-                  <div className="text-xs font-bold font-headline text-white">Step 1: Deposit 5 USDT</div>
-                  <div className="text-[10px] text-[#94a3b8] font-mono">To Protocol Official Vault</div>
-                </div>
-              </div>
-              {onOpenDepositModal && (
-                <button
-                  onClick={onOpenDepositModal}
-                  className="px-2.5 py-1 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] text-[#051424] font-headline font-bold text-[11px] transition-all cursor-pointer shadow-sm shrink-0"
-                >
-                  {walletBalance < 15 ? 'Deposited' : 'Deposit 5$'}
-                </button>
-              )}
-            </div>
-
-            {/* Step 2: 24h Harvesting & Router Buyback */}
-            <div className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-              (nodes.some(n => n.status === 'mining') || hasPersistentMining)
-                ? 'bg-emerald-950/30 border-emerald-500/40'
-                : 'bg-[#0a1826] border-[#00F0FF]/40'
-            }`}>
-              <div className="flex items-center gap-2.5">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs ${
-                  (nodes.some(n => n.status === 'mining') || hasPersistentMining) ? 'bg-emerald-500 text-[#051424]' : 'bg-[#00F0FF] text-[#051424]'
-                }`}>
-                  {(nodes.some(n => n.status === 'mining') || hasPersistentMining) ? '✓' : '2'}
-                </div>
-                <div>
-                  <div className="text-xs font-bold font-headline text-white">Step 2: 24h Harvesting</div>
-                  <div className="text-[10px] text-[#94a3b8] font-mono">PancakeRouter Buyback after 24h</div>
-                </div>
-              </div>
-              <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-headline font-bold text-[11px] shrink-0">
-                {(nodes.some(n => n.status === 'mining') || hasPersistentMining) ? 'Harvesting Live' : 'Starts on Deposit'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* 4 Metric Cards matching Image 2 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {/* Card 1: Protocol Hashrate Velocity (Image Spec: Direct Referral Tier) */}
@@ -828,11 +772,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-mono mb-2">
                 <span className="text-emerald-400 font-bold">
-                  ≈ ${(((testnetWallet?.testnetSpk ?? 150.0)) * (spikeTokenInfo?.currentPrice || 0.0345)).toFixed(2)} USDT
+                  ≈ ${(((testnetWallet?.testnetSpk ?? 150.0)) * (spikeTokenInfo?.currentPrice || 1.12)).toFixed(2)} USDT
                 </span>
                 <span className="text-[#475569]">•</span>
                 <span className="text-[#94a3b8] text-[11px]">
-                  1 SPK = ${(spikeTokenInfo?.currentPrice || 0.0345).toFixed(4)}
+                  1 SPK = ${(spikeTokenInfo?.currentPrice || 1.12).toFixed(4)}
                 </span>
               </div>
               <div className="flex items-center gap-2.5 mt-1.5">
@@ -990,10 +934,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="flex items-center gap-2 mb-1">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
                     <span className="text-[11px] font-mono font-extrabold uppercase tracking-wider text-emerald-400">
-                      LIVE TESTNET POOL PRICE (BEP-20)
+                      SPIKE (SPK) / USDT · LIVE AMM PRICE
                     </span>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                      {spikeTokenInfo.buyPressure.toFixed(1)}% BUY DOMINANCE
+                      Range: $1.00 – $1.20
                     </span>
                   </div>
                   <div className="flex flex-wrap items-baseline gap-2.5">
@@ -1003,7 +947,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="text-xs sm:text-sm font-headline font-bold text-emerald-400 flex items-center gap-0.5">
                       <span className="material-symbols-outlined text-[16px]">trending_up</span>
                       <span>
-                        +{spikeTokenInfo.change24h}% (Extreme Bullish Momentum)
+                        +{spikeTokenInfo.change24h}% (Steady AMM Dynamic Range)
                       </span>
                     </span>
                   </div>
@@ -1014,13 +958,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
                     <div className="text-[10px] text-[#94a3b8] uppercase">24h High</div>
                     <div className="text-white font-bold tabular-nums">
-                      ${(spikeTokenInfo.high24h ?? 0.0368).toFixed(4)}
+                      ${(spikeTokenInfo.high24h ?? 1.20).toFixed(4)}
                     </div>
                   </div>
                   <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
                     <div className="text-[10px] text-[#94a3b8] uppercase">24h Low</div>
                     <div className="text-white font-bold tabular-nums">
-                      ${(spikeTokenInfo.low24h ?? 0.0332).toFixed(4)}
+                      ${(spikeTokenInfo.low24h ?? 1.00).toFixed(4)}
                     </div>
                   </div>
                   <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
@@ -1029,14 +973,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       ${spikeTokenInfo.poolUsdtReserve.toLocaleString()}
                     </div>
                   </div>
-
-                  <button
-                    onClick={handleExecuteHarvestAutoBuy}
-                    className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF] to-emerald-400 text-[#051424] font-headline font-extrabold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:brightness-110 transition-all ml-auto md:ml-0 cursor-pointer"
-                  >
-                    <span>⚡ Auto-Buy SPK</span>
-                    <span className="material-symbols-outlined text-[15px]">bolt</span>
-                  </button>
                 </div>
               </div>
 
@@ -1060,59 +996,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     className="h-full bg-gradient-to-r from-emerald-500 via-[#00F0FF] to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.6)] transition-all duration-500 rounded-full"
                     style={{ width: `${buyPressure}%` }}
                   />
-                </div>
-              </div>
-
-              {/* REAL-TIME LIVE BUY & SELL TRANSACTIONS FEED (85% BUY SIDE) */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-mono text-[#94a3b8] px-1">
-                  <span className="flex items-center gap-1 text-white font-bold">
-                    <span className="material-symbols-outlined text-emerald-400 text-[14px]">swap_horizontal_circle</span>
-                    <span>Real-Time SPIKE Swap Orders</span>
-                  </span>
-                  <span className="text-emerald-400 font-semibold animate-pulse">● Continuous Inflow</span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                  {liveTxns.map((tx) => {
-                    const isBuy = tx.type === 'buy';
-                    return (
-                      <div
-                        key={tx.id}
-                        className={`p-2 rounded-xl text-left border text-xs font-mono transition-all transform animate-[fadeIn_0.3s_ease] ${
-                          isBuy
-                            ? tx.isWhale
-                              ? 'bg-emerald-950/40 border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.25)]'
-                              : 'bg-[#0d1f2d] border-emerald-500/40'
-                            : 'bg-red-950/20 border-red-500/30'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-[10px] mb-0.5">
-                          <span
-                            className={`font-bold px-1.5 py-0.2 rounded ${
-                              isBuy
-                                ? tx.isWhale
-                                  ? 'bg-emerald-500 text-black font-extrabold'
-                                  : 'bg-emerald-500/20 text-emerald-400'
-                                : 'bg-red-500/20 text-red-400'
-                            }`}
-                          >
-                            {isBuy ? (tx.isWhale ? '🐋 WHALE BUY' : '🟢 BUY') : '🔴 SELL'}
-                          </span>
-                          <span className="text-[#94a3b8] text-[9px]">{tx.timeAgo}</span>
-                        </div>
-                        <div className="font-bold text-white text-[11px] tabular-nums mt-0.5">
-                          {isBuy ? '+' : '-'}{tx.amountSpk.toLocaleString()} SPK
-                        </div>
-                        <div className="text-[10px] text-[#D4AF37] font-semibold tabular-nums">
-                          ${tx.amountUsd.toFixed(2)} USD
-                        </div>
-                        <div className="text-[9px] text-[#94a3b8] mt-0.5 truncate">
-                          {tx.wallet}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
 
@@ -1369,254 +1252,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Active Mining Nodes Status Table matching Image 2 */}
-      <div className="bg-[#122130] rounded-xl p-5 md:p-6 shadow-md border border-[#1c2b3b]/60">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-          <div>
-            <h2 className="text-lg md:text-xl font-bold font-headline text-white tracking-tight">
-              Active Mining Nodes
-            </h2>
-            <p className="text-xs text-[#94a3b8] mt-0.5">
-              Manage your rig allocations and real-time operational status
-            </p>
-          </div>
-          <button
-            onClick={onOpenDeployModal}
-            className="bg-[#1c2b3b] hover:bg-[#273647] text-white font-headline text-xs px-4 py-2.5 rounded-xl border border-[#00F0FF]/30 transition-all flex items-center gap-2 self-start sm:self-auto shadow-sm font-semibold tracking-wide"
-          >
-            <span className="material-symbols-outlined text-[18px] text-[#00F0FF]">add</span>
-            <span>Deploy New Node</span>
-          </button>
-        </div>
 
-        {nodes.length === 0 ? (
-          <div className="py-12 px-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col items-center justify-center space-y-3">
-            <div className="w-14 h-14 rounded-2xl bg-[#00F0FF]/10 text-[#00F0FF] flex items-center justify-center border border-[#00F0FF]/25 shadow-[0_0_15px_rgba(0,240,255,0.15)]">
-              <span className="material-symbols-outlined text-[30px]">dns</span>
-            </div>
-            <div className="max-w-md">
-              <h3 className="text-base font-bold font-headline text-white">No Active Mining Nodes</h3>
-              <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
-                This wallet has 0 active rigs online. Deploy your first node to connect to the BSC validator pool and start generating daily SPIKE token &amp; USDT yields.
-              </p>
-            </div>
-            <button
-              onClick={onOpenDeployModal}
-              className="mt-2 px-5 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-2 shadow-[0_0_16px_rgba(0,240,255,0.3)] transition-all hover:scale-105 active:scale-95"
-            >
-              <span className="material-symbols-outlined text-[18px]">add</span>
-              <span>Deploy First Node (from 15 USDT)</span>
-            </button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="text-[#94a3b8] font-mono text-[10px] uppercase tracking-[0.14em] border-b border-[#1c2b3b]">
-                  <th className="py-3 px-4 font-semibold">Node ID &amp; Name</th>
-                  <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 font-semibold">Hashrate</th>
-                  <th className="py-3 px-4 font-semibold">Temperature</th>
-                  <th className="py-3 px-4 font-semibold">Share Acceptance</th>
-                  <th className="py-3 px-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1c2b3b]/40 text-sm">
-                {nodes.map((node) => {
-                  const isMining = node.status === 'mining';
-                  return (
-                    <tr
-                      key={node.id}
-                      className="hover:bg-[#1c2b3b]/30 transition-colors group"
-                    >
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                              isMining
-                                ? 'bg-[#00F0FF]/10 text-[#00F0FF]'
-                                : 'bg-[#1c2b3b] text-[#94a3b8]'
-                            }`}
-                          >
-                            <span
-                              className="material-symbols-outlined text-[18px]"
-                              style={{ fontVariationSettings: "'FILL' 1" }}
-                            >
-                              dns
-                            </span>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-white font-headline text-xs sm:text-sm tracking-wide">
-                              {node.name}
-                            </div>
-                            <div className="text-[11px] text-[#94a3b8] font-mono">
-                              {node.region}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        {isMining ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#00F0FF]/10 text-[#00F0FF] border border-[#00F0FF]/20">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse"></span>
-                            Mining
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#1c2b3b] text-[#94a3b8]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#909096]"></span>
-                            Idle / Standby
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 font-headline text-sm text-white font-bold tabular-nums">
-                        {node.hashrate.toFixed(2)} TH/s
-                      </td>
-                      <td className="py-4 px-4 text-[#94a3b8] text-xs font-mono">
-                        {node.temperature}°C{' '}
-                        <span
-                          className={`text-[11px] font-sans ${
-                            isMining ? 'text-[#7df4ff] font-medium' : 'text-[#94a3b8]'
-                          }`}
-                        >
-                          ({isMining ? 'Optimal' : 'Idle'})
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-white text-xs font-mono tabular-nums">
-                        {node.shareAcceptance}%
-                      </td>
-                      <td className="py-4 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          {isMining ? (
-                            <>
-                              <button
-                                onClick={() => onRestartNode(node.id)}
-                                className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#D4AF37] transition-colors"
-                                title="Restart Node"
-                              >
-                                <span className="material-symbols-outlined text-[16px]">
-                                 restart_alt
-                                </span>
-                              </button>
-                              <button
-                                onClick={() => onStopNode(node.id)}
-                                className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-red-500/20 text-red-400 transition-colors"
-                                title="Stop Node"
-                              >
-                                <span className="material-symbols-outlined text-[16px]">
-                                  stop
-                                </span>
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => onStartNode(node.id)}
-                              className="p-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold hover:bg-[#7df4ff] transition-colors"
-                              title="Start Node"
-                            >
-                              <span className="material-symbols-outlined text-[16px]">
-                                play_arrow
-                              </span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Recent Reward Claim History Table matching Image 2 */}
-      <div className="bg-[#122130] rounded-xl p-5 md:p-6 shadow-md border border-[#1c2b3b]/60">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-          <div>
-            <h2 className="text-lg md:text-xl font-bold font-headline text-white tracking-tight">
-              Reward Claim History
-            </h2>
-            <p className="text-xs text-[#94a3b8] mt-0.5">
-              Recent USDT payouts transferred directly to your BEP-20 address
-            </p>
-          </div>
-          <a
-            href="https://bscscan.com"
-            target="_blank"
-            rel="noreferrer"
-            className="text-[#00F0FF] hover:underline text-xs font-headline font-semibold flex items-center gap-1 self-start sm:self-auto"
-          >
-            <span>View on BscScan</span>
-            <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-          </a>
-        </div>
-
-        {rewards.length === 0 ? (
-          <div className="py-10 px-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col items-center justify-center space-y-2.5">
-            <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] flex items-center justify-center border border-[#D4AF37]/25 shadow-sm">
-              <span className="material-symbols-outlined text-[26px]">receipt_long</span>
-            </div>
-            <div className="max-w-md">
-              <h3 className="text-sm font-bold font-headline text-white">No Payout Records Yet</h3>
-              <p className="text-xs text-[#94a3b8] mt-0.5 leading-relaxed">
-                Daily mining payouts and activation transactions will be automatically recorded here once rigs are deployed.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="text-[#94a3b8] font-mono text-[10px] uppercase tracking-[0.14em] border-b border-[#1c2b3b]">
-                  <th className="py-3 px-4 font-semibold">Transaction Hash</th>
-                  <th className="py-3 px-4 font-semibold">Reward Source</th>
-                  <th className="py-3 px-4 font-semibold">Amount</th>
-                  <th className="py-3 px-4 font-semibold">Timestamp</th>
-                  <th className="py-3 px-4 font-semibold text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#1c2b3b]/40 text-sm">
-                {rewards.map((tx) => (
-                  <tr
-                    key={tx.id}
-                    className="hover:bg-[#1c2b3b]/30 transition-colors"
-                  >
-                    <td className="py-4 px-4 font-mono text-[#00F0FF] text-xs">
-                      <button
-                        onClick={() => onCopyText(tx.txHash)}
-                        className="hover:underline flex items-center gap-1.5"
-                        title="Copy TX Hash"
-                      >
-                        <span className="tabular-nums">{tx.txHash}</span>
-                        <span className="material-symbols-outlined text-[14px] text-[#94a3b8] hover:text-[#00F0FF]">
-                          content_copy
-                        </span>
-                      </button>
-                    </td>
-                    <td className="py-4 px-4 text-xs sm:text-sm text-white font-medium">
-                      {tx.rewardSource}
-                    </td>
-                    <td className="py-4 px-4 font-headline text-sm text-[#D4AF37] font-bold tabular-nums">
-                      {tx.amount > 0 ? `+${tx.amount.toFixed(2)}` : tx.amount.toFixed(2)} {tx.currency}
-                    </td>
-                    <td className="py-4 px-4 text-[#94a3b8] text-xs font-mono">
-                      {tx.timestamp}
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#7df4ff] bg-[#7df4ff]/10 px-2 py-0.5 rounded border border-[#7df4ff]/20">
-                        <span className="material-symbols-outlined text-[14px]">
-                          check_circle
-                        </span>
-                        Confirmed
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

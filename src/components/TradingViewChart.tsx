@@ -35,14 +35,18 @@ function generateSeedCandles(): TVCandle[] {
     '21:00', '21:30', '22:00', '22:30', '23:00', '23:30',
   ];
 
-  let prevClose = 0.03150;
+  let prevClose = 1.0450;
   return seedTimes.map((t, idx) => {
     const isUp = idx % 3 !== 1;
-    const delta = (isUp ? 1 : -1) * (0.0002 + (idx * 0.00003));
+    const wave = Math.sin(idx * 0.5) * 0.025;
+    const delta = (isUp ? 1 : -1) * (0.012 + (idx * 0.0008)) + wave;
     const open = prevClose;
-    const close = +(open + delta).toFixed(5);
-    const high = +(Math.max(open, close) + 0.00035 + Math.random() * 0.0002).toFixed(5);
-    const low = +(Math.min(open, close) - 0.00025 - Math.random() * 0.0002).toFixed(5);
+    let close = +(open + delta).toFixed(4);
+    if (close < 1.015) close = +(1.015 + Math.random() * 0.015).toFixed(4);
+    if (close > 1.185) close = +(1.185 - Math.random() * 0.015).toFixed(4);
+
+    const high = +(Math.min(1.20, Math.max(open, close) + 0.012 + Math.random() * 0.006)).toFixed(4);
+    const low = +(Math.max(1.00, Math.min(open, close) - 0.010 - Math.random() * 0.006)).toFixed(4);
     const vol = Math.floor(45000 + Math.random() * 95000 + (idx > 16 ? 120000 : 0));
     const volUsd = +(vol * close).toFixed(2);
     const txCount = Math.floor(vol / 4000);
@@ -80,10 +84,10 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const [copiedRouter, setCopiedRouter] = useState(false);
   const [lastTxNotice, setLastTxNotice] = useState<string | null>(null);
 
-  // Candlesticks built and maintained from SPIKE / USDT pair transactions
+  // Candlesticks built and maintained from SPIKE / USDT pair transactions ($1.00 - $1.20 range)
   const [candles, setCandles] = useState<TVCandle[]>(() => generateSeedCandles());
-  const [livePrice, setLivePrice] = useState<number>(currentPrice || 0.03450);
-  const [basePrice24h] = useState<number>(0.03150);
+  const [livePrice, setLivePrice] = useState<number>(currentPrice || 1.1245);
+  const [basePrice24h] = useState<number>(1.0420);
 
   const processedTxIds = useRef<Set<string>>(new Set());
 
@@ -182,28 +186,28 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const volumeHeight = 70;
   const mainPlotHeight = chartHeight - volumeHeight - 35;
 
-  // Dynamic Y-Scale calculated from actual transaction high/low in candles
+  // Dynamic Y-Scale calculated from actual transaction high/low in candles (bounded $1.00 - $1.20)
   const { yMin, yMax, yRange, priceLadder } = useMemo(() => {
     if (candles.length === 0) {
-      return { yMin: 0.0300, yMax: 0.0380, yRange: 0.008, priceLadder: [0.038, 0.036, 0.034, 0.032, 0.03] };
+      return { yMin: 1.000, yMax: 1.200, yRange: 0.200, priceLadder: [1.200, 1.150, 1.100, 1.050, 1.000] };
     }
     const allLows = candles.map((c) => c.low);
     const allHighs = candles.map((c) => c.high);
     const minVal = Math.min(...allLows, livePrice);
     const maxVal = Math.max(...allHighs, livePrice);
 
-    const pad = Math.max((maxVal - minVal) * 0.18, 0.0006);
-    const lowBound = Math.max(0.005, +(minVal - pad).toFixed(5));
-    const highBound = +(maxVal + pad).toFixed(5);
-    const range = highBound - lowBound;
+    const pad = Math.max((maxVal - minVal) * 0.12, 0.008);
+    const lowBound = Math.max(1.000, +(minVal - pad).toFixed(4));
+    const highBound = Math.min(1.200, +(maxVal + pad).toFixed(4));
+    const range = Math.max(0.04, highBound - lowBound);
 
     // 5 clean steps for right ladder
     const step = range / 4;
     const ladder = [
       highBound,
-      +(highBound - step).toFixed(5),
-      +(highBound - step * 2).toFixed(5),
-      +(highBound - step * 3).toFixed(5),
+      +(highBound - step).toFixed(4),
+      +(highBound - step * 2).toFixed(4),
+      +(highBound - step * 3).toFixed(4),
       lowBound,
     ];
 

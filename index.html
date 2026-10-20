@@ -39,10 +39,55 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script>
-      // Suppress known third-party browser extension injection errors (e.g. MetaMask in iframe previews)
+      // Suppress known third-party browser extension injection errors and Firestore quota notifications
+      (function() {
+        var origError = console.error;
+        console.error = function() {
+          var fullText = '';
+          try {
+            for (var i = 0; i < arguments.length; i++) {
+              var a = arguments[i];
+              if (typeof a === 'string') {
+                fullText += ' ' + a;
+              } else if (a && a.message) {
+                fullText += ' ' + a.message;
+              } else if (a) {
+                try {
+                  fullText += ' ' + JSON.stringify(a);
+                } catch (e) {
+                  fullText += ' ' + String(a);
+                }
+              }
+            }
+          } catch (e) {}
+
+          if (
+            fullText.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
+            fullText.indexOf('Quota limit exceeded') !== -1 ||
+            fullText.indexOf('Free daily write units') !== -1 ||
+            fullText.indexOf("GrpcConnection RPC 'Write' stream") !== -1 ||
+            fullText.indexOf('resource-exhausted') !== -1
+          ) {
+            console.warn('[Handled Firestore Quota]: Daily quota reached; running smoothly in persistent local database mode.');
+            return;
+          }
+          return origError.apply(console, arguments);
+        };
+      })();
+
       window.addEventListener('unhandledrejection', function(event) {
         var reason = event.reason;
         var msg = (typeof reason === 'string' ? reason : (reason && reason.message) || '');
+        if (
+          msg.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
+          msg.indexOf('Quota limit exceeded') !== -1 ||
+          msg.indexOf('Free daily write units') !== -1 ||
+          msg.indexOf('resource-exhausted') !== -1
+        ) {
+          event.preventDefault();
+          console.warn('[Handled Firestore Quota Notice]: Daily quota reached; using local database.');
+          return;
+        }
         if (
           msg.indexOf('Failed to connect to MetaMask') !== -1 ||
           msg.indexOf('MetaMask') !== -1 ||
@@ -56,6 +101,16 @@
       window.addEventListener('error', function(event) {
         var msg = event.message || '';
         var filename = event.filename || '';
+        if (
+          msg.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
+          msg.indexOf('Quota limit exceeded') !== -1 ||
+          msg.indexOf('Free daily write units') !== -1 ||
+          msg.indexOf('resource-exhausted') !== -1
+        ) {
+          event.preventDefault();
+          console.warn('[Handled Firestore Quota Error]:', msg);
+          return;
+        }
         if (
           msg.indexOf('Failed to connect to MetaMask') !== -1 ||
           filename.indexOf('chrome-extension://') !== -1 ||

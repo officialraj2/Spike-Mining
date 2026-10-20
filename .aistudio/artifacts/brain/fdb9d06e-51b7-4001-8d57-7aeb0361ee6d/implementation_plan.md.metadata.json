@@ -1,6 +1,6 @@
 {
-  "summary": "Comprehensive roadmap and step-by-step testing plan for using BSC Testnet SPIKE token to verify wallet connections, deposits, node activation contract calls, token deduction, and yield harvesting.",
-  "updatedAt": "2026-10-13T10:01:26.574111267Z",
+  "summary": "Architecture and implementation plan for the Master User (Super Admin) Control System. Enables automatic master wallet recognition, live project-wide configuration persistence (mining parameters, referral percentages, user management, and balance overrides), and real-time synchronization across all app visitors.",
+  "updatedAt": "2026-10-17T08:15:32.063328450Z",
   "requestFeedback": true,
   "userFacing": true
 }

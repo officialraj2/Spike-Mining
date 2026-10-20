@@ -403,3 +403,8 @@
   background-image: linear-gradient(110deg, #D4AF37 0%, #fff0a8 25%, #ffffff 50%, #00F0FF 75%, #D4AF37 100%);
   animation: harvestGlowPulse 2.2s ease-in-out infinite, shiningShimmer 3.5s linear infinite;
 }
+
+/* Safe area inset padding for modern mobile devices (iPhone home indicator, Android gesture bar) */
+.safe-area-pb {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 12px));
+}

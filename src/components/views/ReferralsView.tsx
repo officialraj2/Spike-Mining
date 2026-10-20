@@ -293,12 +293,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               />
               <button
                 onClick={handleCopy}
-                className="px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95"
+                className="px-3 sm:px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95"
               >
                 <span className="material-symbols-outlined text-[16px]">
                   {copied ? 'check' : 'content_copy'}
                 </span>
-                <span>{copied ? 'Copied!' : 'Copy Short Link'}</span>
+                <span>{copied ? 'Copied!' : 'Copy Link'}</span>
               </button>
 
               {/* Native / Social Share Button */}
@@ -531,150 +531,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             +{totalEarnedUsdt.toFixed(2)} <span className="text-sm text-white font-semibold">USDT</span>
           </div>
           <div className="text-xs text-[#D4AF37] font-mono mt-1 font-medium">Claimed from Team Milestones</div>
-        </div>
-      </div>
-
-      {/* ============================================================
-          5-TIER HASHRATE SPEED MATRIX (DIRECT REFERRAL PROTOCOL SPEC)
-         ============================================================ */}
-      <div className="bg-[#0b1d2e] rounded-2xl p-5 md:p-6 border-2 border-[#00F0FF]/30 shadow-xl space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#1c2b3b] pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#00F0FF] text-[24px]">speed</span>
-              <h2 className="text-lg md:text-xl font-bold font-headline text-white tracking-tight">
-                Direct Referral Hashrate Speed Protocol
-              </h2>
-            </div>
-            <p className="text-xs text-[#94a3b8] font-mono mt-1">
-              Formula: <code className="text-[#00F0FF] font-bold">Required Hashrate = 100 × (60 / Target Days)</code>. Direct referrals aur team size se user ka speed automatically upgrade hota hai.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/40 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse" />
-              <span>Current Rate: {hashrateInfo?.hashrate ?? 100} VH/s</span>
-            </span>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-bold ${
-              hashrateInfo?.isCustomOverride
-                ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
-                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-            }`}>
-              {hashrateInfo?.level || 'Fresh user'}
-              {hashrateInfo?.isCustomOverride && ' (Admin Override)'}
-            </span>
-          </div>
-        </div>
-
-        {/* 5 Levels Grid Matching Uploaded Spec */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-          {[
-            {
-              level: 'Fresh user',
-              num: 0,
-              directs: '0 referrals',
-              targetDays: 60,
-              hashrate: 100,
-              yield: '0.01667 SPK/day',
-              qualifies: true,
-            },
-            {
-              level: 'Level 1',
-              num: 1,
-              directs: '10 direct referrals',
-              targetDays: 30,
-              hashrate: 200,
-              yield: '0.03333 SPK/day',
-              qualifies: directPartners >= 10,
-            },
-            {
-              level: 'Level 2',
-              num: 2,
-              directs: '25 directs or 100 team',
-              targetDays: 15,
-              hashrate: 400,
-              yield: '0.06667 SPK/day',
-              qualifies: directPartners >= 25 || totalTeamPartners >= 100,
-            },
-            {
-              level: 'Level 3',
-              num: 3,
-              directs: '50 directs or 1,000 team',
-              targetDays: 10,
-              hashrate: 600,
-              yield: '0.10000 SPK/day',
-              qualifies: directPartners >= 50 || totalTeamPartners >= 1000,
-            },
-            {
-              level: 'Level 4',
-              num: 4,
-              directs: '100 directs or 5,000 team',
-              targetDays: 7,
-              hashrate: 857.14,
-              yield: '0.14286 SPK/day',
-              qualifies: directPartners >= 100 || totalTeamPartners >= 5000,
-            },
-          ].map((tier) => {
-            const isCurrent = hashrateInfo
-              ? hashrateInfo.level === tier.level
-              : (tier.level === 'Fresh user' && directPartners < 10);
-            return (
-              <div
-                key={tier.level}
-                className={`p-4 rounded-xl border relative transition-all ${
-                  isCurrent
-                    ? 'bg-[#00F0FF]/15 border-[#00F0FF] shadow-[0_0_20px_rgba(0,240,255,0.25)] ring-1 ring-[#00F0FF]'
-                    : tier.qualifies
-                    ? 'bg-[#0e2438] border-emerald-500/40'
-                    : 'bg-[#071322] border-[#1c2b3b]'
-                }`}
-              >
-                {isCurrent && (
-                  <span className="absolute -top-2.5 right-3 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-[#00F0FF] text-[#0A0F1D] shadow-sm">
-                    ACTIVE TIER
-                  </span>
-                )}
-                <div className="flex items-center justify-between text-xs font-bold font-headline mb-1">
-                  <span className={isCurrent ? 'text-white' : 'text-[#94a3b8]'}>{tier.level}</span>
-                  <span className="text-[#00F0FF] font-mono">{tier.hashrate} VH/s</span>
-                </div>
-                <div className="text-[11px] text-[#D4AF37] font-mono font-semibold mt-1">
-                  {tier.directs}
-                </div>
-                <div className="text-xs text-emerald-400 font-mono mt-1 flex items-center gap-1 font-bold">
-                  <span className="material-symbols-outlined text-[14px]">timer</span>
-                  <span>1 SPK in {tier.targetDays} days</span>
-                </div>
-                <div className="text-[10px] text-[#94a3b8] font-mono mt-0.5">
-                  Yield: {tier.yield}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Dynamic Upgrade Status Bar */}
-        <div className="bg-[#071322] rounded-xl p-3.5 border border-[#1c2b3b] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-emerald-400 text-[18px]">account_tree</span>
-            <span className="text-[#94a3b8]">
-              Your Network: <strong className="text-white">{directPartners} Directs</strong> · <strong className="text-[#D4AF37]">{totalTeamPartners} Total Team</strong>
-            </span>
-          </div>
-          {hashrateInfo?.nextTier ? (
-            <div className="text-emerald-400 font-semibold flex items-center gap-1.5">
-              <span>Next Upgrade:</span>
-              <span className="text-white bg-[#122130] px-2 py-0.5 rounded border border-[#1c2b3b]">
-                {hashrateInfo.nextTier.level} ({hashrateInfo.nextTier.hashrate} VH/s)
-              </span>
-              <span className="text-[#00F0FF]">
-                — Needs {hashrateInfo.nextTier.neededDirects} more direct referrals
-              </span>
-            </div>
-          ) : (
-            <span className="text-emerald-400 font-bold">★ Maximum Hashrate Velocity Level Unlocked!</span>
-          )}
         </div>
       </div>
 

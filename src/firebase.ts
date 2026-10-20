@@ -1,12 +1,17 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId); /* CRITICAL: The app will break without this line */
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Silence internal gRPC stream retry logs when free tier quota limit is reached
+try {
+  setLogLevel('silent');
+} catch {}
 
 export enum OperationType {
   CREATE = 'create',
@@ -61,9 +66,12 @@ export async function testConnection(): Promise<boolean> {
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log('[Firebase] Firestore connection verified successfully.');
     return true;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('[Firebase] Please check your Firebase configuration.');
+  } catch (error: any) {
+    const msg = error?.message || String(error);
+    if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Quota limit exceeded')) {
+      console.warn('[Firebase] Free daily quota limit active; continuing in offline-persistent database mode.');
+    } else if (msg.includes('the client is offline')) {
+      console.warn('[Firebase] Client is offline; local storage active.');
     } else {
       console.log('[Firebase] Connection ping test complete.');
     }

@@ -8,6 +8,7 @@ interface SidebarProps {
   nodeCount: number;
   onOpenSwapModal?: () => void;
   isAdmin?: boolean;
+  isMasterUser?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -16,14 +17,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   nodeCount,
   onOpenSwapModal,
   isAdmin = false,
+  isMasterUser = false,
 }) => {
   const navItems: { id: TabType; label: string; icon: string; count?: number; badge?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'mining-nodes', label: 'Mining Nodes', icon: 'dns', count: nodeCount },
     { id: 'referrals', label: 'Referral system', icon: 'groups', badge: 'REWARDS' },
     { id: 'swap', label: 'Swap (DEX)', icon: 'swap_horiz', badge: 'AMM' },
-    { id: 'announcements', label: 'Announcements', icon: 'campaign', badge: 'TOP 10 CEX' },
-    ...(isAdmin ? [{ id: 'admin' as TabType, label: 'Admin Panel', icon: 'shield_person', badge: 'ROOT' }] : []),
+    ...(isAdmin
+      ? [
+          {
+            id: 'admin' as TabType,
+            label: isMasterUser ? 'Master Admin' : 'Admin Panel',
+            icon: isMasterUser ? 'admin_panel_settings' : 'shield_person',
+            badge: isMasterUser ? 'MASTER' : 'ADMIN',
+          },
+        ]
+      : []),
   ];
 
   return (

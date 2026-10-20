@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { db as firestoreDb } from '../../firebase';
-import { doc, setDoc } from 'firebase/firestore';
 import {
   AdminMetrics,
   AdminUser,
@@ -25,6 +23,8 @@ interface AdminViewProps {
   onNotify?: (title: string, message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
   onNavigateTab: (tab: 'dashboard' | 'mining-nodes' | 'referrals' | 'home') => void;
   isAdmin?: boolean;
+  isMasterUser?: boolean;
+  currentWallet?: string;
   onUnlockAdmin?: () => void;
   network?: string;
   onNetworkChange?: (net: string) => void;
@@ -35,19 +35,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
   onNotify,
   onNavigateTab,
   isAdmin = false,
+  isMasterUser = false,
+  currentWallet = '',
   onUnlockAdmin,
   network = 'BSC Testnet',
   onNetworkChange,
   onOpenTestnetModal,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<
-    'overview' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
-  >('overview');
-
-  // Security gate passcode state
-  const [passcode, setPasscode] = useState('');
-  const [passcodeError, setPasscodeError] = useState(false);
-
+  const MASTER_CREATOR_ADDR = '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+  
   // Backend state
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -57,6 +53,29 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Master User recognition
+  const isEffectiveMaster = Boolean(
+    isMasterUser ||
+    (currentWallet && [
+      MASTER_CREATOR_ADDR.toLowerCase(),
+      '0x71c8a914b97e889f12a0987cb32456fa12349a2'
+    ].includes(currentWallet.toLowerCase())) ||
+    (settings?.masterWalletAddresses && currentWallet && settings.masterWalletAddresses.map((a: string) => a.toLowerCase()).includes(currentWallet.toLowerCase()))
+  );
+
+  const [activeSubTab, setActiveSubTab] = useState<
+    'master' | 'overview' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
+  >(isMasterUser || (currentWallet && currentWallet.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase()) ? 'master' : 'overview');
+
+  // Master User Control State
+  const [newMasterInput, setNewMasterInput] = useState('');
+  const [isSavingMasterSettings, setIsSavingMasterSettings] = useState(false);
+  const [masterUserSearch, setMasterUserSearch] = useState('');
+
+  // Security gate passcode state
+  const [passcode, setPasscode] = useState('');
+  const [passcodeError, setPasscodeError] = useState(false);
 
   // Search & Filter
   const [userSearch, setUserSearch] = useState('');
@@ -90,10 +109,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     treasuryWalletAddress: string;
     treasuryBalanceUsdt: number;
   }>({
-    treasuryWalletAddress: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
-    treasuryBalanceUsdt: 24850.0,
+    treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    treasuryBalanceUsdt: 0.0,
   });
-  const [treasuryAddressInput, setTreasuryAddressInput] = useState('0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7');
+  const [treasuryAddressInput, setTreasuryAddressInput] = useState('0x3471e07c4d2f7e11c155760a7b386e616b5c3715');
   const [isSavingTreasury, setIsSavingTreasury] = useState(false);
 
   // Dedicated Hashrate Controller State (Per Image Spec)
@@ -223,8 +242,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
       if (treasuryRes && treasuryRes.ok) {
         const tData = await safeJsonParse(treasuryRes);
         if (tData) {
-          const addr = tData.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
-          const bal = typeof tData.treasuryBalanceUsdt === 'number' ? tData.treasuryBalanceUsdt : 24850.0;
+          const addr = tData.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+          const bal = typeof tData.treasuryBalanceUsdt === 'number' ? tData.treasuryBalanceUsdt : 0.0;
           setTreasuryInfo({
             treasuryWalletAddress: addr,
             treasuryBalanceUsdt: bal,
@@ -265,37 +284,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       prev.map((u) => (u.address.toLowerCase() === normAddr ? { ...u, balanceUsdt: newBal } : u))
     );
 
-    // 1. Sync to Firebase Firestore unconditionally
-    try {
-      await setDoc(
-        doc(firestoreDb, 'users', normAddr),
-        {
-          address: targetAddr,
-          balanceUsdt: newBal,
-          lastActive: new Date().toISOString(),
-          role: adjustModalUser.role || 'user',
-          status: adjustModalUser.status || 'active',
-        },
-        { merge: true }
-      );
-      await setDoc(
-        doc(firestoreDb, 'transactions', `tx-adj-${Date.now()}`),
-        {
-          id: `tx-adj-${Date.now()}`,
-          userAddress: normAddr,
-          txHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-          amount: delta,
-          currency: 'USDT',
-          status: 'Confirmed',
-          details: `Admin adjustment: ${adjustReason}`,
-          timestamp: new Date().toISOString(),
-        }
-      );
-    } catch (fsErr) {
-      console.warn('[Admin Adjust] Firestore sync notice:', fsErr);
-    }
-
-    // 2. Broadcast local balance update for connected wallet / open tabs
+    // 1. Broadcast local balance update for connected wallet / open tabs
     try {
       localStorage.setItem(`spike_bal_${normAddr}`, String(newBal));
       const activeWallet = localStorage.getItem('spike_wallet_address');
@@ -386,40 +375,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       ];
     });
 
-    // 1. ALWAYS write directly to Firebase Firestore so connected wallet sees it in real time
-    try {
-      await setDoc(
-        doc(firestoreDb, 'users', normAddr),
-        {
-          address: addr,
-          balanceUsdt: newUsdt,
-          balanceBnb: newBnb,
-          lastActive: new Date().toISOString(),
-          status: 'active',
-          role: 'user',
-        },
-        { merge: true }
-      );
-
-      // Record transaction in Firestore
-      await setDoc(
-        doc(firestoreDb, 'transactions', `tx-faucet-${Date.now()}`),
-        {
-          id: `tx-faucet-${Date.now()}`,
-          userAddress: normAddr,
-          txHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-          amount: faucetAmount,
-          currency: 'USDT',
-          status: 'Confirmed',
-          details: faucetNote || 'Admin Testnet Faucet Credit',
-          timestamp: new Date().toISOString(),
-        }
-      );
-    } catch (fsErr) {
-      console.warn('[Admin Faucet] Firestore write notice:', fsErr);
-    }
-
-    // 2. Broadcast local balance update to any connected wallet on this device / tabs
+    // 1. Broadcast local balance update to any connected wallet on this device / tabs
     try {
       localStorage.setItem(`spike_bal_${normAddr}`, String(newUsdt));
       localStorage.setItem(`spike_bnb_${normAddr}`, String(newBnb));
@@ -534,6 +490,157 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
+  // Handle Master User Project-Wide Settings Save
+  const handleSaveMasterSettings = async () => {
+    setIsSavingMasterSettings(true);
+    try {
+      const cleanTreasury = treasuryAddressInput.trim();
+      const payload: Partial<AdminSettings> = {
+        ...settingsForm,
+        ...(cleanTreasury ? { treasuryWalletAddress: cleanTreasury } : {}),
+      };
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...payload,
+          adminUser: currentWallet || 'Master User (0x3471...3715)',
+        }),
+      });
+      if (res.ok) {
+        const data = await safeJsonParse(res);
+        const updated = data?.settings || payload;
+        setSettings(updated);
+        setSettingsForm(updated);
+        try {
+          localStorage.setItem('spike_global_settings', JSON.stringify(updated));
+          window.dispatchEvent(new CustomEvent('spike_settings_updated', { detail: updated }));
+          window.dispatchEvent(new CustomEvent('spike_hashrate_updated'));
+          if (cleanTreasury) {
+            window.dispatchEvent(
+              new CustomEvent('treasuryUpdated', { detail: { treasuryWalletAddress: cleanTreasury } })
+            );
+          }
+        } catch {}
+
+        onNotify?.(
+          'Project-Wide Settings Live!',
+          'All mining parameters, referral percentages, hashrate tiers and sponsor rules are now saved and active project-wide!',
+          'success'
+        );
+        fetchAllData(true);
+      } else {
+        onNotify?.('Error', 'Failed to save master settings', 'error');
+      }
+    } catch {
+      onNotify?.('Error', 'Failed to broadcast master configuration', 'error');
+    } finally {
+      setIsSavingMasterSettings(false);
+    }
+  };
+
+  // Handle User Role Update (Master, Admin, Moderator, User)
+  const handleUpdateUserRole = async (targetAddress: string, newRole: 'master' | 'admin' | 'moderator' | 'user') => {
+    try {
+      const res = await fetch(`/api/admin/users/${targetAddress.toLowerCase()}/role`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole, adminUser: currentWallet || 'Master Admin' }),
+      });
+      const data = await safeJsonParse(res);
+      if (data?.success) {
+        onNotify?.('Role Updated', `${targetAddress.slice(0, 8)}... assigned role [${newRole.toUpperCase()}]`, 'success');
+        fetchAllData(true);
+      } else {
+        onNotify?.('Error', data?.error || 'Failed to update role', 'error');
+      }
+    } catch {
+      onNotify?.('Error', 'Network error updating user role', 'error');
+    }
+  };
+
+  // Handle Add Authorized Master Wallet
+  const handleAddMasterWallet = async () => {
+    const clean = newMasterInput.trim();
+    if (!clean.startsWith('0x') || clean.length < 10) {
+      onNotify?.('Invalid Address', 'Enter a valid EVM address starting with 0x', 'error');
+      return;
+    }
+    const currentList = settingsForm.masterWalletAddresses || [
+      '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+      '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+    ];
+    if (currentList.map((a) => a.toLowerCase()).includes(clean.toLowerCase())) {
+      onNotify?.('Already Master', 'This wallet is already authorized as master', 'info');
+      return;
+    }
+    const updatedList = [...currentList, clean];
+    setSettingsForm((prev) => ({ ...prev, masterWalletAddresses: updatedList }));
+    setNewMasterInput('');
+    try {
+      await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ masterWalletAddresses: updatedList, adminUser: 'Master User' }),
+      });
+      onNotify?.('Master Wallet Added', `${clean.slice(0, 8)}... authorized with root privileges!`, 'success');
+      fetchAllData(true);
+    } catch {}
+  };
+
+  // Handle Remove Master Wallet
+  const handleRemoveMasterWallet = async (removeAddr: string) => {
+    if (removeAddr.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase()) {
+      onNotify?.('Protected', 'Primary creator wallet cannot be removed.', 'warning');
+      return;
+    }
+    const currentList = settingsForm.masterWalletAddresses || [];
+    const updatedList = currentList.filter((a) => a.toLowerCase() !== removeAddr.toLowerCase());
+    setSettingsForm((prev) => ({ ...prev, masterWalletAddresses: updatedList }));
+    try {
+      await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ masterWalletAddresses: updatedList, adminUser: 'Master User' }),
+      });
+      onNotify?.('Master Wallet Removed', `${removeAddr.slice(0, 8)}... removed from master list`, 'info');
+      fetchAllData(true);
+    } catch {}
+  };
+
+  // Handle Founder Welcome Package Grant (100 USDT + 0.1 BNB + 200 VH/s boost)
+  const handleGrantFounderPackage = async (address: string) => {
+    try {
+      await fetch('/api/admin/faucet/credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: address,
+          amount: 100,
+          bnbAmount: 0.1,
+          note: 'Founder Welcome Package Grant',
+        }),
+      });
+      await fetch(`/api/admin/users/${address.toLowerCase()}/hashrate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hashrate: 200,
+          reason: 'Founder Welcome Grant (Level 1 Boost)',
+          adminUser: 'Master User',
+        }),
+      });
+      onNotify?.(
+        'Package Granted',
+        `Credited 100 USDT, 0.1 BNB & 200 VH/s speed to ${address.slice(0, 8)}...!`,
+        'success'
+      );
+      fetchAllData(true);
+    } catch {
+      onNotify?.('Error', 'Failed to grant founder package', 'error');
+    }
+  };
+
   // Dedicated Handler: Update Official Protocol Treasury Wallet Address
   const handleUpdateTreasuryAddress = async (overrideAddress?: string) => {
     const target = (overrideAddress || treasuryAddressInput).trim();
@@ -555,21 +662,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
       });
       const data = await safeJsonParse(res);
       if (res.ok && data?.success) {
-        // Cloud Firestore sync for multi-client persistence
-        try {
-          await setDoc(
-            doc(firestoreDb, 'system', 'treasury'),
-            {
-              treasuryWalletAddress: target,
-              updatedAt: new Date().toISOString(),
-              updatedBy: 'Admin',
-            },
-            { merge: true }
-          );
-        } catch (fbErr) {
-          console.warn('[Admin] Firestore treasury sync notice:', fbErr);
-        }
-
         setTreasuryAddressInput(target);
         setTreasuryInfo((prev) => ({ ...prev, treasuryWalletAddress: target }));
         setSettingsForm((prev) => ({ ...prev, treasuryWalletAddress: target }));
@@ -673,8 +765,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
-  // If user is not authorized as admin, show security authentication gate
-  if (!isAdmin) {
+  // If user is not authorized as admin and not a recognized master user, show security authentication gate
+  if (!isAdmin && !isEffectiveMaster) {
     return (
       <div className="max-w-xl mx-auto my-12 p-6 sm:p-10 rounded-3xl bg-[#0d1d2c] border-2 border-red-500/30 shadow-[0_0_50px_rgba(239,68,68,0.15)] text-center space-y-6">
         <div className="w-20 h-20 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/30 flex items-center justify-center mx-auto shadow-inner">
@@ -692,6 +784,34 @@ export const AdminView: React.FC<AdminViewProps> = ({
           <p className="text-xs text-[#94a3b8] leading-relaxed max-w-md mx-auto">
             Ye section sirf protocol operators aur system administrators ke liye reserved hai. Normal users ko database records aur balance adjustments ka access nahi hota.
           </p>
+        </div>
+
+        {/* Master User Direct Root Option */}
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-[#D4AF37]/20 via-[#122130] to-[#00F0FF]/20 border border-[#D4AF37]/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0">
+              <span className="material-symbols-outlined text-[22px]">admin_panel_settings</span>
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-2">
+                <span>Master User (Root Owner)</span>
+                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#D4AF37] text-[#0A0F1D]">ROOT</span>
+              </div>
+              <div className="text-[11px] text-[#94a3b8] font-mono">
+                0x3471...3715 holds permanent protocol root authority.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              onUnlockAdmin?.();
+              onNotify?.('Master Access Granted', 'Authenticated as Master Creator with root authority.', 'success');
+            }}
+            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-headline font-bold text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:opacity-95 transition-all cursor-pointer whitespace-nowrap"
+          >
+            Enter Master Console
+          </button>
         </div>
 
         {/* Security Passcode Form */}
@@ -939,6 +1059,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
          ============================================================ */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-[#1c2b3b] pb-2 scrollbar-none">
         {[
+          { id: 'master', label: 'Master Control Center', icon: 'shield_lock', badge: 'ROOT' },
           { id: 'overview', label: 'Dashboard Overview', icon: 'dashboard' },
           { id: 'faucet', label: 'Testnet Faucet & Wallet Credit', icon: 'science', badge: 'FAUCET' },
           { id: 'domain', label: 'Domain & Sublinks (spikenodes.com)', icon: 'language', badge: 'PRO' },
@@ -955,14 +1076,24 @@ export const AdminView: React.FC<AdminViewProps> = ({
               onClick={() => setActiveSubTab(tab.id as typeof activeSubTab)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
                 isActive
-                  ? 'bg-[#1c2b3b] text-[#00F0FF] border border-[#00F0FF]/30 shadow-[0_0_15px_rgba(0,240,255,0.1)]'
+                  ? tab.id === 'master'
+                    ? 'bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-black border border-[#ffe088] shadow-[0_0_20px_rgba(212,175,55,0.4)]'
+                    : 'bg-[#1c2b3b] text-[#00F0FF] border border-[#00F0FF]/30 shadow-[0_0_15px_rgba(0,240,255,0.1)]'
+                  : tab.id === 'master'
+                  ? 'text-[#D4AF37] hover:text-white hover:bg-[#122130] border border-[#D4AF37]/30'
                   : 'text-[#94a3b8] hover:text-white hover:bg-[#122130]'
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
               <span>{tab.label}</span>
               {tab.badge && (
-                <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
+                <span
+                  className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                    isActive && tab.id === 'master'
+                      ? 'bg-[#0A0F1D] text-[#D4AF37]'
+                      : 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
+                  }`}
+                >
                   {tab.badge}
                 </span>
               )}
@@ -979,6 +1110,621 @@ export const AdminView: React.FC<AdminViewProps> = ({
           );
         })}
       </div>
+
+      {/* ============================================================
+          TAB CONTENT 0: MASTER USER (SUPER ADMIN) CONTROL SUITE
+         ============================================================ */}
+      {activeSubTab === 'master' && (
+        <div className="space-y-6">
+          {/* Master Root Hero Banner */}
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-[#D4AF37]/15 via-[#0d1d2c] to-[#00F0FF]/15 border-2 border-[#D4AF37]/50 shadow-2xl relative overflow-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-black bg-[#D4AF37] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.5)] flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">admin_panel_settings</span>
+                    MASTER USER ACTIVE · ROOT PROTOCOL ACCESS
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    LIVE PROJECT GOVERNANCE
+                  </span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black font-headline text-white tracking-tight">
+                  Master User Project Control Center
+                </h2>
+                <p className="text-xs sm:text-sm text-[#94a3b8] max-w-2xl leading-relaxed">
+                  Aapka master wallet address <code className="text-[#D4AF37] font-bold font-mono">0x3471e07c4d2f7e11c155760a7b386e616b5c3715</code> protocol ke root engine se linked hai. Yha se aap jo bhi mining parameters, referral percentages, hashrate rules ya balances update karenge, wo <strong className="text-white">poore project me sabhi users ke liye instantly apply ho jayenge</strong>.
+                </p>
+              </div>
+
+              {/* Master Root Quick Actions */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSaveMasterSettings}
+                  disabled={isSavingMasterSettings}
+                  className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-headline font-black text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(212,175,55,0.5)] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {isSavingMasterSettings ? 'sync' : 'publish'}
+                  </span>
+                  <span>{isSavingMasterSettings ? 'Deploying...' : 'Deploy Changes Live Across Project'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Authorized Master Wallets Section */}
+            <div className="mt-5 pt-4 border-t border-[#1c2b3b] flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[#94a3b8]">Authorized Master Wallets:</span>
+                {(settingsForm.masterWalletAddresses || [
+                  '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+                  '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+                ]).map((addr) => {
+                  const isCurrent = currentWallet && currentWallet.toLowerCase() === addr.toLowerCase();
+                  return (
+                    <span
+                      key={addr}
+                      className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
+                        isCurrent
+                          ? 'bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]'
+                          : 'bg-[#122130] text-[#94a3b8] border-[#1c2b3b]'
+                      }`}
+                    >
+                      <span>{addr.slice(0, 6)}...{addr.slice(-4)}</span>
+                      {isCurrent && <span className="text-[10px] text-emerald-400 font-bold">(YOU)</span>}
+                      {addr.toLowerCase() !== MASTER_CREATOR_ADDR.toLowerCase() && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMasterWallet(addr)}
+                          className="text-red-400 hover:text-red-300 ml-1"
+                          title="Remove wallet"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+
+              {/* Add Master Wallet Input */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Add backup master wallet (0x...)"
+                  value={newMasterInput}
+                  onChange={(e) => setNewMasterInput(e.target.value)}
+                  className="w-56 bg-[#122130] border border-[#1c2b3b] rounded-lg px-2.5 py-1 text-xs text-white font-mono focus:border-[#D4AF37] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddMasterWallet}
+                  className="px-2.5 py-1 rounded-lg bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 hover:bg-[#D4AF37]/30 text-xs font-bold"
+                >
+                  + Add
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1 & Section 2 Two-Column Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Control Column 1: Global Mining Parameters & Yields */}
+            <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-5">
+              <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
+                <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#00F0FF]">speed</span>
+                  <span>Global Mining Parameters &amp; Hashrate Rules</span>
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
+                  REAL-TIME FORMULAS
+                </span>
+              </div>
+
+              <div className="space-y-4 text-xs font-mono">
+                {/* Stratum Turbo Multiplier */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[#94a3b8]">Stratum Turbo Overclock Multiplier</label>
+                    <span className="text-[#00F0FF] font-bold">{settingsForm.turboMultiplier || 10}X</span>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={settingsForm.turboMultiplier || 10}
+                    onChange={(e) =>
+                      setSettingsForm((prev) => ({ ...prev, turboMultiplier: Number(e.target.value) }))
+                    }
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                  />
+                  <span className="text-[10px] text-[#94a3b8] mt-1 block">
+                    Mining rigs fleet wide overclock profile. Default: 10X.
+                  </span>
+                </div>
+
+                {/* Base Hashrate for Fresh Users */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[#94a3b8]">Base Fresh User Hashrate (0 Referrals)</label>
+                    <span className="text-emerald-400 font-bold">
+                      100 VH/s (60 Days per SPK)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      step="5"
+                      min="10"
+                      max="1000"
+                      value={settingsForm.level1HashrateBoost ? (settingsForm.level1HashrateBoost / 2) : 100}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setSettingsForm((prev) => ({
+                          ...prev,
+                          baseHashrateTh: +(val / 80).toFixed(2),
+                        }));
+                      }}
+                      className="flex-1 bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                    />
+                    <span className="text-[#00F0FF] font-bold">VH/s</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 mt-1 block">
+                    Formula: <code className="text-white">Required Hashrate = 100 × (60 / Target Days)</code>
+                  </span>
+                </div>
+
+                {/* Daily Reward SPK & Daily Yield */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#94a3b8] mb-1">24h Claim Reward Yield (SPK)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      value={settingsForm.dailyRewardSpk || 35.0}
+                      onChange={(e) =>
+                        setSettingsForm((prev) => ({ ...prev, dailyRewardSpk: Number(e.target.value) }))
+                      }
+                      className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#94a3b8] mb-1">Daily Yield ROI (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={settingsForm.dailyYieldPercent || 3.88}
+                      onChange={(e) =>
+                        setSettingsForm((prev) => ({ ...prev, dailyYieldPercent: Number(e.target.value) }))
+                      }
+                      className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                    />
+                  </div>
+                </div>
+
+                {/* Mining Cycle Duration & Rig Deployment Cost */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#94a3b8] mb-1">Mining Cycle Duration (Hours)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="72"
+                      value={settingsForm.miningCycleHours || 24}
+                      onChange={(e) =>
+                        setSettingsForm((prev) => ({ ...prev, miningCycleHours: Number(e.target.value) }))
+                      }
+                      className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#94a3b8] mb-1">Hardware Node Price (USDT)</label>
+                    <input
+                      type="number"
+                      step="1"
+                      value={settingsForm.nodeCostUsdt || 15.0}
+                      onChange={(e) =>
+                        setSettingsForm((prev) => ({ ...prev, nodeCostUsdt: Number(e.target.value) }))
+                      }
+                      className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                    />
+                  </div>
+                </div>
+
+                {/* Fast Testnet Cycle Toggle */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[#122130] border border-[#1c2b3b]">
+                  <div>
+                    <div className="font-bold text-white">Testnet Fast 1-Minute Cycle Mode</div>
+                    <div className="text-[10px] text-[#94a3b8]">
+                      Enables fast 60-second reward accrual for testing harvest cycles instantly.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={!!settingsForm.testnetFastCycleEnabled}
+                    onChange={(e) =>
+                      setSettingsForm((prev) => ({ ...prev, testnetFastCycleEnabled: e.target.checked }))
+                    }
+                    className="w-5 h-5 rounded accent-[#00F0FF] cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Control Column 2: Team Referral Percentages & Sponsor Rules */}
+            <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-5">
+              <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
+                <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#D4AF37]">groups</span>
+                  <span>Team Referral Percentages &amp; Sponsor Rules</span>
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
+                  TIER DISTRIBUTION
+                </span>
+              </div>
+
+              <div className="space-y-4 text-xs font-mono">
+                {/* Commission Percentages */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#94a3b8] mb-1">
+                      Tier 1 Direct Referral Commission (%)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={settingsForm.tier1CommissionPercent || 15}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, tier1CommissionPercent: Number(e.target.value) }))
+                        }
+                        className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#D4AF37]"
+                      />
+                      <span className="text-[#D4AF37] font-bold">%</span>
+                    </div>
+                    <span className="text-[10px] text-[#94a3b8] mt-1 block">Immediate direct sponsor bonus</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#94a3b8] mb-1">
+                      Tier 2 Indirect Referral Commission (%)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max="25"
+                        value={settingsForm.tier2CommissionPercent || 5}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, tier2CommissionPercent: Number(e.target.value) }))
+                        }
+                        className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#D4AF37]"
+                      />
+                      <span className="text-[#D4AF37] font-bold">%</span>
+                    </div>
+                    <span className="text-[10px] text-[#94a3b8] mt-1 block">Secondary network bonus</span>
+                  </div>
+                </div>
+
+                {/* Level Milestones Table Configuration */}
+                <div className="space-y-2.5 pt-1">
+                  <div className="text-[#94a3b8] font-bold text-[11px]">
+                    Sponsor Hashrate Upgrade Thresholds (Milestone System):
+                  </div>
+
+                  {/* Level 1 Config */}
+                  <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00F0FF]/15 text-[#00F0FF]">
+                        Level 1
+                      </span>
+                      <span className="text-[#94a3b8]">Directs:</span>
+                      <input
+                        type="number"
+                        value={settingsForm.level1DirectsRequired || 10}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, level1DirectsRequired: Number(e.target.value) }))
+                        }
+                        className="w-16 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-white text-center"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#94a3b8]">Boost:</span>
+                      <input
+                        type="number"
+                        value={settingsForm.level1HashrateBoost || 200}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, level1HashrateBoost: Number(e.target.value) }))
+                        }
+                        className="w-20 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-emerald-400 font-bold text-center"
+                      />
+                      <span className="text-[#00F0FF]">VH/s</span>
+                      <span className="text-[10px] text-[#94a3b8]">(30d target)</span>
+                    </div>
+                  </div>
+
+                  {/* Level 2 Config */}
+                  <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00F0FF]/15 text-[#00F0FF]">
+                        Level 2
+                      </span>
+                      <span className="text-[#94a3b8]">Directs:</span>
+                      <input
+                        type="number"
+                        value={settingsForm.level2DirectsRequired || 25}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, level2DirectsRequired: Number(e.target.value) }))
+                        }
+                        className="w-16 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-white text-center"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#94a3b8]">Boost:</span>
+                      <input
+                        type="number"
+                        value={settingsForm.level2HashrateBoost || 400}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, level2HashrateBoost: Number(e.target.value) }))
+                        }
+                        className="w-20 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-emerald-400 font-bold text-center"
+                      />
+                      <span className="text-[#00F0FF]">VH/s</span>
+                      <span className="text-[10px] text-[#94a3b8]">(15d target)</span>
+                    </div>
+                  </div>
+
+                  {/* Level 3 Config */}
+                  <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00F0FF]/15 text-[#00F0FF]">
+                        Level 3
+                      </span>
+                      <span className="text-[#94a3b8]">Directs:</span>
+                      <input
+                        type="number"
+                        value={settingsForm.level3DirectsRequired || 50}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, level3DirectsRequired: Number(e.target.value) }))
+                        }
+                        className="w-16 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-white text-center"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#94a3b8]">Boost:</span>
+                      <input
+                        type="number"
+                        value={settingsForm.level3HashrateBoost || 600}
+                        onChange={(e) =>
+                          setSettingsForm((prev) => ({ ...prev, level3HashrateBoost: Number(e.target.value) }))
+                        }
+                        className="w-20 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-emerald-400 font-bold text-center"
+                      />
+                      <span className="text-[#00F0FF]">VH/s</span>
+                      <span className="text-[10px] text-[#94a3b8]">(10d target)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Emergency Maintenance Mode */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[#122130] border border-red-500/30">
+                  <div>
+                    <div className="font-bold text-red-400">Emergency Maintenance Protocol</div>
+                    <div className="text-[10px] text-[#94a3b8]">
+                      Global circuit breaker: pauses new node purchases &amp; withdrawals.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={!!settingsForm.maintenanceMode}
+                    onChange={(e) =>
+                      setSettingsForm((prev) => ({ ...prev, maintenanceMode: e.target.checked }))
+                    }
+                    className="w-5 h-5 rounded accent-red-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Live User Management, Wallet Balances & Role Assignments */}
+          <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1c2b3b] pb-4">
+              <div>
+                <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#D4AF37]">manage_accounts</span>
+                  <span>User Management, Wallet Balances &amp; Role Assignments</span>
+                </h3>
+                <p className="text-xs text-[#94a3b8] mt-0.5">
+                  Promote users to Master or Admin, grant welcome balances, or override speeds.
+                </p>
+              </div>
+
+              {/* User search bar */}
+              <div className="relative w-full sm:w-72">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[16px] text-[#94a3b8]">
+                  search
+                </span>
+                <input
+                  type="text"
+                  placeholder="Filter users or address..."
+                  value={masterUserSearch}
+                  onChange={(e) => setMasterUserSearch(e.target.value)}
+                  className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl pl-9 pr-3 py-1.5 text-xs font-mono text-white placeholder-[#94a3b8]/50 focus:border-[#D4AF37] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* User List Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-mono">
+                <thead>
+                  <tr className="bg-[#122130] text-[#94a3b8] border-b border-[#1c2b3b]">
+                    <th className="p-3">Wallet Address</th>
+                    <th className="p-3">Role Assignment</th>
+                    <th className="p-3">Referral Status</th>
+                    <th className="p-3">Current Hashrate</th>
+                    <th className="p-3">USDT Balance</th>
+                    <th className="p-3">Gas (BNB)</th>
+                    <th className="p-3 text-right">Master Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#1c2b3b]/60">
+                  {users
+                    .filter(
+                      (u) =>
+                        !masterUserSearch.trim() ||
+                        u.address.toLowerCase().includes(masterUserSearch.toLowerCase()) ||
+                        u.referralCode?.toLowerCase().includes(masterUserSearch.toLowerCase())
+                    )
+                    .map((u) => {
+                      const isMasterAddr = u.role === 'master' || (settingsForm.masterWalletAddresses || []).map((a) => a.toLowerCase()).includes(u.address.toLowerCase());
+                      return (
+                        <tr key={u.address} className="hover:bg-[#122130]/40 transition-colors">
+                          <td className="p-3">
+                            <div className="font-bold text-white flex items-center gap-2">
+                              <span className="text-[#00F0FF]">{u.address.slice(0, 10)}...{u.address.slice(-6)}</span>
+                              {isMasterAddr && (
+                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#D4AF37] text-[#0A0F1D]">
+                                  ROOT
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-[#94a3b8]">Ref: {u.referralCode}</div>
+                          </td>
+
+                          {/* Role Selector */}
+                          <td className="p-3">
+                            <select
+                              value={u.role || (isMasterAddr ? 'master' : 'user')}
+                              onChange={(e) => handleUpdateUserRole(u.address, e.target.value as any)}
+                              className={`bg-[#071322] border rounded-lg px-2.5 py-1 text-xs font-bold font-mono focus:outline-none ${
+                                isMasterAddr
+                                  ? 'text-[#D4AF37] border-[#D4AF37]'
+                                  : u.role === 'admin'
+                                  ? 'text-[#00F0FF] border-[#00F0FF]/50'
+                                  : 'text-white border-[#1c2b3b]'
+                              }`}
+                            >
+                              <option value="user">User (Standard)</option>
+                              <option value="moderator">Moderator</option>
+                              <option value="admin">Admin</option>
+                              <option value="master">Master (Root)</option>
+                            </select>
+                          </td>
+
+                          <td className="p-3">
+                            <div className="text-white font-bold">{u.directPartners ?? 0} Directs</div>
+                            <div className="text-[10px] text-[#D4AF37]">{u.totalPartners ?? 0} Total Team</div>
+                          </td>
+
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
+                              {u.hashrateInfo?.hashrate || u.customHashrate || 100} VH/s
+                            </span>
+                            <div className="text-[10px] text-emerald-400 mt-0.5">
+                              {u.hashrateInfo?.level || 'Fresh user'}
+                            </div>
+                          </td>
+
+                          <td className="p-3 text-white font-bold tabular-nums">
+                            ${u.balanceUsdt.toFixed(2)}
+                          </td>
+
+                          <td className="p-3 text-amber-400 font-bold tabular-nums">
+                            {u.balanceBnb.toFixed(4)} BNB
+                          </td>
+
+                          {/* Action Buttons */}
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Founder Grant */}
+                              <button
+                                type="button"
+                                onClick={() => handleGrantFounderPackage(u.address)}
+                                className="px-2 py-1 rounded bg-gradient-to-r from-[#D4AF37]/20 to-[#00F0FF]/20 hover:from-[#D4AF37]/30 hover:to-[#00F0FF]/30 text-[#D4AF37] border border-[#D4AF37]/40 text-[10px] font-bold transition-all"
+                                title="Grant 100 USDT, 0.1 BNB & 200 VH/s boost"
+                              >
+                                + Founder Grant
+                              </button>
+
+                              {/* Adjust */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAdjustModalUser(u);
+                                  setAdjustAmount(50);
+                                  setAdjustType('credit');
+                                }}
+                                className="px-2 py-1 rounded bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 text-[#00F0FF] border border-[#00F0FF]/30 text-[10px] font-semibold"
+                                title="Credit or Debit Balance"
+                              >
+                                Adjust
+                              </button>
+
+                              {/* Hashrate */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setHashrateModalUser(u);
+                                  setCustomHashrateVal(String(u.hashrateInfo?.hashrate || u.customHashrate || 100));
+                                  setSelectedHashratePreset(u.hashrateInfo?.hashrate || u.customHashrate || 100);
+                                }}
+                                className="px-2 py-1 rounded bg-[#1c2b3b] hover:bg-[#25394e] text-white border border-[#2d4257] text-[10px]"
+                                title="Set specific mining speed"
+                              >
+                                Speed
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Sticky Deployment Action Bar */}
+          <div className="sticky bottom-4 z-20 p-4 rounded-2xl bg-[#0a1220]/95 backdrop-blur-md border-2 border-[#D4AF37]/50 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0">
+                <span className="material-symbols-outlined text-[22px]">rocket_launch</span>
+              </div>
+              <div>
+                <div className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Deploy &amp; Sync Master Configuration</span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                    ACID PERSISTENCE
+                  </span>
+                </div>
+                <div className="text-xs text-[#94a3b8]">
+                  Saves all updated rules to database and triggers instant synchronization across all app views.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleSaveMasterSettings}
+                disabled={isSavingMasterSettings}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#00F0FF] text-[#0A0F1D] font-headline font-black text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {isSavingMasterSettings ? 'sync' : 'save'}
+                </span>
+                <span>{isSavingMasterSettings ? 'Saving to Database...' : 'Save & Apply Project-Wide'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============================================================
           TAB CONTENT 1: OVERVIEW & QUICK ACTIONS
@@ -1712,16 +2458,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       badge: 'Wallet Auth',
                       badgeColor: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
                       desc: 'Multi-tier rewards, direct referral link generator & milestones',
-                    },
-                    {
-                      title: 'CEX Listing & Announcements',
-                      icon: 'campaign',
-                      path: '/?tab=announcements',
-                      tab: 'announcements',
-                      fullUrl: 'https://spikenodes.com/?tab=announcements',
-                      badge: 'Public',
-                      badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-                      desc: 'Top 10 CEX status announcements & protocol updates',
                     },
                     {
                       title: 'Core Admin Panel (Protected)',

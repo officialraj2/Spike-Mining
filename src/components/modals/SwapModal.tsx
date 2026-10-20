@@ -100,7 +100,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
       symbol: 'SPIKE',
       name: 'SPIKE Protocol (BEP-20)',
       balance: spikeBalance,
-      rateToUsd: 0.0345, // 1 SPK = 0.0345 USDT
+      rateToUsd: 1.12, // 1 SPK = 1.12 USDT ($1.00 - $1.20 range)
       isSpike: true,
     },
     USDT: {

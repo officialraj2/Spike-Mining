@@ -1,4 +1,4 @@
-export type TabType = 'home' | 'dashboard' | 'mining-nodes' | 'referrals' | 'announcements' | 'admin' | 'swap';
+export type TabType = 'home' | 'dashboard' | 'mining-nodes' | 'referrals' | 'admin' | 'swap';
 
 export interface AdminMetrics {
   totalUsers: number;
@@ -57,7 +57,7 @@ export interface AdminUser {
   totalMined: number;
   referralCode: string;
   referredBy: string | null;
-  role: 'admin' | 'user' | 'moderator';
+  role: 'master' | 'admin' | 'user' | 'moderator';
   status: 'active' | 'frozen' | 'banned';
   createdAt: string;
   lastActive: string;
@@ -79,6 +79,7 @@ export interface AdminSettings {
   pancakeRouterAddress?: string;
   testnetFastCycleEnabled?: boolean;
   maintenanceMode: boolean;
+  maintenanceMessage?: string;
   stratumPoolUrl: string;
   bscContractAddress: string;
   minWithdrawalUsdt: number;
@@ -91,6 +92,16 @@ export interface AdminSettings {
   apiBaseUrl?: string;
   docsUrl?: string;
   rpcUrl?: string;
+  masterWalletAddresses?: string[];
+  nodeCostUsdt?: number;
+  tier1CommissionPercent?: number;
+  tier2CommissionPercent?: number;
+  level1DirectsRequired?: number;
+  level2DirectsRequired?: number;
+  level3DirectsRequired?: number;
+  level1HashrateBoost?: number;
+  level2HashrateBoost?: number;
+  level3HashrateBoost?: number;
 }
 
 export interface AdminAuditLog {

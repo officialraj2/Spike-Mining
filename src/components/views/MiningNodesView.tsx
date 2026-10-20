@@ -317,9 +317,9 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
               {/* Hardware Telemetry Progress & Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] mb-4 text-xs">
                 <div>
-                  <div className="text-[#c6c6cc]">Hashrate</div>
-                  <div className="text-sm font-bold font-mono text-white mt-0.5">
-                    {node.hashrate.toFixed(2)} TH/s
+                  <div className="text-[#c6c6cc]">Protocol Hashrate</div>
+                  <div className="text-sm font-bold font-mono text-[#00F0FF] mt-0.5">
+                    {hashrateInfo?.hashrate ?? 100} VH/s
                   </div>
                 </div>
                 <div>

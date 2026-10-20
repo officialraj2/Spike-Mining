@@ -180,7 +180,14 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }
   }, [accumulatedSpike, accumulatedUsdt, sharesCount, walletAddress, isMining]);
 
-  // Effective Hashrate with fixed 10x Turbo speed (at least 12.5 TH/s when active so it never freezes)
+  // User active hashrate derived from backend referral tiers or admin overrides
+  const activeHashrate = hashrateInfo?.hashrate ?? 100;
+  const activeUnit = hashrateInfo?.unit ?? 'VH/s';
+  const activeLevel = hashrateInfo?.level ?? 'Fresh user';
+  const targetDays = hashrateInfo?.targetDays ?? 60;
+  const dailySpkYield = hashrateInfo?.dailySpkYield ?? +(activeHashrate / 6000).toFixed(5);
+
+  // Effective Cluster Hashrate with fixed 10x Turbo speed (at least 12.5 TH/s when active so it never freezes)
   const effectiveHashrate = isMining ? Math.max(totalHashrate * 10, 12.5) : 0;
 
   // Real-time mining ticker: accumulates tokens every 1.2 seconds when mining node is active
@@ -195,10 +202,12 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     setLastBlockTime('Just now');
 
     const interval = setInterval(() => {
-      // Yield proportional to actual hashrate
-      const increment = +(0.0052 * (Math.max(totalHashrate, 1.25) / 1.28)).toFixed(5);
+      // Yield strictly scales with user's active referral/admin hashrate
+      // (Base: 100 VH/s -> 1x, Level 1: 200 -> 2x, Level 2: 400 -> 4x, Level 3: 600 -> 6x, Level 4: 857.14 -> 8.57x)
+      const multiplier = Math.max(0.5, activeHashrate / 100);
+      const increment = +(0.0052 * multiplier).toFixed(5);
       setAccumulatedSpike((prev) => +(prev + increment).toFixed(5));
-      setAccumulatedUsdt((prev) => +((prev + increment) * 1.0).toFixed(4));
+      setAccumulatedUsdt((prev) => +((prev + increment) * 1.12).toFixed(4));
 
       // Randomly forge new block every few ticks & trigger automated Baaz dive strike
       if (Math.random() > 0.45) {
@@ -214,7 +223,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }, 1200);
 
     return () => clearInterval(interval);
-  }, [isMining, totalHashrate]);
+  }, [isMining, totalHashrate, activeHashrate]);
 
   // Trigger high-velocity power strike into the coin
   const handleStrikeBlock = () => {
@@ -240,8 +249,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
   const handleClaim = async () => {
     // Exact mined SPIKE amount to auto-buy via PancakeSwap Router
-    const rawSpk = accumulatedSpike > 0 ? accumulatedSpike : (accumulatedUsdt > 0 ? +(accumulatedUsdt * 28.98).toFixed(4) : 25.0);
-    const spkToBuy = Math.max(rawSpk, 25.0);
+    const defaultReward = hashrateInfo?.dailySpkYield ? +(hashrateInfo.dailySpkYield * 10).toFixed(4) : 25.0;
+    const rawSpk = accumulatedSpike > 0 ? accumulatedSpike : (accumulatedUsdt > 0 ? +(accumulatedUsdt / 1.12).toFixed(4) : defaultReward);
+    const spkToBuy = Math.max(rawSpk, 1.0);
     if (isAutoBuying) return;
 
     setIsAutoBuying(true);
@@ -258,7 +268,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         body: JSON.stringify({
           address: userAddr,
           minedSpkAmount: spkToBuy,
-          hashrate: effectiveHashrate > 0 ? effectiveHashrate / 10 : (totalHashrate || 1.25),
+          hashrate: activeHashrate,
           slippageTolerance: 0.2, // Best slippage for ultra-fast execution
         }),
       });
@@ -270,8 +280,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         txHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
         type: 'harvest_autobuy',
         spkAmount: spkToBuy,
-        usdtAmount: +(spkToBuy * 0.0345).toFixed(4),
-        priceUsdt: 0.0345,
+        usdtAmount: +(spkToBuy * 1.12).toFixed(4),
+        priceUsdt: 1.12,
         status: 'Confirmed',
         blockNumber: 42918500 + Math.floor(Math.random() * 1000),
         gasFeeBnb: 0.00015,
@@ -301,7 +311,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         onAutoBuySuccess(finalTx, data?.wallet, data?.token);
       }
       if (onClaimReward) {
-        onClaimReward(finalTx.usdtAmount || +(spkToBuy * 0.0345).toFixed(2));
+        onClaimReward(finalTx.usdtAmount || +(spkToBuy * 1.12).toFixed(2));
       }
 
       // Dispatch trade event so graph registers the smart contract auto-buy immediately
@@ -310,7 +320,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           detail: {
             fromToken: 'USDT',
             toToken: 'SPIKE',
-            fromAmount: finalTx.usdtAmount || +(spkToBuy * 0.0345).toFixed(2),
+            fromAmount: finalTx.usdtAmount || +(spkToBuy * 1.12).toFixed(2),
             toAmount: spkToBuy,
             walletAddress: userAddr,
           },
@@ -320,7 +330,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       // Dispatch balance update so headers sync
       window.dispatchEvent(
         new CustomEvent('spike_balance_updated', {
-          detail: { address: userAddr.toLowerCase(), balanceUsdt: +(spkToBuy * 0.0345).toFixed(2) },
+          detail: { address: userAddr.toLowerCase(), balanceUsdt: +(spkToBuy * 1.12).toFixed(2) },
         })
       );
 
@@ -334,8 +344,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         txHash: `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
         type: 'harvest_autobuy',
         spkAmount: spkToBuy,
-        usdtAmount: +(spkToBuy * 0.0345).toFixed(4),
-        priceUsdt: 0.0345,
+        usdtAmount: +(spkToBuy * 1.12).toFixed(4),
+        priceUsdt: 1.12,
         status: 'Confirmed',
         blockNumber: 42918500,
         gasFeeBnb: 0.00015,
@@ -498,6 +508,17 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 {isStriking && (
                   <div className="absolute inset-0 bg-[#ffe088] rounded-full animate-ping opacity-80 pointer-events-none z-30" />
                 )}
+
+                {/* Active Hashrate Floating Badge directly on the Mining Ring */}
+                <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-30 bg-[#061424]/90 backdrop-blur-md border border-[#00F0FF]/50 px-3 py-1 rounded-full shadow-[0_0_15px_rgba(0,240,255,0.4)] flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse"></span>
+                  <span className="text-[11px] font-mono font-extrabold text-[#00F0FF] tabular-nums tracking-wide">
+                    {activeHashrate} {activeUnit}
+                  </span>
+                  <span className="text-[9px] font-mono text-[#D4AF37] uppercase font-bold">
+                    {activeLevel}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -627,7 +648,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               <span>
                 {strikeNotice ||
                   (isMining
-                    ? '⚡ SPIKE VALIDATOR CORE · MINING BLOCKS'
+                    ? `⚡ MINING ACTIVE · ${activeHashrate} ${activeUnit} [${activeLevel}] · TARGET: 1 SPK in ${targetDays}d`
                     : 'MINING PAUSED · CORE ON STANDBY')}
               </span>
               <span className="material-symbols-outlined text-[15px] animate-bounce text-[#D4AF37]">
@@ -636,7 +657,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             </div>
 
             <div className="text-xs text-[#94a3b8] font-mono">
-              Validator Node Synced · Block #{currentBlock.toLocaleString()} Verified ({lastBlockTime})
+              Validator Protocol Tier: <strong className="text-white">{activeLevel}</strong> · Block #{currentBlock.toLocaleString()} Verified ({lastBlockTime})
             </div>
           </div>
         </div>
@@ -750,23 +771,27 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <div className="text-[10px] text-[#D4AF37] font-mono font-bold uppercase tracking-[0.14em] flex items-center gap-1">
+                  <div className="text-[10px] text-[#D4AF37] font-mono font-bold uppercase tracking-[0.14em] flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-[14px]">savings</span>
                     <span>24h Mined Loot Available</span>
+                    <span className="text-[10px] text-[#00F0FF] bg-[#00F0FF]/10 px-2 py-0.5 rounded font-mono font-bold border border-[#00F0FF]/30">
+                      Active: {activeHashrate} {activeUnit} ({activeLevel})
+                    </span>
                   </div>
                   <div className="text-2xl font-extrabold font-headline text-white mt-1 tabular-nums">
-                    +{accumulatedSpike > 0 ? accumulatedSpike.toFixed(4) : (isMining && secondsRemaining === 0 ? '25.0000' : '0.0000')}{' '}
+                    +{accumulatedSpike > 0 ? accumulatedSpike.toFixed(4) : (isMining && secondsRemaining === 0 ? (dailySpkYield * 10).toFixed(4) : '0.0000')}{' '}
                     <span className="text-sm font-semibold text-[#D4AF37]">SPIKE</span>
                     <span className="text-xs text-[#94a3b8] font-mono ml-2">
-                      (≈ ${accumulatedUsdt > 0 ? accumulatedUsdt.toFixed(2) : (isMining && secondsRemaining === 0 ? '5.00' : '0.00')} USDT)
+                      (≈ ${accumulatedUsdt > 0 ? accumulatedUsdt.toFixed(2) : (isMining && secondsRemaining === 0 ? ((dailySpkYield * 10) * 1.12).toFixed(2) : '0.00')} USDT)
                     </span>
                   </div>
                   <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                    Daily Tier Production: <strong className="text-[#00F0FF]">{dailySpkYield} SPK / 24h</strong> (Target 1 SPK in {targetDays} days).
                     {secondsRemaining === 0
-                      ? '⚡ 24h mining completed! Click harvest to execute PancakeSwap Router buyback.'
+                      ? ' ⚡ 24h cycle complete! Click harvest to execute PancakeSwap Router buyback.'
                       : isMining
-                      ? 'Harvest button activates with animated shine style after 24 hours of mining.'
-                      : 'Deposit 5 USDT to official treasury vault to start 24h harvesting cycle.'}
+                      ? ' Harvest button activates with animated shine style after 24 hours of mining.'
+                      : ' Deposit 5 USDT to official treasury vault to start 24h harvesting cycle.'}
                   </div>
                 </div>
 
@@ -932,7 +957,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Auto-Buy Est. Value:</span>
                 <span className="text-[#D4AF37] font-bold">
-                  ≈ ${((accumulatedSpike > 0 ? accumulatedSpike : 25) * 0.0345).toFixed(2)} USDT
+                  ≈ ${((accumulatedSpike > 0 ? accumulatedSpike : 25) * 1.12).toFixed(2)} USDT
                 </span>
               </div>
               <div className="flex items-center justify-between text-[#94a3b8]">

@@ -20,6 +20,7 @@ interface HeaderProps {
   onNavigateHomeSection?: (sectionId: string) => void;
   onDisconnectWallet?: () => void;
   isAdmin?: boolean;
+  isMasterUser?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateHomeSection,
   onDisconnectWallet,
   isAdmin = false,
+  isMasterUser = false,
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
@@ -104,21 +106,27 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Admin Panel Direct Navigation Button (Shown ONLY to Admin) */}
+          {/* Admin / Master Panel Direct Navigation Button */}
           {isAdmin && (
             <button
               onClick={() => onTabChange('admin')}
               className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-headline font-bold transition-all shadow-sm hover:scale-102 shrink-0 ${
                 activeTab === 'admin'
-                  ? 'bg-[#D4AF37] text-[#0A0F1D] border border-[#ffe088] shadow-[0_0_15px_rgba(212,175,55,0.4)]'
+                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] border border-[#ffe088] shadow-[0_0_18px_rgba(212,175,55,0.5)] font-black'
+                  : isMasterUser
+                  ? 'bg-[#122130] hover:bg-[#1c2b3b] border border-[#D4AF37] text-[#D4AF37] hover:text-white shadow-[0_0_12px_rgba(212,175,55,0.2)]'
                   : 'bg-[#122130] hover:bg-[#1c2b3b] border border-[#00F0FF]/50 text-[#00F0FF] hover:text-white'
               }`}
-              title="Open Core Backend Admin Panel & Database Console (?tab=admin)"
+              title={isMasterUser ? 'Open Master User (Super Admin) Control Console' : 'Open Admin Panel & Console'}
             >
-              <span className="material-symbols-outlined text-[15px]">shield_person</span>
-              <span className="hidden sm:inline">Admin Panel</span>
-              <span className="sm:hidden">Admin</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className="material-symbols-outlined text-[15px]">
+                {isMasterUser ? 'admin_panel_settings' : 'shield_person'}
+              </span>
+              <span className="hidden sm:inline">{isMasterUser ? 'Master Admin' : 'Admin Panel'}</span>
+              <span className="sm:hidden">{isMasterUser ? 'Master' : 'Admin'}</span>
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
+                {isMasterUser ? 'ROOT' : 'ADMIN'}
+              </span>
             </button>
           )}
         </div>
@@ -179,32 +187,16 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="material-symbols-outlined text-[16px]">verified_user</span>
                 <span>Security &amp; Audit</span>
               </button>
-
-              <button
-                onClick={() => onTabChange('announcements')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-headline font-semibold flex items-center gap-1.5 transition-all ${
-                  activeTab === 'announcements'
-                    ? 'bg-[#1c2b3b] text-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.25)] border border-[#00F0FF]/30'
-                    : 'text-[#D4AF37] hover:text-[#ffe088] hover:bg-[#122130]'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[16px]">campaign</span>
-                <span>Announcements</span>
-                <span className="px-1.5 py-0.2 text-[9px] font-mono bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 rounded font-bold animate-pulse">
-                  HOT
-                </span>
-              </button>
             </>
           ) : (
-            /* Logged-In Application Menu: Dashboard, Mining, Referral system, Staking, Announcements (Home navigation removed) */
+            /* Logged-In Application Menu: Dashboard, Mining, Referral system, Staking */
             <>
-              {[
+              {([
                 { id: 'dashboard' as TabType, label: 'Dashboard', icon: 'dashboard' },
                 { id: 'mining-nodes' as TabType, label: 'Mining Nodes', icon: 'dns' },
                 { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups' },
                 { id: 'swap' as TabType, label: 'DEX Swap', icon: 'swap_horiz', badge: 'AMM' },
-                { id: 'announcements' as TabType, label: 'CEX Listings', icon: 'campaign', hot: true },
-              ].map((item) => {
+              ] as { id: TabType; label: string; icon: string; badge?: string; hot?: boolean }[]).map((item) => {
                 const isActive = activeTab === item.id;
                 return (
                   <button
@@ -460,22 +452,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>Security &amp; Audit</span>
                   </button>
 
-                  <button
-                    onClick={() => {
-                      onTabChange('announcements');
-                      setShowMobileDrawer(false);
-                    }}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-semibold text-[#D4AF37] hover:bg-[#122130]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-[18px] text-[#D4AF37]">campaign</span>
-                      <span>CEX Announcements</span>
-                    </div>
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 font-bold">
-                      HOT
-                    </span>
-                  </button>
-
                   {isAdmin && (
                     <button
                       onClick={() => {
@@ -526,14 +502,13 @@ export const Header: React.FC<HeaderProps> = ({
                     </span>
                   </div>
 
-                  {[
+                  {([
                     { id: 'dashboard' as TabType, label: 'Dashboard', icon: 'dashboard' },
                     { id: 'mining-nodes' as TabType, label: 'Mining Nodes', icon: 'dns' },
                     { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups', badge: 'REWARDS' },
                     { id: 'swap' as TabType, label: 'Swap (DEX)', icon: 'swap_horiz', badge: 'AMM' },
-                    { id: 'announcements' as TabType, label: 'CEX Announcements', icon: 'campaign', hot: true },
                     ...(isAdmin ? [{ id: 'admin' as TabType, label: 'Admin Panel & DB', icon: 'shield_person', badge: 'ROOT' }] : []),
-                  ].map((item) => {
+                  ] as { id: TabType; label: string; icon: string; badge?: string; hot?: boolean }[]).map((item) => {
                     const isActive = activeTab === item.id;
                     return (
                       <button

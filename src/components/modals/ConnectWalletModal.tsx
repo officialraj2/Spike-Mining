@@ -187,6 +187,12 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     onClose();
   };
 
+  const handleConnectMasterWallet = () => {
+    onConnect('Master Creator Wallet', '0x3471e07c4d2f7e11c155760a7b386e616b5c3715');
+    setShowProviderPicker(false);
+    onClose();
+  };
+
   const handleConnectDemoLeader = () => {
     onConnect('Demo Leader', '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
     setShowProviderPicker(false);
@@ -426,6 +432,27 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
 
             {/* Custom Address Input Toggle */}
             <div className="pt-1">
+              {/* Master Creator Direct Login Option */}
+              <div className="mb-3 p-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37]/15 via-[#122130] to-[#00F0FF]/15 border border-[#D4AF37]/40 flex items-center justify-between gap-2 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#D4AF37] text-[20px]">admin_panel_settings</span>
+                  <div className="text-left">
+                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span>Master User (Root Owner)</span>
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#D4AF37] text-[#0A0F1D]">ROOT</span>
+                    </div>
+                    <div className="text-[10px] text-[#94a3b8] font-mono">0x3471...3715 · Creator Protocol Access</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleConnectMasterWallet}
+                  className="px-3 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] text-[#0A0F1D] text-xs font-headline font-bold transition-all shadow-[0_0_12px_rgba(212,175,55,0.4)] cursor-pointer"
+                >
+                  Connect Root
+                </button>
+              </div>
+
               {!showCustomInput ? (
                 <div className="flex items-center justify-between gap-2">
                   <button

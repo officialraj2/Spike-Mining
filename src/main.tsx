@@ -3,8 +3,39 @@ import App from './App.tsx';
 import './index.css';
 import { testConnection } from './firebase.ts';
 
-// Catch and suppress third-party browser extension injection errors (e.g. MetaMask in iframe sandbox)
+// Catch and suppress third-party browser extension injection errors and Firestore quota notifications
 if (typeof window !== 'undefined') {
+  // Suppress Firestore quota limit logs in console
+  const origConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    let fullText = '';
+    try {
+      for (const a of args) {
+        if (typeof a === 'string') fullText += ' ' + a;
+        else if (a && a.message) fullText += ' ' + a.message;
+        else if (a) {
+          try {
+            fullText += ' ' + JSON.stringify(a);
+          } catch {
+            fullText += ' ' + String(a);
+          }
+        }
+      }
+    } catch {}
+
+    if (
+      fullText.includes('RESOURCE_EXHAUSTED') ||
+      fullText.includes('Quota limit exceeded') ||
+      fullText.includes('Free daily write units') ||
+      fullText.includes("GrpcConnection RPC 'Write' stream") ||
+      fullText.includes('resource-exhausted')
+    ) {
+      console.warn('[Handled Firestore Quota]: Free daily write limit reached; relying on persistent ACID local server database.');
+      return;
+    }
+    origConsoleError.apply(console, args);
+  };
+
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     const msg = typeof reason === 'string' ? reason : reason?.message || '';
@@ -16,6 +47,16 @@ if (typeof window !== 'undefined') {
     ) {
       event.preventDefault();
       console.warn('[Handled Web3 Extension Notice]:', msg);
+      return;
+    }
+    if (
+      msg.includes('RESOURCE_EXHAUSTED') ||
+      msg.includes('Quota limit exceeded') ||
+      msg.includes('Free daily write units')
+    ) {
+      event.preventDefault();
+      console.warn('[Handled Firestore Quota Notice]: Free daily quota reached; using local persistent database.');
+      return;
     }
   });
 
@@ -29,6 +70,16 @@ if (typeof window !== 'undefined') {
     ) {
       event.preventDefault();
       console.warn('[Handled Web3 Extension Error]:', msg);
+      return;
+    }
+    if (
+      msg.includes('RESOURCE_EXHAUSTED') ||
+      msg.includes('Quota limit exceeded') ||
+      msg.includes('Free daily write units')
+    ) {
+      event.preventDefault();
+      console.warn('[Handled Firestore Quota Error]:', msg);
+      return;
     }
   });
 }

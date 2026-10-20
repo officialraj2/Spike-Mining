@@ -8,7 +8,7 @@ export interface DbUser {
   totalMined: number;
   referralCode: string;
   referredBy: string | null;
-  role: 'admin' | 'user' | 'moderator';
+  role: 'master' | 'admin' | 'user' | 'moderator';
   status: 'active' | 'frozen' | 'banned';
   hasDepositedTreasury?: boolean;
   hasActivatedMining?: boolean;
@@ -83,6 +83,7 @@ export interface DbSettings {
   pancakeRouterAddress: string;
   testnetFastCycleEnabled: boolean;
   maintenanceMode: boolean;
+  maintenanceMessage?: string;
   stratumPoolUrl: string;
   bscContractAddress: string;
   treasuryWalletAddress: string;
@@ -98,6 +99,16 @@ export interface DbSettings {
   telegramUrl: string;
   twitterUrl: string;
   supportEmail: string;
+  masterWalletAddresses: string[];
+  nodeCostUsdt: number;
+  tier1CommissionPercent: number;
+  tier2CommissionPercent: number;
+  level1DirectsRequired: number;
+  level2DirectsRequired: number;
+  level3DirectsRequired: number;
+  level1HashrateBoost: number;
+  level2HashrateBoost: number;
+  level3HashrateBoost: number;
 }
 
 export interface DbAuditLog {
@@ -177,224 +188,24 @@ const INITIAL_DATA: DatabaseSchema = {
   lastSaved: new Date().toISOString(),
   users: [
     {
-      address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      balanceUsdt: 1250.0,
-      balanceBnb: 0.428,
-      totalMined: 4892.45,
-      referralCode: 'SPK-71C8A9',
-      referredBy: null,
-      role: 'admin',
-      status: 'active',
-      createdAt: '2025-01-15T08:00:00.000Z',
-      lastActive: new Date().toISOString(),
-      notes: 'Super Admin & Primary Validator Node Owner',
-    },
-    {
-      address: '0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239',
-      balanceUsdt: 640.2,
-      balanceBnb: 0.185,
-      totalMined: 1240.8,
-      referralCode: 'SPK-38F2B7',
-      referredBy: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      role: 'user',
-      status: 'active',
-      createdAt: '2025-02-10T12:30:00.000Z',
-      lastActive: new Date().toISOString(),
-      notes: 'Team referral partner',
-    },
-    {
-      address: '0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08',
-      balanceUsdt: 320.0,
-      balanceBnb: 0.092,
-      totalMined: 680.15,
-      referralCode: 'SPK-992B10',
-      referredBy: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      role: 'user',
-      status: 'active',
-      createdAt: '2025-02-28T16:15:00.000Z',
-      lastActive: new Date().toISOString(),
-    },
-    {
-      address: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
+      address: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
       balanceUsdt: 0.0,
-      balanceBnb: 0.005,
+      balanceBnb: 0.0,
       totalMined: 0.0,
-      referralCode: 'SPK-BC5D44',
+      balanceSpk: 0.0,
+      referralCode: 'SPK-3471E0',
       referredBy: null,
-      role: 'user',
+      role: 'master',
       status: 'active',
-      createdAt: '2026-10-09T07:30:00.000Z',
-      lastActive: new Date().toISOString(),
-      notes: 'Primary Referrer Wallet',
-    },
-    {
-      address: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
-      balanceUsdt: 0.0,
-      balanceBnb: 0.005,
-      totalMined: 0.0,
-      referralCode: 'SPK-380696',
-      referredBy: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
-      role: 'user',
-      status: 'active',
-      createdAt: '2026-10-09T07:35:00.000Z',
-      lastActive: new Date().toISOString(),
-      notes: 'Referee Partner invited by 0xbc5d44...',
-    },
-  ],
-  nodes: [
-    {
-      id: 'spk-node-01',
-      userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      name: 'Falcon Titan Apex Rig #1',
-      region: 'Frankfurt (EU-Central)',
-      status: 'mining',
-      hashrate: 142.8,
-      temperature: 63,
-      shareAcceptance: 99.94,
-      fanSpeed: 74,
-      powerUsage: 3180,
-      uptimeDays: 24.6,
-      algorithm: 'SHA-256 (BSC Sublayer)',
-      logs: [
-        'Stratum target diff accepted: 1048576 (hash: 00000000...a4f2)',
-        'Share #192,840 verified by validator block 42918491',
-        'Fan speed adjusted dynamically to 74% (63°C ambient)',
-      ],
-      costUsdt: 50.0,
-      deployedAt: '2025-02-01T10:00:00.000Z',
-    },
-    {
-      id: 'spk-node-02',
-      userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      name: 'Falcon Quantum Rig #2',
-      region: 'Singapore (AP-East)',
-      status: 'mining',
-      hashrate: 118.4,
-      temperature: 61,
-      shareAcceptance: 99.88,
-      fanSpeed: 68,
-      powerUsage: 2840,
-      uptimeDays: 18.2,
-      algorithm: 'SHA-256 (BSC Sublayer)',
-      logs: [
-        'Stratum heartbeat OK: 28ms latency to Singapore pool',
-        'Epoch 48 payout confirmed: 0.042 tBNB credited',
-      ],
-      costUsdt: 35.0,
-      deployedAt: '2025-02-12T14:20:00.000Z',
-    },
-    {
-      id: 'spk-node-03',
-      userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      name: 'Falcon Micro Cluster #3',
-      region: 'Virginia (US-East)',
-      status: 'mining',
-      hashrate: 86.5,
-      temperature: 58,
-      shareAcceptance: 99.91,
-      fanSpeed: 62,
-      powerUsage: 2150,
-      uptimeDays: 12.8,
-      algorithm: 'SHA-256 (BSC Sublayer)',
-      logs: [
-        'Stratum connection established with us-east.spike.network',
-        'Valid shares accepted: 84,209 / 84,285 (99.91%)',
-      ],
-      costUsdt: 15.0,
-      deployedAt: '2025-02-20T09:00:00.000Z',
-    },
-  ],
-  transactions: [
-    {
-      id: 'tx-init-1',
-      userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      txHash: '0x9b4f2c81a938d7210e54b67fa9c8b71d9a24e8310c854129e73cba985a14d872',
-      type: 'activation',
-      amount: -50.0,
-      currency: 'USDT',
-      timestamp: '2025-02-01 10:00:00',
-      status: 'Confirmed',
-      details: 'Node Activation Fee (Falcon Titan Apex Rig #1)',
-      blockNumber: 42901842,
-    },
-    {
-      id: 'tx-init-2',
-      userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      txHash: '0x4f128c7391b8a472d93e821094ba8721c09841f3e72c819a04b8273918a24c51',
-      type: 'claim',
-      amount: 48.5,
-      currency: 'USDT',
-      timestamp: '2025-02-15 18:30:00',
-      status: 'Confirmed',
-      details: 'Daily Epoch Mining Rewards Payout',
-      blockNumber: 42915830,
-    },
-    {
-      id: 'tx-init-3',
-      userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      txHash: '0x18a93b4827c6d591823a748c9182b37491029c83719283749182736481928374',
-      type: 'referral_bonus',
-      amount: 32.0,
-      currency: 'USDT',
-      timestamp: '2025-02-18 12:45:00',
-      status: 'Confirmed',
-      details: 'Team Milestone Bonus Payout',
-      blockNumber: 42918491,
-    },
-  ],
-  referrals: [
-    {
-      id: 'ref-1',
-      referrerAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      refereeAddress: '0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239',
-      tier: 1,
-      commissionUsdt: 0,
-      volumeUsdt: 640.2,
-      createdAt: '2025-02-10T12:30:00.000Z',
-    },
-    {
-      id: 'ref-2',
-      referrerAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      refereeAddress: '0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08',
-      tier: 1,
-      commissionUsdt: 0,
-      volumeUsdt: 320.0,
-      createdAt: '2025-02-28T16:15:00.000Z',
-    },
-    {
-      id: 'ref-bc5d-3806',
-      referrerAddress: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
-      refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
-      tier: 1,
-      commissionUsdt: 0,
-      volumeUsdt: 150.0,
-      createdAt: '2026-10-09T07:35:00.000Z',
-    },
-  ],
-  announcements: [
-    {
-      id: 'ann-1',
-      title: 'Top 10 Global CEX Listing Agreement Finalized',
-      content:
-        'SPIKE protocol has officially signed terms with Tier-1 Centralized Exchanges. Mining difficulty will adjust dynamically post-listing.',
-      badge: 'TOP 10 CEX',
-      priority: 'high',
-      author: 'Core Protocol Foundation',
-      isActive: true,
       createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'ann-2',
-      title: 'Stratum Turbo 10X Mining Engine Deployed to BSC Testnet & Mainnet',
-      content:
-        'Overclocking profile locked to Turbo 10X. All connected rigs receive high-priority ASIC share validation and zero orphan blocks.',
-      badge: 'PROTOCOL UPDATE',
-      priority: 'medium',
-      author: 'Lead Infrastructure Engineer',
-      isActive: true,
-      createdAt: new Date().toISOString(),
+      lastActive: new Date().toISOString(),
+      notes: 'Master Creator & Protocol Root Authority',
     },
   ],
+  nodes: [],
+  transactions: [],
+  referrals: [],
+  announcements: [],
   settings: {
     turboMultiplier: 10,
     dailyYieldPercent: 3.88,
@@ -402,13 +213,13 @@ const INITIAL_DATA: DatabaseSchema = {
     miningCycleHours: 24,
     dailyRewardSpk: 35.0,
     minDepositUsdt: 5.0,
-    pancakeRouterAddress: '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b',
-    testnetFastCycleEnabled: true,
+    pancakeRouterAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+    testnetFastCycleEnabled: false,
     maintenanceMode: false,
     stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
-    bscContractAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-    treasuryWalletAddress: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
-    treasuryBalanceUsdt: 24850.0,
+    bscContractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    treasuryBalanceUsdt: 0.0,
     minWithdrawalUsdt: 5.0,
     autoPayoutEnabled: true,
     updatedAt: new Date().toISOString(),
@@ -416,79 +227,52 @@ const INITIAL_DATA: DatabaseSchema = {
     protocolUrl: 'https://spikenodes.com',
     apiBaseUrl: 'https://spikenodes.com/api',
     docsUrl: 'https://docs.spikenodes.com',
-    rpcUrl: 'https://rpc.spikenodes.com',
+    rpcUrl: 'https://bsc-dataseed.binance.org/',
     telegramUrl: 'https://t.me/spikenodes',
     twitterUrl: 'https://x.com/spikenodes',
     supportEmail: 'contact@spikenodes.com',
+    masterWalletAddresses: [
+      '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    ],
+    maintenanceMessage: 'Spike Stratum Protocol is currently undergoing scheduled network maintenance.',
+    nodeCostUsdt: 15.0,
+    tier1CommissionPercent: 15,
+    tier2CommissionPercent: 5,
+    level1DirectsRequired: 10,
+    level2DirectsRequired: 25,
+    level3DirectsRequired: 50,
+    level1HashrateBoost: 200,
+    level2HashrateBoost: 400,
+    level3HashrateBoost: 600,
   },
   auditLogs: [
     {
       id: 'audit-init',
-      adminUser: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+      adminUser: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
       action: 'SYSTEM_BOOTSTRAP',
       target: 'spike_database',
-      details: 'Database initialized with persistent ACID JSON engine and schema v1.',
+      details: 'Clean mainnet baseline initialized: Treasury 0.0 USDT, 0 SPK balance, clean nodes and transactions.',
       timestamp: new Date().toISOString(),
     },
   ],
-  testnetWallets: [
-    {
-      address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      testnetUsdt: 1000.0,
-      testnetSpk: 250.0,
-      autoBuyEnabled: true,
-      slippageTolerance: 0.5,
-      totalHarvestAutoBoughtSpk: 125.0,
-      totalUsdtSpentOnAutoBuy: 4.31,
-      lastAutoBuyAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-  ],
-  testnetTransactions: [
-    {
-      id: 'test-tx-init-1',
-      userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      txHash: '0x7f3e829a1b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2',
-      type: 'harvest_autobuy',
-      spkAmount: 25.0,
-      usdtAmount: 0.8625,
-      priceUsdt: 0.0345,
-      status: 'Confirmed',
-      blockNumber: 42918490,
-      gasFeeBnb: 0.00012,
-      details: 'PancakeRouter.swapTokensForExactTokens(amountOut=25 SPK, maxIn=0.87 USDT)',
-      timestamp: new Date(Date.now() - 7200000).toISOString(),
-    },
-    {
-      id: 'test-tx-init-2',
-      userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-      txHash: '0x81b4c5d6e7f8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c27f3e829a',
-      type: 'faucet',
-      spkAmount: 100.0,
-      usdtAmount: 1000.0,
-      priceUsdt: 0.0345,
-      status: 'Confirmed',
-      blockNumber: 42918400,
-      gasFeeBnb: 0.0,
-      details: 'Testnet Faucet Initial Allocation (+1000 tUSDT, +100 SPK)',
-      timestamp: new Date(Date.now() - 18000000).toISOString(),
-    },
-  ],
+  testnetWallets: [],
+  testnetTransactions: [],
   testnetSpikeToken: {
     name: 'SPIKE',
     symbol: 'SPK',
     totalSupply: 50_000_000,
-    circulatingSupply: 12_450_000,
+    circulatingSupply: 0,
     decimals: 18,
-    contractAddress: '0x96F86413D8E5d15ecE42E136CC8112c01b9A7306',
+    contractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
     pair: 'SPIKE / USDT',
-    poolSpkReserve: 2_500_000,
-    poolUsdtReserve: 86_250,
-    currentPrice: 0.0345,
-    volume24h: 1_420_000,
-    high24h: 0.0382,
-    low24h: 0.0315,
-    change24h: 8.42,
-    buyPressure: 86.5,
+    poolSpkReserve: 10_000_000,
+    poolUsdtReserve: 345_000,
+    currentPrice: 1.12,
+    volume24h: 0,
+    high24h: 1.20,
+    low24h: 1.00,
+    change24h: 0,
+    buyPressure: 50,
   },
 };
 
@@ -539,7 +323,27 @@ class PersistentDatabase {
             loadedSettings.pancakeRouterAddress = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
           }
           if (typeof loadedSettings.treasuryBalanceUsdt !== 'number') {
-            loadedSettings.treasuryBalanceUsdt = 24850.0;
+            loadedSettings.treasuryBalanceUsdt = 0.0;
+          }
+          if (!Array.isArray(loadedSettings.masterWalletAddresses) || loadedSettings.masterWalletAddresses.length === 0) {
+            loadedSettings.masterWalletAddresses = [
+              '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+              '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+            ];
+          } else if (!loadedSettings.masterWalletAddresses.map((a: string) => a.toLowerCase()).includes('0x3471e07c4d2f7e11c155760a7b386e616b5c3715')) {
+            loadedSettings.masterWalletAddresses.push('0x3471e07c4d2f7e11c155760a7b386e616b5c3715');
+          }
+          if (typeof loadedSettings.tier1CommissionPercent !== 'number') loadedSettings.tier1CommissionPercent = 15;
+          if (typeof loadedSettings.tier2CommissionPercent !== 'number') loadedSettings.tier2CommissionPercent = 5;
+          if (typeof loadedSettings.level1DirectsRequired !== 'number') loadedSettings.level1DirectsRequired = 10;
+          if (typeof loadedSettings.level2DirectsRequired !== 'number') loadedSettings.level2DirectsRequired = 25;
+          if (typeof loadedSettings.level3DirectsRequired !== 'number') loadedSettings.level3DirectsRequired = 50;
+          if (typeof loadedSettings.level1HashrateBoost !== 'number') loadedSettings.level1HashrateBoost = 200;
+          if (typeof loadedSettings.level2HashrateBoost !== 'number') loadedSettings.level2HashrateBoost = 400;
+          if (typeof loadedSettings.level3HashrateBoost !== 'number') loadedSettings.level3HashrateBoost = 600;
+          if (typeof loadedSettings.nodeCostUsdt !== 'number') loadedSettings.nodeCostUsdt = 15.0;
+          if (!loadedSettings.maintenanceMessage) {
+            loadedSettings.maintenanceMessage = 'Spike Stratum Protocol is currently undergoing scheduled network maintenance.';
           }
           const sanitizedUsers = (parsed.users || INITIAL_DATA.users).map((u: DbUser) => {
             if (u.referredBy && (u.referredBy.toLowerCase() === u.address.toLowerCase() || u.referredBy.toLowerCase() === (u.referralCode || '').toLowerCase())) {
@@ -750,78 +554,87 @@ class PersistentDatabase {
       };
     }
 
-    // Determine based on uploaded image rules (evaluating direct referrals and team size):
+    const s = this.data.settings;
+    const l1Directs = s?.level1DirectsRequired ?? 10;
+    const l2Directs = s?.level2DirectsRequired ?? 25;
+    const l3Directs = s?.level3DirectsRequired ?? 50;
+    const l1Hash = s?.level1HashrateBoost ?? 200;
+    const l2Hash = s?.level2HashrateBoost ?? 400;
+    const l3Hash = s?.level3HashrateBoost ?? 600;
+    const l4Hash = 857.14;
+
+    // Determine based on dynamic global settings:
     if (directCount >= 100 || totalTeamCount >= 5000) {
       return {
         level: 'Level 4',
         levelNumber: 4,
-        hashrate: 857.14,
+        hashrate: l4Hash,
         unit: 'VH/s',
         targetDays: 7,
-        dailySpkYield: +(857.14 / 6000).toFixed(5),
+        dailySpkYield: +(l4Hash / 6000).toFixed(5),
         requirementText: directCount >= 100 ? '100 direct referrals' : '5,000 total team',
         directCount,
         totalTeamCount,
         isCustomOverride: false,
         nextTier: null,
       };
-    } else if (directCount >= 50 || totalTeamCount >= 1000) {
+    } else if (directCount >= l3Directs || totalTeamCount >= 1000) {
       return {
         level: 'Level 3',
         levelNumber: 3,
-        hashrate: 600,
+        hashrate: l3Hash,
         unit: 'VH/s',
         targetDays: 10,
-        dailySpkYield: 0.1,
-        requirementText: directCount >= 50 ? '50 direct referrals' : '1,000 total team',
+        dailySpkYield: +(l3Hash / 6000).toFixed(5),
+        requirementText: directCount >= l3Directs ? `${l3Directs} direct referrals` : '1,000 total team',
         directCount,
         totalTeamCount,
         isCustomOverride: false,
         nextTier: {
           level: 'Level 4',
-          hashrate: 857.14,
+          hashrate: l4Hash,
           requirementText: '100 directs or 5,000 team',
           neededDirects: Math.max(0, 100 - directCount),
           neededTeam: Math.max(0, 5000 - totalTeamCount),
         },
       };
-    } else if (directCount >= 25 || totalTeamCount >= 100) {
+    } else if (directCount >= l2Directs || totalTeamCount >= 100) {
       return {
         level: 'Level 2',
         levelNumber: 2,
-        hashrate: 400,
+        hashrate: l2Hash,
         unit: 'VH/s',
         targetDays: 15,
-        dailySpkYield: +(400 / 6000).toFixed(5),
-        requirementText: directCount >= 25 ? '25 direct referrals' : '100 total team',
+        dailySpkYield: +(l2Hash / 6000).toFixed(5),
+        requirementText: directCount >= l2Directs ? `${l2Directs} direct referrals` : '100 total team',
         directCount,
         totalTeamCount,
         isCustomOverride: false,
         nextTier: {
           level: 'Level 3',
-          hashrate: 600,
-          requirementText: '50 directs or 1,000 team',
-          neededDirects: Math.max(0, 50 - directCount),
+          hashrate: l3Hash,
+          requirementText: `${l3Directs} directs or 1,000 team`,
+          neededDirects: Math.max(0, l3Directs - directCount),
           neededTeam: Math.max(0, 1000 - totalTeamCount),
         },
       };
-    } else if (directCount >= 10) {
+    } else if (directCount >= l1Directs) {
       return {
         level: 'Level 1',
         levelNumber: 1,
-        hashrate: 200,
+        hashrate: l1Hash,
         unit: 'VH/s',
         targetDays: 30,
-        dailySpkYield: +(200 / 6000).toFixed(5),
-        requirementText: '10 direct referrals',
+        dailySpkYield: +(l1Hash / 6000).toFixed(5),
+        requirementText: `${l1Directs} direct referrals`,
         directCount,
         totalTeamCount,
         isCustomOverride: false,
         nextTier: {
           level: 'Level 2',
-          hashrate: 400,
-          requirementText: '25 directs or 100 team',
-          neededDirects: Math.max(0, 25 - directCount),
+          hashrate: l2Hash,
+          requirementText: `${l2Directs} directs or 100 team`,
+          neededDirects: Math.max(0, l2Directs - directCount),
           neededTeam: Math.max(0, 100 - totalTeamCount),
         },
       };
@@ -839,9 +652,9 @@ class PersistentDatabase {
         isCustomOverride: false,
         nextTier: {
           level: 'Level 1',
-          hashrate: 200,
-          requirementText: '10 direct referrals',
-          neededDirects: Math.max(0, 10 - directCount),
+          hashrate: l1Hash,
+          requirementText: `${l1Directs} direct referrals`,
+          neededDirects: Math.max(0, l1Directs - directCount),
           neededTeam: 0,
         },
       };
@@ -977,6 +790,25 @@ class PersistentDatabase {
     if (!user) return null;
     user.status = status;
     this.logAudit(admin, 'USER_STATUS_CHANGE', user.address, `Status set to ${status}`);
+    this.save();
+    return user;
+  }
+
+  public isMasterUser(address: string): boolean {
+    if (!address) return false;
+    const norm = address.toLowerCase();
+    const list = (this.data.settings?.masterWalletAddresses || [
+      '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+      '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+    ]).map((a) => a.toLowerCase());
+    return list.includes(norm);
+  }
+
+  public updateUserRole(address: string, role: DbUser['role'], admin = 'admin'): DbUser | null {
+    const user = this.getUser(address);
+    if (!user) return null;
+    user.role = role;
+    this.logAudit(admin, 'USER_ROLE_CHANGE', user.address, `Role set to ${role}`);
     this.save();
     return user;
   }
@@ -1645,10 +1477,108 @@ class PersistentDatabase {
 
   // ---- DB Maintenance & Export ----
   public resetToDefault(admin = 'admin') {
-    this.data = JSON.parse(JSON.stringify(INITIAL_DATA));
-    this.logAudit(admin, 'DATABASE_RESET', 'all_tables', 'Database re-seeded to initial state');
+    return this.resetMainnetBaseline(admin);
+  }
+
+  public resetMainnetBaseline(admin = 'Master User') {
+    this.data = {
+      version: 1,
+      lastSaved: new Date().toISOString(),
+      users: [
+        {
+          address: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+          balanceUsdt: 0.0,
+          balanceBnb: 0.0,
+          totalMined: 0.0,
+          balanceSpk: 0.0,
+          referralCode: 'SPK-3471E0',
+          referredBy: null,
+          role: 'master',
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          lastActive: new Date().toISOString(),
+          notes: 'Master Creator & Protocol Root Authority',
+        },
+      ],
+      nodes: [],
+      transactions: [],
+      referrals: [],
+      announcements: [],
+      settings: {
+        turboMultiplier: 10,
+        dailyYieldPercent: 3.88,
+        baseHashrateTh: 1.25,
+        miningCycleHours: 24,
+        dailyRewardSpk: 35.0,
+        minDepositUsdt: 5.0,
+        pancakeRouterAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+        testnetFastCycleEnabled: false,
+        maintenanceMode: false,
+        stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
+        bscContractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+        treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+        treasuryBalanceUsdt: 0.0,
+        minWithdrawalUsdt: 5.0,
+        autoPayoutEnabled: true,
+        updatedAt: new Date().toISOString(),
+        primaryDomain: 'spikenodes.com',
+        protocolUrl: 'https://spikenodes.com',
+        apiBaseUrl: 'https://spikenodes.com/api',
+        docsUrl: 'https://docs.spikenodes.com',
+        rpcUrl: 'https://bsc-dataseed.binance.org/',
+        telegramUrl: 'https://t.me/spikenodes',
+        twitterUrl: 'https://x.com/spikenodes',
+        supportEmail: 'contact@spikenodes.com',
+        masterWalletAddresses: [
+          '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+        ],
+        maintenanceMessage: 'Spike Stratum Protocol is currently undergoing scheduled network maintenance.',
+        nodeCostUsdt: 15.0,
+        tier1CommissionPercent: 15,
+        tier2CommissionPercent: 5,
+        level1DirectsRequired: 10,
+        level2DirectsRequired: 25,
+        level3DirectsRequired: 50,
+        level1HashrateBoost: 200,
+        level2HashrateBoost: 400,
+        level3HashrateBoost: 600,
+      },
+      auditLogs: [
+        {
+          id: `audit-${Date.now()}`,
+          adminUser: admin,
+          action: 'MAINNET_FRESH_RESET',
+          target: 'spike_database',
+          details: 'Database completely reset to clean mainnet baseline: 0.0 Treasury USDT, 0 SPIKE balance, clean nodes and transactions.',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      testnetWallets: [],
+      testnetTransactions: [],
+      testnetSpikeToken: {
+        name: 'Spike Mining Protocol',
+        symbol: 'SPK',
+        totalSupply: 50000000,
+        circulatingSupply: 0,
+        decimals: 18,
+        contractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+        pair: 'SPK/USDT',
+        poolSpkReserve: 10000000,
+        poolUsdtReserve: 345000,
+        currentPrice: 1.12,
+        volume24h: 0,
+        high24h: 1.20,
+        low24h: 1.00,
+        change24h: 0,
+        buyPressure: 50,
+      },
+    };
     this.saveDirect(this.data);
-    return { success: true, message: 'Database reset and re-seeded to default demo values' };
+    return {
+      success: true,
+      message: 'Database completely reset to clean Mainnet baseline (Treasury: $0.00 USDT, User Balances: 0 SPK / 0 USDT, Fleet: 0 rigs)',
+      database: this.data,
+    };
   }
 
   public exportData(): DatabaseSchema {
@@ -1963,8 +1893,8 @@ class PersistentDatabase {
 
   public getTreasuryInfo() {
     return {
-      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
-      treasuryBalanceUsdt: this.data.settings.treasuryBalanceUsdt || 24850.0,
+      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+      treasuryBalanceUsdt: typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0,
       depositRequiredUsdt: 5.0,
       miningCostUsdt: 10.0,
       totalProjectCostUsdt: 15.0,
@@ -2000,10 +1930,11 @@ class PersistentDatabase {
     }
     const norm = userAddress.toLowerCase();
     const user = this.upsertUser({ address: norm });
-    const officialWallet = this.data.settings.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
+    const officialWallet = this.data.settings.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
     
     // Accumulate in Global Treasury
-    this.data.settings.treasuryBalanceUsdt = +( (this.data.settings.treasuryBalanceUsdt || 24850.0) + amount ).toFixed(2);
+    const currentTreasury = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
+    this.data.settings.treasuryBalanceUsdt = +( currentTreasury + amount ).toFixed(2);
     
     // Deduct $5 from user's starting budget ($15 -> $10 remaining)
     if (user.balanceUsdt >= amount) {

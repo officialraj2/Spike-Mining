@@ -1,100 +1,141 @@
-# Implementation Plan: BSC Testnet Testing Guide for SPIKE Token & Web3 Protocol
+# Master User (Super Admin) Project Control System
 
-A comprehensive blueprint explaining exactly what steps and configurations are needed to test the SPIKE token and Web3 mining protocol on BNB Smart Chain (BSC) Testnet to verify that wallet connection, deposit, smart contract calls, balance deduction, and node activation work end-to-end without real funds.
+## Summary
+A comprehensive Master User control suite enabling the project creator to authenticate automatically via their designated master wallet (`0x3471e07c4d2f7e11c155760a7b386e616b5c3715`) and make real-time global changes across the entire dApp. Updates to mining yields, hashrate tiers, referral commission percentages, user balances, and system parameters immediately persist to both local server storage and Firestore, governing how the dApp runs for every connected user.
 
 ---
 
-## 1. System Architecture & Flow
+## User Review & Critical Decisions
 
-The testing environment connects your Web3 wallet (MetaMask / Trust Wallet) running on BSC Testnet with the SPIKE DApp, smart contracts, and verification ledger:
+> [!IMPORTANT]
+> The following core decisions were confirmed through interactive requirements clarification:
+> - **Authentication Method**: Dedicated master wallet address with instantaneous automatic recognition upon Web3 connection.
+> - **Control Scope**: 
+>   1. Global mining parameters, hashrates, and token rewards.
+>   2. Team referral percentages, tier thresholds, and sponsor rules.
+>   3. User management, custom wallet balances, and role assignments.
+> - **Default Master Wallet**: `0x3471e07c4d2f7e11c155760a7b386e616b5c3715` (with the ability for the master to add/update backup master addresses).
+
+---
+
+## 1. Overview & Core Concept
+
+- **What It Does**: Provides a dedicated, root-privileged Master Control Center inside the dApp that automatically unlocks when the creator connects their wallet. Any parameters updated by the Master (such as mining yield %, node base power, referral commission rates, or user account balances) are saved directly to the backend database (`spike_database.json`) and synchronized to Firestore, immediately altering how the entire project behaves for all users and visitors.
+- **Target Audience / Persona**: The dApp owner/creator (Master User) managing live tokenomics, user disputes, and team bonus parameters without editing raw code.
+- **Key Value**: Real-time project governance and permanent configuration persistence without requiring redeployments or downtime.
+
+---
+
+## 2. User Experience & Visual Design
+
+### Key User Flows
+1. **Master Recognition**: 
+   - Creator connects their wallet (`0x3471...3715`).
+   - The dApp immediately detects the Master User status, displaying a distinctive gold and neon cyan indicator: `MASTER ADMIN (ROOT)`.
+   - The Sidebar and Header expose the dedicated **Master Control Center** tab (`/admin`).
+2. **Global Mining & Yield Orchestration**:
+   - Master navigates to **Mining Controls**: edits Daily Yield % (e.g. 1.2% to 2.5%), Turbo Multiplier, Base Hashrate (TH/s), Node Activation Cost, and Mining Cycle Duration.
+   - Master clicks `Apply Global Mining Settings`.
+   - All mining calculators, node deployment prices, and yields across the app instantly update for all visitors.
+3. **Team Referral & Commission Governance**:
+   - Master navigates to **Referral & Team Rules**: configures Tier 1 commission (e.g. 15%), Tier 2 commission (e.g. 5%), direct partner requirements for hashrate bonuses (Level 1: 10 directs, Level 2: 25 directs, Level 3: 50 directs).
+   - Master saves changes; all referral reward cards, partner bonus rules, and team earnings calculations synchronize immediately.
+4. **User & Balance Administration**:
+   - Master searches any user address in the **User Directory**.
+   - Master can view complete user stats (sponsor, downline count, mining nodes, earnings).
+   - Master can directly adjust user balances (USDT, SPK), set custom hashrate overrides, change user status (Active / Frozen / Banned), or grant moderator roles.
+5. **System Safeguards**:
+   - One-click toggle for **Maintenance Mode** (with custom banner message).
+   - Live audit logging recording timestamped actions executed by the Master.
+
+### Visual Identity & Theme
+- **Aesthetic Direction**: High-density, professional Web3 developer & administrative console aligned with the Spike Stratum dark theme.
+- **Color Palette**: Deep slate background (`#051424` / `#0a101d`), hairline borders (`#1c2b3b` / `#1e2e42`), bright cyan accent (`#00F0FF`), and gold root accents (`#D4AF37`) for Master actions.
+- **Typography**: Clean display headings in `Plus Jakarta Sans` / `Outfit`, accompanied by strict monospace tabular figures (`font-mono tabular-nums`) for addresses, hashrates, balances, and timestamps.
+- **Anti-Slop Restraint**: Zero decorative pulsing dots, zero fake compiler logs or pseudocode headers, clean unboxed metadata, and clear single-line action buttons.
+
+---
+
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1: Master Authentication Strategy**
+  - *Chosen Approach*: Automatic recognition of designated master wallet addresses (`0x3471e07c4d2f7e11c155760a7b386e616b5c3715`) stored in a secure server-side master list, supplemented by an optional emergency passkey modal for administrative sessions.
+  - *Why*: Eliminates friction for the owner while preventing spoofing; server-side routes rigorously verify request headers and sender addresses before executing mutations.
+- **Decision 2: Global Configuration Persistence**
+  - *Chosen Approach*: Dual-write architecture: Master updates write to `DbSettings` in `.data/spike_database.json` and sync asynchronously to Firestore (`settings/global_config`).
+  - *Why*: Guarantees instant local API responses with zero latency, while ensuring cloud persistence across container restarts or multi-instance deployments.
+- **Decision 3: Propagation to Active Clients**
+  - *Chosen Approach*: The frontend queries `/api/settings` on mount and listens for live updates via WebSocket / polling / custom events. When the master changes settings, an instant broadcast triggers a re-sync on all active clients.
+
+---
+
+## 4. Technical Architecture & Data Strategy
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                 User MetaMask / Web3 Wallet                 │
-│                 (BSC Testnet - Chain ID: 97)                │
-└──────────────┬──────────────────────────────▲───────────────┘
-               │ 1. Connect & Read Balances   │ 4. MetaMask Approval
-               ▼                              │    & Contract Call
-┌─────────────────────────────────────────────┴───────────────┐
-│                      SPIKE Web3 DApp                        │
-│  - Testnet Testing Studio & RPC Switcher                    │
-│  - Deposit 5 USDT / SPIKE to Treasury                       │
-│  - Node Activation / Harvesting Trigger                     │
-│  - Real-Time Balance & Hashing Visualizer                   │
-└──────────────┬──────────────────────────────┬───────────────┘
-               │ 2. eth_call / approve        │ 3. State & Hashes
-               ▼                              ▼
-┌──────────────────────────────┐ ┌────────────────────────────┐
-│      BSC Testnet Network     │ │      Firestore Ledger      │
-│  - SPIKE Token (BEP-20)      │ │  - Active Nodes Rig Data   │
-│  - Protocol Treasury Wallet  │ │  - Transaction Records     │
-│  - Validator Smart Contract  │ │  - Referral & Yields       │
-└──────────────────────────────┘ └────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                        MASTER USER INTERFACE                           │
+│  • Auto-Recognition on Connect (0x3471...3715)                         │
+│  • Master Control Center (Mining | Referrals | Users | Safeguards)     │
+└──────────────────────────────────┬─────────────────────────────────────┘
+                                   │ HTTPS / REST (Auth: Master Address)
+                                   ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        EXPRESS BACKEND SERVER                          │
+│  • /api/admin/settings (GET / PUT)                                     │
+│  • /api/admin/referral-rules (GET / PUT)                               │
+│  • /api/admin/users/:address (GET / PUT balance / hashrate / status)   │
+│  • /api/admin/system (Maintenance / Faucet / Reset)                    │
+└───────────────────┬────────────────────────────────┬───────────────────┘
+                    │                                │
+                    ▼                                ▼
+       ┌────────────────────────┐      ┌──────────────────────────┐
+       │   Local Server DB      │      │   Firestore Database     │
+       │  (spike_database.json) │◄────►│   (ai-studio-spikeweb3)  │
+       │  • db.settings         │      │   • settings/global      │
+       │  • db.users            │      │   • users/{address}      │
+       │  • db.referrals        │      │   • audit_logs/{id}      │
+       └────────────────────────┘      └──────────────────────────┘
 ```
 
----
+### Data Model & State Entities
 
-## 2. Step-by-Step User Action Guide (Testing Kaise Karein)
+```typescript
+// Master Global Settings
+export interface MasterGlobalSettings {
+  // Mining & Yield
+  dailyYieldPercent: number;        // e.g. 1.2%
+  turboMultiplier: number;          // e.g. 2.0x
+  baseHashrateTh: number;           // e.g. 200 TH/s
+  nodeCostUsdt: number;             // e.g. 150 USDT
+  miningCycleHours: number;         // e.g. 24 hours
+  dailyRewardSpk: number;           // e.g. 50 SPK
+  
+  // Referral & Team Rules
+  tier1CommissionPercent: number;   // e.g. 15%
+  tier2CommissionPercent: number;   // e.g. 5%
+  level1DirectsRequired: number;    // e.g. 10
+  level2DirectsRequired: number;    // e.g. 25
+  level3DirectsRequired: number;    // e.g. 50
+  
+  // System Controls
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  masterWalletAddresses: string[];  // ['0x3471e07c4d2f7e11c155760a7b386e616b5c3715', ...]
+}
+```
 
-Aapko testnet par SPIKE token aur poore system ka flow test karne ke liye yeh steps follow karne honge:
-
-### Step 1: MetaMask me BSC Testnet Network Add Karein
-1. MetaMask kholein aur network selection me **Add Network** par click karein (ya DApp ke **Web3 Testnet Studio** modal me *"Switch MetaMask to BSC Testnet"* button par click karein).
-2. Network details:
-   - **Network Name:** BNB Smart Chain Testnet
-   - **RPC URL:** `https://data-seed-prebsc-1-s1.binance.org:8545/`
-   - **Chain ID:** `97` (hex: `0x61`)
-   - **Currency Symbol:** `tBNB`
-   - **Block Explorer:** `https://testnet.bscscan.com`
-
-### Step 2: Free Gas Fees (tBNB) Faucet Se Praapt Karein
-Smart contract call aur token transfer ke liye gas fees (tBNB) lagti hai:
-1. Official faucet URL kholein: `https://testnet.bnbchain.org/faucet-smart`
-2. Apna wallet address daalkar **0.1 tBNB** claim karein (yeh bilkul free test BNB hota hai).
-
-### Step 3: Testnet SPIKE Token Setup (Deploy ya Address Bind)
-- Agar aapne Remix (`remix.ethereum.org`) par apna standard BEP-20 SPIKE token deploy kiya hai:
-  - Contract address copy karein.
-  - DApp ke Testnet Studio / Admin panel me apna **Custom SPIKE Token Address** configure karein.
-  - Apne test wallet me test SPIKE tokens mint/transfer kar lein.
-- Agar aap standard BSC Testnet USDT test kar rahe hain:
-  - Official BSC Testnet USDT: `0x337610d27c682E347C9cD60BD4b3b107C9d34dDd`.
-
-### Step 4: Deposit & Node Activation Flow Test Karein
-1. **Wallet Connect:** DApp par apna MetaMask BSC Testnet par connect karein.
-2. **Deposit 5 USDT:**
-   - Header me **Deposit 5 USDT** par click karein.
-   - MetaMask popup open hoga -> confirm karein.
-   - 5 USDT aapke test wallet se deduct hokar Protocol Treasury wallet me transfer ho jayenge.
-   - BscScan Testnet explorer par transaction hash generate hoga.
-3. **Node Activation / Harvest Call:**
-   - Dashboard ya Mining Nodes view me jaakar **Deploy Rig / Harvest** par click karein.
-   - Web3 contract call aayega (`activateNode` ya token deduction transaction).
-   - MetaMask confirm karne par specified token amount deduct hogi aur naya Mining Rig online hashing start kar dega.
-4. **Uncollected Mined Loot Harvest:**
-   - Node run hone ke baad generated loot ko harvest/claim button se claim karke dekhein ki tokens wapas aapke wallet me credit ho rahe hain ya nahi.
-
----
-
-## 3. Features & DApp Enhancements for Seamless Testing
-
-Aapko testing me aasani dene ke liye DApp me yeh functionalities ready hain:
-
-1. **Custom Token Contract Address Input:**
-   - Testnet Studio me ek input box jisme aap apna deployed SPIKE testnet contract address paste kar sakein, taaki DApp usi contract ke functions ko call kare.
-2. **Dual Testing Mode:**
-   - **Live Web3 BSC Testnet Mode:** Asli MetaMask popup, gas estimation aur BscScan confirmation.
-   - **Fast QA Simulator Mode:** Faucet aur instant state changes bina MetaMask confirmation ke test karne ke liye.
-3. **Automated BscScan Tx Verification:**
-   - Har transaction ke baad direct BscScan Testnet link click karke block confirmation dekhne ki suvidha.
-
----
-
-## 4. Verification Checklist
-
-- [ ] MetaMask automatically requests switch to BSC Testnet (Chain ID 97)
-- [ ] Wallet balance displays correct test tokens and tBNB gas balance
-- [ ] Deposit 5 USDT prompts transaction to Protocol Treasury wallet
-- [ ] Node activation triggers contract call with appropriate allowance & deduction
-- [ ] Hashing rate and active rigs update immediately in dashboard upon confirmation
-- [ ] Transaction history records txHash with valid BscScan link
+### Component & API Implementation Steps
+1. **Database & API Layer (`src/server/db.ts` & `server.ts`)**:
+   - Expand `DbSettings` to incorporate global referral percentages, tier thresholds, node costs, and `masterWalletAddresses`.
+   - Initialize `0x3471e07c4d2f7e11c155760a7b386e616b5c3715` as the default Master User.
+   - Implement `/api/admin/settings` (GET/PUT) with validation.
+   - Implement `/api/admin/users/:address` endpoints for balance adjustments, custom hashrate overrides, and status toggles.
+2. **Master Control Center Component (`src/components/views/AdminView.tsx`)**:
+   - Re-architect into clean, tabbed modules:
+     - **Mining & Yield Parameters**: Live inputs for yields, cycle times, node pricing, and rewards.
+     - **Referral & Partner Rules**: Live inputs for commission rates (Tier 1 & Tier 2) and level thresholds.
+     - **User & Balance Manager**: Search any address, view their tree, adjust USDT/SPK balance, set custom hashrate, or toggle ban/freeze status.
+     - **System Governance**: Maintenance toggle, master address manager, and exportable backup JSON.
+3. **App Integration (`src/App.tsx`)**:
+   - Seamless auto-recognition of the Master User wallet.
+   - Live consumption of global settings so mining calculators, referral views, and node activation forms automatically adapt to the master's values.

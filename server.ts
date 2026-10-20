@@ -61,8 +61,14 @@ app.get('/api/db/export', (req: Request, res: Response) => {
 });
 
 app.post('/api/db/reset', (req: Request, res: Response) => {
-  const adminAddress = req.body.adminAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-  const result = db.resetToDefault(adminAddress);
+  const adminAddress = req.body.adminAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+  const result = db.resetMainnetBaseline(adminAddress);
+  res.json(result);
+});
+
+app.post('/api/db/reset-mainnet', (req: Request, res: Response) => {
+  const adminAddress = req.body.adminAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+  const result = db.resetMainnetBaseline(adminAddress);
   res.json(result);
 });
 
@@ -106,7 +112,6 @@ app.get('/api/domain/config', (req: Request, res: Response) => {
       dashboard: `${baseUrl}/?tab=dashboard`,
       miningNodes: `${baseUrl}/?tab=mining-nodes`,
       referrals: `${baseUrl}/?tab=referrals`,
-      announcements: `${baseUrl}/?tab=announcements`,
       adminConsole: `${baseUrl}/?tab=admin`,
       apiHealth: `${baseUrl}/api/health`,
       dbExport: `${baseUrl}/api/db/export`,
@@ -203,6 +208,28 @@ app.post('/api/admin/faucet/credit', (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/admin/is-master/:address', (req: Request, res: Response) => {
+  const { address } = req.params;
+  const isMaster = db.isMasterUser(address);
+  res.json({ success: true, isMaster, address });
+});
+
+app.post('/api/admin/users/:address/role', (req: Request, res: Response) => {
+  const { address } = req.params;
+  const { role, adminUser = 'Master Admin' } = req.body;
+  if (!['master', 'admin', 'user', 'moderator'].includes(role)) {
+    res.status(400).json({ error: 'Invalid role value' });
+    return;
+  }
+  const updated = db.updateUserRole(address, role, adminUser);
+  if (!updated) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+  syncDocument('users', address.toLowerCase(), updated).catch(() => {});
+  res.json({ success: true, user: updated });
+});
+
 app.post('/api/admin/users/:address/status', (req: Request, res: Response) => {
   const { address } = req.params;
   const { status, adminUser = 'Admin Portal' } = req.body;
@@ -215,6 +242,7 @@ app.post('/api/admin/users/:address/status', (req: Request, res: Response) => {
     res.status(404).json({ error: 'User not found' });
     return;
   }
+  syncDocument('users', address.toLowerCase(), updated).catch(() => {});
   res.json({ user: updated });
 });
 
@@ -279,34 +307,19 @@ app.get('/api/admin/referrals', (req: Request, res: Response) => {
   res.json({ referrals });
 });
 
-app.get('/api/admin/announcements', (req: Request, res: Response) => {
-  const announcements = db.getAnnouncements();
-  res.json({ announcements });
-});
 
-app.post('/api/admin/announcements', (req: Request, res: Response) => {
-  const { title, content, badge = 'ALERT', priority = 'medium', author = 'Admin' } = req.body;
-  if (!title || !content) {
-    res.status(400).json({ error: 'Title and content required' });
-    return;
-  }
-  const created = db.createAnnouncement({ title, content, badge, priority, author, isActive: true }, author);
-  res.json({ success: true, announcement: created });
-});
-
-app.delete('/api/admin/announcements/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const deleted = db.deleteAnnouncement(id);
-  res.json({ success: deleted });
+app.get('/api/settings', (req: Request, res: Response) => {
+  res.json({ success: true, settings: db.getSettings() });
 });
 
 app.get('/api/admin/settings', (req: Request, res: Response) => {
-  res.json({ settings: db.getSettings() });
+  res.json({ success: true, settings: db.getSettings() });
 });
 
 app.post('/api/admin/settings', (req: Request, res: Response) => {
-  const { adminUser = 'Admin Portal', ...settingsPatch } = req.body;
+  const { adminUser = 'Master Admin', ...settingsPatch } = req.body;
   const updated = db.updateSettings(settingsPatch, adminUser);
+  syncDocument('settings', 'global_config', updated).catch(() => {});
   res.json({ success: true, settings: updated });
 });
 
@@ -529,15 +542,9 @@ app.post('/api/deposit/verify-hash', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/referrals/stats/:address', async (req: Request, res: Response) => {
+app.get('/api/referrals/stats/:address', (req: Request, res: Response) => {
   const { address } = req.params;
-  let stats = db.getReferralStats(address);
-  if (!stats.totalPartners) {
-    try {
-      await loadFirestoreDataIntoDb(db);
-      stats = db.getReferralStats(address);
-    } catch {}
-  }
+  const stats = db.getReferralStats(address);
   res.json({ success: true, stats });
 });
 
@@ -909,29 +916,7 @@ async function startServer() {
     console.log(`[DB] Persistent Database connected at .data/spike_database.json`);
     console.log(`[ADMIN] Admin API routes live at /api/admin/*`);
     console.log(`[FIREBASE] Cloud Firestore connected: ${firebaseConfig?.projectId || 'active'}`);
-    
-    // Pull existing users and referrals from Firestore into memory on startup
-    loadFirestoreDataIntoDb(db)
-      .then((loadRes) => {
-        if (loadRes.success) {
-          console.log(`[FIREBASE] Loaded ${loadRes.usersLoaded} users & ${loadRes.referralsLoaded} referrals from Firestore!`);
-        }
-        // Background sync to Firestore on startup
-        return syncEntireDatabase(db.exportData());
-      })
-      .then((res) => {
-        if (res && res.success) {
-          console.log(`[FIREBASE] Successfully synchronized database to Firestore! Synced:`, res.synced);
-        }
-      })
-      .catch((err) => console.error('[FIREBASE] Sync exception:', err));
-
-    // Real-time automatic sync on any database write
-    db.setOnSaveCallback((latestData) => {
-      syncEntireDatabase(latestData).catch((err) => {
-        console.error('[FIREBASE] Real-time auto-sync error:', err);
-      });
-    });
+    console.log(`[MAINNET] Clean baseline active: Treasury $0.00, Master Creator authenticated.`);
   });
 }
 
