@@ -1745,7 +1745,6 @@ export default function App() {
             onCopyText={copyToClipboard}
             onClaimReferralRewards={handleClaimReferralMilestone}
             referralStats={referralStats}
-            onSimulateReferral={handleSimulateReferralJoin}
             onBindSponsor={handleBindSponsor}
             onOpenVerificationModal={(code) => {
               setReferralCodeToVerify(code || '');
@@ -2017,7 +2016,7 @@ export default function App() {
                 <span className="text-[11px] text-[#94a3b8] hidden md:inline">Domain: spikenodes.com (?tab=admin)</span>
                 <button
                   onClick={() => handleTabChange('admin')}
-                  className="px-3 py-1 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/40 font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/40 font-bold transition-all transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[14px]">shield_person</span>
                   <span>Check Admin Panel →</span>

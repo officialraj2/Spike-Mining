@@ -10,15 +10,15 @@ interface TeamRewardMilestonesSectionProps {
 }
 
 export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionProps> = ({
-  directPartners = 12,
-  downlinePartners = 16,
+  directPartners = 0,
+  downlinePartners = 0,
   onClaimReward,
   walletAddress,
 }) => {
-  const [overrideCount, setOverrideCount] = useState<number | null>(null);
-  const totalTeamPartners = overrideCount !== null ? overrideCount : (directPartners + downlinePartners);
-  const directCount = overrideCount !== null ? Math.floor(overrideCount / 2) : directPartners;
-  const downlineCount = overrideCount !== null ? (overrideCount - directCount) : downlinePartners;
+  // Real team partner calculations from actual referrals
+  const totalTeamPartners = directPartners + downlinePartners;
+  const directCount = directPartners;
+  const downlineCount = downlinePartners;
 
   // Track claimed milestone IDs per wallet
   const storageKey = `spike_claimed_milestones_${walletAddress || 'default'}`;
@@ -151,32 +151,19 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
             </div>
           </div>
 
-          {/* Quick interactive counter adjustments for testing / simulating network growth */}
+          {/* Real Referral Network Live Sync Bar */}
           <div className="mt-3.5 pt-3 border-t border-[#1c2b3b]/70 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="text-[11px] font-mono text-[#94a3b8]">
-              Simulate Team Scaling:
-            </span>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {[10, 28, 100, 1000, 5000].map((count) => (
-                <button
-                  key={count}
-                  onClick={() => setOverrideCount(count)}
-                  className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border ${
-                    totalTeamPartners === count
-                      ? 'bg-[#00F0FF] text-[#0A0F1D] border-[#00F0FF] shadow-[0_0_10px_rgba(0,240,255,0.4)]'
-                      : 'bg-[#051424] text-[#94a3b8] hover:text-white border-[#1c2b3b]'
-                  }`}
-                >
-                  {count} Team
-                </button>
-              ))}
-              <button
-                onClick={() => setOverrideCount(null)}
-                className="px-2 py-1 rounded-lg text-[10px] font-mono text-[#94a3b8] hover:text-[#00F0FF]"
-                title="Reset to real wallet stats"
-              >
-                Reset
-              </button>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[11px] font-mono text-[#94a3b8]">
+                Real Network Referrals: <strong className="text-white">{totalTeamPartners} Real Partners Active</strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-lg bg-[#051424] text-[#00F0FF] border border-[#00F0FF]/30 text-[10px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
+                <span className="material-symbols-outlined text-[12px] text-emerald-400">verified</span>
+                <span>Milestones Unlock on Real Referrals</span>
+              </span>
             </div>
           </div>
         </div>

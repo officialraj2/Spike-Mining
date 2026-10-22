@@ -346,7 +346,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
             <div className="space-y-2 pt-1">
               <button
                 onClick={handleConnectFreshWallet}
-                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#38e8f8]/20 hover:from-[#00F0FF]/30 hover:to-[#38e8f8]/30 border border-[#00F0FF]/40 text-[#00F0FF] font-headline font-bold text-xs flex items-center justify-center gap-2 transition-all"
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#38e8f8]/20 hover:from-[#00F0FF]/30 hover:to-[#38e8f8]/30 border border-[#00F0FF]/40 text-[#00F0FF] font-headline font-bold text-xs flex items-center justify-center gap-2 transition-all transition-transform active:scale-95"
               >
                 <span className="material-symbols-outlined text-[17px]">restart_alt</span>
                 <span>Switch to New Clean Wallet (0 Nodes / Blank Slate)</span>
@@ -445,7 +445,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
             {/* Fresh Wallet CTA (Starts with 0 Data) */}
             <button
               onClick={handleConnectFreshWallet}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#38e8f8] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#38e8f8] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all transition-transform hover:scale-[1.01] active:scale-95"
             >
               <span className="material-symbols-outlined text-[18px]">add_circle</span>
               <span>Connect Fresh New Wallet (0 Records / Blank Slate)</span>

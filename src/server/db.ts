@@ -1674,7 +1674,7 @@ class PersistentDatabase {
       wallet = {
         address: address || '0xDemoWallet...User',
         testnetUsdt: 1000.0,
-        testnetSpk: 150.0,
+        testnetSpk: 0.0,
         autoBuyEnabled: true,
         slippageTolerance: 0.5,
         totalHarvestAutoBoughtSpk: 0.0,

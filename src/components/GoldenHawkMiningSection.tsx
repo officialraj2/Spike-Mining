@@ -190,10 +190,14 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   // Effective Cluster Hashrate with fixed 10x Turbo speed (at least 12.5 TH/s when active so it never freezes)
   const effectiveHashrate = isMining ? Math.max(totalHashrate * 10, 12.5) : 0;
 
+  // 24-Hour Mining Cycle Complete check (mining must auto-stop when 24h cycle finishes until user claims)
+  const is24hComplete = isMining && secondsRemaining === 0;
+
   // Real-time mining ticker: accumulates tokens every 1.2 seconds when mining node is active
+  // STRICT AUTO-STOP: When 24 hours finish (secondsRemaining === 0), mining auto-stops completely until claimed!
   useEffect(() => {
-    if (!isMining) {
-      setLastBlockTime('Standby');
+    if (!isMining || secondsRemaining === 0) {
+      setLastBlockTime(secondsRemaining === 0 ? '24h Cycle Complete · Mining Auto-Stopped' : 'Standby');
       return;
     }
 
@@ -223,7 +227,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }, 1200);
 
     return () => clearInterval(interval);
-  }, [isMining, totalHashrate, activeHashrate]);
+  }, [isMining, secondsRemaining, totalHashrate, activeHashrate]);
 
   // Trigger high-velocity power strike into the coin
   const handleStrikeBlock = () => {
@@ -289,26 +293,42 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         timestamp: new Date().toISOString(),
       };
 
+      // Exact mined SPIKE credited to user's wallet SPIKE balance
+      let currentSpk = 0;
+      try {
+        const stored = localStorage.getItem(`spike_spk_${userAddr.toLowerCase()}`);
+        if (stored !== null && !isNaN(Number(stored))) currentSpk = Number(stored);
+      } catch {}
+      const newSpkBalance = +(currentSpk + spkToBuy).toFixed(4);
+
       setClaimedNotice(true);
       setLastAutoBuyTx(finalTx);
       setShowClaimSuccessModal(true);
-      setAutoBuyNotice(`⚡ Smart Contract Auto-Buy Executed via PancakeSwap Router: +${spkToBuy.toFixed(2)} SPK Credited to Wallet!`);
+      setAutoBuyNotice(`⚡ Mined Reward Claimed: +${spkToBuy.toFixed(4)} SPK Credited directly to your SPIKE Balance! Next 24h mining cycle started.`);
       setAccumulatedSpike(0);
       setAccumulatedUsdt(0);
 
+      const nextCycleStart = Date.now();
+      setCycleStartTime(nextCycleStart);
+      setSecondsRemaining(86400);
+
       try {
+        localStorage.setItem(`spike_spk_${userAddr.toLowerCase()}`, String(newSpkBalance));
+        localStorage.setItem('spike_balance_spk', String(newSpkBalance));
         localStorage.setItem('spike_active_mining', 'true');
+        localStorage.setItem('spike_cycle_start_global', String(nextCycleStart));
         localStorage.removeItem('spike_accumulated_spk_global');
         localStorage.removeItem('spike_accumulated_usdt_global');
         if (walletAddress) {
           localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
+          localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(nextCycleStart));
           localStorage.removeItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`);
           localStorage.removeItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
         }
       } catch {}
 
       if (onAutoBuySuccess) {
-        onAutoBuySuccess(finalTx, data?.wallet, data?.token);
+        onAutoBuySuccess(finalTx, { ...(data?.wallet || {}), testnetSpk: newSpkBalance }, data?.token);
       }
       if (onClaimReward) {
         onClaimReward(finalTx.usdtAmount || +(spkToBuy * 1.12).toFixed(2));
@@ -327,10 +347,15 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         })
       );
 
-      // Dispatch balance update so headers sync
+      // Dispatch balance update so headers and Dashboard Card 3 sync immediately
       window.dispatchEvent(
         new CustomEvent('spike_balance_updated', {
-          detail: { address: userAddr.toLowerCase(), balanceUsdt: +(spkToBuy * 1.12).toFixed(2) },
+          detail: {
+            address: userAddr.toLowerCase(),
+            balanceSpk: newSpkBalance,
+            balanceUsdt: finalTx.usdtAmount || +(spkToBuy * 1.12).toFixed(2),
+            claimedSpk: spkToBuy,
+          },
         })
       );
 
@@ -352,11 +377,48 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         details: `PancakeRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(4)} SPK, router=0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b)`,
         timestamp: new Date().toISOString(),
       };
+      let currentSpk = 0;
+      try {
+        const stored = localStorage.getItem(`spike_spk_${userAddr.toLowerCase()}`);
+        if (stored !== null && !isNaN(Number(stored))) currentSpk = Number(stored);
+      } catch {}
+      const newSpkBalance = +(currentSpk + spkToBuy).toFixed(4);
+
       setLastAutoBuyTx(fallbackTx);
       setShowClaimSuccessModal(true);
       setClaimedNotice(true);
       setAccumulatedSpike(0);
       setAccumulatedUsdt(0);
+
+      const nextCycleStart = Date.now();
+      setCycleStartTime(nextCycleStart);
+      setSecondsRemaining(86400);
+
+      try {
+        localStorage.setItem(`spike_spk_${userAddr.toLowerCase()}`, String(newSpkBalance));
+        localStorage.setItem('spike_balance_spk', String(newSpkBalance));
+        localStorage.setItem('spike_active_mining', 'true');
+        localStorage.setItem('spike_cycle_start_global', String(nextCycleStart));
+        localStorage.removeItem('spike_accumulated_spk_global');
+        localStorage.removeItem('spike_accumulated_usdt_global');
+        if (walletAddress) {
+          localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
+          localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(nextCycleStart));
+          localStorage.removeItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`);
+          localStorage.removeItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
+        }
+      } catch {}
+
+      window.dispatchEvent(
+        new CustomEvent('spike_balance_updated', {
+          detail: {
+            address: userAddr.toLowerCase(),
+            balanceSpk: newSpkBalance,
+            balanceUsdt: fallbackTx.usdtAmount,
+            claimedSpk: spkToBuy,
+          },
+        })
+      );
       if (onClaimReward) onClaimReward(spkToBuy);
     } finally {
       setIsAutoBuying(false);
@@ -380,8 +442,14 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             <span className="animate-shining-text tracking-tight">
               SPIKE Apex Mining Engine: Live Medallion
             </span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono font-normal shadow-[0_0_12px_rgba(16,185,129,0.35)]">
-              {isMining ? '● HASHING LIVE' : '○ STANDBY'}
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-normal shadow-sm ${
+              is24hComplete
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.35)] animate-pulse'
+                : isMining
+                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                : 'bg-[#122130] text-[#94a3b8] border border-[#1c2b3b]'
+            }`}>
+              {is24hComplete ? '● 24H CYCLE COMPLETE · AUTO-STOPPED' : isMining ? '● HASHING LIVE' : '○ STANDBY'}
             </span>
           </h2>
           <p className="text-xs sm:text-sm text-[#94a3b8] mt-2 max-w-2xl">
@@ -393,18 +461,24 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <div
             className={`px-3.5 py-2 rounded-xl border flex items-center gap-2 transition-all ${
-              isMining
+              is24hComplete
+                ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse'
+                : isMining
                 ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
                 : 'bg-[#122130] border-[#1c2b3b] text-[#94a3b8]'
             }`}
           >
             <span
               className={`w-2 h-2 rounded-full ${
-                isMining ? 'bg-emerald-400 animate-ping' : 'bg-[#94a3b8]'
+                is24hComplete
+                  ? 'bg-amber-400 animate-ping'
+                  : isMining
+                  ? 'bg-emerald-400 animate-ping'
+                  : 'bg-[#94a3b8]'
               }`}
             />
             <span className="text-xs font-headline font-bold">
-              {isMining ? 'NODE ACTIVE · HASHING' : 'IDLE · NO ACTIVE NODE'}
+              {is24hComplete ? '24H AUTO-STOPPED · CLAIM REQUIRED' : isMining ? 'NODE ACTIVE · HASHING' : 'IDLE · NO ACTIVE NODE'}
             </span>
           </div>
         </div>
@@ -510,13 +584,17 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 )}
 
                 {/* Active Hashrate Floating Badge directly on the Mining Ring */}
-                <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-30 bg-[#061424]/90 backdrop-blur-md border border-[#00F0FF]/50 px-3 py-1 rounded-full shadow-[0_0_15px_rgba(0,240,255,0.4)] flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse"></span>
-                  <span className="text-[11px] font-mono font-extrabold text-[#00F0FF] tabular-nums tracking-wide">
-                    {activeHashrate} {activeUnit}
+                <div className={`absolute bottom-2.5 left-1/2 -translate-x-1/2 z-30 bg-[#061424]/90 backdrop-blur-md border px-3 py-1 rounded-full flex items-center gap-1.5 whitespace-nowrap ${
+                  is24hComplete
+                    ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse'
+                    : 'border-[#00F0FF]/50 shadow-[0_0_15px_rgba(0,240,255,0.4)]'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full animate-pulse ${is24hComplete ? 'bg-amber-400' : 'bg-[#00F0FF]'}`}></span>
+                  <span className={`text-[11px] font-mono font-extrabold tabular-nums tracking-wide ${is24hComplete ? 'text-amber-300' : 'text-[#00F0FF]'}`}>
+                    {is24hComplete ? '24H AUTO-STOPPED' : `${activeHashrate} ${activeUnit}`}
                   </span>
                   <span className="text-[9px] font-mono text-[#D4AF37] uppercase font-bold">
-                    {activeLevel}
+                    {is24hComplete ? 'CLAIM REQUIRED' : activeLevel}
                   </span>
                 </div>
               </div>
@@ -647,7 +725,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               </span>
               <span>
                 {strikeNotice ||
-                  (isMining
+                  (is24hComplete
+                    ? '⚡ 24H CYCLE COMPLETE · MINING AUTO-STOPPED (CLAIM TO RESUME)'
+                    : isMining
                     ? `⚡ MINING ACTIVE · ${activeHashrate} ${activeUnit} [${activeLevel}] · TARGET: 1 SPK in ${targetDays}d`
                     : 'MINING PAUSED · CORE ON STANDBY')}
               </span>
@@ -788,9 +868,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   <div className="text-[10px] text-gray-400 font-mono mt-0.5">
                     Daily Tier Production: <strong className="text-[#00F0FF]">{dailySpkYield} SPK / 24h</strong> (Target 1 SPK in {targetDays} days).
                     {secondsRemaining === 0
-                      ? ' ⚡ 24h cycle complete! Click harvest to execute PancakeSwap Router buyback.'
+                      ? ' ⚡ 24h cycle complete! Mining has auto-stopped. Click Claim to credit your SPIKE balance and restart the next 24h cycle.'
                       : isMining
-                      ? ' Harvest button activates with animated shine style after 24 hours of mining.'
+                      ? ' Mining active for 24 hours. When the 24h timer reaches 0, mining auto-stops and claim button unlocks with animated shine.'
                       : ' Deposit 5 USDT to official treasury vault to start 24h harvesting cycle.'}
                   </div>
                 </div>
@@ -798,7 +878,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 {!isMining ? (
                   <button
                     onClick={onOpenDepositModal}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-102 shrink-0 tracking-wide cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-102 shrink-0 tracking-wide cursor-pointer active:scale-95 transition-transform"
                   >
                     <span className="material-symbols-outlined text-[16px]">add</span>
                     <span>Deposit 5 USDT to Start</span>
@@ -817,10 +897,10 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                     {/* Instant test shortcut to let user/tester verify 24h complete shine without waiting */}
                     <button
                       onClick={() => setSecondsRemaining(0)}
-                      className="text-[10px] text-[#00F0FF]/70 hover:text-[#00F0FF] hover:underline font-mono cursor-pointer flex items-center gap-1"
+                      className="text-[10px] text-[#00F0FF]/70 hover:text-[#00F0FF] hover:underline font-mono cursor-pointer flex items-center gap-1 active:scale-95 transition-transform"
                       title="Fast-forward 24h countdown for review testing"
                     >
-                      <span>⚡ Skip 24h (Test Unlock)</span>
+                      <span>⚡ Skip 24h (Test Unlock &amp; Auto-Stop)</span>
                     </button>
                   </div>
                 ) : (
@@ -828,17 +908,17 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   <button
                     onClick={() => setShowApprovalModal(true)}
                     disabled={isAutoBuying}
-                    className="px-5 py-2.5 rounded-xl animate-harvest-shine text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-2 shadow-[0_0_35px_rgba(212,175,55,0.95)] border-2 border-[#ffe088] hover:scale-105 shrink-0 tracking-wide cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl animate-harvest-shine text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-2 shadow-[0_0_35px_rgba(212,175,55,0.95)] border-2 border-[#ffe088] hover:scale-105 shrink-0 tracking-wide cursor-pointer active:scale-95 transition-transform"
                   >
                     {isAutoBuying ? (
                       <>
                         <span className="w-3.5 h-3.5 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                        <span>Executing Smart Call...</span>
+                        <span>Crediting SPIKE Balance...</span>
                       </>
                     ) : claimedNotice ? (
                       <>
                         <span className="material-symbols-outlined text-[16px]">verified</span>
-                        <span>Mined Loot Harvested!</span>
+                        <span>Mined SPIKE Credited to Balance!</span>
                       </>
                     ) : (
                       <>
@@ -846,7 +926,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                           auto_awesome
                         </span>
                         <span className="font-extrabold tracking-wider uppercase">
-                          ⚡ Harvest &amp; Claim {(accumulatedSpike > 0 ? accumulatedSpike : 25).toFixed(2)} SPK (Unlocked!)
+                          ⚡ Claim {(accumulatedSpike > 0 ? accumulatedSpike : (dailySpkYield * 10)).toFixed(4)} SPK &amp; Restart Mine
                         </span>
                       </>
                     )}

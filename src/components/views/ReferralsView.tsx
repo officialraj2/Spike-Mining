@@ -26,7 +26,6 @@ interface ReferralsViewProps {
   onCopyText: (text: string) => void;
   onClaimReferralRewards: (amount: number, label?: string) => void;
   referralStats?: ReferralStatsData;
-  onSimulateReferral?: () => void;
   onBindSponsor?: (codeOrAddr: string) => Promise<boolean>;
   onOpenVerificationModal?: (code?: string) => void;
 }
@@ -37,7 +36,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   onCopyText,
   onClaimReferralRewards,
   referralStats,
-  onSimulateReferral,
   onBindSponsor,
   onOpenVerificationModal,
 }) => {
@@ -260,33 +258,53 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
         {/* Short Referral Link & Code Inputs */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex-1">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
-                  Referral Link
+                  Referral Link Target
                 </span>
-                <div className="flex items-center bg-[#0a0f1d] p-0.5 rounded-lg border border-[#1c2b3b]">
+                <div className="flex items-center bg-[#0a0f1d] p-1 rounded-xl border border-[#1c2b3b] shadow-inner gap-1">
                   <button
                     onClick={() => setLinkDomain('official')}
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
-                      linkDomain === 'official' ? 'bg-[#00F0FF] text-[#0A0F1D] font-bold' : 'text-[#94a3b8] hover:text-white'
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all ${
+                      linkDomain === 'official'
+                        ? 'bg-[#00F0FF] text-[#0A0F1D] font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]'
+                        : 'text-[#94a3b8] hover:text-white hover:bg-[#142232]'
                     }`}
-                    title="Official production domain (spikenodes.com)"
+                    title="Official production domain (spikenodes.com) for public release"
                   >
-                    spikenodes.com
+                    <span>🌐 spikenodes.com</span>
+                    <span className={`text-[9px] px-1 py-0.2 rounded font-sans uppercase tracking-wider ${
+                      linkDomain === 'official' ? 'bg-[#0A0F1D]/20 text-[#0A0F1D] font-bold' : 'bg-[#1c2b3b] text-gray-400'
+                    }`}>
+                      Prod
+                    </span>
                   </button>
                   <button
                     onClick={() => setLinkDomain('current')}
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
-                      linkDomain === 'current' ? 'bg-[#00F0FF] text-[#0A0F1D] font-bold' : 'text-[#94a3b8] hover:text-white'
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all ${
+                      linkDomain === 'current'
+                        ? 'bg-emerald-400 text-[#0A0F1D] font-bold shadow-[0_0_12px_rgba(52,211,153,0.35)]'
+                        : 'text-[#94a3b8] hover:text-white hover:bg-[#142232]'
                     }`}
-                    title="Direct preview app URL"
+                    title="Direct preview app URL (Tested & working right now in preview tabs)"
                   >
-                    Preview App
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-pulse"></span>
+                    <span>Preview App</span>
+                    <span className={`text-[9px] px-1 py-0.2 rounded font-sans uppercase tracking-wider ${
+                      linkDomain === 'current' ? 'bg-emerald-950 text-emerald-200 font-bold' : 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30'
+                    }`}>
+                      Live Test
+                    </span>
                   </button>
                 </div>
               </div>
-              <span className="text-[10px] text-emerald-400 font-mono">✓ 1-Click Auto-Copy & Send</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-[10px] font-mono flex items-center gap-1 ${linkDomain === 'current' ? 'text-emerald-400' : 'text-[#00F0FF]'}`}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                  {linkDomain === 'current' ? '✓ Working in Live Preview' : '✓ Production URL Ready'}
+                </span>
+              </div>
             </div>
             
             <div className="mt-2 flex items-center gap-2 bg-[#0a0f1d] border border-[#1c2b3b] rounded-xl p-2.5">
@@ -297,6 +315,16 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 value={activeLinkToCopy}
                 className="bg-transparent text-white font-mono text-xs sm:text-sm truncate flex-1 tracking-tight border-none outline-none select-all"
               />
+              <a
+                href={activeLinkToCopy}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg bg-[#142232] hover:bg-[#1e334c] text-[#00F0FF] border border-[#1c2b3b] hover:border-[#00F0FF]/40 text-xs font-mono font-bold transition-all flex items-center gap-1 shrink-0"
+                title="Open and test referral link in a new tab"
+              >
+                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                <span className="hidden sm:inline text-[11px]">Test</span>
+              </a>
               <button
                 onClick={handleCopy}
                 className="px-3 sm:px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95"
@@ -356,6 +384,36 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Link Format Options */}
+            <div className="mt-2 flex flex-wrap items-center justify-between text-[11px] font-mono text-[#94a3b8] px-1 gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] uppercase tracking-wider text-gray-400">Format:</span>
+                <button
+                  type="button"
+                  onClick={() => setLinkFormat('short')}
+                  className={`flex items-center gap-1.5 hover:text-white transition-colors ${
+                    linkFormat === 'short' ? 'text-[#00F0FF] font-bold' : 'text-[#94a3b8]'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${linkFormat === 'short' ? 'bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]' : 'bg-[#1c2b3b]'}`}></span>
+                  Short Link (/ref/{refCode})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLinkFormat('full')}
+                  className={`flex items-center gap-1.5 hover:text-white transition-colors ${
+                    linkFormat === 'full' ? 'text-[#00F0FF] font-bold' : 'text-[#94a3b8]'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${linkFormat === 'full' ? 'bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]' : 'bg-[#1c2b3b]'}`}></span>
+                  Address Link (/?ref=0x...)
+                </button>
+              </div>
+              <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                <span>✓ Both formats fully active</span>
+              </span>
             </div>
           </div>
 
@@ -471,25 +529,23 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           {bindMessage && <span className="text-xs text-emerald-400 font-mono">{bindMessage}</span>}
         </div>
 
-        {/* Live Invitation & Referral Simulation Action Bar */}
+        {/* Live Invitation & Partner Tracking Action Bar */}
         <div className="pt-2 border-t border-[#1c2b3b] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0a0f1d]/50 p-3 rounded-xl">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs text-[#94a3b8]">
-              Send this link to partners. Each registered miner directly joins your network and unlocks <strong className="text-white">Team Milestone Rewards</strong> ($15 to $500,000 USDT).
+              Share your link with partners. Every registered miner joins your network in real time and progresses your <strong className="text-white">Team Milestone Rewards</strong> ($15 to $500,000 USDT).
             </span>
           </div>
 
-          {onSimulateReferral && (
-            <button
-              onClick={onSimulateReferral}
-              className="px-4 py-2 rounded-xl bg-[#1c2b3b] hover:bg-[#273647] border border-[#00F0FF]/40 text-[#00F0FF] hover:text-white text-xs font-headline font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto shrink-0 shadow-sm"
-              title="Test referral join: adds +1 Partner to team network"
-            >
-              <span className="material-symbols-outlined text-[16px]">person_add</span>
-              <span>Test Referral Join (+1 Partner)</span>
-            </button>
-          )}
+          <button
+            onClick={handleCopy}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#D4AF37]/20 hover:from-[#00F0FF]/30 hover:to-[#D4AF37]/30 border border-[#00F0FF]/40 text-[#00F0FF] hover:text-white text-xs font-headline font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto shrink-0 shadow-sm active:scale-95"
+            title="Copy Referral Link to share"
+          >
+            <span className="material-symbols-outlined text-[16px]">share</span>
+            <span>{copied ? 'Link Copied!' : 'Share Referral Link'}</span>
+          </button>
         </div>
       </div>
 

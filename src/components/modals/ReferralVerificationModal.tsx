@@ -61,7 +61,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
         code: 'SPK-71C8A9',
         address: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
         level: 'Protocol Official Sponsor',
-        bonusPercent: '15%',
+        bonusPercent: 'Milestone Rewards',
         verified: true,
       });
       return;
@@ -78,7 +78,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
             code: data.referralCode,
             address: data.sponsorAddress,
             level: data.level || 'Protocol Verified Sponsor',
-            bonusPercent: data.commissionRate || '15%',
+            bonusPercent: 'Milestone Rewards',
             verified: true,
           });
         } else {
@@ -89,7 +89,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
             code: derivedCode.startsWith('SPK-') ? derivedCode : `SPK-${derivedCode}`,
             address: derivedAddr,
             level: 'Protocol Verified Sponsor',
-            bonusPercent: '15%',
+            bonusPercent: 'Milestone Rewards',
             verified: true,
           });
         }
@@ -261,8 +261,8 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                   <span className="text-emerald-400 font-bold">✓ Added to Recent Network Partners (+1)</span>
                 </div>
                 <div className="flex justify-between items-center text-gray-400">
-                  <span>Team Boost:</span>
-                  <span className="text-[#00F0FF] font-bold">+15% Stratum Hashrate Yield</span>
+                  <span>Milestone Contribution:</span>
+                  <span className="text-[#00F0FF] font-bold">+1 Direct Partner toward Milestones ($15 - $500,000)</span>
                 </div>
               </div>
 

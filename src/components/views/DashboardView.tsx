@@ -85,14 +85,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     slippageTolerance: number;
     totalHarvestAutoBoughtSpk: number;
     totalUsdtSpentOnAutoBuy: number;
-  }>({
-    address: walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-    testnetUsdt: 1000.0,
-    testnetSpk: 250.0,
-    autoBuyEnabled: true,
-    slippageTolerance: 0.5,
-    totalHarvestAutoBoughtSpk: 125.0,
-    totalUsdtSpentOnAutoBuy: 4.31,
+  }>(() => {
+    let savedSpk = 0.0;
+    try {
+      if (walletAddress) {
+        const cached = localStorage.getItem(`spike_spk_${walletAddress.toLowerCase()}`);
+        if (cached !== null && !isNaN(Number(cached))) savedSpk = Number(cached);
+      }
+    } catch {}
+    return {
+      address: walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+      testnetUsdt: 1000.0,
+      testnetSpk: savedSpk,
+      autoBuyEnabled: true,
+      slippageTolerance: 0.5,
+      totalHarvestAutoBoughtSpk: savedSpk,
+      totalUsdtSpentOnAutoBuy: 0.0,
+    };
   });
 
   const [spikeTokenInfo, setSpikeTokenInfo] = useState<{
@@ -397,6 +406,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     window.addEventListener('spike_trade_executed', handleTradeExecuted);
     return () => window.removeEventListener('spike_trade_executed', handleTradeExecuted);
   }, [currentPrice, walletAddress]);
+
+  // Synchronize testnet wallet balances on balance updates (e.g. 24h mining harvest claim)
+  useEffect(() => {
+    const handleBalanceUpdated = (e: any) => {
+      const detail = e.detail;
+      if (!detail) return;
+      if (detail.balanceSpk !== undefined) {
+        setTestnetWallet((prev) => ({
+          ...prev,
+          testnetSpk: Number(detail.balanceSpk),
+        }));
+      }
+    };
+    window.addEventListener('spike_balance_updated', handleBalanceUpdated);
+    return () => window.removeEventListener('spike_balance_updated', handleBalanceUpdated);
+  }, []);
 
   const [hoveredDataPoint, setHoveredDataPoint] = useState<{
     x: number;
@@ -774,12 +799,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div>
               <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-0.5 tabular-nums tracking-tight flex items-baseline gap-2">
-                <span>{(testnetWallet?.testnetSpk ?? 150.0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span>{(testnetWallet?.testnetSpk ?? 0.0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <span className="text-lg lg:text-xl text-[#D4AF37] font-semibold tracking-normal font-headline">SPK</span>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-mono mb-2">
                 <span className="text-emerald-400 font-bold">
-                  ≈ ${(((testnetWallet?.testnetSpk ?? 150.0)) * (spikeTokenInfo?.currentPrice || 1.12)).toFixed(2)} USDT
+                  ≈ ${(((testnetWallet?.testnetSpk ?? 0.0)) * (spikeTokenInfo?.currentPrice || 1.12)).toFixed(2)} USDT
                 </span>
                 <span className="text-[#475569]">•</span>
                 <span className="text-[#94a3b8] text-[11px]">

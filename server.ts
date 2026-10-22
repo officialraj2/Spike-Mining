@@ -676,14 +676,27 @@ app.get('/api/config/domain', (req: Request, res: Response) => {
 // Short referral link backend redirect
 app.get(['/ref/:code', '/r/:code'], (req: Request, res: Response) => {
   const { code } = req.params;
-  const sponsor = (req.query.sponsor as string) || '';
+  let sponsor = (req.query.sponsor as string) || '';
+
+  // If sponsor address not in query, resolve from db by code or address
+  if (!sponsor && code) {
+    const resolvedUser = db.findUserByReferralCodeOrAddress(code);
+    if (resolvedUser && resolvedUser.address) {
+      sponsor = resolvedUser.address;
+    }
+  }
+
   if (sponsor && /^0x[a-fA-F0-9]{40}$/i.test(sponsor.trim())) {
     db.upsertUser({
       address: sponsor.trim(),
       referralCode: code || `SPK-${sponsor.trim().slice(2, 8).toUpperCase()}`,
     });
   }
-  const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+  const queryObj: Record<string, string> = { ...(req.query as Record<string, string>) };
+  if (sponsor && !queryObj.sponsor) {
+    queryObj.sponsor = sponsor;
+  }
+  const qs = new URLSearchParams(queryObj).toString();
   const target = `/?ref=${encodeURIComponent(code)}${qs ? `&${qs}` : ''}`;
   res.redirect(target);
 });
