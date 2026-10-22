@@ -309,6 +309,7 @@ export default function App() {
         localStorage.setItem('spike_pending_sponsor_code', code);
         setPendingInvite({ code, sponsorAddr });
         setReferralCodeToVerify(sponsorAddr || cleanRef);
+        setIsReferralModalOpen(true);
         console.log('[App] Referral link detected and saved:', { cleanRef, sponsorAddr });
       } else if (sponsorAddr) {
         const code = `SPK-${sponsorAddr.slice(2, 8).toUpperCase()}`;
@@ -316,6 +317,7 @@ export default function App() {
         localStorage.setItem('spike_pending_sponsor_code', code);
         setPendingInvite({ code, sponsorAddr });
         setReferralCodeToVerify(sponsorAddr);
+        setIsReferralModalOpen(true);
       }
     } catch {
       // ignore
@@ -2226,6 +2228,7 @@ export default function App() {
             onConnectWallet={handleConnectWallet}
             onBindSponsor={handleBindSponsor}
             onOpenMining={() => handleTabChange('dashboard')}
+            onNavigateToReferrals={() => handleTabChange('referrals')}
           />
         )}
       </Suspense>

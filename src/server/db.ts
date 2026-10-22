@@ -1130,19 +1130,55 @@ class PersistentDatabase {
         ref.includes(slice6)
       );
     });
+
+    const directsMap = new Map<string, DbReferral>();
+    directs.forEach((d) => {
+      if (d.refereeAddress) {
+        directsMap.set(d.refereeAddress.toLowerCase(), d);
+      }
+    });
+
+    // Also include any registered users who have this sponsor as referredBy
+    this.data.users.forEach((u) => {
+      if (u.referredBy) {
+        const rb = u.referredBy.toLowerCase().trim();
+        if (
+          rb === norm ||
+          rb === userCode ||
+          rb === `spike-${slice6}` ||
+          rb === slice6 ||
+          rb.includes(slice6)
+        ) {
+          const uNorm = u.address.toLowerCase();
+          if (uNorm !== norm && !directsMap.has(uNorm)) {
+            directsMap.set(uNorm, {
+              id: `ref-user-${uNorm.slice(2, 8)}`,
+              referrerAddress: targetAddress,
+              refereeAddress: u.address,
+              tier: 1,
+              commissionUsdt: 0,
+              volumeUsdt: 150.0,
+              createdAt: u.createdAt || new Date().toISOString(),
+            });
+          }
+        }
+      }
+    });
+
+    const allDirects = Array.from(directsMap.values());
     const teamStats = this.getUserTeamStats(norm);
     const hashrateInfo = this.calculateUserHashrate(norm);
-    const totalCommissions = directs.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
+    const totalCommissions = allDirects.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
 
     const code = resolvedUser?.referralCode || `SPK-${norm.slice(2, 8).toUpperCase()}`;
 
     return {
       address: targetAddress,
-      directPartners: teamStats.directCount,
+      directPartners: Math.max(teamStats.directCount, allDirects.length),
       downlinePartners: teamStats.downlineCount,
-      totalPartners: teamStats.totalTeamCount,
+      totalPartners: Math.max(teamStats.totalTeamCount, allDirects.length + teamStats.downlineCount),
       totalCommissions: +totalCommissions.toFixed(2),
-      referrals: directs,
+      referrals: allDirects,
       referredBy: resolvedUser?.referredBy || null,
       referralCode: code,
       hashrateInfo,

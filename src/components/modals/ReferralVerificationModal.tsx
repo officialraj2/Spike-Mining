@@ -9,6 +9,7 @@ interface ReferralVerificationModalProps {
   onConnectWallet: (provider: string, customAddress?: string, keepCurrentTab?: boolean) => void | Promise<string>;
   onBindSponsor: (codeOrAddr: string, explicitReferee?: string) => Promise<boolean>;
   onOpenMining?: () => void;
+  onNavigateToReferrals?: () => void;
 }
 
 export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps> = ({
@@ -20,13 +21,15 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   onConnectWallet,
   onBindSponsor,
   onOpenMining,
+  onNavigateToReferrals,
 }) => {
   const [activeQuery, setActiveQuery] = useState<string>(referralCodeOrAddr || '');
   const [loadingVerify, setLoadingVerify] = useState<boolean>(false);
   const [loadingBinding, setLoadingBinding] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [bindError, setBindError] = useState<string | null>(null);
-  const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [isCopiedSponsor, setIsCopiedSponsor] = useState<boolean>(false);
+  const [isCopiedJoiner, setIsCopiedJoiner] = useState<boolean>(false);
   const [isLinkCopied, setIsLinkCopied] = useState<boolean>(false);
 
   const [sponsorDetails, setSponsorDetails] = useState<{
@@ -36,31 +39,6 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
     bonusPercent: string;
     verified: boolean;
   } | null>(null);
-
-  // Helper to extract clean address or code from full URLs, shortlinks, or query params
-  const extractCodeOrAddress = (str: string): { address?: string; code?: string } => {
-    if (!str) return {};
-    const trimmed = str.trim();
-    const addr = trimmed.match(/0x[a-fA-F0-9]{40}/i);
-    if (addr) return { address: addr[0] };
-    const sponsorParam = trimmed.match(/[?&]sponsor=(0x[a-fA-F0-9]{40})/i);
-    if (sponsorParam) return { address: sponsorParam[1] };
-    const refMatch = trimmed.match(/\/(?:ref|r)\/([a-zA-Z0-9_\-]+)/i);
-    if (refMatch && refMatch[1]) {
-      const seg = refMatch[1];
-      if (/^0x[a-fA-F0-9]{40}$/i.test(seg)) return { address: seg };
-      return { code: seg };
-    }
-    const qMatch = trimmed.match(/[?&](?:ref|referrer|r|code)=([^&#\s]+)/i);
-    if (qMatch && qMatch[1]) {
-      const val = decodeURIComponent(qMatch[1]);
-      if (/^0x[a-fA-F0-9]{40}$/i.test(val)) return { address: val };
-      return { code: val };
-    }
-    const clean = trimmed.replace(/^https?:\/\/[^\/]+/i, '').replace(/^[/?#]+/, '').trim();
-    if (/^0x[a-fA-F0-9]{40}$/i.test(clean)) return { address: clean };
-    return { code: clean };
-  };
 
   // Sync with prop changes
   useEffect(() => {
@@ -99,33 +77,31 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
           setSponsorDetails({
             code: data.referralCode,
             address: data.sponsorAddress,
-            level: data.level || 'Verified Sponsor',
+            level: data.level || 'Protocol Verified Sponsor',
             bonusPercent: data.commissionRate || '15%',
             verified: true,
           });
         } else {
-          const parsed = extractCodeOrAddress(q);
-          const isAddr = parsed.address || (/^0x[a-fA-F0-9]{40}$/i.test(q) ? q : null);
-          const derivedAddr = isAddr || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-          const derivedCode = isAddr ? `SPK-${isAddr.slice(2, 8).toUpperCase()}` : (parsed.code || q).toUpperCase();
+          const isAddr = /^0x[a-fA-F0-9]{40}$/i.test(q);
+          const derivedAddr = isAddr ? q : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+          const derivedCode = isAddr ? `SPK-${q.slice(2, 8).toUpperCase()}` : q.toUpperCase();
           setSponsorDetails({
             code: derivedCode.startsWith('SPK-') ? derivedCode : `SPK-${derivedCode}`,
             address: derivedAddr,
-            level: 'Verified Sponsor',
+            level: 'Protocol Verified Sponsor',
             bonusPercent: '15%',
             verified: true,
           });
         }
       })
       .catch(() => {
-        const parsed = extractCodeOrAddress(q);
-        const isAddr = parsed.address || (/^0x[a-fA-F0-9]{40}$/i.test(q) ? q : null);
-        const derivedAddr = isAddr || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-        const derivedCode = isAddr ? `SPK-${isAddr.slice(2, 8).toUpperCase()}` : (parsed.code || q).toUpperCase();
+        const isAddr = /^0x[a-fA-F0-9]{40}$/i.test(q);
+        const derivedAddr = isAddr ? q : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+        const derivedCode = isAddr ? `SPK-${q.slice(2, 8).toUpperCase()}` : q.toUpperCase();
         setSponsorDetails({
           code: derivedCode.startsWith('SPK-') ? derivedCode : `SPK-${derivedCode}`,
           address: derivedAddr,
-          level: 'Verified Sponsor',
+          level: 'Protocol Verified Sponsor',
           bonusPercent: '15%',
           verified: true,
         });
@@ -140,7 +116,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   const activeCode = sponsorDetails?.code || 'SPK-71C8A9';
   const sponsorAddress = sponsorDetails?.address || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
 
-  // Check if connected wallet is the sponsor themselves
+  // Check if connected wallet is the sponsor themselves (Self-referral check)
   const isSelfReferral = Boolean(
     isConnected &&
     currentWallet &&
@@ -166,10 +142,37 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
     }
   };
 
-  const copyCode = () => {
-    navigator.clipboard?.writeText(activeCode);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const handleConnectAndAutoBind = async (provider: string) => {
+    try {
+      const res = await onConnectWallet(provider, undefined, true);
+      const connectedAddr = typeof res === 'string' ? res : currentWallet;
+      if (connectedAddr) {
+        // Auto execute binding right after connecting wallet
+        setTimeout(() => {
+          onBindSponsor(sponsorAddress || activeCode, connectedAddr)
+            .then((ok) => {
+              if (ok) setIsSuccess(true);
+            })
+            .catch(() => {});
+        }, 300);
+      }
+    } catch (err: any) {
+      console.warn('Wallet connection cancelled or failed:', err);
+    }
+  };
+
+  const copySponsorAddress = () => {
+    navigator.clipboard?.writeText(sponsorAddress);
+    setIsCopiedSponsor(true);
+    setTimeout(() => setIsCopiedSponsor(false), 2000);
+  };
+
+  const copyJoinerAddress = () => {
+    if (currentWallet) {
+      navigator.clipboard?.writeText(currentWallet);
+      setIsCopiedJoiner(true);
+      setTimeout(() => setIsCopiedJoiner(false), 2000);
+    }
   };
 
   const copyReferralLink = () => {
@@ -181,164 +184,205 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-[#0c1424] border border-[#1e2e42] rounded-2xl shadow-[0_0_50px_rgba(0,240,255,0.15)] overflow-hidden flex flex-col">
-        {/* Subtle accent border line */}
-        <div className="h-1 w-full bg-gradient-to-r from-[#00F0FF] via-[#D4AF37] to-[#00F0FF]" />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-[#0c1424] border border-[#1e2e42] rounded-2xl shadow-[0_0_60px_rgba(0,240,255,0.2)] overflow-hidden flex flex-col max-h-[92dvh]">
+        {/* Accent Top Gradient Line */}
+        <div className="h-1.5 w-full bg-gradient-to-r from-[#00F0FF] via-[#D4AF37] to-[#00F0FF] shrink-0" />
 
         {/* Modal Header */}
-        <div className="p-5 md:p-6 pb-4 border-b border-[#1c2b3b] flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-[#1c2b3b] flex items-center justify-between shrink-0 bg-[#0e1728]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/30 flex items-center justify-center text-[#00F0FF] shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/30 flex items-center justify-center text-[#00F0FF] shrink-0 shadow-sm">
               <span className="material-symbols-outlined text-2xl">verified_user</span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-headline font-bold text-white tracking-wide">
-                  Sponsor Verification
+                <h2 className="text-base sm:text-lg font-headline font-black text-white tracking-wide">
+                  Referral Verification Window
                 </h2>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
-                  SPIKE NETWORK
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  BSC SUB-LAYER
                 </span>
               </div>
-              <p className="text-xs text-[#94a3b8] mt-0.5">
-                Join your sponsor's team and activate decentralized mining rewards
+              <p className="text-[11px] sm:text-xs text-[#94a3b8] mt-0.5">
+                Verify sender &amp; joiner addresses to activate team mining partner status
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-[#142232] hover:bg-[#1f334a] text-gray-400 hover:text-white flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-lg bg-[#142232] hover:bg-[#1f334a] text-gray-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
           >
             <span className="material-symbols-outlined text-lg">close</span>
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-5 md:p-6 space-y-4">
+        {/* Modal Scrollable Body */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-4">
           {/* SUCCESS STATE */}
           {isSuccess ? (
             <div className="text-center py-4 space-y-4 animate-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-[0_0_24px_rgba(16,185,129,0.35)]">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.4)]">
                 <span className="material-symbols-outlined text-4xl">check_circle</span>
               </div>
               <div>
-                <h3 className="text-lg font-headline font-bold text-white">
-                  Sponsor Successfully Linked!
+                <h3 className="text-xl font-headline font-bold text-white">
+                  Verification Complete!
                 </h3>
-                <p className="text-xs text-[#94a3b8] mt-1 max-w-sm mx-auto">
-                  Your wallet is now registered under sponsor{' '}
+                <p className="text-xs text-[#94a3b8] mt-1 max-w-sm mx-auto leading-relaxed">
+                  Both wallets verified. You are now officially connected under sponsor{' '}
                   <span className="text-[#D4AF37] font-mono font-bold">{activeCode}</span>.
-                  Your team partner benefits and hashrate bonus are active.
+                  Your partner record is counted in the team milestones!
                 </p>
               </div>
 
-              <div className="p-3.5 bg-[#08101d] rounded-xl border border-emerald-500/20 text-xs font-mono space-y-2 text-left">
+              {/* Verified Connection Details Box */}
+              <div className="p-4 bg-[#08101d] rounded-xl border border-emerald-500/25 text-xs font-mono space-y-2.5 text-left">
                 <div className="flex justify-between items-center text-gray-400">
-                  <span>Assigned Sponsor:</span>
-                  <span className="text-[#D4AF37] font-bold">{activeCode}</span>
-                </div>
-                <div className="flex justify-between items-center text-gray-400">
-                  <span>Your Wallet:</span>
-                  <span className="text-white">
-                    {currentWallet ? `${currentWallet.slice(0, 8)}...${currentWallet.slice(-6)}` : 'Connected'}
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    Sender (Sponsor):
+                  </span>
+                  <span className="text-[#D4AF37] font-bold truncate max-w-[200px]" title={sponsorAddress}>
+                    {sponsorAddress.slice(0, 8)}...{sponsorAddress.slice(-6)} ({activeCode})
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-gray-400">
-                  <span>Team Status:</span>
-                  <span className="text-emerald-400 font-bold">Active Partner (+1 Counted)</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    Joiner (You):
+                  </span>
+                  <span className="text-white font-bold truncate max-w-[200px]" title={currentWallet}>
+                    {currentWallet ? `${currentWallet.slice(0, 8)}...${currentWallet.slice(-6)}` : 'Verified Wallet'}
+                  </span>
+                </div>
+                <div className="pt-1 border-t border-[#1c2b3b] flex justify-between items-center text-gray-400">
+                  <span>Network Status:</span>
+                  <span className="text-emerald-400 font-bold">✓ Added to Recent Network Partners (+1)</span>
+                </div>
+                <div className="flex justify-between items-center text-gray-400">
+                  <span>Team Boost:</span>
+                  <span className="text-[#00F0FF] font-bold">+15% Stratum Hashrate Yield</span>
                 </div>
               </div>
 
-              <div className="flex gap-2.5 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                {onNavigateToReferrals && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onNavigateToReferrals();
+                    }}
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-headline font-bold text-xs tracking-wider transition-all shadow-md hover:scale-102 flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">group</span>
+                    <span>View in Team Referrals</span>
+                  </button>
+                )}
                 {onOpenMining && (
                   <button
                     onClick={() => {
                       onClose();
                       onOpenMining();
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00b4d8] text-[#0A0F1D] font-headline font-bold text-xs tracking-wider transition-all shadow-[0_0_15px_rgba(0,240,255,0.35)] hover:scale-102 flex items-center justify-center gap-1.5"
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00b4d8] text-[#0A0F1D] font-headline font-bold text-xs tracking-wider transition-all shadow-[0_0_15px_rgba(0,240,255,0.35)] hover:scale-102 flex items-center justify-center gap-2"
                   >
-                    <span className="material-symbols-outlined text-[16px]">memory</span>
-                    <span>Launch Mining Nodes</span>
+                    <span className="material-symbols-outlined text-[18px]">memory</span>
+                    <span>Mining Dashboard</span>
                   </button>
                 )}
-                <button
-                  onClick={onClose}
-                  className="flex-1 py-2.5 rounded-xl bg-[#142232] hover:bg-[#1e3248] text-white text-xs font-mono transition-colors"
-                >
-                  Close
-                </button>
               </div>
             </div>
           ) : (
             <>
-              {/* Sponsor Card */}
-              <div className="p-4 bg-[#0a101d] rounded-xl border border-[#1e2e42] space-y-3">
+              {/* SENDER / SPONSOR CARD */}
+              <div className="p-4 bg-[#0a101d] rounded-xl border border-[#1e2e42] space-y-3 relative overflow-hidden">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase text-[#94a3b8] tracking-wider font-semibold">
-                    Inviting Sponsor
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono uppercase text-[#00F0FF] tracking-wider font-bold">
+                      Step 1: Sender / Inviter Address (Verified)
+                    </span>
+                  </div>
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    Verified Partner
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Verified Sponsor
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div className="p-3 bg-[#121c2c] rounded-lg border border-[#1c2b3b]">
-                    <span className="text-[10px] text-gray-400 font-mono block">Referral Code</span>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="font-mono text-base font-black text-[#D4AF37]">
-                        {activeCode}
-                      </span>
-                      <button
-                        onClick={copyCode}
-                        className="text-[10px] font-mono text-[#00F0FF] hover:underline"
-                      >
-                        {isCopied ? 'Copied' : 'Copy'}
-                      </button>
+                    <span className="text-[10px] text-gray-400 font-mono block">Sponsor Code</span>
+                    <div className="text-base font-black font-mono text-[#D4AF37] mt-0.5 tracking-wide">
+                      {activeCode}
                     </div>
                   </div>
 
                   <div className="p-3 bg-[#121c2c] rounded-lg border border-[#1c2b3b]">
-                    <span className="text-[10px] text-gray-400 font-mono block">Sponsor Wallet</span>
-                    <span className="font-mono text-xs font-bold text-white block mt-1.5 truncate" title={sponsorAddress}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-400 font-mono block">BEP-20 Wallet</span>
+                      <button
+                        onClick={copySponsorAddress}
+                        className="text-[10px] font-mono text-[#00F0FF] hover:underline"
+                      >
+                        {isCopiedSponsor ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <div className="font-mono text-xs font-bold text-white mt-1 truncate" title={sponsorAddress}>
                       {sponsorAddress ? `${sponsorAddress.slice(0, 8)}...${sponsorAddress.slice(-6)}` : 'Official Protocol'}
-                    </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs font-mono pt-1 text-gray-300">
-                  <span className="text-[11px] text-gray-400">Team Bonus:</span>
-                  <span className="text-[#00F0FF] font-semibold">15% Hashrate Boost & Commissions</span>
+                <div className="flex items-center justify-between text-xs font-mono pt-0.5 text-gray-300">
+                  <span className="text-[11px] text-gray-400">Team Status:</span>
+                  <span className="text-[#00F0FF] font-semibold">{sponsorDetails?.level || 'Active Mining Leader'}</span>
                 </div>
               </div>
 
-              {/* Enter or Change Sponsor Input */}
-              <div>
-                <label className="text-[10px] font-mono uppercase text-gray-400 tracking-wider font-semibold block mb-1.5">
-                  Sponsor Code or Link
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Enter SPK code, 0x wallet address, or link"
-                    value={activeQuery}
-                    onChange={(e) => setActiveQuery(e.target.value)}
-                    className="flex-1 bg-[#0a101d] border border-[#1e2e42] focus:border-[#00F0FF] rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder-gray-500 focus:outline-none transition-colors"
-                  />
-                  <button
-                    disabled={loadingVerify || !activeQuery.trim()}
-                    onClick={() => {
-                      const trimmed = activeQuery.trim();
-                      if (trimmed) setActiveQuery(trimmed);
-                    }}
-                    className="px-4 py-2 bg-[#142232] hover:bg-[#00F0FF] hover:text-[#0A0F1D] text-[#00F0FF] rounded-xl text-xs font-mono font-bold transition-all disabled:opacity-40"
-                  >
-                    {loadingVerify ? 'Verifying...' : 'Verify'}
-                  </button>
+              {/* JOINER / REFEREE CARD */}
+              <div className="p-4 bg-[#0a101d] rounded-xl border border-[#1e2e42] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono uppercase text-[#D4AF37] tracking-wider font-bold">
+                    Step 2: Joiner Address (You)
+                  </span>
+                  {isConnected ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      Wallet Verified
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                      Awaiting Connection
+                    </span>
+                  )}
                 </div>
+
+                {isConnected ? (
+                  <div className="p-3 bg-[#121c2c] rounded-lg border border-[#1c2b3b] flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-gray-400 font-mono block">Your Verified Address</span>
+                      <span className="font-mono text-xs font-bold text-white mt-0.5 block truncate max-w-[240px]">
+                        {currentWallet}
+                      </span>
+                    </div>
+                    <button
+                      onClick={copyJoinerAddress}
+                      className="px-2.5 py-1 rounded bg-[#1c2b3b] text-[10px] font-mono text-[#00F0FF] hover:text-white"
+                    >
+                      {isCopiedJoiner ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-[#121c2c]/70 rounded-lg border border-dashed border-[#1c2b3b] text-center space-y-1">
+                    <p className="text-xs text-gray-300 font-medium">
+                      Wallet not connected yet.
+                    </p>
+                    <p className="text-[11px] text-gray-400">
+                      Connect your wallet below to verify your address and join this sponsor's team.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* ERROR ALERT */}
@@ -349,17 +393,17 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                 </div>
               )}
 
-              {/* ACTION SECTION */}
+              {/* ACTION & VERIFY BUTTONS */}
               <div className="pt-2">
                 {isSelfReferral ? (
                   /* SELF-REFERRAL NOTICE */
                   <div className="p-4 bg-[#121c2c] rounded-xl border border-[#D4AF37]/30 space-y-3">
                     <div className="flex items-center gap-2 text-[#D4AF37] font-bold text-xs">
                       <span className="material-symbols-outlined text-[18px]">info</span>
-                      <span>This is your own referral link</span>
+                      <span>You opened your own referral link</span>
                     </div>
                     <p className="text-xs text-gray-300 leading-relaxed">
-                      Share this invitation link with friends and community members. When they connect their wallet, they are automatically added as your direct partner and you receive team mining commissions.
+                      This link belongs to your currently connected wallet. Share it with friends or test adding a simulated partner to verify that they show up in your Recent Network Partners table.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-2 pt-1">
                       <button
@@ -372,38 +416,35 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                       <button
                         onClick={handleExecuteBinding}
                         disabled={loadingBinding}
-                        className="py-2.5 px-4 rounded-xl bg-[#142232] hover:bg-[#1f334a] text-[#00F0FF] font-mono text-xs font-bold transition-colors border border-[#00F0FF]/20 flex items-center justify-center gap-1.5"
+                        className="py-2.5 px-4 rounded-xl bg-[#142232] hover:bg-[#1f334a] text-[#00F0FF] font-mono text-xs font-bold transition-colors border border-[#00F0FF]/30 flex items-center justify-center gap-1.5"
                       >
                         <span className="material-symbols-outlined text-[16px]">person_add</span>
-                        <span>{loadingBinding ? 'Testing...' : 'Test Partner (+1)'}</span>
+                        <span>{loadingBinding ? 'Testing...' : 'Test Partner (+1 Counted)'}</span>
                       </button>
                     </div>
                   </div>
                 ) : !isConnected ? (
-                  /* NOT CONNECTED STATE */
+                  /* NOT CONNECTED STATE: CONNECT WALLET OPTIONS */
                   <div className="space-y-3">
-                    <p className="text-xs text-gray-400 text-center">
-                      Connect your Web3 wallet to link to this sponsor and activate your account.
-                    </p>
                     <div className="grid grid-cols-2 gap-2.5">
                       <button
-                        onClick={() => onConnectWallet('MetaMask')}
+                        onClick={() => handleConnectAndAutoBind('MetaMask')}
                         className="p-3 rounded-xl bg-[#0a101d] hover:bg-[#142232] border border-[#1e2e42] hover:border-[#00F0FF]/40 text-left transition-all flex items-center gap-2.5 group"
                       >
-                        <span className="text-xl">🦊</span>
+                        <span className="text-2xl">🦊</span>
                         <div>
                           <div className="text-xs font-bold text-white group-hover:text-[#00F0FF]">
                             MetaMask
                           </div>
-                          <div className="text-[10px] text-gray-400">Browser / Mobile</div>
+                          <div className="text-[10px] text-gray-400">Connect &amp; Verify</div>
                         </div>
                       </button>
 
                       <button
-                        onClick={() => onConnectWallet('TrustWallet')}
+                        onClick={() => handleConnectAndAutoBind('TrustWallet')}
                         className="p-3 rounded-xl bg-[#0a101d] hover:bg-[#142232] border border-[#1e2e42] hover:border-[#00F0FF]/40 text-left transition-all flex items-center gap-2.5 group"
                       >
-                        <span className="text-xl">🛡️</span>
+                        <span className="text-2xl">🛡️</span>
                         <div>
                           <div className="text-xs font-bold text-white group-hover:text-[#00F0FF]">
                             Trust Wallet
@@ -414,39 +455,36 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                     </div>
 
                     <button
-                      onClick={() => onConnectWallet('Injected')}
-                      className="w-full py-2.5 rounded-xl bg-[#142232] hover:bg-[#1f334a] text-gray-300 hover:text-white text-xs font-mono transition-colors text-center"
+                      onClick={() => handleConnectAndAutoBind('Injected')}
+                      className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-101 active:scale-98"
                     >
-                      Connect with Other Web3 Wallet
+                      <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                      <span>Connect Wallet &amp; Join Team</span>
                     </button>
                   </div>
                 ) : (
-                  /* CONNECTED REFEREE STATE */
+                  /* CONNECTED STATE: CONFIRM AND BIND BUTTON */
                   <div className="space-y-3">
-                    <div className="p-3 bg-[#08101d] rounded-xl border border-[#1c2b3b] flex items-center justify-between text-xs font-mono">
-                      <span className="text-gray-400">Connected Wallet:</span>
-                      <span className="text-[#00F0FF] font-bold">
-                        {currentWallet ? `${currentWallet.slice(0, 8)}...${currentWallet.slice(-6)}` : 'Connected'}
-                      </span>
-                    </div>
-
                     <button
                       onClick={handleExecuteBinding}
                       disabled={loadingBinding}
-                      className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00F0FF] via-[#5cf0ff] to-[#00c8d6] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.35)] disabled:opacity-50 hover:scale-101 active:scale-98"
+                      className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#00F0FF] via-[#5cf0ff] to-[#00c8d6] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(0,240,255,0.4)] disabled:opacity-50 hover:scale-101 active:scale-98"
                     >
                       {loadingBinding ? (
                         <>
-                          <span className="w-3.5 h-3.5 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                          <span>Linking Sponsor to Account...</span>
+                          <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                          <span>Verifying &amp; Linking into Team...</span>
                         </>
                       ) : (
                         <>
-                          <span className="material-symbols-outlined text-[18px]">handshake</span>
-                          <span>Confirm &amp; Bind Sponsor</span>
+                          <span className="material-symbols-outlined text-[20px]">how_to_reg</span>
+                          <span>Confirm &amp; Join {activeCode} Team</span>
                         </>
                       )}
                     </button>
+                    <p className="text-[11px] text-gray-400 text-center font-mono">
+                      ✓ Immediately adds you to sponsor's Recent Network Partners table &amp; updates milestones
+                    </p>
                   </div>
                 )}
               </div>

@@ -61,7 +61,13 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     ? window.location.origin
     : 'https://spikenodes.com';
 
-  const [linkDomain, setLinkDomain] = useState<'official' | 'current'>('official');
+  const isPreviewOrDev = typeof window !== 'undefined' && (
+    window.location.hostname.includes('run.app') ||
+    window.location.hostname.includes('localhost') ||
+    window.location.hostname.includes('127.0.0.1')
+  );
+
+  const [linkDomain, setLinkDomain] = useState<'official' | 'current'>(isPreviewOrDev ? 'current' : 'official');
   const [linkFormat, setLinkFormat] = useState<'short' | 'full'>('short');
 
   const selectedBaseOrigin = linkDomain === 'official' ? 'https://spikenodes.com' : currentOrigin;

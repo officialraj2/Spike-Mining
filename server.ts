@@ -4,6 +4,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { db } from './src/server/db.ts';
 import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb } from './src/server/firebaseServer.ts';
+import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from './src/db/users.ts';
+import { db as sqlDb } from './src/db/index.ts';
 
 dotenv.config();
 
@@ -94,6 +97,34 @@ app.post('/api/firebase/sync', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || String(err) });
+  }
+});
+
+// ============================================================
+// CLOUD SQL POSTGRESQL & AUTH APIS
+// ============================================================
+app.get('/api/users', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const users = await getSqlUsers();
+    res.json(users);
+  } catch (error: any) {
+    console.error('Failed to fetch users from Cloud SQL:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch users' });
+  }
+});
+
+app.post('/api/users/sync-sql', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?.uid) {
+      res.status(401).json({ error: 'Unauthorized: missing user uid' });
+      return;
+    }
+    const { address } = req.body || {};
+    const user = await getOrCreateSqlUser(req.user.uid, req.user.email, address);
+    res.json({ success: true, user });
+  } catch (error: any) {
+    console.error('Failed to sync auth user to Cloud SQL:', error);
+    res.status(500).json({ error: error.message || 'Failed to sync user' });
   }
 });
 
@@ -917,6 +948,7 @@ async function startServer() {
     console.log(`[DB] Persistent Database connected at .data/spike_database.json`);
     console.log(`[ADMIN] Admin API routes live at /api/admin/*`);
     console.log(`[FIREBASE] Cloud Firestore connected: ${firebaseConfig?.projectId || 'active'}`);
+    console.log(`[CLOUDSQL] PostgreSQL Relational Database (Drizzle ORM) active`);
     console.log(`[MAINNET] Clean baseline active: Treasury $0.00, Master Creator authenticated.`);
   });
 }
