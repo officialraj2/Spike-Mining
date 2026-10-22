@@ -49,6 +49,13 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
       color: 'border-blue-500/30',
     },
     {
+      id: 'safepal',
+      name: 'SafePal Wallet',
+      description: 'Official SafePal hardware & mobile Web3 wallet',
+      icon: '🔐',
+      color: 'border-purple-500/30',
+    },
+    {
       id: 'binance',
       name: 'Binance Web3 Wallet',
       description: 'Direct BSC ecosystem integration with zero friction',
@@ -87,6 +94,19 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     return null;
   };
 
+  const getSafePalProvider = () => {
+    if (typeof window === 'undefined') return null;
+    const win = window as any;
+    if (win.safepalProvider) return win.safepalProvider;
+    if (win.safePal) return win.safePal;
+    if (win.ethereum?.isSafePal) return win.ethereum;
+    if (win.ethereum?.providers && Array.isArray(win.ethereum.providers)) {
+      const sp = win.ethereum.providers.find((p: any) => p.isSafePal);
+      if (sp) return sp;
+    }
+    return null;
+  };
+
   const generateFreshWallet = () => {
     const chars = '0123456789abcdef';
     let addr = '0x';
@@ -102,22 +122,62 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     setConnectingProvider(id);
 
     const eth = getEthereumProvider();
+    const safepal = getSafePalProvider();
+
+    // If SafePal Wallet selected
+    if (id === 'safepal') {
+      const sp = safepal || eth;
+      if (sp) {
+        try {
+          setConnectingStatus('SafePal connection opening... Please approve account access in your SafePal wallet.');
+          const accountsPromise = sp.request({ method: 'eth_requestAccounts' }) as Promise<string[]>;
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('SAFEPAL_TIMEOUT')), 45000)
+          );
+          const accounts = await Promise.race([accountsPromise, timeoutPromise]);
+          if (accounts && accounts.length > 0) {
+            onConnect('SafePal', accounts[0]);
+            setConnectingProvider(null);
+            setConnectingStatus(null);
+            setShowProviderPicker(false);
+            onClose();
+            return;
+          }
+        } catch (err: unknown) {
+          setConnectingProvider(null);
+          setConnectingStatus(null);
+          setErrorMessage('SafePal connection was cancelled or rejected by user.');
+          setShowCustomInput(true);
+          return;
+        }
+      } else {
+        setConnectingProvider(null);
+        setConnectingStatus(null);
+        if (isInsideIframe) {
+          setErrorMessage('SafePal Wallet: Browser sandbox me extension detect nahi hui. Aap apna SafePal BEP-20 address niche paste karke turant connect kar sakte hain!');
+        } else {
+          setErrorMessage('SafePal Wallet is browser me detect nahi hui. Kripya SafePal App ya Extension check karein, ya apna address manually paste karein.');
+        }
+        setShowCustomInput(true);
+        return;
+      }
+    }
 
     // If attempting to connect a real Web3 wallet extension (MetaMask / Trust Wallet / Binance)
     if (id === 'metamask' || id === 'trustwallet' || id === 'binance') {
       if (eth) {
         try {
-          setConnectingStatus(`MetaMask popup opening... Please approve account access in your browser extension.`);
+          setConnectingStatus(`Web3 popup opening... Please approve account access in your wallet.`);
           
-          // Allow ample time (45s) for user to unlock and click 'Next / Connect' in MetaMask popup
+          // Allow ample time (45s) for user to unlock and click 'Next / Connect' in popup
           const accountsPromise = eth.request({ method: 'eth_requestAccounts' }) as Promise<string[]>;
           const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('METAMASK_TIMEOUT')), 45000)
+            setTimeout(() => reject(new Error('WALLET_TIMEOUT')), 45000)
           );
 
           const accounts = await Promise.race([accountsPromise, timeoutPromise]);
           if (accounts && accounts.length > 0) {
-            onConnect('MetaMask', accounts[0]);
+            onConnect(id === 'trustwallet' ? 'Trust Wallet' : id === 'binance' ? 'Binance Wallet' : 'MetaMask', accounts[0]);
             setConnectingProvider(null);
             setConnectingStatus(null);
             setShowProviderPicker(false);
@@ -129,11 +189,11 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           setConnectingStatus(null);
           const errObj = err as { code?: number; message?: string };
           if (errObj?.code === 4001 || errObj?.message?.includes('User rejected')) {
-            setErrorMessage('MetaMask connection was cancelled or rejected by user.');
-          } else if (errObj?.message === 'METAMASK_TIMEOUT') {
-            setErrorMessage('MetaMask did not respond within 45s. Please unlock your extension and try again.');
+            setErrorMessage('Wallet connection was cancelled or rejected by user.');
+          } else if (errObj?.message === 'WALLET_TIMEOUT') {
+            setErrorMessage('Wallet did not respond within 45s. Please unlock your extension and try again.');
           } else {
-            setErrorMessage(errObj?.message || 'MetaMask extension connection failed.');
+            setErrorMessage(errObj?.message || 'Wallet extension connection failed.');
           }
           setShowCustomInput(true);
           return;
@@ -144,11 +204,11 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         setConnectingStatus(null);
         if (isInsideIframe) {
           setErrorMessage(
-            'Browser Security (iFrame Sandbox): Chrome/Brave extensions are restricted from injecting into embedded preview iframes. Aap apna real MetaMask address (0x...) niche paste karke turant connect kar sakte hain, ya app ko Full Tab me open karein!'
+            'Browser Security (iFrame Sandbox): Chrome/Brave extensions are restricted from injecting into embedded preview iframes. Aap apna real wallet address (0x...) niche paste karke turant connect kar sakte hain, ya app ko Full Tab me open karein!'
           );
         } else {
           setErrorMessage(
-            'MetaMask extension is browser me detect nahi hui. Kripya MetaMask extension install karein ya apna address manually enter karein.'
+            'Wallet extension is browser me detect nahi hui. Kripya wallet extension install karein ya apna address manually enter karein.'
           );
         }
         setShowCustomInput(true);
@@ -431,47 +491,18 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
             </div>
 
             {/* Custom Address Input Toggle */}
-            <div className="pt-1">
-              {/* Master Creator Direct Login Option */}
-              <div className="mb-3 p-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37]/15 via-[#122130] to-[#00F0FF]/15 border border-[#D4AF37]/40 flex items-center justify-between gap-2 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#D4AF37] text-[20px]">admin_panel_settings</span>
-                  <div className="text-left">
-                    <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <span>Master User (Root Owner)</span>
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#D4AF37] text-[#0A0F1D]">ROOT</span>
-                    </div>
-                    <div className="text-[10px] text-[#94a3b8] font-mono">0x3471...3715 · Creator Protocol Access</div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleConnectMasterWallet}
-                  className="px-3 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] text-[#0A0F1D] text-xs font-headline font-bold transition-all shadow-[0_0_12px_rgba(212,175,55,0.4)] cursor-pointer"
-                >
-                  Connect Root
-                </button>
-              </div>
-
+            <div className="pt-2">
               {!showCustomInput ? (
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-center">
                   <button
                     onClick={() => {
                       setShowCustomInput(true);
                       setErrorMessage(null);
                     }}
-                    className="text-[11px] text-[#00F0FF] hover:underline font-mono flex items-center gap-1"
+                    className="text-xs text-[#00F0FF] hover:underline font-mono flex items-center gap-1.5 py-1 px-3 rounded-lg hover:bg-[#122130] transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[14px]">edit</span>
-                    <span>Paste My MetaMask Address (0x...)</span>
-                  </button>
-                  <button
-                    onClick={handleConnectDemoLeader}
-                    className="text-[11px] text-[#D4AF37] hover:underline font-mono flex items-center gap-1"
-                    title="Load pre-populated demo cluster with 3 rigs & 28 partners"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">history_edu</span>
-                    <span>Load Demo Cluster (0x71C8...)</span>
+                    <span className="material-symbols-outlined text-[15px]">edit_note</span>
+                    <span>Enter / Paste Any BEP-20 Address (MetaMask, SafePal, Trust Wallet)</span>
                   </button>
                 </div>
               ) : (

@@ -426,30 +426,34 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                 ) : !isConnected ? (
                   /* NOT CONNECTED STATE: CONNECT WALLET OPTIONS */
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         onClick={() => handleConnectAndAutoBind('MetaMask')}
-                        className="p-3 rounded-xl bg-[#0a101d] hover:bg-[#142232] border border-[#1e2e42] hover:border-[#00F0FF]/40 text-left transition-all flex items-center gap-2.5 group"
+                        className="p-2.5 rounded-xl bg-[#0a101d] hover:bg-[#142232] border border-[#1e2e42] hover:border-[#00F0FF]/40 text-center transition-all flex flex-col items-center justify-center gap-1.5 group"
                       >
-                        <span className="text-2xl">🦊</span>
-                        <div>
-                          <div className="text-xs font-bold text-white group-hover:text-[#00F0FF]">
-                            MetaMask
-                          </div>
-                          <div className="text-[10px] text-gray-400">Connect &amp; Verify</div>
+                        <span className="text-xl">🦊</span>
+                        <div className="text-[11px] font-bold text-white group-hover:text-[#00F0FF]">
+                          MetaMask
                         </div>
                       </button>
 
                       <button
                         onClick={() => handleConnectAndAutoBind('TrustWallet')}
-                        className="p-3 rounded-xl bg-[#0a101d] hover:bg-[#142232] border border-[#1e2e42] hover:border-[#00F0FF]/40 text-left transition-all flex items-center gap-2.5 group"
+                        className="p-2.5 rounded-xl bg-[#0a101d] hover:bg-[#142232] border border-[#1e2e42] hover:border-[#00F0FF]/40 text-center transition-all flex flex-col items-center justify-center gap-1.5 group"
                       >
-                        <span className="text-2xl">🛡️</span>
-                        <div>
-                          <div className="text-xs font-bold text-white group-hover:text-[#00F0FF]">
-                            Trust Wallet
-                          </div>
-                          <div className="text-[10px] text-gray-400">Multi-Chain Web3</div>
+                        <span className="text-xl">🛡️</span>
+                        <div className="text-[11px] font-bold text-white group-hover:text-[#00F0FF]">
+                          Trust Wallet
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => handleConnectAndAutoBind('SafePal')}
+                        className="p-2.5 rounded-xl bg-[#0a101d] hover:bg-[#142232] border border-[#1e2e42] hover:border-[#00F0FF]/40 text-center transition-all flex flex-col items-center justify-center gap-1.5 group"
+                      >
+                        <span className="text-xl">🔐</span>
+                        <div className="text-[11px] font-bold text-white group-hover:text-[#00F0FF]">
+                          SafePal
                         </div>
                       </button>
                     </div>
