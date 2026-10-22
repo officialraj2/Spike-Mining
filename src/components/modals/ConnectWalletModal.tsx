@@ -212,15 +212,15 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-[#010f1e]/80 backdrop-blur-md transition-opacity"
+        className="fixed inset-0 bg-[#010f1e]/85 backdrop-blur-md transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-md bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-6 shadow-2xl z-10 animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md max-h-[92dvh] sm:max-h-[90vh] bg-[#0d1d2c] border-t sm:border border-[#1c2b3b] rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl z-10 flex flex-col overflow-y-auto animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[#1c2b3b]">
           <div className="flex items-center gap-2">

@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "lastSaved": "2026-10-20T06:44:08.461Z",
+  "lastSaved": "2026-10-22T05:42:21.722Z",
   "users": [
     {
       "address": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
-      "balanceUsdt": 0,
+      "balanceUsdt": 10,
       "balanceBnb": 0,
       "totalMined": 0,
       "balanceSpk": 0,
@@ -13,13 +13,36 @@
       "role": "master",
       "status": "active",
       "createdAt": "2026-10-20T06:44:08.461Z",
-      "lastActive": "2026-10-20T06:44:08.461Z",
+      "lastActive": "2026-10-22T05:42:21.672Z",
       "notes": "Master Creator & Protocol Root Authority"
+    },
+    {
+      "address": "0x1111111111111111111111111111111111111111",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-111111",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-10-20T09:45:25.493Z",
+      "lastActive": "2026-10-20T09:45:25.493Z",
+      "notes": ""
     }
   ],
   "nodes": [],
   "transactions": [],
-  "referrals": [],
+  "referrals": [
+    {
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0x1111111111111111111111111111111111111111",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "id": "ref-1792489525494-170",
+      "createdAt": "2026-10-20T09:45:25.494Z"
+    }
+  ],
   "announcements": [],
   "settings": {
     "turboMultiplier": 10,
@@ -28,7 +51,7 @@
     "miningCycleHours": 24,
     "dailyRewardSpk": 35,
     "minDepositUsdt": 5,
-    "pancakeRouterAddress": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+    "pancakeRouterAddress": "0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b",
     "testnetFastCycleEnabled": false,
     "maintenanceMode": false,
     "stratumPoolUrl": "stratum+tcp://pool.spikenodes.com:443",
@@ -61,6 +84,22 @@
     "level3HashrateBoost": 600
   },
   "auditLogs": [
+    {
+      "id": "audit-1792489525494-962",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715->0x1111111111111111111111111111111111111111",
+      "details": "Linked partner 0x1111111111111111111111111111111111111111 to sponsor 0x3471e07c4d2f7e11c155760a7b386e616b5c3715 (Code: SPK-3471E0)",
+      "timestamp": "2026-10-20T09:45:25.494Z"
+    },
+    {
+      "id": "audit-1792489525493-136",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x1111111111111111111111111111111111111111",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-20T09:45:25.493Z"
+    },
     {
       "id": "audit-1792478648461",
       "adminUser": "Backend Root Mainnet Reset",

@@ -762,24 +762,59 @@ export default function App() {
         console.warn('[App] Backend DB sync notice (Firebase fallback active):', err);
       });
 
-    // Also specifically query referral stats endpoint for accurate real-time affiliate calculation
-    fetch(`/api/referrals/stats/${walletAddress}`)
-      .then((res) => {
-        if (!res.ok || res.headers.get('content-type')?.includes('text/html')) return null;
-        return res.json();
-      })
-      .then((rData) => {
-        if (rData && rData.stats) {
-          setReferralStats(rData.stats);
-          try {
-            localStorage.setItem(`spike_referral_stats_${norm}`, JSON.stringify(rData.stats));
-          } catch {}
-        }
-      })
-      .catch(() => {});
+    // Query referral stats and hashrate tier info
+    const syncLiveReferralData = () => {
+      if (!walletAddress) return;
+      fetch(`/api/referrals/stats/${walletAddress}`)
+        .then((res) => {
+          if (!res.ok || res.headers.get('content-type')?.includes('text/html')) return null;
+          return res.json();
+        })
+        .then((rData) => {
+          if (rData && rData.stats) {
+            setReferralStats((prev: any) => {
+              if (
+                !prev ||
+                prev.directPartners !== rData.stats.directPartners ||
+                prev.totalPartners !== rData.stats.totalPartners ||
+                (prev.referrals?.length || 0) !== (rData.stats.referrals?.length || 0)
+              ) {
+                return rData.stats;
+              }
+              return prev;
+            });
+            if (rData.stats.hashrateInfo) {
+              setHashrateInfo(rData.stats.hashrateInfo);
+            }
+            try {
+              localStorage.setItem(`spike_referral_stats_${norm}`, JSON.stringify(rData.stats));
+            } catch {}
+          }
+        })
+        .catch(() => {});
+    };
+
+    // Immediate sync
+    syncLiveReferralData();
+
+    // Fast 3-second polling to immediately catch whenever someone joins via sponsor's referral link
+    const referralPollInterval = setInterval(syncLiveReferralData, 3000);
+
+    const handleWindowFocus = () => {
+      syncLiveReferralData();
+    };
+    window.addEventListener('focus', handleWindowFocus);
+
+    const handlePartnerRegistered = () => {
+      syncLiveReferralData();
+    };
+    window.addEventListener('spike_partner_registered', handlePartnerRegistered);
 
     return () => {
       if (unsubscribeFirestore) unsubscribeFirestore();
+      clearInterval(referralPollInterval);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('spike_partner_registered', handlePartnerRegistered);
       window.removeEventListener('spike_balance_updated', handleBalanceEvent);
       window.removeEventListener('spike_hashrate_updated', handleHashrateEvent);
       window.removeEventListener('storage', handleStorageChange);
@@ -1000,10 +1035,11 @@ export default function App() {
       }).catch(() => {});
     }
 
-    // Dynamically recalculate daily yield from all active rigs
+    // Dynamically recalculate daily yield from all active rigs (100 VH/s = 1 SPK in 60 days = 0.01667 SPK/day)
     const activeMining = updatedNodes.filter((n) => n.status === 'mining');
-    const calculatedYield = activeMining.reduce((acc, n) => acc + (n.hashrate * 39), 0);
-    setDailyEarnings(+calculatedYield.toFixed(2));
+    const calculatedDailySpk = activeMining.reduce((acc, n) => acc + ((n.hashrate || 100) / 6000), 0);
+    const calculatedYield = +(calculatedDailySpk * 1.12).toFixed(4);
+    setDailyEarnings(calculatedYield);
 
     const randomTxHash = `0x${Array.from({ length: 4 }, () =>
       Math.floor(Math.random() * 16).toString(16)
@@ -1851,6 +1887,8 @@ export default function App() {
               onClose={() => setIsDeployModalOpen(false)}
               onDeploy={handleDeployNode}
               existingCount={nodes.length}
+              walletBalance={walletBalance}
+              onClaimFaucet={handleTopUpUsdt}
             />
           )}
           {isClaimModalOpen && (

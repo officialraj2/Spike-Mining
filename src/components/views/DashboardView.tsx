@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MiningNode, RewardTransaction, HashrateLevelInfo } from '../../types';
+import { MiningNode, RewardTransaction, HashrateLevelInfo, ReferralStatsData } from '../../types';
 import { SPIKE_LOGO_URL } from '../../data/mockData';
 import { TradingViewChart } from '../TradingViewChart';
 import { GoldenHawkMiningSection } from '../GoldenHawkMiningSection';
@@ -49,6 +49,7 @@ interface DashboardViewProps {
   onCopyText: (text: string) => void;
   walletAddress?: string;
   hashrateInfo?: HashrateLevelInfo | null;
+  referralStats?: ReferralStatsData | null;
   onClaimReferralBonus?: (amount: number) => void;
   onNavigateToReferrals?: () => void;
 }
@@ -71,6 +72,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onCopyText,
   walletAddress = '',
   hashrateInfo,
+  referralStats,
   onClaimReferralBonus,
   onNavigateToReferrals,
 }) => {
@@ -711,13 +713,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div className="flex items-center justify-between text-xs text-[#7df4ff] font-mono font-medium pt-1.5 border-t border-[#1c2b3b]/60">
               <span className="text-emerald-400">1 SPK in {hashrateInfo?.targetDays || 60} Days</span>
-              <span className="text-[#94a3b8]">{hashrateInfo?.directCount ?? 0} Directs</span>
+              <span className="text-[#00F0FF] font-bold">
+                {Math.max(referralStats?.directPartners ?? 0, hashrateInfo?.directCount ?? 0)} Directs
+              </span>
             </div>
-            {hashrateInfo?.nextTier && (
-              <div className="text-[10px] text-[#D4AF37] font-mono mt-1 truncate">
-                Next: {hashrateInfo.nextTier.level} ({hashrateInfo.nextTier.neededDirects} directs needed)
-              </div>
-            )}
+            <div className="flex items-center justify-between text-[11px] text-[#94a3b8] font-mono pt-1">
+              <span>Total Team: <strong className="text-white font-bold">{Math.max(referralStats?.totalPartners ?? 0, hashrateInfo?.totalTeamCount ?? 0)}</strong></span>
+              {hashrateInfo?.nextTier && (
+                <span className="text-[#D4AF37] truncate">
+                  Next: {hashrateInfo.nextTier.level} ({hashrateInfo.nextTier.neededDirects} needed)
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -847,6 +854,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Direct Partner & Team Referral Network Live Sync Bar */}
+      <div className="bg-gradient-to-r from-[#122130] via-[#0d1d2c] to-[#122130] border border-[#1c2b3b] rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/35 text-[#00F0FF] flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(0,240,255,0.25)]">
+            <span className="material-symbols-outlined text-[22px]">groups</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-headline font-bold text-white uppercase tracking-wider">
+                Direct Referral &amp; Team Network
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live Network Sync
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#94a3b8] font-mono mt-1">
+              <span>Direct Partners: <strong className="text-[#00F0FF] text-sm font-bold">{Math.max(referralStats?.directPartners ?? 0, hashrateInfo?.directCount ?? 0)}</strong></span>
+              <span className="text-[#334155]">•</span>
+              <span>Total Team: <strong className="text-white text-sm font-bold">{Math.max(referralStats?.totalPartners ?? 0, hashrateInfo?.totalTeamCount ?? 0)}</strong></span>
+              <span className="text-[#334155]">•</span>
+              <span>Active Rate: <strong className="text-[#D4AF37] font-semibold">{hashrateInfo?.level || 'Fresh user'} ({hashrateInfo?.hashrate ?? 100} VH/s)</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+          <button
+            onClick={() => onNavigateToReferrals?.()}
+            className="px-4 py-2 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)] cursor-pointer hover:scale-105 active:scale-95"
+          >
+            <span>View Team &amp; Referral System</span>
+            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+          </button>
         </div>
       </div>
 

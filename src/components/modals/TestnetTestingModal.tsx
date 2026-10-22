@@ -104,7 +104,7 @@ contract SPIKEMiningProtocol is Ownable {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-[#010f1e]/85 backdrop-blur-md transition-opacity"

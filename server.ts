@@ -10,7 +10,8 @@ dotenv.config();
 const app = express();
 const argPortIndex = process.argv.indexOf('--port');
 const argPort = argPortIndex !== -1 && process.argv[argPortIndex + 1] ? parseInt(process.argv[argPortIndex + 1], 10) : undefined;
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : (argPort || 3000);
+// Runtime environment strictly mandates port 3000 for dev & preview. Avoid port 8080 which is container nginx.
+const PORT = (argPort && argPort !== 8080) ? argPort : 3000;
 
 // Global Middleware & CORS
 app.use((req, res, next) => {

@@ -9,7 +9,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
         className="fixed inset-0 bg-[#010f1e]/80 backdrop-blur-md"
         onClick={onClose}

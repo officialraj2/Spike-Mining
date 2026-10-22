@@ -141,9 +141,9 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           <div>
             <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Combined Hashrate</div>
             <div className="text-2xl lg:text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
-              {totalHashrate.toFixed(2)} <span className="text-sm text-[#00F0FF] font-semibold">TH/s</span>
+              {totalHashrate.toFixed(0)} <span className="text-sm text-[#00F0FF] font-semibold">VH/s</span>
             </div>
-            <div className="text-[11px] text-[#7df4ff] font-mono mt-0.5">Stratum SHA-256 Engine</div>
+            <div className="text-[11px] text-[#7df4ff] font-mono mt-0.5">Falcon Titan VH/s Engine</div>
           </div>
           <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 text-[#00F0FF] flex items-center justify-center">
             <span className="material-symbols-outlined text-[22px]">speed</span>

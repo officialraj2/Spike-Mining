@@ -245,7 +245,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 select-none">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 select-none">
       {/* Clickable Backdrop to close on click outside */}
       <div
         className="fixed inset-0 bg-[#020b17]/85 backdrop-blur-md transition-opacity animate-fade-in"

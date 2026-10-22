@@ -489,9 +489,28 @@ class PersistentDatabase {
     // Deduplicate unique direct referee wallets
     const uniqueDirects = new Set<string>();
     directs.forEach((d) => {
-      const refAddr = (d.refereeAddress || '').toLowerCase();
+      const refAddr = (d.refereeAddress || '').toLowerCase().trim();
       if (refAddr && refAddr !== norm && refAddr !== userCode) {
         uniqueDirects.add(refAddr);
+      }
+    });
+
+    // ALSO check registered users table for any referee linked via referredBy
+    this.data.users.forEach((u) => {
+      if (u.referredBy) {
+        const rb = u.referredBy.toLowerCase().trim();
+        if (
+          rb === norm ||
+          rb === userCode ||
+          rb === `spike-${slice6}` ||
+          rb === slice6 ||
+          rb.includes(slice6)
+        ) {
+          const uAddr = u.address.toLowerCase().trim();
+          if (uAddr && uAddr !== norm && uAddr !== userCode) {
+            uniqueDirects.add(uAddr);
+          }
+        }
       }
     });
 
@@ -508,18 +527,33 @@ class PersistentDatabase {
     while (queue.length > 0) {
       const nextTier: string[] = [];
       for (const parent of queue) {
+        const pSlice = parent.startsWith('0x') ? parent.slice(2, 8) : parent.replace(/^(spike-|spk-)/i, '').slice(0, 6);
         const subReferrals = this.data.referrals.filter((r) => {
-          const ref = (r.referrerAddress || '').toLowerCase();
-          return ref === parent || (parent.startsWith('0x') && ref.includes(parent.slice(2, 8)));
+          const ref = (r.referrerAddress || '').toLowerCase().trim();
+          return ref === parent || (pSlice && ref.includes(pSlice));
         });
         for (const sr of subReferrals) {
-          const child = (sr.refereeAddress || '').toLowerCase();
+          const child = (sr.refereeAddress || '').toLowerCase().trim();
           if (child && !visited.has(child)) {
             visited.add(child);
             nextTier.push(child);
             downlineCount++;
           }
         }
+        // Also traverse downline via users table
+        this.data.users.forEach((u) => {
+          if (u.referredBy) {
+            const rb = u.referredBy.toLowerCase().trim();
+            if (rb === parent || (pSlice && rb.includes(pSlice))) {
+              const child = u.address.toLowerCase().trim();
+              if (child && !visited.has(child)) {
+                visited.add(child);
+                nextTier.push(child);
+                downlineCount++;
+              }
+            }
+          }
+        });
       }
       queue = nextTier;
     }
@@ -944,10 +978,10 @@ class PersistentDatabase {
         this.data.nodes.unshift({
           id: cn.id || `spk-node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           userAddress: norm,
-          name: cn.name || `Mining Rig #${this.getNodes(norm).length + 1}`,
+          name: cn.name || `Falcon Titan Apex Rig #${this.getNodes(norm).length + 1}`,
           region: cn.region || 'Frankfurt (EU-Central BSC Pool)',
           status: cn.status || 'mining',
-          hashrate: Number(cn.hashrate) || 142.8,
+          hashrate: Number(cn.hashrate) || 100,
           temperature: cn.temperature || 63,
           shareAcceptance: Number(cn.shareAcceptance) || 99.9,
           fanSpeed: Number(cn.fanSpeed) || 70,
@@ -2071,7 +2105,7 @@ class PersistentDatabase {
       name: rigName,
       region: 'Frankfurt (EU-Central BSC Pool)',
       status: 'mining',
-      hashrate: 142.8,
+      hashrate: 100,
       temperature: 63,
       shareAcceptance: 99.95,
       fanSpeed: 74,
@@ -2081,7 +2115,7 @@ class PersistentDatabase {
       logs: [
         `[${new Date().toLocaleTimeString()}] Smart Contract Call executed: Mining node provisioned for 10 USDT.`,
         `[${new Date().toLocaleTimeString()}] Backend executed PancakeSwap V2 Buy Route: +${amountOutSpk.toFixed(2)} SPK purchased & credited!`,
-        `[${new Date().toLocaleTimeString()}] Stratum target diff accepted: 1048576 (hash: 00000000...a4f2)`,
+        `[${new Date().toLocaleTimeString()}] Stratum target diff accepted: 100 VH/s active engine (1 SPK / 60 Days)`,
       ],
       costUsdt,
     });

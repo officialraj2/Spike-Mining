@@ -228,3 +228,23 @@ export interface TestnetTransaction {
   details: string;
   timestamp: string;
 }
+
+export interface ReferralStatsData {
+  address?: string;
+  directPartners: number;
+  downlinePartners: number;
+  totalPartners: number;
+  totalCommissions: number;
+  referrals: Array<{
+    id: string;
+    referrerAddress: string;
+    refereeAddress: string;
+    tier: number;
+    commissionUsdt: number;
+    volumeUsdt: number;
+    createdAt: string;
+  }>;
+  referredBy?: string | null;
+  referralCode?: string;
+  hashrateInfo?: HashrateLevelInfo;
+}
