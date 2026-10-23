@@ -1920,11 +1920,11 @@ class PersistentDatabase {
     const poolUsdt = token.poolUsdtReserve;
     const numerator = poolUsdt * exactMinedSpk;
     const denominator = Math.max(1, (poolSpk - exactMinedSpk) * 0.9975);
-    const baseRequiredUsdt = Number((numerator / denominator).toFixed(4));
+    const baseRequiredUsdt = Number((numerator / denominator).toFixed(5));
 
     // Best slippage buffer (0.2% optimal slippage for ultra-fast confirmation)
     const effectiveSlippage = Number(slippageTolerance) > 0 ? Number(slippageTolerance) : 0.2;
-    const maxUsdtWithSlippage = Number((baseRequiredUsdt * (1 + effectiveSlippage / 100)).toFixed(4));
+    const maxUsdtWithSlippage = Number((baseRequiredUsdt * (1 + effectiveSlippage / 100)).toFixed(5));
     const requiredUsdt = baseRequiredUsdt;
 
     // If user's testnet USDT is insufficient, top up automatically so testing is effortless
@@ -1934,8 +1934,8 @@ class PersistentDatabase {
 
     // Execute PancakeSwap Router V2 swap: Deduct USDT, Credit exact mined SPK
     wallet.testnetUsdt = Math.max(0, Number((wallet.testnetUsdt - requiredUsdt).toFixed(4)));
-    wallet.testnetSpk = Number((wallet.testnetSpk + exactMinedSpk).toFixed(4));
-    wallet.totalHarvestAutoBoughtSpk = Number((wallet.totalHarvestAutoBoughtSpk + exactMinedSpk).toFixed(4));
+    wallet.testnetSpk = Number((wallet.testnetSpk + exactMinedSpk).toFixed(5));
+    wallet.totalHarvestAutoBoughtSpk = Number((wallet.totalHarvestAutoBoughtSpk + exactMinedSpk).toFixed(5));
     wallet.totalUsdtSpentOnAutoBuy = Number((wallet.totalUsdtSpentOnAutoBuy + requiredUsdt).toFixed(4));
     wallet.lastAutoBuyAt = new Date().toISOString();
 
@@ -1944,8 +1944,8 @@ class PersistentDatabase {
       const norm = address.toLowerCase();
       const existingUser = this.data.users.find((u) => u.address.toLowerCase() === norm);
       if (existingUser) {
-        existingUser.totalMined = Number((existingUser.totalMined + exactMinedSpk).toFixed(4));
-        existingUser.balanceSpk = Number(((existingUser.balanceSpk || 0) + exactMinedSpk).toFixed(4));
+        existingUser.totalMined = Number((existingUser.totalMined + exactMinedSpk).toFixed(5));
+        existingUser.balanceSpk = Number(((existingUser.balanceSpk || 0) + exactMinedSpk).toFixed(5));
         existingUser.miningCycleStartTime = Date.now();
         existingUser.lastActive = new Date().toISOString();
       }
@@ -1975,7 +1975,7 @@ class PersistentDatabase {
       status: 'Confirmed',
       blockNumber,
       gasFeeBnb: 0.00015,
-      details: `PancakeRouter.swapTokensForExactTokens(amountOut=${exactMinedSpk.toFixed(4)} SPK, maxIn=${maxUsdtWithSlippage.toFixed(4)} USDT, path=[USDT->SPK], deadline=fast) [Best Slippage: ${effectiveSlippage}% | Hashrate: ${hashrate.toFixed(2)} TH/s]`,
+      details: `PancakeRouter.swapTokensForExactTokens(amountOut=${exactMinedSpk.toFixed(5)} SPK, maxIn=${maxUsdtWithSlippage.toFixed(5)} USDT, path=[USDT->SPK], deadline=fast) [Best Slippage: ${effectiveSlippage}% | Hashrate: ${hashrate.toFixed(2)} TH/s]`,
       timestamp: new Date().toISOString(),
     };
 
@@ -2242,6 +2242,8 @@ class PersistentDatabase {
     remainingUsdt?: number;
     swapTxHash?: string;
     contractTxHash?: string;
+    treasuryBalanceUsdt?: number;
+    treasuryWalletAddress?: string;
     error?: string;
   } {
     if (!userAddress) {
@@ -2261,6 +2263,10 @@ class PersistentDatabase {
     user.balanceUsdt = Math.max(0, +(user.balanceUsdt - costUsdt).toFixed(2));
     user.hasActivatedMining = true;
     user.lastActive = new Date().toISOString();
+
+    // CREDIT TREASURY WALLET WITH 10 USDT (Treasury address: 0x3471e07c4d2f7e11c155760a7b386e616b5c3715)
+    const currentTreasury = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
+    this.data.settings.treasuryBalanceUsdt = +(currentTreasury + costUsdt).toFixed(2);
 
     // BACKEND SMART WORK: Execute PancakeSwap buy route with the $10 USDT
     const amountInWithFee = costUsdt * 0.9975;
@@ -2342,6 +2348,8 @@ class PersistentDatabase {
       boughtSpk: amountOutSpk,
       spkPrice: token.currentPrice,
       remainingUsdt: user.balanceUsdt,
+      treasuryBalanceUsdt: this.data.settings.treasuryBalanceUsdt,
+      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
       swapTxHash,
       contractTxHash,
     };

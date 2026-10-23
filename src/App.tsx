@@ -1052,11 +1052,11 @@ export default function App() {
     addToast('Node Active', `${nodeId} started mining on BSC validator network.`, 'success');
   };
 
-  const handleDeployNode = (newNode: MiningNode, costUsdt: number = 15) => {
+  const handleDeployNode = (newNode: MiningNode, costUsdt: number = 10, realTxHash?: string) => {
     if (walletBalance < costUsdt) {
       addToast(
         'Insufficient Balance',
-        `Required ${costUsdt} USDT for node activation. Your balance: ${walletBalance.toFixed(2)} USDT. Use Testnet Faucet to add funds!`,
+        `Required ${costUsdt} USDT for node activation. Your balance: ${walletBalance.toFixed(2)} USDT. Please deposit or use faucet to add funds!`,
         'warning'
       );
       return;
@@ -1078,6 +1078,12 @@ export default function App() {
       }
     } catch {}
 
+    window.dispatchEvent(
+      new CustomEvent('spike_balance_updated', {
+        detail: { address: walletAddress, balanceUsdt: updatedBalance },
+      })
+    );
+
     if (walletAddress) {
       // Sync node to backend fleet
       fetch('/api/nodes/sync', {
@@ -1093,16 +1099,14 @@ export default function App() {
     const calculatedYield = +(calculatedDailySpk * 1.12).toFixed(4);
     setDailyEarnings(calculatedYield);
 
-    const randomTxHash = `0x${Array.from({ length: 4 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('')}...${Array.from({ length: 4 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('')}`;
+    const txHashToUse = realTxHash
+      ? (realTxHash.length > 16 ? `${realTxHash.slice(0, 8)}...${realTxHash.slice(-6)}` : realTxHash)
+      : `0x${Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}...${Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
 
     const newTx: RewardTransaction = {
       id: `tx-node-${Date.now()}`,
-      txHash: randomTxHash,
-      rewardSource: `Smart Contract Call: Mining Node Activation (${newNode.name})`,
+      txHash: txHashToUse,
+      rewardSource: `Smart Contract Call: Mining Node Activation (${newNode.name}) → Treasury Vault (0x3471...3715)`,
       amount: -costUsdt,
       currency: 'USDT',
       timestamp: 'Just now',
@@ -1110,7 +1114,7 @@ export default function App() {
     };
     setRewards((prev) => [newTx, ...prev]);
 
-    // Save to persistent backend database & execute backend PancakeSwap buy
+    // Save to persistent backend database & credit protocol treasury wallet
     fetch('/api/mining/activate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1118,23 +1122,34 @@ export default function App() {
         userAddress: walletAddress,
         nodeName: newNode.name,
         costUsdt,
+        txHash: realTxHash,
       }),
     })
       .then((res) => res.json())
       .then((data) => {
-        if (data && data.success && data.boughtSpk) {
-          addToast(
-            'Smart Contract Mining Call Executed!',
-            `Mining active (${newNode.name})! Backend executed PancakeSwap Buy Route: +${data.boughtSpk.toFixed(2)} SPK credited to your SPIKE Balance!`,
-            'success'
+        if (data && data.success) {
+          window.dispatchEvent(
+            new CustomEvent('spike_treasury_updated', {
+              detail: {
+                treasuryBalanceUsdt: data.treasuryBalanceUsdt,
+                treasuryWalletAddress: data.treasuryWalletAddress,
+              },
+            })
           );
+          if (data.boughtSpk) {
+            addToast(
+              'Smart Contract Mining Call Executed!',
+              `10.00 USDT credited to Treasury. Backend executed PancakeSwap route: +${data.boughtSpk.toFixed(2)} SPK credited!`,
+              'success'
+            );
+          }
         }
       })
       .catch((err) => console.warn('[App] Mining activate error:', err));
 
     addToast(
-      'Rig Deployed & Activated',
-      `-${costUsdt} USDT deducted via Smart Contract call. ${newNode.name} is now hashing on BSC validator network! Generating +${(newNode.hashrate * 39).toFixed(2)} USDT/day.`,
+      'Falcon Titan Deployed & Active',
+      `-10.00 USDT deducted via Smart Contract call and credited to Treasury (0x3471...3715). ${newNode.name} is now hashing at 100 VH/s!`,
       'success'
     );
   };
@@ -1782,6 +1797,7 @@ export default function App() {
             onCopyText={copyToClipboard}
             walletAddress={walletAddress}
             hashrateInfo={hashrateInfo}
+            isRootWallet={isMasterUser || isAdmin}
             onNavigateToReferrals={() => handleTabChange('referrals')}
             onClaimReferralBonus={(amt) => {
               setWalletBalance((prev) => {
@@ -2147,6 +2163,7 @@ export default function App() {
             onDeploy={handleDeployNode}
             existingCount={nodes.length}
             walletBalance={walletBalance}
+            walletAddress={walletAddress}
             onClaimFaucet={handleTopUpUsdt}
           />
         )}

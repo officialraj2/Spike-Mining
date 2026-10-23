@@ -52,6 +52,7 @@ interface DashboardViewProps {
   referralStats?: ReferralStatsData | null;
   onClaimReferralBonus?: (amount: number) => void;
   onNavigateToReferrals?: () => void;
+  isRootWallet?: boolean;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -75,6 +76,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   referralStats,
   onClaimReferralBonus,
   onNavigateToReferrals,
+  isRootWallet = false,
 }) => {
   // Testnet Engine & Hashrate Auto-Buy States
   const [testnetWallet, setTestnetWallet] = useState<{
@@ -680,6 +682,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         onClaimReward={onClaimReferralBonus}
         onDeployMoreNodes={onOpenDeployModal}
         onOpenDepositModal={onOpenDepositModal}
+        isRootWallet={isRootWallet}
         onAutoBuySuccess={(tx, wallet, token) => {
           if (wallet) setTestnetWallet(wallet);
           if (token) setSpikeTokenInfo(token);
