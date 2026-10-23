@@ -62,19 +62,15 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 // Test Connection on boot
 export async function testConnection(): Promise<boolean> {
+  if (!db) return false;
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log('[Firebase] Firestore connection verified successfully.');
-    return true;
-  } catch (error: any) {
-    const msg = error?.message || String(error);
-    if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Quota limit exceeded')) {
-      console.warn('[Firebase] Free daily quota limit active; continuing in offline-persistent database mode.');
-    } else if (msg.includes('the client is offline')) {
-      console.warn('[Firebase] Client is offline; local storage active.');
-    } else {
-      console.log('[Firebase] Connection ping test complete.');
-    }
+    const docRef = doc(db, 'test', 'connection');
+    const snap = await Promise.race([
+      getDocFromServer(docRef).catch(() => null),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+    ]);
+    return !!snap;
+  } catch {
     return false;
   }
 }

@@ -3,11 +3,30 @@ import { TEAM_MILESTONE_TIERS } from '../../data/mockData';
 import { TeamRewardMilestonesSection } from '../TeamRewardMilestonesSection';
 import { HashrateLevelInfo } from '../../types';
 
+export interface WithdrawalItem {
+  id: string;
+  userAddress: string;
+  destinationAddress: string;
+  amount: number;
+  source?: string;
+  milestoneLabel?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  txHash?: string;
+  adminNote?: string;
+  requestedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
 export interface ReferralStatsData {
   directPartners: number;
   downlinePartners: number;
   totalPartners: number;
   totalCommissions: number;
+  milestoneRewardsClaimed?: number;
+  withdrawals?: WithdrawalItem[];
+  pendingWithdrawalsAmount?: number;
+  approvedWithdrawalsAmount?: number;
   referrals: Array<{
     id: string;
     referrerAddress: string;
@@ -65,10 +84,9 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     window.location.hostname.includes('127.0.0.1')
   );
 
-  const [linkDomain, setLinkDomain] = useState<'official' | 'current'>(isPreviewOrDev ? 'current' : 'official');
+  // Official production domain (spikenodes.com) for all public referral links
+  const selectedBaseOrigin = 'https://spikenodes.com';
   const [linkFormat, setLinkFormat] = useState<'short' | 'full'>('short');
-
-  const selectedBaseOrigin = linkDomain === 'official' ? 'https://spikenodes.com' : currentOrigin;
 
   // Short referral link with sponsor wallet parameter for 100% deterministic matching
   const shortRefLink = walletAddress
@@ -144,24 +162,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     };
   }, [refreshLiveStats]);
 
-  // Real-time calculated partners state from live stats
-  const effectiveStats = localStats || referralStats;
-  const directPartners = effectiveStats?.directPartners ?? 0;
-  const downlinePartners = effectiveStats?.downlinePartners ?? 0;
-  const totalTeamPartners = directPartners + downlinePartners;
-  const totalEarnedUsdt = effectiveStats?.totalCommissions ?? 0;
-  
-  const referralsList = effectiveStats?.referrals || [];
-  const rawSponsor = effectiveStats?.referredBy || null;
-  const isSelfSponsor = Boolean(
-    rawSponsor &&
-    walletAddress &&
-    (rawSponsor.toLowerCase() === walletAddress.toLowerCase() ||
-     rawSponsor.toLowerCase() === refCode.toLowerCase() ||
-     rawSponsor.toLowerCase().replace(/^(spike-|spk-)/i, '') === walletAddress.toLowerCase().slice(2, 8))
-  );
-  const activeSponsor = isSelfSponsor ? null : rawSponsor;
-
   // Track claimed milestone IDs per wallet
   const storageKey = `spike_claimed_milestones_${walletAddress || 'default'}`;
   const [claimedMilestones, setClaimedMilestones] = useState<string[]>(() => {
@@ -182,6 +182,77 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     }
   }, [walletAddress]);
 
+  // Real-time calculated partners state from live stats
+  const effectiveStats = localStats || referralStats;
+  const directPartners = effectiveStats?.directPartners ?? 0;
+  const downlinePartners = effectiveStats?.downlinePartners ?? 0;
+  const totalTeamPartners = directPartners + downlinePartners;
+
+  // Calculate total milestone reward sum claimed by this user
+  const claimedMilestoneRewardSum = TEAM_MILESTONE_TIERS
+    .filter((m) => claimedMilestones.includes(m.id))
+    .reduce((sum, m) => sum + m.rewardUsd, 0);
+
+  const serverEarned = effectiveStats?.totalCommissions ?? 0;
+  // Total Earned will always display the claimed milestone rewards!
+  const totalEarnedUsdt = Math.max(serverEarned, +(serverEarned + claimedMilestoneRewardSum).toFixed(2), claimedMilestoneRewardSum);
+  
+  const referralsList = effectiveStats?.referrals || [];
+  const rawSponsor = effectiveStats?.referredBy || null;
+  const isSelfSponsor = Boolean(
+    rawSponsor &&
+    walletAddress &&
+    (rawSponsor.toLowerCase() === walletAddress.toLowerCase() ||
+     rawSponsor.toLowerCase() === refCode.toLowerCase() ||
+     rawSponsor.toLowerCase().replace(/^(spike-|spk-)/i, '') === walletAddress.toLowerCase().slice(2, 8))
+  );
+  const activeSponsor = isSelfSponsor ? null : rawSponsor;
+
+  // Withdrawal Modal State & User Request Management
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
+  const [withdrawAddress, setWithdrawAddress] = useState<string>(walletAddress || '');
+  const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState(false);
+  const [withdrawMessage, setWithdrawMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [activeWithdrawals, setActiveWithdrawals] = useState<WithdrawalItem[]>([]);
+
+  // Fetch user's withdrawal requests from backend & Firestore
+  const fetchUserWithdrawals = React.useCallback(async () => {
+    if (!walletAddress || !walletAddress.startsWith('0x')) return;
+    try {
+      const res = await fetch(`/api/withdrawals?userAddress=${walletAddress}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.withdrawals)) {
+          setActiveWithdrawals(data.withdrawals);
+        }
+      }
+    } catch {}
+  }, [walletAddress]);
+
+  useEffect(() => {
+    fetchUserWithdrawals();
+    const interval = setInterval(fetchUserWithdrawals, 4000);
+    return () => clearInterval(interval);
+  }, [fetchUserWithdrawals]);
+
+  // Keep withdrawAddress synced with connected wallet
+  useEffect(() => {
+    if (walletAddress) {
+      setWithdrawAddress(walletAddress);
+    }
+  }, [walletAddress]);
+
+  const pendingAmount = activeWithdrawals
+    .filter((w) => w.status === 'pending')
+    .reduce((sum, w) => sum + w.amount, 0);
+  const approvedAmount = activeWithdrawals
+    .filter((w) => w.status === 'approved')
+    .reduce((sum, w) => sum + w.amount, 0);
+
+  // Available rewards to withdraw
+  const availableToWithdraw = Math.max(0, +(totalEarnedUsdt - (pendingAmount + approvedAmount)).toFixed(2));
+
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
 
   const nextClaimable = TEAM_MILESTONE_TIERS.find(
@@ -200,12 +271,82 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const handleClaimMilestone = (amountUsd: number, milestoneLabel: string) => {
     onClaimReferralRewards(amountUsd, milestoneLabel);
     setClaimSuccess(milestoneLabel);
+    const milestoneId = nextClaimable?.id || TEAM_MILESTONE_TIERS.find(m => m.label === milestoneLabel)?.id || '';
     setClaimedMilestones((prev) => {
-      const updated = [...prev, nextClaimable?.id || ''];
+      const updated = prev.includes(milestoneId) ? prev : [...prev, milestoneId];
       try { localStorage.setItem(storageKey, JSON.stringify(updated)); } catch {}
       return updated;
     });
+
+    // Update localStats totalCommissions immediately so the Total Earned card updates on screen
+    setLocalStats((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        totalCommissions: +(Number(prev.totalCommissions || 0) + amountUsd).toFixed(2),
+        milestoneRewardsClaimed: +(Number(prev.milestoneRewardsClaimed || 0) + amountUsd).toFixed(2),
+      };
+    });
+
     setTimeout(() => setClaimSuccess(null), 3500);
+  };
+
+  // Submit withdrawal request to backend & Admin Panel
+  const handleExecuteWithdrawalRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountNum = parseFloat(withdrawAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setWithdrawMessage({ text: 'Please enter a valid withdrawal amount.', type: 'error' });
+      return;
+    }
+    if (amountNum > availableToWithdraw) {
+      setWithdrawMessage({
+        text: `Amount exceeds available reward balance (${availableToWithdraw.toFixed(2)} USDT available).`,
+        type: 'error',
+      });
+      return;
+    }
+    const dest = withdrawAddress.trim();
+    if (!dest.startsWith('0x') || dest.length !== 42) {
+      setWithdrawMessage({ text: 'Please enter a valid BEP-20 (BSC) wallet address starting with 0x (42 characters).', type: 'error' });
+      return;
+    }
+
+    setIsSubmittingWithdraw(true);
+    setWithdrawMessage(null);
+    try {
+      const res = await fetch('/api/withdrawals/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userAddress: walletAddress,
+          destinationAddress: dest,
+          amount: amountNum,
+          source: 'milestone_reward',
+          milestoneLabel: 'Team Milestone Career Rewards',
+        }),
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        setWithdrawMessage({
+          text: `✓ Withdrawal request for ${amountNum.toFixed(2)} USDT submitted! Sent to Admin Panel for review & approval.`,
+          type: 'success',
+        });
+        setWithdrawAmount('');
+        fetchUserWithdrawals();
+        refreshLiveStats();
+        setTimeout(() => {
+          setIsWithdrawModalOpen(false);
+          setWithdrawMessage(null);
+        }, 3000);
+      } else {
+        setWithdrawMessage({ text: data?.error || 'Failed to submit withdrawal request.', type: 'error' });
+      }
+    } catch {
+      setWithdrawMessage({ text: 'Network error submitting request. Please try again.', type: 'error' });
+    } finally {
+      setIsSubmittingWithdraw(false);
+    }
   };
 
   return (
@@ -261,48 +402,16 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
-                  Referral Link Target
+                  Your Referral Link
                 </span>
-                <div className="flex items-center bg-[#0a0f1d] p-1 rounded-xl border border-[#1c2b3b] shadow-inner gap-1">
-                  <button
-                    onClick={() => setLinkDomain('official')}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all ${
-                      linkDomain === 'official'
-                        ? 'bg-[#00F0FF] text-[#0A0F1D] font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]'
-                        : 'text-[#94a3b8] hover:text-white hover:bg-[#142232]'
-                    }`}
-                    title="Official production domain (spikenodes.com) for public release"
-                  >
-                    <span>🌐 spikenodes.com</span>
-                    <span className={`text-[9px] px-1 py-0.2 rounded font-sans uppercase tracking-wider ${
-                      linkDomain === 'official' ? 'bg-[#0A0F1D]/20 text-[#0A0F1D] font-bold' : 'bg-[#1c2b3b] text-gray-400'
-                    }`}>
-                      Prod
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setLinkDomain('current')}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono transition-all ${
-                      linkDomain === 'current'
-                        ? 'bg-emerald-400 text-[#0A0F1D] font-bold shadow-[0_0_12px_rgba(52,211,153,0.35)]'
-                        : 'text-[#94a3b8] hover:text-white hover:bg-[#142232]'
-                    }`}
-                    title="Direct preview app URL (Tested & working right now in preview tabs)"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-950 animate-pulse"></span>
-                    <span>Preview App</span>
-                    <span className={`text-[9px] px-1 py-0.2 rounded font-sans uppercase tracking-wider ${
-                      linkDomain === 'current' ? 'bg-emerald-950 text-emerald-200 font-bold' : 'bg-emerald-950/60 text-emerald-400 border border-emerald-500/30'
-                    }`}>
-                      Live Test
-                    </span>
-                  </button>
-                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono bg-[#00F0FF]/10 text-[#00F0FF] border border-[#00F0FF]/30 font-bold">
+                  <span>🌐 spikenodes.com</span>
+                </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-mono flex items-center gap-1 ${linkDomain === 'current' ? 'text-emerald-400' : 'text-[#00F0FF]'}`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                  {linkDomain === 'current' ? '✓ Working in Live Preview' : '✓ Production URL Ready'}
+                <span className="text-[10px] font-mono flex items-center gap-1 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>✓ Verified Official Link</span>
                 </span>
               </div>
             </div>
@@ -315,19 +424,9 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 value={activeLinkToCopy}
                 className="bg-transparent text-white font-mono text-xs sm:text-sm truncate flex-1 tracking-tight border-none outline-none select-all"
               />
-              <a
-                href={activeLinkToCopy}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-lg bg-[#142232] hover:bg-[#1e334c] text-[#00F0FF] border border-[#1c2b3b] hover:border-[#00F0FF]/40 text-xs font-mono font-bold transition-all flex items-center gap-1 shrink-0"
-                title="Open and test referral link in a new tab"
-              >
-                <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                <span className="hidden sm:inline text-[11px]">Test</span>
-              </a>
               <button
                 onClick={handleCopy}
-                className="px-3 sm:px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95"
+                className="px-3 sm:px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px]">
                   {copied ? 'check' : 'content_copy'}
@@ -385,36 +484,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 )}
               </div>
             </div>
-
-            {/* Link Format Options */}
-            <div className="mt-2 flex flex-wrap items-center justify-between text-[11px] font-mono text-[#94a3b8] px-1 gap-2">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] uppercase tracking-wider text-gray-400">Format:</span>
-                <button
-                  type="button"
-                  onClick={() => setLinkFormat('short')}
-                  className={`flex items-center gap-1.5 hover:text-white transition-colors ${
-                    linkFormat === 'short' ? 'text-[#00F0FF] font-bold' : 'text-[#94a3b8]'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${linkFormat === 'short' ? 'bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]' : 'bg-[#1c2b3b]'}`}></span>
-                  Short Link (/ref/{refCode})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLinkFormat('full')}
-                  className={`flex items-center gap-1.5 hover:text-white transition-colors ${
-                    linkFormat === 'full' ? 'text-[#00F0FF] font-bold' : 'text-[#94a3b8]'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${linkFormat === 'full' ? 'bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]' : 'bg-[#1c2b3b]'}`}></span>
-                  Address Link (/?ref=0x...)
-                </button>
-              </div>
-              <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                <span>✓ Both formats fully active</span>
-              </span>
-            </div>
           </div>
 
           <div className="md:w-64 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-between">
@@ -428,46 +497,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 setCopiedCode(true);
                 setTimeout(() => setCopiedCode(false), 2000);
               }}
-              className="px-3 py-1.5 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1 font-mono font-bold"
+              className="px-3 py-1.5 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1 font-mono font-bold cursor-pointer"
               title="Copy Code"
             >
               <span className="material-symbols-outlined text-[16px]">{copiedCode ? 'check' : 'content_copy'}</span>
               <span>{copiedCode ? 'Copied' : 'Copy'}</span>
             </button>
-          </div>
-        </div>
-
-        {/* Automated Referral Tracking Banner */}
-        <div className="p-4 bg-[#0a1220] rounded-xl border border-[#1c2b3b] flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/30 text-[#00F0FF] flex items-center justify-center shrink-0 mt-0.5">
-              <span className="material-symbols-outlined text-[20px]">how_to_reg</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-headline font-bold text-white">
-                  Automated Sponsor & Referral Tracking
-                </span>
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
-                  INSTANT SYNC
-                </span>
-              </div>
-              <p className="text-[11px] text-[#94a3b8] mt-0.5 max-w-xl">
-                When anyone connects their wallet using your referral link, they are automatically linked into your team and your milestone rewards update in real time.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
-            {onOpenVerificationModal && (
-              <button
-                onClick={() => onOpenVerificationModal(refCode)}
-                className="px-3.5 py-2 rounded-xl bg-[#142232] hover:bg-[#1e334c] text-white border border-[#1c2b3b] hover:border-[#00F0FF]/40 text-xs font-mono font-bold transition-all flex items-center gap-1.5 shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">verified</span>
-                <span>Verify Sponsor Link</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -587,12 +622,44 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
-          <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Total Earned</div>
-          <div className="text-3xl font-extrabold font-headline text-[#D4AF37] mt-1 tabular-nums tracking-tight">
-            +{totalEarnedUsdt.toFixed(2)} <span className="text-sm text-white font-semibold">USDT</span>
+        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+                Total Earned
+              </div>
+              <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 uppercase">
+                Milestones
+              </span>
+            </div>
+            <div className="text-3xl font-extrabold font-headline text-[#D4AF37] mt-1 tabular-nums tracking-tight">
+              +{totalEarnedUsdt.toFixed(2)} <span className="text-sm text-white font-semibold">USDT</span>
+            </div>
+            <div className="text-xs text-[#D4AF37] font-mono mt-1 font-medium flex flex-wrap items-center justify-between gap-1">
+              <span>Claimed from Team Milestones</span>
+              {pendingAmount > 0 && (
+                <span className="text-amber-400 font-mono text-[10px] animate-pulse">
+                  (${pendingAmount.toFixed(2)} Pending)
+                </span>
+              )}
+            </div>
           </div>
-          <div className="text-xs text-[#D4AF37] font-mono mt-1 font-medium">Claimed from Team Milestones</div>
+
+          {/* User Requested: Withdrawal Button directly below Total Earned */}
+          <div className="mt-4 pt-3 border-t border-[#1c2b3b]">
+            <button
+              type="button"
+              onClick={() => {
+                setWithdrawAmount(availableToWithdraw > 0 ? String(availableToWithdraw) : '');
+                setWithdrawAddress(walletAddress || '');
+                setIsWithdrawModalOpen(true);
+              }}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.35)] transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+              <span>Withdraw Rewards {availableToWithdraw > 0 ? `(${availableToWithdraw.toFixed(2)} USDT)` : ''}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -660,6 +727,232 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* ============================================================
+          WITHDRAWAL REQUEST MODAL (TEAM MILESTONE REWARDS)
+         ============================================================ */}
+      {isWithdrawModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-lg bg-[#0a1424] border-2 border-[#D4AF37]/50 rounded-2xl shadow-[0_0_50px_rgba(212,175,55,0.25)] p-5 sm:p-7 space-y-5 max-h-[90vh] overflow-y-auto">
+            {/* Ambient Top Glow */}
+            <div className="absolute top-0 left-1/4 right-1/4 h-1 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
+
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37]/20 to-[#00F0FF]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-inner">
+                  <span className="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-xl font-black font-headline text-white tracking-tight">
+                    Withdraw Milestone Rewards
+                  </h3>
+                  <p className="text-xs text-[#94a3b8] font-mono">
+                    Team Career Milestones · BEP-20 Network
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsWithdrawModalOpen(false);
+                  setWithdrawMessage(null);
+                }}
+                className="w-8 h-8 rounded-lg bg-[#142232] text-[#94a3b8] hover:text-white hover:bg-[#1e334c] flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+
+            {/* Balance Overview Card */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-[#0d1d2c] via-[#091828] to-[#0d1d2c] border border-[#1c2b3b] space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono text-[#94a3b8] uppercase tracking-wider">
+                  Available Rewards to Withdraw
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
+                  READY
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl sm:text-3xl font-extrabold font-headline text-[#D4AF37] tabular-nums">
+                  {availableToWithdraw.toFixed(2)}
+                </span>
+                <span className="text-sm font-bold text-white font-mono">USDT</span>
+                <span className="text-[11px] text-[#94a3b8] font-mono ml-auto">
+                  Total Claimed: ${totalEarnedUsdt.toFixed(2)}
+                </span>
+              </div>
+              {pendingAmount > 0 && (
+                <div className="text-[11px] font-mono text-amber-300/90 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                  <span>You have <strong>${pendingAmount.toFixed(2)} USDT</strong> currently pending Admin approval.</span>
+                </div>
+              )}
+            </div>
+
+            {/* Withdrawal Form */}
+            <form onSubmit={handleExecuteWithdrawalRequest} className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-mono font-bold text-[#c6c6cc]">
+                    Withdrawal Amount (USDT)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawAmount(String(availableToWithdraw))}
+                    className="text-[11px] font-mono font-bold text-[#00F0FF] hover:underline cursor-pointer"
+                  >
+                    MAX ({availableToWithdraw.toFixed(2)})
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="any"
+                    min="1"
+                    max={availableToWithdraw}
+                    placeholder="Enter amount (e.g. 15.00)"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    className="w-full bg-[#05111e] border border-[#1c2b3b] focus:border-[#D4AF37] rounded-xl px-4 py-3 text-white font-mono text-sm outline-none transition-colors"
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-xs text-[#94a3b8]">
+                    USDT
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono font-bold text-[#c6c6cc] mb-1.5">
+                  Destination BSC (BEP-20) Wallet Address
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="0x..."
+                    value={withdrawAddress}
+                    onChange={(e) => setWithdrawAddress(e.target.value)}
+                    className="w-full bg-[#05111e] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-4 py-3 text-white font-mono text-xs sm:text-sm outline-none transition-colors"
+                  />
+                  {walletAddress && withdrawAddress.toLowerCase() === walletAddress.toLowerCase() && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Connected Wallet
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Protocol Specs Badge */}
+              <div className="p-3 rounded-xl bg-[#071322] border border-[#1c2b3b] text-xs font-mono space-y-1 text-[#94a3b8]">
+                <div className="flex justify-between">
+                  <span>Network:</span>
+                  <span className="text-white font-semibold">Binance Smart Chain (BEP-20)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Protocol Fee:</span>
+                  <span className="text-emerald-400 font-bold">0.00 USDT (0%)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Approval Method:</span>
+                  <span className="text-[#00F0FF] font-semibold">Review By Nodescan</span>
+                </div>
+              </div>
+
+              {withdrawMessage && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-mono flex items-start gap-2 border ${
+                    withdrawMessage.type === 'success'
+                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                      : 'bg-red-500/10 text-red-300 border-red-500/30'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
+                    {withdrawMessage.type === 'success' ? 'check_circle' : 'error'}
+                  </span>
+                  <span>{withdrawMessage.text}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmittingWithdraw || availableToWithdraw <= 0}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingWithdraw ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                    <span>Submitting Request...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[18px]">send</span>
+                    <span>Submit Withdrawal Request</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Withdrawal Requests History */}
+            <div className="pt-3 border-t border-[#1c2b3b] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-headline font-bold text-white uppercase tracking-wider">
+                  Your Withdrawal Requests
+                </span>
+                <span className="text-[10px] font-mono text-[#94a3b8]">
+                  {activeWithdrawals.length} Total
+                </span>
+              </div>
+
+              {activeWithdrawals.length === 0 ? (
+                <div className="py-4 text-center text-xs font-mono text-[#94a3b8] bg-[#071322] rounded-xl border border-[#1c2b3b]">
+                  No withdrawal requests made yet.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                  {activeWithdrawals.map((w) => (
+                    <div
+                      key={w.id}
+                      className="p-2.5 rounded-xl bg-[#071322] border border-[#1c2b3b] flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-headline font-bold text-white">
+                            {w.amount.toFixed(2)} USDT
+                          </span>
+                          <span
+                            className={`px-2 py-0.2 rounded text-[9px] font-mono font-bold uppercase ${
+                              w.status === 'approved'
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                : w.status === 'pending'
+                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
+                                : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                            }`}
+                          >
+                            {w.status === 'approved' ? '✓ DONE / APPROVED' : w.status === 'pending' ? '⏳ PENDING REVIEW' : '✕ REJECTED'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] font-mono text-[#94a3b8] mt-0.5">
+                          To: {w.destinationAddress ? `${w.destinationAddress.slice(0, 8)}...${w.destinationAddress.slice(-6)}` : 'Wallet'}
+                        </div>
+                        {w.txHash && (
+                          <div className="text-[10px] font-mono text-emerald-400 truncate max-w-xs mt-0.5">
+                            Tx: {w.txHash.slice(0, 16)}...
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0 text-[10px] font-mono text-[#94a3b8]">
+                        {new Date(w.requestedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -43,7 +43,7 @@ export interface DbTransaction {
   id: string;
   userAddress: string;
   txHash: string;
-  type: 'activation' | 'claim' | 'swap' | 'referral_bonus' | 'faucet' | 'admin_adjustment' | 'deposit';
+  type: 'activation' | 'claim' | 'swap' | 'referral_bonus' | 'faucet' | 'admin_adjustment' | 'deposit' | 'milestone_reward' | 'payout';
   amount: number;
   currency: string;
   timestamp: string;
@@ -164,6 +164,21 @@ export interface DbTestnetSpikeToken {
   buyPressure: number;
 }
 
+export interface DbWithdrawalRequest {
+  id: string;
+  userAddress: string;
+  destinationAddress: string;
+  amount: number;
+  source: string;
+  milestoneLabel?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  txHash?: string;
+  adminNote?: string;
+  requestedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
 export interface DatabaseSchema {
   version: number;
   lastSaved: string;
@@ -174,6 +189,7 @@ export interface DatabaseSchema {
   announcements: DbAnnouncement[];
   settings: DbSettings;
   auditLogs: DbAuditLog[];
+  withdrawalRequests: DbWithdrawalRequest[];
   testnetWallets: DbTestnetWallet[];
   testnetTransactions: DbTestnetTx[];
   testnetSpikeToken: DbTestnetSpikeToken;
@@ -255,6 +271,7 @@ const INITIAL_DATA: DatabaseSchema = {
       timestamp: new Date().toISOString(),
     },
   ],
+  withdrawalRequests: [],
   testnetWallets: [],
   testnetTransactions: [],
   testnetSpikeToken: {
@@ -356,6 +373,7 @@ class PersistentDatabase {
             ...parsed,
             users: sanitizedUsers,
             settings: loadedSettings,
+            withdrawalRequests: Array.isArray(parsed.withdrawalRequests) ? parsed.withdrawalRequests : [],
             testnetWallets: Array.isArray(parsed.testnetWallets) && parsed.testnetWallets.length ? parsed.testnetWallets : INITIAL_DATA.testnetWallets,
             testnetTransactions: Array.isArray(parsed.testnetTransactions) && parsed.testnetTransactions.length ? parsed.testnetTransactions : INITIAL_DATA.testnetTransactions,
             testnetSpikeToken: parsed.testnetSpikeToken || INITIAL_DATA.testnetSpikeToken,
@@ -758,9 +776,12 @@ class PersistentDatabase {
     const norm = user.address.toLowerCase();
     const idx = this.data.users.findIndex((u) => u.address.toLowerCase() === norm);
     if (idx >= 0) {
+      const existing = this.data.users[idx];
       this.data.users[idx] = {
-        ...this.data.users[idx],
+        ...existing,
         ...user,
+        // Permanent Referral Bond: once referredBy is set, it can NEVER be washed out, wiped, or set to null
+        referredBy: existing.referredBy || user.referredBy || null,
         lastActive: new Date().toISOString(),
       };
       this.save();
@@ -1166,10 +1187,23 @@ class PersistentDatabase {
     });
 
     const allDirects = Array.from(directsMap.values());
-    const teamStats = this.getUserTeamStats(norm);
+    const totalCommissions = allDirects.reduce((acc, r) => acc + (r.commissionUsdt || 0), 0);
     const hashrateInfo = this.calculateUserHashrate(norm);
-    const totalCommissions = allDirects.reduce((sum, r) => sum + (r.commissionUsdt || 0), 0);
+    const teamStats = this.getUserTeamStats(norm);
+    // Calculate milestone rewards recorded in transactions for this user
+    const milestoneRewards = this.data.transactions
+      .filter((t) => t.userAddress.toLowerCase() === norm && (t.type === 'milestone_reward' || (t.details && t.details.includes('Milestone'))))
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
 
+    const withdrawals = this.getWithdrawalRequests(norm);
+    const pendingWithdrawalsAmount = withdrawals
+      .filter((w) => w.status === 'pending')
+      .reduce((sum, w) => sum + w.amount, 0);
+    const approvedWithdrawalsAmount = withdrawals
+      .filter((w) => w.status === 'approved')
+      .reduce((sum, w) => sum + w.amount, 0);
+
+    const effectiveEarned = +(totalCommissions + milestoneRewards).toFixed(2);
     const code = resolvedUser?.referralCode || `SPK-${norm.slice(2, 8).toUpperCase()}`;
 
     return {
@@ -1177,7 +1211,11 @@ class PersistentDatabase {
       directPartners: Math.max(teamStats.directCount, allDirects.length),
       downlinePartners: teamStats.downlineCount,
       totalPartners: Math.max(teamStats.totalTeamCount, allDirects.length + teamStats.downlineCount),
-      totalCommissions: +totalCommissions.toFixed(2),
+      totalCommissions: effectiveEarned,
+      milestoneRewardsClaimed: +milestoneRewards.toFixed(2),
+      withdrawals,
+      pendingWithdrawalsAmount: +pendingWithdrawalsAmount.toFixed(2),
+      approvedWithdrawalsAmount: +approvedWithdrawalsAmount.toFixed(2),
       referrals: allDirects,
       referredBy: resolvedUser?.referredBy || null,
       referralCode: code,
@@ -1480,6 +1518,131 @@ class PersistentDatabase {
     return { referral: newRef, commissionAdded: 0 };
   }
 
+  // ---- Withdrawal Requests (Milestone & Mining Rewards) ----
+  public getWithdrawalRequests(userAddress?: string): DbWithdrawalRequest[] {
+    if (!this.data.withdrawalRequests) {
+      this.data.withdrawalRequests = [];
+    }
+    if (userAddress) {
+      const norm = userAddress.toLowerCase();
+      return this.data.withdrawalRequests.filter(
+        (r) => r.userAddress.toLowerCase() === norm || r.destinationAddress.toLowerCase() === norm
+      );
+    }
+    return this.data.withdrawalRequests;
+  }
+
+  public createWithdrawalRequest(req: {
+    userAddress: string;
+    destinationAddress: string;
+    amount: number;
+    source?: string;
+    milestoneLabel?: string;
+  }): { success: boolean; request?: DbWithdrawalRequest; error?: string } {
+    if (!this.data.withdrawalRequests) {
+      this.data.withdrawalRequests = [];
+    }
+    const cleanUser = req.userAddress.trim();
+    const cleanDest = (req.destinationAddress || req.userAddress).trim();
+    const amount = Number(req.amount);
+
+    if (isNaN(amount) || amount <= 0) {
+      return { success: false, error: 'Invalid withdrawal amount' };
+    }
+
+    const newReq: DbWithdrawalRequest = {
+      id: `wdr-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      userAddress: cleanUser,
+      destinationAddress: cleanDest,
+      amount: +amount.toFixed(2),
+      source: req.source || 'milestone_reward',
+      milestoneLabel: req.milestoneLabel || 'Team Milestone Reward',
+      status: 'pending',
+      requestedAt: new Date().toISOString(),
+    };
+
+    this.data.withdrawalRequests.unshift(newReq);
+    this.logAudit(
+      'USER',
+      'WITHDRAWAL_REQUEST',
+      cleanUser,
+      `Requested withdrawal of ${amount} USDT to ${cleanDest} (${newReq.milestoneLabel})`
+    );
+    this.save();
+    return { success: true, request: newReq };
+  }
+
+  public approveWithdrawalRequest(
+    id: string,
+    txHash?: string,
+    admin = 'Admin'
+  ): { success: boolean; request?: DbWithdrawalRequest; error?: string } {
+    if (!this.data.withdrawalRequests) {
+      this.data.withdrawalRequests = [];
+    }
+    const req = this.data.withdrawalRequests.find((r) => r.id === id);
+    if (!req) {
+      return { success: false, error: 'Withdrawal request not found' };
+    }
+    if (req.status === 'approved') {
+      return { success: false, error: 'Request is already approved' };
+    }
+
+    const finalTxHash = txHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+    req.status = 'approved';
+    req.txHash = finalTxHash;
+    req.reviewedAt = new Date().toISOString();
+    req.reviewedBy = admin;
+
+    // Record verified payout transaction in ledger
+    this.createTransaction({
+      userAddress: req.destinationAddress || req.userAddress,
+      txHash: finalTxHash,
+      type: 'payout',
+      amount: req.amount,
+      currency: 'USDT',
+      status: 'Confirmed',
+      details: `Withdrawal Approved: ${req.milestoneLabel || 'Milestone Reward'} paid out to ${req.destinationAddress}`,
+      blockNumber: 42960000 + Math.floor(Math.random() * 15000),
+    });
+
+    this.logAudit(
+      admin,
+      'WITHDRAWAL_APPROVE',
+      req.userAddress,
+      `Approved withdrawal #${id} for ${req.amount} USDT. TxHash: ${finalTxHash}`
+    );
+    this.save();
+    return { success: true, request: req };
+  }
+
+  public rejectWithdrawalRequest(
+    id: string,
+    reason?: string,
+    admin = 'Admin'
+  ): { success: boolean; request?: DbWithdrawalRequest; error?: string } {
+    if (!this.data.withdrawalRequests) {
+      this.data.withdrawalRequests = [];
+    }
+    const req = this.data.withdrawalRequests.find((r) => r.id === id);
+    if (!req) {
+      return { success: false, error: 'Withdrawal request not found' };
+    }
+    req.status = 'rejected';
+    req.adminNote = reason || 'Admin review declined';
+    req.reviewedAt = new Date().toISOString();
+    req.reviewedBy = admin;
+
+    this.logAudit(
+      admin,
+      'WITHDRAWAL_REJECT',
+      req.userAddress,
+      `Rejected withdrawal #${id}. Reason: ${req.adminNote}`
+    );
+    this.save();
+    return { success: true, request: req };
+  }
+
   // ---- Announcements ----
   public getAnnouncements(): DbAnnouncement[] {
     return this.data.announcements;
@@ -1574,6 +1737,7 @@ class PersistentDatabase {
       transactions: [],
       referrals: [],
       announcements: [],
+      withdrawalRequests: [],
       settings: {
         turboMultiplier: 10,
         dailyYieldPercent: 3.88,

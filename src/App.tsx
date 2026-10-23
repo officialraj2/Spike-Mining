@@ -14,6 +14,7 @@ import { MobileBottomNav } from './components/MobileBottomNav';
 import { HomeView } from './components/views/HomeView';
 import { Toast } from './components/Toast';
 import { BlockchainBackground } from './components/BlockchainBackground';
+import { fetchOnChainBalances } from './services/onchainBalance';
 
 // Code-split heavy views and modals for sub-100ms ultra-fast initial paint
 const DashboardView = lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
@@ -123,6 +124,19 @@ export default function App() {
       return 0.005;
     } catch {
       return 0.005;
+    }
+  });
+  // Real-time on-chain SPIKE BEP-20 token balance (Contract: 0xc213905ac995bCC943c077b7918c8134094A9267)
+  const [walletSpk, setWalletSpk] = useState<number>(() => {
+    try {
+      const savedAddr = localStorage.getItem('spike_wallet_address');
+      if (savedAddr) {
+        const cached = localStorage.getItem(`spike_onchain_spk_${savedAddr.toLowerCase()}`);
+        if (cached !== null && !isNaN(Number(cached))) return Number(cached);
+      }
+      return 0.0;
+    } catch {
+      return 0.0;
     }
   });
   const [dailyEarnings, setDailyEarnings] = useState<number>(() => {
@@ -494,6 +508,27 @@ export default function App() {
         setWalletBNB(0.005);
       }
 
+      // Load cached on-chain SPIKE token balance
+      const cachedSpk = localStorage.getItem(`spike_onchain_spk_${norm}`);
+      if (cachedSpk !== null && !isNaN(Number(cachedSpk))) {
+        setWalletSpk(Number(cachedSpk));
+      }
+
+      // Live fetch on-chain BSC token balances (SPIKE contract & USDT contract)
+      fetchOnChainBalances(norm)
+        .then((onchain) => {
+          if (typeof onchain.spike === 'number') {
+            setWalletSpk(onchain.spike);
+          }
+          if (typeof onchain.usdt === 'number' && onchain.usdt > 0) {
+            setWalletBalance((prev) => Math.max(prev, onchain.usdt));
+          }
+          if (typeof onchain.bnb === 'number' && onchain.bnb > 0) {
+            setWalletBNB(onchain.bnb);
+          }
+        })
+        .catch(() => {});
+
       // Load cached nodes immediately so mining rigs stay persistent on refresh
       const cachedNodes = localStorage.getItem(`spike_nodes_${norm}`) || localStorage.getItem('spike_nodes_global');
       let loadedNodes: MiningNode[] = [];
@@ -616,6 +651,20 @@ export default function App() {
       }
     };
     window.addEventListener('spike_balance_updated', handleBalanceEvent);
+
+    const handleOnChainEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.walletAddress?.toLowerCase() === norm) {
+        if (typeof customEvent.detail.spike === 'number') setWalletSpk(customEvent.detail.spike);
+        if (typeof customEvent.detail.usdt === 'number' && customEvent.detail.usdt > 0) {
+          setWalletBalance((prev) => Math.max(prev, customEvent.detail.usdt));
+        }
+        if (typeof customEvent.detail.bnb === 'number' && customEvent.detail.bnb > 0) {
+          setWalletBNB(customEvent.detail.bnb);
+        }
+      }
+    };
+    window.addEventListener('spike_onchain_balances_updated', handleOnChainEvent);
 
     const handleHashrateEvent = (e: Event) => {
       const customEvent = e as CustomEvent;
@@ -818,6 +867,7 @@ export default function App() {
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('spike_partner_registered', handlePartnerRegistered);
       window.removeEventListener('spike_balance_updated', handleBalanceEvent);
+      window.removeEventListener('spike_onchain_balances_updated', handleOnChainEvent);
       window.removeEventListener('spike_hashrate_updated', handleHashrateEvent);
       window.removeEventListener('storage', handleStorageChange);
     };
@@ -1232,19 +1282,48 @@ export default function App() {
       status: 'Confirmed',
     };
     setRewards((prev) => [newTx, ...prev]);
+
+    // Update referralStats totalCommissions so the Total Earned card immediately reflects the award
+    setReferralStats((prev: any) => {
+      const updated = {
+        ...prev,
+        totalCommissions: +(Number(prev?.totalCommissions || 0) + amountUsd).toFixed(2),
+        milestoneRewardsClaimed: +(Number(prev?.milestoneRewardsClaimed || 0) + amountUsd).toFixed(2),
+      };
+      if (walletAddress) {
+        try {
+          localStorage.setItem(`spike_referral_stats_${walletAddress.toLowerCase()}`, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+
+    // Record milestone reward in backend database
     fetch('/api/transactions/record', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userAddress: walletAddress,
-        type: 'referral_bonus',
+        type: 'milestone_reward',
         amount: amountUsd,
         currency: 'USDT',
         details: `Team Career Milestone (${milestoneLabel}) Payout`,
         txHash: randomTxHash,
       }),
     }).catch(() => {});
-    addToast('Milestone Claimed', `+${amountUsd} USDT milestone bonus unlocked and credited to your wallet!`, 'success');
+
+    // Broadcast milestone claim event so other tabs and components sync
+    window.dispatchEvent(
+      new CustomEvent('spike_milestone_claimed', {
+        detail: { amount: amountUsd, milestoneLabel, walletAddress },
+      })
+    );
+
+    addToast(
+      'Milestone Reward Claimed!',
+      `+${amountUsd} USDT milestone bonus unlocked and credited to your Total Earned & Wallet!`,
+      'success'
+    );
   };
 
   const handleDepositSuccess = (newBalance: number, txHash: string) => {
@@ -2057,6 +2136,7 @@ export default function App() {
             onConnect={handleConnectWallet}
             onDisconnect={handleDisconnectWallet}
             onCopyAddress={() => copyToClipboard(walletAddress)}
+            isRootWallet={isMasterUser || isAdmin}
           />
         )}
 
@@ -2111,7 +2191,7 @@ export default function App() {
           <SwapModal
             isOpen={isSwapModalOpen}
             onClose={() => setIsSwapModalOpen(false)}
-            spikeBalance={150.0}
+            spikeBalance={walletSpk}
             bnbBalance={walletBNB}
             usdtBalance={walletBalance}
             walletAddress={walletAddress}

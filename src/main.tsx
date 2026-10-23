@@ -85,6 +85,6 @@ if (typeof window !== 'undefined') {
 }
 
 // Test connection to Firestore on initial boot
-testConnection();
+testConnection().catch(() => {});
 
 createRoot(document.getElementById('root')!).render(<App />);

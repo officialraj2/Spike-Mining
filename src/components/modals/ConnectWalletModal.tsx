@@ -10,6 +10,7 @@ interface ConnectWalletModalProps {
   onConnect: (provider: string, realAddress?: string) => void;
   onDisconnect: () => void;
   onCopyAddress: () => void;
+  isRootWallet?: boolean;
 }
 
 export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
@@ -22,6 +23,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   onConnect,
   onDisconnect,
   onCopyAddress,
+  isRootWallet = false,
 }) => {
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [connectingStatus, setConnectingStatus] = useState<string | null>(null);
@@ -29,6 +31,21 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   const [customAddress, setCustomAddress] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
+
+  // Check if current session/wallet is authorized Root / Master creator wallet
+  const ROOT_WALLETS = [
+    '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    '0x71c8a914b97e889f12a0987cb32456fa12349a2',
+  ];
+
+  const effectiveIsRoot = Boolean(
+    isRootWallet ||
+    (address && ROOT_WALLETS.includes(address.toLowerCase())) ||
+    (typeof window !== 'undefined' && (
+      sessionStorage.getItem('spike_admin_authenticated') === 'true' ||
+      ROOT_WALLETS.includes((localStorage.getItem('spike_wallet_address') || '').toLowerCase())
+    ))
+  );
 
   // Check if running inside an iframe (like AI Studio preview)
   const isInsideIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -344,13 +361,15 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
 
             {/* Quick Actions to Switch or Test Clean 0-Slate Wallet */}
             <div className="space-y-2 pt-1">
-              <button
-                onClick={handleConnectFreshWallet}
-                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#38e8f8]/20 hover:from-[#00F0FF]/30 hover:to-[#38e8f8]/30 border border-[#00F0FF]/40 text-[#00F0FF] font-headline font-bold text-xs flex items-center justify-center gap-2 transition-all transition-transform active:scale-95"
-              >
-                <span className="material-symbols-outlined text-[17px]">restart_alt</span>
-                <span>Switch to New Clean Wallet (0 Nodes / Blank Slate)</span>
-              </button>
+              {effectiveIsRoot && (
+                <button
+                  onClick={handleConnectFreshWallet}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#38e8f8]/20 hover:from-[#00F0FF]/30 hover:to-[#38e8f8]/30 border border-[#00F0FF]/40 text-[#00F0FF] font-headline font-bold text-xs flex items-center justify-center gap-2 transition-all transition-transform active:scale-95 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[17px]">restart_alt</span>
+                  <span>Switch to New Clean Wallet (0 Nodes / Blank Slate)</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setShowProviderPicker(true)}
@@ -435,27 +454,31 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
               </div>
             )}
 
-            <div className="p-3 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-xs text-[#00F0FF] flex items-start gap-2">
-              <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">verified_user</span>
-              <span>
-                Each BEP-20 wallet has its own <strong>independent dashboard data</strong>. New wallets start with <strong>0 active rigs</strong> and <strong>0 history</strong>.
-              </span>
-            </div>
+            {effectiveIsRoot && (
+              <>
+                <div className="p-3 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-xs text-[#00F0FF] flex items-start gap-2">
+                  <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">verified_user</span>
+                  <span>
+                    Each BEP-20 wallet has its own <strong>independent dashboard data</strong>. New wallets start with <strong>0 active rigs</strong> and <strong>0 history</strong>.
+                  </span>
+                </div>
 
-            {/* Fresh Wallet CTA (Starts with 0 Data) */}
-            <button
-              onClick={handleConnectFreshWallet}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#38e8f8] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all transition-transform hover:scale-[1.01] active:scale-95"
-            >
-              <span className="material-symbols-outlined text-[18px]">add_circle</span>
-              <span>Connect Fresh New Wallet (0 Records / Blank Slate)</span>
-            </button>
+                {/* Fresh Wallet CTA (Starts with 0 Data) - Only visible to Root Creator */}
+                <button
+                  onClick={handleConnectFreshWallet}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#38e8f8] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all transition-transform hover:scale-[1.01] active:scale-95 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                  <span>Connect Fresh New Wallet (Root Admin Testing)</span>
+                </button>
 
-            <div className="flex items-center gap-2 my-2 text-center">
-              <div className="h-[1px] bg-[#1c2b3b] flex-1" />
-              <span className="text-[10px] font-mono uppercase text-[#94a3b8]">or connect web3 provider</span>
-              <div className="h-[1px] bg-[#1c2b3b] flex-1" />
-            </div>
+                <div className="flex items-center gap-2 my-2 text-center">
+                  <div className="h-[1px] bg-[#1c2b3b] flex-1" />
+                  <span className="text-[10px] font-mono uppercase text-[#94a3b8]">or connect web3 provider</span>
+                  <div className="h-[1px] bg-[#1c2b3b] flex-1" />
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               {walletProviders.map((provider) => (

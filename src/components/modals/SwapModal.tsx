@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SPIKE_LOGO_URL } from '../../data/mockData';
+import { fetchOnChainBalances, SPIKE_CONTRACT_ADDRESS, USDT_CONTRACT_ADDRESS } from '../../services/onchainBalance';
 
 interface SwapModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface TokenOption {
   rateToUsd: number;
   icon?: string;
   isSpike?: boolean;
+  contractAddress?: string;
 }
 
 export const SwapModal: React.FC<SwapModalProps> = ({
@@ -38,6 +40,59 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [isSwapping, setIsSwapping] = useState<boolean>(false);
   const [swapTxSuccess, setSwapTxSuccess] = useState<string | null>(null);
+
+  // Live on-chain BSC balances (fetched directly from smart contracts)
+  const [liveSpikeBalance, setLiveSpikeBalance] = useState<number>(spikeBalance);
+  const [liveUsdtBalance, setLiveUsdtBalance] = useState<number>(usdtBalance);
+  const [liveBnbBalance, setLiveBnbBalance] = useState<number>(bnbBalance);
+  const [isLoadingOnchain, setIsLoadingOnchain] = useState<boolean>(false);
+  const [copiedContract, setCopiedContract] = useState<boolean>(false);
+
+  const copyContract = () => {
+    navigator.clipboard?.writeText(SPIKE_CONTRACT_ADDRESS);
+    setCopiedContract(true);
+    setTimeout(() => setCopiedContract(false), 2000);
+  };
+
+  // Fetch real on-chain balances from BSC smart contract on modal open
+  const refreshOnChainBalances = useCallback(async () => {
+    if (!walletAddress || !walletAddress.startsWith('0x')) return;
+    setIsLoadingOnchain(true);
+    try {
+      const data = await fetchOnChainBalances(walletAddress);
+      setLiveSpikeBalance(data.spike);
+      if (typeof data.usdt === 'number' && data.usdt > 0) {
+        setLiveUsdtBalance(data.usdt);
+      }
+      if (typeof data.bnb === 'number' && data.bnb > 0) {
+        setLiveBnbBalance(data.bnb);
+      }
+    } catch (e) {
+      console.warn('[SwapModal] On-chain balance fetch notice:', e);
+    } finally {
+      setIsLoadingOnchain(false);
+    }
+  }, [walletAddress]);
+
+  useEffect(() => {
+    if (isOpen) {
+      refreshOnChainBalances();
+    }
+  }, [isOpen, refreshOnChainBalances]);
+
+  // Keep in sync with incoming props
+  useEffect(() => {
+    if (typeof spikeBalance === 'number') setLiveSpikeBalance(spikeBalance);
+  }, [spikeBalance]);
+
+  useEffect(() => {
+    if (typeof usdtBalance === 'number') setLiveUsdtBalance(usdtBalance);
+  }, [usdtBalance]);
+
+  useEffect(() => {
+    if (typeof bnbBalance === 'number') setLiveBnbBalance(bnbBalance);
+  }, [bnbBalance]);
+
   const [confirmedDetails, setConfirmedDetails] = useState<{
     txHash: string;
     receivedAmount: number;
@@ -55,8 +110,9 @@ export const SwapModal: React.FC<SwapModalProps> = ({
       if (initialMode === 'sellSpike') {
         setFromTokenSymbol('SPIKE');
         setToTokenSymbol('USDT');
-        // Preset max allowable 10% of SPIKE balance
-        const max10 = +(spikeBalance * 0.10).toFixed(2);
+        // Preset allowable amount based on current SPIKE balance
+        const currentSpk = liveSpikeBalance > 0 ? liveSpikeBalance : spikeBalance;
+        const max10 = +(currentSpk * 0.10).toFixed(2);
         setFromAmount(max10 > 0 ? max10.toString() : '10');
       } else if (initialMode === 'buySpike') {
         setFromTokenSymbol('USDT');
@@ -68,7 +124,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         setFromAmount('0.1');
       }
     }
-  }, [isOpen, initialMode, spikeBalance]);
+  }, [isOpen, initialMode, spikeBalance, liveSpikeBalance]);
 
   // Close on Escape Key
   useEffect(() => {
@@ -99,21 +155,23 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     SPIKE: {
       symbol: 'SPIKE',
       name: 'SPIKE Protocol (BEP-20)',
-      balance: spikeBalance,
+      balance: liveSpikeBalance,
       rateToUsd: 1.12, // 1 SPK = 1.12 USDT ($1.00 - $1.20 range)
       isSpike: true,
+      contractAddress: SPIKE_CONTRACT_ADDRESS,
     },
     USDT: {
       symbol: 'USDT',
       name: 'Tether USD (BEP-20)',
-      balance: usdtBalance,
+      balance: liveUsdtBalance,
       rateToUsd: 1.0,
       icon: 'attach_money',
+      contractAddress: USDT_CONTRACT_ADDRESS,
     },
     BNB: {
       symbol: 'BNB',
       name: 'BNB Smart Chain',
-      balance: bnbBalance,
+      balance: liveBnbBalance,
       rateToUsd: 620.0,
       icon: 'token',
     },
@@ -131,7 +189,8 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   const isBnbToSpike = fromTokenSymbol === 'BNB' && toTokenSymbol === 'SPIKE';
 
   // Strict 10% Sell Limit policy: user can only sell up to 10% of their SPIKE balance
-  const maxSellableSpk = isSellSpike ? +(spikeBalance * 0.10).toFixed(4) : fromToken.balance;
+  const activeSpkBal = liveSpikeBalance > 0 ? liveSpikeBalance : spikeBalance;
+  const maxSellableSpk = isSellSpike ? +(activeSpkBal * 0.10).toFixed(4) : fromToken.balance;
   const isExceeding10Percent = isSellSpike && numericFrom > maxSellableSpk;
 
   const setPresetMode = (mode: 'sellSpike' | 'buySpike' | 'bnbToSpike') => {
@@ -354,6 +413,54 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             </button>
           </div>
 
+          {/* Official BEP-20 Contract & On-Chain Sync Bar */}
+          <div className="p-2.5 rounded-xl bg-[#061423] border border-[#1c2b3b] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[#94a3b8]">SPIKE (BSC):</span>
+              <span className="text-[#00F0FF] font-bold" title={SPIKE_CONTRACT_ADDRESS}>
+                0xc213...9267
+              </span>
+              <button
+                type="button"
+                onClick={copyContract}
+                className="px-1.5 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] text-[#cbd5e1] hover:text-white border border-[#1c2b3b] text-[10px] flex items-center gap-1 transition-all"
+                title="Copy SPIKE Smart Contract Address"
+              >
+                <span className="material-symbols-outlined text-[12px]">
+                  {copiedContract ? 'check' : 'content_copy'}
+                </span>
+                <span>{copiedContract ? 'Copied' : 'Copy'}</span>
+              </button>
+              <a
+                href={`https://bscscan.com/token/${SPIKE_CONTRACT_ADDRESS}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#94a3b8] hover:text-[#00F0FF] flex items-center gap-0.5 text-[10px] transition-colors"
+                title="View on BscScan"
+              >
+                <span>BscScan</span>
+                <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+              </a>
+            </div>
+
+            <button
+              type="button"
+              onClick={refreshOnChainBalances}
+              disabled={isLoadingOnchain}
+              className="flex items-center gap-1 text-[#00F0FF] hover:text-white px-2 py-0.5 rounded bg-[#00F0FF]/10 hover:bg-[#00F0FF]/20 border border-[#00F0FF]/30 transition-all text-[10px]"
+              title="Refresh live on-chain balances from BSC smart contract"
+            >
+              <span className={`material-symbols-outlined text-[13px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>
+                sync
+              </span>
+              <span>{isLoadingOnchain ? 'Fetching BSC...' : 'Sync Wallet Balances'}</span>
+            </button>
+          </div>
+
           {/* Slippage Settings Panel */}
           {showSettings && (
             <div className="p-3.5 rounded-2xl bg-[#061423] border border-[#00F0FF]/30 space-y-2 animate-fade-in shadow-inner">
@@ -436,9 +543,28 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             {/* FROM TOKEN CARD */}
             <div className="p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] hover:border-[#D4AF37]/40 transition-all">
               <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-2 font-mono">
-                <span className="font-medium text-[#cbd5e1]">You Pay</span>
-                <span className="font-semibold">
-                  Available: <span className="text-white">{fromToken.balance.toLocaleString()} {fromToken.symbol}</span>
+                <span className="font-medium text-[#cbd5e1] flex items-center gap-1.5">
+                  <span>You Pay</span>
+                  {fromToken.contractAddress && (
+                    <span className="px-1.5 py-0.5 text-[9px] rounded font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      BEP-20 Live
+                    </span>
+                  )}
+                </span>
+                <span className="font-semibold flex items-center gap-1.5">
+                  <span>Available:</span>
+                  <span className="text-white font-bold">
+                    {Number(fromToken.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {fromToken.symbol}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); refreshOnChainBalances(); }}
+                    disabled={isLoadingOnchain}
+                    title="Refresh on-chain balance"
+                    className="text-[#00F0FF] hover:text-white p-0.5 rounded transition-transform active:rotate-180"
+                  >
+                    <span className={`material-symbols-outlined text-[13px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>
+                  </button>
                 </span>
               </div>
 
@@ -585,9 +711,28 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             {/* TO TOKEN CARD */}
             <div className="p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] hover:border-[#00F0FF]/40 transition-all">
               <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-2 font-mono">
-                <span className="font-medium text-[#cbd5e1]">You Receive (Estimated)</span>
-                <span className="font-semibold">
-                  Balance: <span className="text-white">{toToken.balance.toLocaleString()} {toToken.symbol}</span>
+                <span className="font-medium text-[#cbd5e1] flex items-center gap-1.5">
+                  <span>You Receive (Estimated)</span>
+                  {toToken.contractAddress && (
+                    <span className="px-1.5 py-0.5 text-[9px] rounded font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      BEP-20 Live
+                    </span>
+                  )}
+                </span>
+                <span className="font-semibold flex items-center gap-1.5">
+                  <span>Balance:</span>
+                  <span className="text-white font-bold">
+                    {Number(toToken.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {toToken.symbol}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); refreshOnChainBalances(); }}
+                    disabled={isLoadingOnchain}
+                    title="Refresh on-chain balance"
+                    className="text-[#00F0FF] hover:text-white p-0.5 rounded transition-transform active:rotate-180"
+                  >
+                    <span className={`material-symbols-outlined text-[13px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>
+                  </button>
                 </span>
               </div>
 

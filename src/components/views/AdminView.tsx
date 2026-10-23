@@ -65,8 +65,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
   );
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'master' | 'overview' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
+    'master' | 'overview' | 'withdrawals' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
   >(isMasterUser || (currentWallet && currentWallet.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase()) ? 'master' : 'overview');
+
+  // Withdrawal Requests State
+  const [withdrawalRequests, setWithdrawalRequests] = useState<any[]>([]);
+  const [withdrawalFilter, setWithdrawalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [withdrawalSearch, setWithdrawalSearch] = useState('');
+  const [processingWithdrawalId, setProcessingWithdrawalId] = useState<string | null>(null);
+  const [customTxInput, setCustomTxInput] = useState<{ [id: string]: string }>({});
 
   // Master User Control State
   const [newMasterInput, setNewMasterInput] = useState('');
@@ -198,7 +205,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const fetchAllData = useCallback(async (quiet = false) => {
     if (!quiet) setIsRefreshing(true);
     try {
-      const [metricsRes, usersRes, nodesRes, txsRes, settingsRes, logsRes, treasuryRes] = await Promise.all([
+      const [metricsRes, usersRes, nodesRes, txsRes, settingsRes, logsRes, treasuryRes, withdrawalsRes] = await Promise.all([
         fetch('/api/admin/metrics'),
         fetch('/api/admin/users'),
         fetch('/api/admin/nodes'),
@@ -206,6 +213,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         fetch('/api/admin/settings'),
         fetch('/api/admin/audit-logs'),
         fetch('/api/treasury'),
+        fetch('/api/withdrawals'),
       ]);
 
       if (metricsRes.ok) {
@@ -223,6 +231,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
       if (txsRes.ok) {
         const data = await safeJsonParse(txsRes);
         if (data?.transactions) setTransactions(data.transactions);
+      }
+      if (withdrawalsRes && withdrawalsRes.ok) {
+        const wData = await safeJsonParse(withdrawalsRes);
+        if (wData && Array.isArray(wData.withdrawals)) {
+          setWithdrawalRequests(wData.withdrawals);
+        }
       }
       if (settingsRes.ok) {
         const data = await safeJsonParse(settingsRes);
@@ -318,6 +332,63 @@ export const AdminView: React.FC<AdminViewProps> = ({
     );
     setAdjustModalUser(null);
     fetchAllData(true);
+  };
+
+  // Dedicated handlers for Withdrawal Requests (Milestone Rewards Approval & Payout)
+  const handleApproveWithdrawal = async (id: string) => {
+    setProcessingWithdrawalId(id);
+    const customHash = customTxInput[id]?.trim() || undefined;
+    try {
+      const res = await fetch(`/api/admin/withdrawals/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          txHash: customHash,
+          adminUser: currentWallet || 'Master Admin (0x3471...3715)',
+        }),
+      });
+      const data = await safeJsonParse(res);
+      if (res.ok && data?.success) {
+        onNotify?.(
+          'Withdrawal Approved & Done!',
+          `Withdrawal request #${id.slice(-6)} marked as Done! Payout tx recorded: ${data.request?.txHash?.slice(0, 16)}...`,
+          'success'
+        );
+        fetchAllData(true);
+      } else {
+        onNotify?.('Approval Failed', data?.error || 'Failed to approve withdrawal', 'error');
+      }
+    } catch {
+      onNotify?.('Error', 'Network error approving withdrawal request', 'error');
+    } finally {
+      setProcessingWithdrawalId(null);
+    }
+  };
+
+  const handleRejectWithdrawal = async (id: string) => {
+    const reason = window.prompt('Enter reason for declining withdrawal:', 'Admin verification check failed') || 'Admin verification check failed';
+    setProcessingWithdrawalId(id);
+    try {
+      const res = await fetch(`/api/admin/withdrawals/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason,
+          adminUser: currentWallet || 'Master Admin (0x3471...3715)',
+        }),
+      });
+      const data = await safeJsonParse(res);
+      if (res.ok && data?.success) {
+        onNotify?.('Withdrawal Rejected', `Withdrawal #${id.slice(-6)} has been declined.`, 'info');
+        fetchAllData(true);
+      } else {
+        onNotify?.('Rejection Failed', data?.error || 'Failed to reject withdrawal', 'error');
+      }
+    } catch {
+      onNotify?.('Error', 'Network error rejecting withdrawal', 'error');
+    } finally {
+      setProcessingWithdrawalId(null);
+    }
   };
 
   // Dedicated handler for the Admin Testnet Faucet & Wallet Credit Console
@@ -1061,6 +1132,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
         {[
           { id: 'master', label: 'Master Control Center', icon: 'shield_lock', badge: 'ROOT' },
           { id: 'overview', label: 'Dashboard Overview', icon: 'dashboard' },
+          {
+            id: 'withdrawals',
+            label: 'Withdrawal Requests',
+            icon: 'payments',
+            badge: withdrawalRequests.filter((w) => w.status === 'pending').length > 0
+              ? `${withdrawalRequests.filter((w) => w.status === 'pending').length} PENDING`
+              : undefined,
+            count: withdrawalRequests.length,
+          },
           { id: 'faucet', label: 'Testnet Faucet & Wallet Credit', icon: 'science', badge: 'FAUCET' },
           { id: 'domain', label: 'Domain & Sublinks (spikenodes.com)', icon: 'language', badge: 'PRO' },
           { id: 'users', label: 'User & Wallet Management', icon: 'manage_accounts', count: users.length },
@@ -1960,6 +2040,442 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ============================================================
+          TAB CONTENT: WITHDRAWAL REQUESTS (MILESTONES & USER REWARDS)
+         ============================================================ */}
+      {activeSubTab === 'withdrawals' && (
+        <div className="space-y-6">
+          {/* Main Withdrawal Management Header */}
+          <div className="rounded-2xl bg-gradient-to-r from-[#0d1d2c] via-[#0f2438] to-[#0a1827] border-2 border-[#D4AF37]/40 p-6 md:p-8 shadow-[0_0_30px_rgba(212,175,55,0.15)] relative overflow-hidden">
+            <div className="relative z-10 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#D4AF37] text-[#0A0F1D] flex items-center gap-1.5 shadow-[0_0_12px_rgba(212,175,55,0.4)]">
+                  <span className="material-symbols-outlined text-[16px]">payments</span>
+                  MILESTONE REWARD WITHDRAWALS
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  REAL-TIME REVIEW CONSOLE
+                </span>
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-mono text-[#00F0FF] bg-[#00F0FF]/10 border border-[#00F0FF]/30">
+                  BEP-20 USDT Payouts
+                </span>
+              </div>
+
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-white font-headline tracking-wide flex items-center gap-2.5">
+                    <span>Withdrawal Approval &amp; Payout Console</span>
+                  </h2>
+                  <p className="text-sm text-[#94a3b8] max-w-3xl mt-1">
+                    Users submit withdrawal requests directly from their <span className="text-[#D4AF37] font-semibold">Total Earned</span> milestone card on the Referrals page. As an admin, review pending requests, enter or auto-generate a BSC TxHash, and click <strong className="text-emerald-400 font-semibold">Approve &amp; Mark Done</strong> to confirm payouts.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fetchAllData(true)}
+                    className="px-4 py-2.5 rounded-xl bg-[#122130] hover:bg-[#1a2f42] border border-[#1c2b3b] text-white text-xs font-mono font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-sm hover:border-[#00F0FF]/50"
+                  >
+                    <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">sync</span>
+                    <span>Refresh Requests</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Metrics Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-xl p-4">
+              <div className="flex items-center justify-between text-[#94a3b8] text-xs font-mono mb-1">
+                <span>Total Requests</span>
+                <span className="material-symbols-outlined text-[18px] text-blue-400">receipt_long</span>
+              </div>
+              <div className="text-2xl font-extrabold text-white font-headline">
+                {withdrawalRequests.length}
+              </div>
+              <div className="text-[11px] text-[#94a3b8] font-mono mt-1">
+                ${withdrawalRequests.reduce((sum, w) => sum + (Number(w.amount) || 0), 0).toFixed(2)} USDT total
+              </div>
+            </div>
+
+            <div className="bg-[#0d1d2c] border border-amber-500/40 rounded-xl p-4 shadow-[0_0_15px_rgba(245,158,11,0.08)]">
+              <div className="flex items-center justify-between text-amber-400 text-xs font-mono mb-1 font-semibold">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  Pending Review
+                </span>
+                <span className="material-symbols-outlined text-[18px]">pending_actions</span>
+              </div>
+              <div className="text-2xl font-extrabold text-amber-400 font-headline">
+                {withdrawalRequests.filter((w) => w.status === 'pending').length}
+              </div>
+              <div className="text-[11px] text-amber-300 font-mono mt-1">
+                ${withdrawalRequests
+                  .filter((w) => w.status === 'pending')
+                  .reduce((sum, w) => sum + (Number(w.amount) || 0), 0)
+                  .toFixed(2)} USDT waiting
+              </div>
+            </div>
+
+            <div className="bg-[#0d1d2c] border border-emerald-500/40 rounded-xl p-4 shadow-[0_0_15px_rgba(16,185,129,0.08)]">
+              <div className="flex items-center justify-between text-emerald-400 text-xs font-mono mb-1 font-semibold">
+                <span>Done &amp; Approved</span>
+                <span className="material-symbols-outlined text-[18px]">verified</span>
+              </div>
+              <div className="text-2xl font-extrabold text-emerald-400 font-headline">
+                {withdrawalRequests.filter((w) => w.status === 'approved').length}
+              </div>
+              <div className="text-[11px] text-emerald-300 font-mono mt-1">
+                ${withdrawalRequests
+                  .filter((w) => w.status === 'approved')
+                  .reduce((sum, w) => sum + (Number(w.amount) || 0), 0)
+                  .toFixed(2)} USDT paid out
+              </div>
+            </div>
+
+            <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-xl p-4">
+              <div className="flex items-center justify-between text-[#94a3b8] text-xs font-mono mb-1">
+                <span>Declined / Rejected</span>
+                <span className="material-symbols-outlined text-[18px] text-red-400">cancel</span>
+              </div>
+              <div className="text-2xl font-extrabold text-[#94a3b8] font-headline">
+                {withdrawalRequests.filter((w) => w.status === 'rejected').length}
+              </div>
+              <div className="text-[11px] text-[#94a3b8] font-mono mt-1">Returned / flagged</div>
+            </div>
+          </div>
+
+          {/* Filter & Search Bar */}
+          <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto">
+              {(['all', 'pending', 'approved', 'rejected'] as const).map((filter) => {
+                const count =
+                  filter === 'all'
+                    ? withdrawalRequests.length
+                    : withdrawalRequests.filter((w) => w.status === filter).length;
+                const isActive = withdrawalFilter === filter;
+                return (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setWithdrawalFilter(filter)}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                      isActive
+                        ? filter === 'pending'
+                          ? 'bg-amber-500 text-black shadow-[0_0_12px_rgba(245,158,11,0.4)]'
+                          : filter === 'approved'
+                          ? 'bg-emerald-500 text-black shadow-[0_0_12px_rgba(16,185,129,0.4)]'
+                          : filter === 'rejected'
+                          ? 'bg-red-500 text-white'
+                          : 'bg-[#00F0FF] text-black shadow-[0_0_12px_rgba(0,240,255,0.4)]'
+                        : 'bg-[#122130] text-[#94a3b8] hover:text-white border border-[#1c2b3b]'
+                    }`}
+                  >
+                    <span>
+                      {filter === 'all'
+                        ? 'All Requests'
+                        : filter === 'pending'
+                        ? 'Pending Review'
+                        : filter === 'approved'
+                        ? 'Done / Approved'
+                        : 'Rejected'}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/30">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="relative w-full md:w-80">
+              <input
+                type="text"
+                placeholder="Search by address or ID..."
+                value={withdrawalSearch}
+                onChange={(e) => setWithdrawalSearch(e.target.value)}
+                className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl pl-9 pr-4 py-2 text-xs font-mono text-white placeholder-[#94a3b8]/50 focus:outline-none focus:border-[#00F0FF]"
+              />
+              <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8] text-[16px]">
+                search
+              </span>
+              {withdrawalSearch && (
+                <button
+                  type="button"
+                  onClick={() => setWithdrawalSearch('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-white text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Requests Table */}
+          {(() => {
+            const filtered = withdrawalRequests.filter((w) => {
+              if (withdrawalFilter !== 'all' && w.status !== withdrawalFilter) return false;
+              if (withdrawalSearch) {
+                const q = withdrawalSearch.toLowerCase();
+                const matchId = (w.id || '').toLowerCase().includes(q);
+                const matchUser = (w.userAddress || '').toLowerCase().includes(q);
+                const matchDest = (w.destinationAddress || '').toLowerCase().includes(q);
+                const matchSource = (w.source || '').toLowerCase().includes(q);
+                if (!matchId && !matchUser && !matchDest && !matchSource) return false;
+              }
+              return true;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-12 text-center">
+                  <div className="w-14 h-14 mx-auto rounded-full bg-[#122130] border border-[#1c2b3b] flex items-center justify-center text-[#94a3b8] mb-3">
+                    <span className="material-symbols-outlined text-2xl">inbox</span>
+                  </div>
+                  <h4 className="text-white font-headline font-bold text-base">No Withdrawal Requests Found</h4>
+                  <p className="text-xs text-[#94a3b8] font-mono mt-1 max-w-md mx-auto">
+                    {withdrawalSearch
+                      ? `No requests match "${withdrawalSearch}". Try clearing your search.`
+                      : withdrawalFilter === 'pending'
+                      ? 'All caught up! There are no pending milestone withdrawal requests.'
+                      : 'No withdrawal requests recorded in the system yet. When users claim milestone awards and submit requests, they will appear here.'}
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead className="bg-[#091522] border-b border-[#1c2b3b] text-[#94a3b8] uppercase text-[10px] tracking-wider">
+                      <tr>
+                        <th className="py-3 px-4">Request ID</th>
+                        <th className="py-3 px-4">User Wallet</th>
+                        <th className="py-3 px-4">Destination (BEP-20)</th>
+                        <th className="py-3 px-4">Reward Source</th>
+                        <th className="py-3 px-4 text-right">Amount (USDT)</th>
+                        <th className="py-3 px-4">Date / Time</th>
+                        <th className="py-3 px-4 text-center">Status</th>
+                        <th className="py-3 px-4 text-right">Admin Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1c2b3b]">
+                      {filtered.map((item) => {
+                        const isPending = item.status === 'pending';
+                        const isApproved = item.status === 'approved';
+                        const isRejected = item.status === 'rejected';
+                        const isBusy = processingWithdrawalId === item.id;
+
+                        return (
+                          <tr
+                            key={item.id}
+                            className={`hover:bg-[#122130]/50 transition-colors ${
+                              isPending ? 'bg-amber-500/5' : ''
+                            }`}
+                          >
+                            {/* Request ID */}
+                            <td className="py-3 px-4 text-white font-bold whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[#00F0FF]">#{item.id?.slice(-8)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.id);
+                                    onNotify?.('Copied', 'Request ID copied', 'info');
+                                  }}
+                                  className="text-[#94a3b8] hover:text-white cursor-pointer"
+                                  title="Copy Request ID"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* User Wallet */}
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5 font-mono">
+                                <span className="text-white">
+                                  {item.userAddress
+                                    ? `${item.userAddress.slice(0, 6)}...${item.userAddress.slice(-4)}`
+                                    : '—'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.userAddress);
+                                    onNotify?.('Copied', 'User address copied', 'info');
+                                  }}
+                                  className="text-[#94a3b8] hover:text-white cursor-pointer"
+                                  title="Copy User Address"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Destination BEP-20 Address */}
+                            <td className="py-3 px-4 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5 font-mono">
+                                <span className="text-amber-300">
+                                  {item.destinationAddress
+                                    ? `${item.destinationAddress.slice(0, 6)}...${item.destinationAddress.slice(-4)}`
+                                    : '—'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(item.destinationAddress);
+                                    onNotify?.('Copied', 'Destination address copied', 'info');
+                                  }}
+                                  className="text-[#94a3b8] hover:text-white cursor-pointer"
+                                  title="Copy Destination"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Reward Source */}
+                            <td className="py-3 px-4 text-[#94a3b8] whitespace-nowrap">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#122130] text-[#D4AF37] border border-[#D4AF37]/30">
+                                {item.source || 'Milestone Award'}
+                              </span>
+                            </td>
+
+                            {/* Amount */}
+                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                              <span className="text-sm font-extrabold text-[#00F0FF] font-headline">
+                                +${Number(item.amount || 0).toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-[#94a3b8] block">USDT (BEP-20)</span>
+                            </td>
+
+                            {/* Date */}
+                            <td className="py-3 px-4 text-[#94a3b8] whitespace-nowrap">
+                              <div>{new Date(item.createdAt || Date.now()).toLocaleDateString()}</div>
+                              <div className="text-[10px] opacity-75">
+                                {new Date(item.createdAt || Date.now()).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                              {isPending && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                  PENDING
+                                </span>
+                              )}
+                              {isApproved && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                                  <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                                  DONE / APPROVED
+                                </span>
+                              )}
+                              {isRejected && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400 border border-red-500/40">
+                                  <span className="material-symbols-outlined text-[12px]">cancel</span>
+                                  REJECTED
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Action Buttons */}
+                            <td className="py-3 px-4 text-right whitespace-nowrap">
+                              {isPending && (
+                                <div className="flex items-center justify-end gap-2">
+                                  {/* Optional Custom Tx Hash Input */}
+                                  <input
+                                    type="text"
+                                    placeholder="Optional TxHash (0x...)"
+                                    value={customTxInput[item.id] || ''}
+                                    onChange={(e) =>
+                                      setCustomTxInput((prev) => ({
+                                        ...prev,
+                                        [item.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="w-36 bg-[#122130] border border-[#1c2b3b] rounded-lg px-2 py-1 text-[10px] text-white placeholder-[#94a3b8]/40 focus:outline-none focus:border-[#00F0FF]"
+                                    title="Leave empty to auto-generate verified BSC transaction hash"
+                                  />
+
+                                  {/* Approve & Mark Done Button */}
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleApproveWithdrawal(item.id)}
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-headline font-bold text-[11px] uppercase tracking-wider flex items-center gap-1 transition-all shadow-[0_0_12px_rgba(16,185,129,0.3)] disabled:opacity-50 cursor-pointer"
+                                  >
+                                    <span className="material-symbols-outlined text-[14px]">done_all</span>
+                                    <span>{isBusy ? 'Processing...' : 'Approve & Done'}</span>
+                                  </button>
+
+                                  {/* Reject Button */}
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleRejectWithdrawal(item.id)}
+                                    className="px-2.5 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-[11px] font-bold transition-all disabled:opacity-50 cursor-pointer"
+                                    title="Decline request"
+                                  >
+                                    <span className="material-symbols-outlined text-[14px]">close</span>
+                                  </button>
+                                </div>
+                              )}
+
+                              {isApproved && (
+                                <div className="space-y-0.5 text-right">
+                                  <div className="text-emerald-400 font-bold text-[11px] flex items-center justify-end gap-1">
+                                    <span className="material-symbols-outlined text-[13px]">verified</span>
+                                    <span>Paid &amp; Done</span>
+                                  </div>
+                                  {item.txHash && (
+                                    <a
+                                      href={`https://bscscan.com/tx/${item.txHash}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[#00F0FF] hover:underline text-[10px] font-mono flex items-center justify-end gap-0.5"
+                                    >
+                                      <span>{item.txHash.slice(0, 10)}...{item.txHash.slice(-6)}</span>
+                                      <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+                                    </a>
+                                  )}
+                                  <div className="text-[10px] text-[#94a3b8]">
+                                    by {item.reviewedBy ? item.reviewedBy.slice(0, 10) : 'Admin'}
+                                  </div>
+                                </div>
+                              )}
+
+                              {isRejected && (
+                                <div className="space-y-0.5 text-right">
+                                  <span className="text-red-400 text-[11px] font-semibold">Declined</span>
+                                  {item.adminNote && (
+                                    <div className="text-[10px] text-[#94a3b8] italic max-w-xs ml-auto">
+                                      "{item.adminNote}"
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 

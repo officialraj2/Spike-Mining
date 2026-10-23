@@ -29,6 +29,14 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 
+// Handle favicon and robots to prevent 404 console noise
+app.get('/favicon.ico', (_req: Request, res: Response) => {
+  res.status(204).end();
+});
+app.get('/robots.txt', (_req: Request, res: Response) => {
+  res.type('text/plain').send('User-agent: *\nAllow: /');
+});
+
 // ============================================================
 // SYSTEM & DATABASE HEALTH APIS
 // ============================================================
@@ -713,6 +721,76 @@ app.post('/api/referrals/simulate', (req: Request, res: Response) => {
   res.json({ success: true, ...result, stats });
 });
 
+// ============================================================
+// WITHDRAWAL REQUESTS & ADMIN APPROVAL APIS
+// ============================================================
+app.get('/api/withdrawals', (req: Request, res: Response) => {
+  try {
+    const userAddress = req.query.userAddress as string | undefined;
+    const requests = db.getWithdrawalRequests(userAddress);
+    res.json({ success: true, withdrawals: requests });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to fetch withdrawals' });
+  }
+});
+
+app.post('/api/withdrawals/request', (req: Request, res: Response) => {
+  try {
+    const { userAddress, destinationAddress, amount, source, milestoneLabel } = req.body || {};
+    if (!userAddress || !amount) {
+      res.status(400).json({ success: false, error: 'userAddress and amount are required' });
+      return;
+    }
+    const result = db.createWithdrawalRequest({
+      userAddress,
+      destinationAddress: destinationAddress || userAddress,
+      amount: Number(amount),
+      source: source || 'milestone_reward',
+      milestoneLabel: milestoneLabel || 'Team Milestone Reward',
+    });
+
+    if (result.success && result.request) {
+      syncDocument('withdrawals', result.request.id, result.request).catch(() => {});
+    }
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to create withdrawal request' });
+  }
+});
+
+app.post('/api/admin/withdrawals/:id/approve', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { txHash, adminUser } = req.body || {};
+    const result = db.approveWithdrawalRequest(id, txHash, adminUser || 'Admin Dashboard');
+
+    if (result.success && result.request) {
+      syncDocument('withdrawals', result.request.id, result.request).catch(() => {});
+    }
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to approve withdrawal' });
+  }
+});
+
+app.post('/api/admin/withdrawals/:id/reject', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason, adminUser } = req.body || {};
+    const result = db.rejectWithdrawalRequest(id, reason, adminUser || 'Admin Dashboard');
+
+    if (result.success && result.request) {
+      syncDocument('withdrawals', result.request.id, result.request).catch(() => {});
+    }
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to reject withdrawal' });
+  }
+});
+
 app.post('/api/user/:address/sync', (req: Request, res: Response) => {
   const { address } = req.params;
   const patch = req.body;
@@ -936,6 +1014,105 @@ app.get('/api/testnet/transactions', (req: Request, res: Response) => {
     res.json({ success: true, transactions: txs });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Server error fetching testnet transactions' });
+  }
+});
+
+// ============================================================
+// ON-CHAIN BSC BALANCES API (SPIKE & USDT BEP-20 CONTRACTS)
+// ============================================================
+const SPIKE_CONTRACT_BSC = '0xc213905ac995bCC943c077b7918c8134094A9267';
+const USDT_CONTRACT_BSC = '0x55d398326f99059fF775485246999027B3197955';
+const BSC_RPC_URLS = [
+  'https://bsc-dataseed.binance.org/',
+  'https://bsc-dataseed1.defibit.io/',
+  'https://binance.llamarpc.com',
+  'https://rpc.ankr.com/bsc',
+];
+
+async function callBscRpcNode(method: string, params: any[]): Promise<string | null> {
+  for (const url of BSC_RPC_URLS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.result !== undefined) {
+          return json.result;
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
+app.get('/api/bsc/balances/:address', async (req: Request, res: Response) => {
+  const address = (req.params.address || '').trim();
+  if (!address.startsWith('0x') || address.length < 10) {
+    res.status(400).json({ success: false, error: 'Invalid wallet address' });
+    return;
+  }
+
+  const cleanAddr = address.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+  const dataPayload = '0x70a08231' + cleanAddr;
+
+  try {
+    const [rawSpikeHex, rawUsdtHex, rawBnbHex] = await Promise.all([
+      callBscRpcNode('eth_call', [{ to: SPIKE_CONTRACT_BSC, data: dataPayload }, 'latest']),
+      callBscRpcNode('eth_call', [{ to: USDT_CONTRACT_BSC, data: dataPayload }, 'latest']),
+      callBscRpcNode('eth_getBalance', [address, 'latest']),
+    ]);
+
+    const formatToken = (hex: string | null, decimals = 18): number => {
+      if (!hex || hex === '0x') return 0;
+      try {
+        const bi = BigInt(hex);
+        const divisor = BigInt(10 ** decimals);
+        const whole = bi / divisor;
+        const remainder = bi % divisor;
+        // Keep up to 6 decimal places as number
+        const remFloat = Number(remainder) / (10 ** decimals);
+        return +(Number(whole) + remFloat).toFixed(4);
+      } catch {
+        return 0;
+      }
+    };
+
+    const spikeBalance = formatToken(rawSpikeHex, 18);
+    const usdtBalance = formatToken(rawUsdtHex, 18);
+    const bnbBalance = formatToken(rawBnbHex, 18);
+
+    res.json({
+      success: true,
+      address,
+      contracts: {
+        spike: SPIKE_CONTRACT_BSC,
+        usdt: USDT_CONTRACT_BSC,
+      },
+      balances: {
+        spike: spikeBalance,
+        usdt: usdtBalance,
+        bnb: bnbBalance,
+      },
+      raw: {
+        spikeHex: rawSpikeHex,
+        usdtHex: rawUsdtHex,
+        bnbHex: rawBnbHex,
+      },
+      network: 'Binance Smart Chain (BSC Mainnet)',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err?.message || 'Error querying BSC RPC',
+    });
   }
 });
 
