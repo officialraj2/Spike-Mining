@@ -40,13 +40,15 @@ export interface HashrateLevelInfo {
   requirementText: string;
   directCount: number;
   totalTeamCount: number;
+  levelCounts?: Record<number, number>;
   isCustomOverride: boolean;
   nextTier?: {
     level: string;
     hashrate: number;
     requirementText: string;
-    neededDirects: number;
-    neededTeam: number;
+    neededDirects?: number;
+    neededInLevel?: number;
+    neededTeam?: number;
   } | null;
 }
 
@@ -172,10 +174,13 @@ export interface ReferralTier {
 
 export interface TeamMilestoneTier {
   id: string;
+  level: number;
   partnersRequired: number;
   rewardUsd: number;
   label: string;
   rewardFormatted: string;
+  levelTitle?: string;
+  description?: string;
 }
 
 export interface ToastMessage {
@@ -235,6 +240,8 @@ export interface ReferralStatsData {
   downlinePartners: number;
   totalPartners: number;
   totalCommissions: number;
+  milestoneRewardsClaimed?: number;
+  levelCounts?: Record<number, number>;
   referrals: Array<{
     id: string;
     referrerAddress: string;

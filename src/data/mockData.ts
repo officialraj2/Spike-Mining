@@ -133,13 +133,13 @@ export const INITIAL_REWARDS: RewardTransaction[] = [
 export const REFERRAL_TIERS: ReferralTier[] = [];
 
 export const TEAM_MILESTONE_TIERS: TeamMilestoneTier[] = [
-  { id: 'm-1', partnersRequired: 10, rewardUsd: 15, label: '10 Partners', rewardFormatted: '$15' },
-  { id: 'm-2', partnersRequired: 100, rewardUsd: 100, label: '100 Partners', rewardFormatted: '$100' },
-  { id: 'm-3', partnersRequired: 1000, rewardUsd: 500, label: '1,000 Partners', rewardFormatted: '$500' },
-  { id: 'm-4', partnersRequired: 5000, rewardUsd: 2000, label: '5,000 Partners', rewardFormatted: '$2,000' },
-  { id: 'm-5', partnersRequired: 25000, rewardUsd: 5000, label: '25,000 Partners', rewardFormatted: '$5,000' },
-  { id: 'm-6', partnersRequired: 50800, rewardUsd: 20000, label: '50,800 Partners', rewardFormatted: '$20,000' },
-  { id: 'm-7', partnersRequired: 100000, rewardUsd: 50000, label: '100,000 Partners', rewardFormatted: '$50,000' },
-  { id: 'm-8', partnersRequired: 200000, rewardUsd: 100000, label: '200,000 Partners', rewardFormatted: '$100,000' },
-  { id: 'm-9', partnersRequired: 500000, rewardUsd: 500000, label: '500,000 Partners', rewardFormatted: '$500,000' },
+  { id: 'm-1', level: 1, partnersRequired: 10, rewardUsd: 15, label: 'Level 1: 10 Team Partners', rewardFormatted: '$15' },
+  { id: 'm-2', level: 2, partnersRequired: 100, rewardUsd: 100, label: 'Level 2: 100 Team Partners', rewardFormatted: '$100' },
+  { id: 'm-3', level: 3, partnersRequired: 1000, rewardUsd: 1000, label: 'Level 3: 1,000 Team Partners', rewardFormatted: '$1,000' },
+  { id: 'm-4', level: 4, partnersRequired: 5000, rewardUsd: 2000, label: 'Level 4: 5,000 Team Partners', rewardFormatted: '$2,000' },
+  { id: 'm-5', level: 5, partnersRequired: 25000, rewardUsd: 20000, label: 'Level 5: 25,000 Team Partners', rewardFormatted: '$20,000' },
+  { id: 'm-6', level: 6, partnersRequired: 50000, rewardUsd: 35000, label: 'Level 6: 50,000 Team Partners', rewardFormatted: '$35,000' },
+  { id: 'm-7', level: 7, partnersRequired: 100000, rewardUsd: 80000, label: 'Level 7: 100,000 Team Partners', rewardFormatted: '$80,000' },
+  { id: 'm-8', level: 8, partnersRequired: 200000, rewardUsd: 100000, label: 'Level 8: 200,000 Team Partners', rewardFormatted: '$100,000' },
+  { id: 'm-9', level: 9, partnersRequired: 500000, rewardUsd: 500000, label: 'Level 9: 500,000 Team Partners', rewardFormatted: '$500,000' },
 ];

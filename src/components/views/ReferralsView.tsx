@@ -23,6 +23,7 @@ export interface ReferralStatsData {
   downlinePartners: number;
   totalPartners: number;
   totalCommissions: number;
+  levelCounts?: Record<number, number>;
   milestoneRewardsClaimed?: number;
   withdrawals?: WithdrawalItem[];
   pendingWithdrawalsAmount?: number;
@@ -667,6 +668,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       <TeamRewardMilestonesSection
         directPartners={directPartners}
         downlinePartners={downlinePartners}
+        levelCounts={effectiveStats?.levelCounts}
         onClaimReward={handleClaimMilestone}
         walletAddress={walletAddress}
       />

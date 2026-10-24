@@ -120,7 +120,11 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           {hashrateInfo?.nextTier && (
             <div className="text-right text-xs font-mono bg-[#0c1d2e] px-3.5 py-2 rounded-xl border border-[#1c2b3b]">
               <div className="text-[#D4AF37] font-bold">Next Tier: {hashrateInfo.nextTier.level} ({hashrateInfo.nextTier.hashrate} VH/s)</div>
-              <div className="text-[#94a3b8] text-[11px]">{hashrateInfo.nextTier.neededDirects} more direct referrals needed</div>
+              <div className="text-[#94a3b8] text-[11px]">
+                {hashrateInfo.nextTier.neededDirects !== undefined
+                  ? `${hashrateInfo.nextTier.neededDirects} more direct referrals needed`
+                  : `${hashrateInfo.nextTier.neededInLevel ?? 0} more members needed in target level`}
+              </div>
             </div>
           )}
           {onNavigateToReferrals && (

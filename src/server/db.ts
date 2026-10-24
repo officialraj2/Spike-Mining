@@ -485,14 +485,26 @@ class PersistentDatabase {
   // Level 2: 100 total team -> 15 days -> 400 VH/s
   // Level 3: 1,000 total team -> 10 days -> 600 VH/s
   // Level 4: 5,000 total team -> 7 days -> 857.14 VH/s
-  public getUserTeamStats(userAddress: string): { directCount: number; downlineCount: number; totalTeamCount: number } {
+  public getUserTeamStats(userAddress: string): {
+    directCount: number;
+    downlineCount: number;
+    totalTeamCount: number;
+    levelCounts: Record<number, number>;
+    levelMembers: Record<number, string[]>;
+  } {
     const norm = (userAddress || '').toLowerCase();
-    if (!norm) return { directCount: 0, downlineCount: 0, totalTeamCount: 0 };
+    if (!norm) return {
+      directCount: 0,
+      downlineCount: 0,
+      totalTeamCount: 0,
+      levelCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
+      levelMembers: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [] }
+    };
 
     const slice6 = norm.startsWith('0x') ? norm.slice(2, 8) : norm.replace(/^(spike-|spk-)/i, '');
     const userCode = `spk-${slice6}`.toLowerCase();
 
-    // Match both canonical 0x address, referral code (e.g. SPK-3471E0), and slice
+    // Level 1: Match both canonical 0x address, referral code (e.g. SPK-3471E0), and slice
     const directs = this.data.referrals.filter((r) => {
       const ref = (r.referrerAddress || '').toLowerCase();
       return (
@@ -504,7 +516,7 @@ class PersistentDatabase {
       );
     });
 
-    // Deduplicate unique direct referee wallets
+    // Deduplicate unique direct referee wallets (Level 1)
     const uniqueDirects = new Set<string>();
     directs.forEach((d) => {
       const refAddr = (d.refereeAddress || '').toLowerCase().trim();
@@ -534,7 +546,31 @@ class PersistentDatabase {
 
     const directCount = uniqueDirects.size;
 
-    // Multi-tier downline traversal
+    // Track level by level (Unilevel Tree: Level 1, Level 2, Level 3, Level 4... up to Level 9)
+    const levelCounts: Record<number, number> = {
+      1: directCount,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+      6: 0,
+      7: 0,
+      8: 0,
+      9: 0,
+    };
+
+    const levelMembers: Record<number, string[]> = {
+      1: Array.from(uniqueDirects),
+      2: [],
+      3: [],
+      4: [],
+      5: [],
+      6: [],
+      7: [],
+      8: [],
+      9: [],
+    };
+
     const visited = new Set<string>();
     visited.add(norm);
     visited.add(userCode);
@@ -542,7 +578,9 @@ class PersistentDatabase {
 
     let queue = Array.from(uniqueDirects);
     let downlineCount = 0;
-    while (queue.length > 0) {
+    let currentLevel = 2;
+
+    while (queue.length > 0 && currentLevel <= 9) {
       const nextTier: string[] = [];
       for (const parent of queue) {
         const pSlice = parent.startsWith('0x') ? parent.slice(2, 8) : parent.replace(/^(spike-|spk-)/i, '').slice(0, 6);
@@ -573,20 +611,30 @@ class PersistentDatabase {
           }
         });
       }
+      levelCounts[currentLevel] = nextTier.length;
+      levelMembers[currentLevel] = nextTier;
       queue = nextTier;
+      currentLevel++;
     }
 
     return {
       directCount,
       downlineCount,
       totalTeamCount: directCount + downlineCount,
+      levelCounts,
+      levelMembers,
     };
   }
 
   public calculateUserHashrate(address: string) {
     const norm = (address || '').toLowerCase();
     const user = this.getUser(norm);
-    const { directCount, totalTeamCount } = this.getUserTeamStats(norm);
+    const teamStats = this.getUserTeamStats(norm);
+    const { directCount, totalTeamCount, levelCounts } = teamStats;
+    const l1Count = levelCounts[1] || directCount;
+    const l2Count = levelCounts[2] || 0;
+    const l3Count = levelCounts[3] || 0;
+    const l4Count = levelCounts[4] || 0;
 
     // If admin has set a custom hashrate override for this wallet address
     if (user && typeof user.customHashrate === 'number' && user.customHashrate > 0) {
@@ -599,24 +647,27 @@ class PersistentDatabase {
         targetDays: customDays,
         dailySpkYield: +(user.customHashrate / 6000).toFixed(5),
         requirementText: `Admin Override (${user.customHashrateReason || 'Manual Rate'})`,
-        directCount,
+        directCount: l1Count,
         totalTeamCount,
+        levelCounts,
         isCustomOverride: true,
         nextTier: null,
       };
     }
 
-    const s = this.data.settings;
-    const l1Directs = s?.level1DirectsRequired ?? 10;
-    const l2Directs = s?.level2DirectsRequired ?? 25;
-    const l3Directs = s?.level3DirectsRequired ?? 50;
-    const l1Hash = s?.level1HashrateBoost ?? 200;
-    const l2Hash = s?.level2HashrateBoost ?? 400;
-    const l3Hash = s?.level3HashrateBoost ?? 600;
-    const l4Hash = 857.14;
+    const l1Hash = 200; // 2x
+    const l2Hash = 400; // 4x
+    const l3Hash = 600; // 6x
+    const l4Hash = 857.14; // 8.5x
 
-    // Determine based on dynamic global settings:
-    if (directCount >= 100 || totalTeamCount >= 5000) {
+    // User exact specifications:
+    // Level 4 (Apex Fleet Milestone): Criteria: 5,000 Total Team in level 4 -> 857.14 VH/s (7 Days)
+    // Level 3 (Community Milestone): Criteria: 1,000 Total Team in level 3 -> 600 VH/s (10 Days)
+    // Level 2 (Team Milestone): Criteria: 100 Total Team in level 2 (through level 1 directs) -> 400 VH/s (15 Days)
+    // Level 1 (Direct Milestone): Criteria: 10 Direct Referrals in level 1 -> 200 VH/s (30 Days)
+    // Fresh user: 0 referrals -> 100 VH/s (60 Days)
+
+    if (l4Count >= 5000 || totalTeamCount >= 5000) {
       return {
         level: 'Level 4',
         levelNumber: 4,
@@ -624,13 +675,14 @@ class PersistentDatabase {
         unit: 'VH/s',
         targetDays: 7,
         dailySpkYield: +(l4Hash / 6000).toFixed(5),
-        requirementText: directCount >= 100 ? '100 direct referrals' : '5,000 total team',
-        directCount,
+        requirementText: '5,000 Total Team in Level 4',
+        directCount: l1Count,
         totalTeamCount,
+        levelCounts,
         isCustomOverride: false,
         nextTier: null,
       };
-    } else if (directCount >= l3Directs || totalTeamCount >= 1000) {
+    } else if (l3Count >= 1000 || totalTeamCount >= 1000) {
       return {
         level: 'Level 3',
         levelNumber: 3,
@@ -638,19 +690,20 @@ class PersistentDatabase {
         unit: 'VH/s',
         targetDays: 10,
         dailySpkYield: +(l3Hash / 6000).toFixed(5),
-        requirementText: directCount >= l3Directs ? `${l3Directs} direct referrals` : '1,000 total team',
-        directCount,
+        requirementText: '1,000 Total Team in Level 3',
+        directCount: l1Count,
         totalTeamCount,
+        levelCounts,
         isCustomOverride: false,
         nextTier: {
           level: 'Level 4',
           hashrate: l4Hash,
-          requirementText: '100 directs or 5,000 team',
-          neededDirects: Math.max(0, 100 - directCount),
+          requirementText: '5,000 Team in Level 4',
+          neededInLevel: Math.max(0, 5000 - l4Count),
           neededTeam: Math.max(0, 5000 - totalTeamCount),
         },
       };
-    } else if (directCount >= l2Directs || totalTeamCount >= 100) {
+    } else if (l2Count >= 100 || totalTeamCount >= 100) {
       return {
         level: 'Level 2',
         levelNumber: 2,
@@ -658,19 +711,20 @@ class PersistentDatabase {
         unit: 'VH/s',
         targetDays: 15,
         dailySpkYield: +(l2Hash / 6000).toFixed(5),
-        requirementText: directCount >= l2Directs ? `${l2Directs} direct referrals` : '100 total team',
-        directCount,
+        requirementText: '100 Total Team in Level 2',
+        directCount: l1Count,
         totalTeamCount,
+        levelCounts,
         isCustomOverride: false,
         nextTier: {
           level: 'Level 3',
           hashrate: l3Hash,
-          requirementText: `${l3Directs} directs or 1,000 team`,
-          neededDirects: Math.max(0, l3Directs - directCount),
+          requirementText: '1,000 Team in Level 3',
+          neededInLevel: Math.max(0, 1000 - l3Count),
           neededTeam: Math.max(0, 1000 - totalTeamCount),
         },
       };
-    } else if (directCount >= l1Directs) {
+    } else if (l1Count >= 10) {
       return {
         level: 'Level 1',
         levelNumber: 1,
@@ -678,15 +732,16 @@ class PersistentDatabase {
         unit: 'VH/s',
         targetDays: 30,
         dailySpkYield: +(l1Hash / 6000).toFixed(5),
-        requirementText: `${l1Directs} direct referrals`,
-        directCount,
+        requirementText: '10 Direct Referrals in Level 1',
+        directCount: l1Count,
         totalTeamCount,
+        levelCounts,
         isCustomOverride: false,
         nextTier: {
           level: 'Level 2',
           hashrate: l2Hash,
-          requirementText: `${l2Directs} directs or 100 team`,
-          neededDirects: Math.max(0, l2Directs - directCount),
+          requirementText: '100 Team in Level 2',
+          neededInLevel: Math.max(0, 100 - l2Count),
           neededTeam: Math.max(0, 100 - totalTeamCount),
         },
       };
@@ -698,15 +753,17 @@ class PersistentDatabase {
         unit: 'VH/s',
         targetDays: 60,
         dailySpkYield: +(100 / 6000).toFixed(5),
-        requirementText: '0 referrals (Base Tier)',
-        directCount,
+        requirementText: '0 Referrals (Base Tier)',
+        directCount: l1Count,
         totalTeamCount,
+        levelCounts,
         isCustomOverride: false,
         nextTier: {
           level: 'Level 1',
           hashrate: l1Hash,
-          requirementText: `${l1Directs} direct referrals`,
-          neededDirects: Math.max(0, l1Directs - directCount),
+          requirementText: '10 Direct Referrals in Level 1',
+          neededDirects: Math.max(0, 10 - l1Count),
+          neededInLevel: Math.max(0, 10 - l1Count),
           neededTeam: 0,
         },
       };
@@ -1221,6 +1278,7 @@ class PersistentDatabase {
       directPartners: Math.max(teamStats.directCount, allDirects.length),
       downlinePartners: teamStats.downlineCount,
       totalPartners: Math.max(teamStats.totalTeamCount, allDirects.length + teamStats.downlineCount),
+      levelCounts: teamStats.levelCounts,
       totalCommissions: effectiveEarned,
       milestoneRewardsClaimed: +milestoneRewards.toFixed(2),
       withdrawals,
