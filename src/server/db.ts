@@ -868,7 +868,13 @@ class PersistentDatabase {
     return user;
   }
 
-  public syncUserBalance(address: string, balanceUsdt?: number, balanceBnb?: number, balanceSpk?: number): DbUser {
+  public syncUserBalance(
+    address: string,
+    balanceUsdt?: number,
+    balanceBnb?: number,
+    balanceSpk?: number,
+    miningCycleStartTime?: number
+  ): DbUser {
     const norm = address.toLowerCase();
     const user = this.upsertUser({ address: norm });
     if (typeof balanceUsdt === 'number' && !isNaN(balanceUsdt)) {
@@ -879,6 +885,10 @@ class PersistentDatabase {
     }
     if (typeof balanceSpk === 'number' && !isNaN(balanceSpk)) {
       user.balanceSpk = Number(balanceSpk.toFixed(4));
+    }
+    if (typeof miningCycleStartTime === 'number' && !isNaN(miningCycleStartTime) && miningCycleStartTime > 0) {
+      user.miningCycleStartTime = miningCycleStartTime;
+      user.hasActivatedMining = true;
     }
     user.lastActive = new Date().toISOString();
     this.save();
@@ -2158,7 +2168,15 @@ class PersistentDatabase {
     userAddress: string,
     amount = 5.0,
     txHash?: string
-  ): { success: boolean; treasuryBalanceUsdt: number; remainingUserUsdt: number; txHash: string; error?: string } {
+  ): {
+    success: boolean;
+    treasuryBalanceUsdt: number;
+    remainingUserUsdt: number;
+    txHash: string;
+    user?: DbUser;
+    node?: DbMiningNode;
+    error?: string;
+  } {
     if (!userAddress) {
       return { success: false, treasuryBalanceUsdt: 0, remainingUserUsdt: 0, txHash: '', error: 'User address is required' };
     }
@@ -2177,12 +2195,17 @@ class PersistentDatabase {
       user.balanceUsdt = 10.0; // default remainder for 15$ project flow
     }
     user.hasDepositedTreasury = true;
+    user.hasActivatedMining = true;
+    if (!user.miningCycleStartTime) {
+      user.miningCycleStartTime = Date.now();
+    }
     user.lastActive = new Date().toISOString();
 
     // Automatically provision and activate Mining Node upon $5 deposit
     const userNodes = this.data.nodes.filter((n) => n.userAddress.toLowerCase() === norm);
-    if (!userNodes.some((n) => n.status === 'mining')) {
-      const activeNode: DbMiningNode = {
+    let activeNode = userNodes.find((n) => n.status === 'mining');
+    if (!activeNode) {
+      activeNode = {
         id: `node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         userAddress: norm,
         name: `SPIKE ASIC Rig #${userNodes.length + 1}`,
@@ -2227,6 +2250,8 @@ class PersistentDatabase {
       treasuryBalanceUsdt: this.data.settings.treasuryBalanceUsdt,
       remainingUserUsdt: user.balanceUsdt,
       txHash: cleanHash,
+      user,
+      node: activeNode,
     };
   }
 
@@ -2262,6 +2287,9 @@ class PersistentDatabase {
     // Deduct 10 USDT from user
     user.balanceUsdt = Math.max(0, +(user.balanceUsdt - costUsdt).toFixed(2));
     user.hasActivatedMining = true;
+    if (!user.miningCycleStartTime) {
+      user.miningCycleStartTime = Date.now();
+    }
     user.lastActive = new Date().toISOString();
 
     // CREDIT TREASURY WALLET WITH 10 USDT (Treasury address: 0x3471e07c4d2f7e11c155760a7b386e616b5c3715)

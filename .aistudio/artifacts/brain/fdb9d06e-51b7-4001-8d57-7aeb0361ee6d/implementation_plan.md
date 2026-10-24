@@ -1,71 +1,73 @@
-# Master User (Super Admin) Project Control System
+# Permanent Mining State & Income Persistence Architecture
 
 ## Summary
-A comprehensive Master User control suite enabling the project creator to authenticate automatically via their designated master wallet (`0x3471e07c4d2f7e11c155760a7b386e616b5c3715`) and make real-time global changes across the entire dApp. Updates to mining yields, hashrate tiers, referral commission percentages, user balances, and system parameters immediately persist to both local server storage and Firestore, governing how the dApp runs for every connected user.
+An end-to-end persistence engine that guarantees once a user activates mining (5 USDT deposit or 10 USDT node deployment), their active rigs, real-time accumulated yields, claimed SPIKE/USDT balances, and 24-hour countdown timer never wash away or reset on page reload. Employs a triple-redundant architecture combining instant browser storage, backend ACID JSON storage, and cloud Firestore synchronization.
 
 ---
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following core decisions were confirmed through interactive requirements clarification:
-> - **Authentication Method**: Dedicated master wallet address with instantaneous automatic recognition upon Web3 connection.
-> - **Control Scope**: 
->   1. Global mining parameters, hashrates, and token rewards.
->   2. Team referral percentages, tier thresholds, and sponsor rules.
->   3. User management, custom wallet balances, and role assignments.
-> - **Default Master Wallet**: `0x3471e07c4d2f7e11c155760a7b386e616b5c3715` (with the ability for the master to add/update backup master addresses).
+> The following decisions were established through user clarification and requirements analysis:
+> - **24-Hour Timer Persistence**: Countdown calculates elapsed wall-clock seconds from the initial start timestamp (`spike_cycle_start_${address}`). Reloading mid-cycle seamlessly continues from the exact remaining duration without resetting to 24h or freezing.
+> - **Triple-Layer Data Redundancy**: 
+>   1. *Layer 1 (Client Cache)*: Wallet-keyed `localStorage` ensures zero flicker, instant state hydration, and multi-tab sync.
+>   2. *Layer 2 (Backend Engine)*: Server-side JSON database (`.data/spike_database.json`) records transactions, nodes, balances, and treasury metrics with atomic file locking.
+>   3. *Layer 3 (Cloud Firestore)*: Asynchronous synchronization to `ai-studio-spikeweb3cryptom-...` Firestore collections (`users`, `nodes`, `transactions`, `settings`) for cloud resilience across environments.
+> - **Permanent Node Binding**: Once a user deposits 5 USDT or deploys a 10 USDT rig, the user record is permanently flagged with `hasActivatedMining: true` and `hasDepositedTreasury: true`. The backend `/api/user/:address` endpoint will always return their active rigs even if the client cache is cleared.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Does**: Provides a dedicated, root-privileged Master Control Center inside the dApp that automatically unlocks when the creator connects their wallet. Any parameters updated by the Master (such as mining yield %, node base power, referral commission rates, or user account balances) are saved directly to the backend database (`spike_database.json`) and synchronized to Firestore, immediately altering how the entire project behaves for all users and visitors.
-- **Target Audience / Persona**: The dApp owner/creator (Master User) managing live tokenomics, user disputes, and team bonus parameters without editing raw code.
-- **Key Value**: Real-time project governance and permanent configuration persistence without requiring redeployments or downtime.
+- **What It Does**: Eliminates all risk of state loss on page refresh. When a user connects their wallet, the application immediately merges cached local data with the server database and Firestore. Any mining node activated, transaction confirmed, or SPIKE tokens harvested remain permanently linked to that wallet address.
+- **Target Persona**: Miners and team builders on the SPIKE protocol who need complete confidence that their investments, mining hardware, and daily yields are secure, verifiable, and persistent across devices and sessions.
+- **Key Value**: 100% session durability—no wiped rigs, no lost earnings, and seamless continuation of the 24-hour mining cycle.
 
 ---
 
 ## 2. User Experience & Visual Design
 
 ### Key User Flows
-1. **Master Recognition**: 
-   - Creator connects their wallet (`0x3471...3715`).
-   - The dApp immediately detects the Master User status, displaying a distinctive gold and neon cyan indicator: `MASTER ADMIN (ROOT)`.
-   - The Sidebar and Header expose the dedicated **Master Control Center** tab (`/admin`).
-2. **Global Mining & Yield Orchestration**:
-   - Master navigates to **Mining Controls**: edits Daily Yield % (e.g. 1.2% to 2.5%), Turbo Multiplier, Base Hashrate (TH/s), Node Activation Cost, and Mining Cycle Duration.
-   - Master clicks `Apply Global Mining Settings`.
-   - All mining calculators, node deployment prices, and yields across the app instantly update for all visitors.
-3. **Team Referral & Commission Governance**:
-   - Master navigates to **Referral & Team Rules**: configures Tier 1 commission (e.g. 15%), Tier 2 commission (e.g. 5%), direct partner requirements for hashrate bonuses (Level 1: 10 directs, Level 2: 25 directs, Level 3: 50 directs).
-   - Master saves changes; all referral reward cards, partner bonus rules, and team earnings calculations synchronize immediately.
-4. **User & Balance Administration**:
-   - Master searches any user address in the **User Directory**.
-   - Master can view complete user stats (sponsor, downline count, mining nodes, earnings).
-   - Master can directly adjust user balances (USDT, SPK), set custom hashrate overrides, change user status (Active / Frozen / Banned), or grant moderator roles.
-5. **System Safeguards**:
-   - One-click toggle for **Maintenance Mode** (with custom banner message).
-   - Live audit logging recording timestamped actions executed by the Master.
+1. **Wallet Connection & State Hydration**:
+   - User connects their Web3 wallet.
+   - The app immediately hydrates cached balances, nodes, and referral stats from `localStorage` within 5ms.
+   - Concurrently queries `GET /api/user/:address` to fetch the authoritative database state.
+   - If server records show higher earnings, new referrals, or active nodes, state upgrades smoothly with zero visual layout shift.
+2. **5 USDT Treasury Deposit & Mining Initialization**:
+   - User completes the 5 USDT deposit modal.
+   - Client records `spike_mining_active_${address} = true` and `spike_cycle_start_${address} = Date.now()`.
+   - Backend `POST /api/treasury/deposit` flags `user.hasDepositedTreasury = true`, credits the treasury, and generates the active ASIC rig in the database.
+   - User reloads the browser at any point: the mining engine remains active, the 24h timer displays the exact elapsed time, and the 3D medallion continues running.
+3. **24-Hour Cycle Completion & Harvest**:
+   - When 86,400 seconds elapse, mining halts automatically as designed.
+   - User clicks **Claim SPK & Restart 24h Mining**.
+   - PancakeSwap router swap completes, crediting SPK to the user's balance.
+   - Backend `POST /api/user/sync-balance` updates the database and Firestore with the new SPK and USDT balances.
+   - Next 24h cycle timer is recorded and persisted; subsequent reloads display the fresh running cycle.
+4. **Deploy Additional Titan Nodes ($10 USDT)**:
+   - User deploys a new node via `DeployNodeModal`.
+   - Backend `POST /api/mining/activate` deducts 10 USDT, credits treasury, provisions the new node, and records the transaction.
+   - Rigs are saved both in `.data/spike_database.json` and Firestore `nodes/{id}`.
 
-### Visual Identity & Theme
-- **Aesthetic Direction**: High-density, professional Web3 developer & administrative console aligned with the Spike Stratum dark theme.
-- **Color Palette**: Deep slate background (`#051424` / `#0a101d`), hairline borders (`#1c2b3b` / `#1e2e42`), bright cyan accent (`#00F0FF`), and gold root accents (`#D4AF37`) for Master actions.
-- **Typography**: Clean display headings in `Plus Jakarta Sans` / `Outfit`, accompanied by strict monospace tabular figures (`font-mono tabular-nums`) for addresses, hashrates, balances, and timestamps.
-- **Anti-Slop Restraint**: Zero decorative pulsing dots, zero fake compiler logs or pseudocode headers, clean unboxed metadata, and clear single-line action buttons.
+### Visual Polish & Reliability Indicators
+- Clean synchronization status badge in the UI (green live indicator showing database connectivity).
+- Instant fallback hydration prevents zero-balance flashes during network queries.
+- Strict numeric validation prevents `NaN` or `null` balance states.
 
 ---
 
 ## 3. Key Product Decisions & Trade-Offs
 
-- **Decision 1: Master Authentication Strategy**
-  - *Chosen Approach*: Automatic recognition of designated master wallet addresses (`0x3471e07c4d2f7e11c155760a7b386e616b5c3715`) stored in a secure server-side master list, supplemented by an optional emergency passkey modal for administrative sessions.
-  - *Why*: Eliminates friction for the owner while preventing spoofing; server-side routes rigorously verify request headers and sender addresses before executing mutations.
-- **Decision 2: Global Configuration Persistence**
-  - *Chosen Approach*: Dual-write architecture: Master updates write to `DbSettings` in `.data/spike_database.json` and sync asynchronously to Firestore (`settings/global_config`).
-  - *Why*: Guarantees instant local API responses with zero latency, while ensuring cloud persistence across container restarts or multi-instance deployments.
-- **Decision 3: Propagation to Active Clients**
-  - *Chosen Approach*: The frontend queries `/api/settings` on mount and listens for live updates via WebSocket / polling / custom events. When the master changes settings, an instant broadcast triggers a re-sync on all active clients.
+- **Decision 1: Elapsed Wall-Clock Time vs. Tick-Based Timer**
+  - *Chosen Approach*: Storing the initial cycle start timestamp (`Date.now()`) and calculating `remaining = 86400 - Math.floor((Date.now() - startTime) / 1000)`.
+  - *Why*: Immune to browser throttling, background tab freezing, and page reloads.
+- **Decision 2: Client-Server Conflict Resolution**
+  - *Chosen Approach*: Highest confirmed balance / node count takes precedence. If client has local records of a recent swap or claim that the server has not yet received, client pushes synchronization via `/api/user/sync-balance` and `/api/nodes/sync`.
+  - *Why*: Protects user earnings during transient network interruptions.
+- **Decision 3: Firestore Quota Defense**
+  - *Chosen Approach*: Local JSON database acts as the primary immediate persistence layer, with non-blocking fire-and-forget sync to Firestore.
+  - *Why*: Ensures the application functions with zero downtime even if Firestore daily free-tier quotas are reached.
 
 ---
 
@@ -73,69 +75,71 @@ A comprehensive Master User control suite enabling the project creator to authen
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        MASTER USER INTERFACE                           │
-│  • Auto-Recognition on Connect (0x3471...3715)                         │
-│  • Master Control Center (Mining | Referrals | Users | Safeguards)     │
-└──────────────────────────────────┬─────────────────────────────────────┘
-                                   │ HTTPS / REST (Auth: Master Address)
-                                   ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        EXPRESS BACKEND SERVER                          │
-│  • /api/admin/settings (GET / PUT)                                     │
-│  • /api/admin/referral-rules (GET / PUT)                               │
-│  • /api/admin/users/:address (GET / PUT balance / hashrate / status)   │
-│  • /api/admin/system (Maintenance / Faucet / Reset)                    │
-└───────────────────┬────────────────────────────────┬───────────────────┘
-                    │                                │
-                    ▼                                ▼
-       ┌────────────────────────┐      ┌──────────────────────────┐
-       │   Local Server DB      │      │   Firestore Database     │
-       │  (spike_database.json) │◄────►│   (ai-studio-spikeweb3)  │
-       │  • db.settings         │      │   • settings/global      │
-       │  • db.users            │      │   • users/{address}      │
-       │  • db.referrals        │      │   • audit_logs/{id}      │
-       └────────────────────────┘      └──────────────────────────┘
+│                         FRONTEND (REACT SPA)                           │
+│  • Wallet Connection & Multi-Tab Event Broadcaster                     │
+│  • LocalStorage Hydration (spike_bal_*, spike_nodes_*, spike_cycle_*)  │
+│  • Live Mining Engine & 24h Wall-Clock Countdown                       │
+└──────────────────┬─────────────────────────────────┬───────────────────┘
+                   │                                 │
+                   │ 1. Local Cache                  │ 2. REST API Sync
+                   ▼                                 ▼
+┌──────────────────────────────────────┐  ┌──────────────────────────────┐
+│       BROWSER LOCALSTORAGE           │  │    EXPRESS BACKEND SERVER    │
+│  • Scoped per wallet address         │  │  • /api/user/:address        │
+│  • Sub-millisecond instant render    │  │  • /api/user/sync-balance    │
+│  • Preserves active cycle timestamps │  │  • /api/treasury/deposit     │
+└──────────────────────────────────────┘  │  • /api/mining/activate      │
+                                          │  • /api/nodes/sync           │
+                                          └──────────────┬───────────────┘
+                                                         │
+                                    ┌────────────────────┴────────────────────┐
+                                    ▼                                         ▼
+                     ┌─────────────────────────────┐           ┌─────────────────────────────┐
+                     │   SERVER JSON ACID DB       │           │   CLOUD FIRESTORE           │
+                     │   (.data/spike_database.json)│◄─────────►│   (ai-studio-spikeweb3)     │
+                     │   • users table             │           │   • users/{address}         │
+                     │   • nodes table             │           │   • nodes/{id}              │
+                     │   • transactions table      │           │   • settings/global_config  │
+                     │   • treasury state          │           │   • referrals/{id}          │
+                     └─────────────────────────────┘           └─────────────────────────────┘
 ```
 
-### Data Model & State Entities
+### Data Entities & Schema Mapping
+1. **User Record (`users` collection / `db.users`)**:
+   - `address`: EVM address (lowercase normalized).
+   - `balanceUsdt`: Real-time available USDT balance.
+   - `balanceSpk`: Claimed SPIKE token holdings.
+   - `balanceBnb`: Gas balance.
+   - `hasActivatedMining`: Boolean flag ensuring rigs are never wiped.
+   - `hasDepositedTreasury`: Boolean flag for 5 USDT entry verification.
+   - `miningCycleStartTime`: Epoch millisecond timestamp of current 24h run.
+   - `referralCode` & `referredBy`: Permanent referral bond.
+2. **Mining Rig Record (`nodes` collection / `db.nodes`)**:
+   - `id`: Unique rig identifier (`node-${timestamp}-${random}`).
+   - `userAddress`: Rig owner wallet.
+   - `status`: `'mining' | 'idle' | 'stopped'`.
+   - `hashrate`: Active hashrate tier in VH/s or TH/s.
+   - `deployedAt`: ISO timestamp of deployment.
+3. **Transaction Record (`transactions` collection / `db.transactions`)**:
+   - `type`: `'deposit' | 'activation' | 'claim' | 'swap' | 'milestone_reward'`.
+   - `amount`: Token or USDT volume.
+   - `status`: `'Confirmed'`.
 
-```typescript
-// Master Global Settings
-export interface MasterGlobalSettings {
-  // Mining & Yield
-  dailyYieldPercent: number;        // e.g. 1.2%
-  turboMultiplier: number;          // e.g. 2.0x
-  baseHashrateTh: number;           // e.g. 200 TH/s
-  nodeCostUsdt: number;             // e.g. 150 USDT
-  miningCycleHours: number;         // e.g. 24 hours
-  dailyRewardSpk: number;           // e.g. 50 SPK
-  
-  // Referral & Team Rules
-  tier1CommissionPercent: number;   // e.g. 15%
-  tier2CommissionPercent: number;   // e.g. 5%
-  level1DirectsRequired: number;    // e.g. 10
-  level2DirectsRequired: number;    // e.g. 25
-  level3DirectsRequired: number;    // e.g. 50
-  
-  // System Controls
-  maintenanceMode: boolean;
-  maintenanceMessage: string;
-  masterWalletAddresses: string[];  // ['0x3471e07c4d2f7e11c155760a7b386e616b5c3715', ...]
-}
-```
+---
 
-### Component & API Implementation Steps
-1. **Database & API Layer (`src/server/db.ts` & `server.ts`)**:
-   - Expand `DbSettings` to incorporate global referral percentages, tier thresholds, node costs, and `masterWalletAddresses`.
-   - Initialize `0x3471e07c4d2f7e11c155760a7b386e616b5c3715` as the default Master User.
-   - Implement `/api/admin/settings` (GET/PUT) with validation.
-   - Implement `/api/admin/users/:address` endpoints for balance adjustments, custom hashrate overrides, and status toggles.
-2. **Master Control Center Component (`src/components/views/AdminView.tsx`)**:
-   - Re-architect into clean, tabbed modules:
-     - **Mining & Yield Parameters**: Live inputs for yields, cycle times, node pricing, and rewards.
-     - **Referral & Partner Rules**: Live inputs for commission rates (Tier 1 & Tier 2) and level thresholds.
-     - **User & Balance Manager**: Search any address, view their tree, adjust USDT/SPK balance, set custom hashrate, or toggle ban/freeze status.
-     - **System Governance**: Maintenance toggle, master address manager, and exportable backup JSON.
-3. **App Integration (`src/App.tsx`)**:
-   - Seamless auto-recognition of the Master User wallet.
-   - Live consumption of global settings so mining calculators, referral views, and node activation forms automatically adapt to the master's values.
+## 5. Implementation Steps & Verifications
+
+1. **Backend Route Audit & Fortification**:
+   - Verify `POST /api/treasury/deposit` sets `user.hasDepositedTreasury = true` and `user.hasActivatedMining = true`, saves the active rig to `db.nodes`, and syncs to Firestore.
+   - Verify `POST /api/mining/activate` deducts 10 USDT, credits the treasury wallet (`0x3471...3715`), creates the new Titan node in `db.nodes`, and syncs to Firestore.
+   - Add explicit `miningCycleStartTime` and `hasActivatedMining` persistence in `POST /api/user/sync-balance` and `POST /api/nodes/sync`.
+2. **Frontend State Hydration Hardening (`src/App.tsx`)**:
+   - In `handleDepositSuccess`, guarantee `localStorage.setItem('spike_nodes_' + norm, JSON.stringify(updatedNodes))` and call `/api/nodes/sync`.
+   - In `handleDeployNode`, ensure deployed nodes are immediately dispatched to `/api/mining/activate` and saved in `spike_nodes_${norm}`.
+   - On page load / wallet switch, query `/api/user/:address` and merge server nodes with local nodes, guaranteeing no user ever sees zero active nodes if they previously started mining.
+3. **24-Hour Timer Hydration (`src/components/GoldenHawkMiningSection.tsx`)**:
+   - Ensure `cycleStartTime` is loaded from `localStorage.getItem('spike_cycle_start_' + walletAddress)` and falls back to server `user.miningCycleStartTime`.
+   - Guarantee `secondsRemaining` is computed dynamically from `Date.now() - cycleStartTime`, so refreshing 5 hours into a mining cycle correctly shows 19 hours remaining.
+4. **Full Verification**:
+   - Run `lint_applet` and `compile_applet` to confirm clean compilation.
+   - Test reload behavior: connect wallet, deposit 5 USDT, refresh page, and verify the node, balance, and timer remain fully active and persistent.

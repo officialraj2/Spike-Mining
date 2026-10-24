@@ -160,6 +160,31 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     return () => window.removeEventListener('spike_mining_started', handleMiningStarted);
   }, [walletAddress]);
 
+  // Synchronize cycle start time and mining status whenever walletAddress changes or hydrates
+  useEffect(() => {
+    if (!walletAddress) return;
+    const norm = walletAddress.toLowerCase();
+    const stored = localStorage.getItem(`spike_cycle_start_${norm}`);
+    if (stored && !isNaN(Number(stored))) {
+      const parsedStart = Number(stored);
+      setCycleStartTime(parsedStart);
+      const elapsed = Math.floor((Date.now() - parsedStart) / 1000);
+      setSecondsRemaining(Math.max(0, 86400 - elapsed));
+    }
+    const isAct = localStorage.getItem(`spike_mining_active_${norm}`) === 'true' || localStorage.getItem('spike_active_mining') === 'true';
+    if (isAct) {
+      setHasDeposited5Usdt(true);
+    }
+    const cachedSpk = localStorage.getItem(`spike_accumulated_spk_${norm}`);
+    if (cachedSpk && !isNaN(Number(cachedSpk))) {
+      setAccumulatedSpike(Number(cachedSpk));
+    }
+    const cachedUsdt = localStorage.getItem(`spike_accumulated_usdt_${norm}`);
+    if (cachedUsdt && !isNaN(Number(cachedUsdt))) {
+      setAccumulatedUsdt(Number(cachedUsdt));
+    }
+  }, [walletAddress]);
+
   // Real-time 24-hour countdown ticker
   useEffect(() => {
     if (!isMining) return;
@@ -363,6 +388,17 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           localStorage.removeItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
         }
       } catch {}
+
+      // Sync new SPK balance and next cycle start to backend database & Firestore
+      fetch('/api/user/sync-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: userAddr,
+          balanceSpk: newSpkBalance,
+          miningCycleStartTime: nextCycleStart,
+        }),
+      }).catch(() => {});
 
       if (onAutoBuySuccess) {
         onAutoBuySuccess(finalTx, { ...(data?.wallet || {}), testnetSpk: newSpkBalance }, data?.token);

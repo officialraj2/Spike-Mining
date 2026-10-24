@@ -715,6 +715,21 @@ export default function App() {
             } catch {}
           }
 
+          if (data.user.miningCycleStartTime && typeof data.user.miningCycleStartTime === 'number') {
+            const localCycle = localStorage.getItem(`spike_cycle_start_${norm}`);
+            if (!localCycle || isNaN(Number(localCycle))) {
+              localStorage.setItem(`spike_cycle_start_${norm}`, String(data.user.miningCycleStartTime));
+              localStorage.setItem('spike_cycle_start_global', String(data.user.miningCycleStartTime));
+            }
+          }
+          if (data.user.hasActivatedMining || data.user.hasDepositedTreasury) {
+            localStorage.setItem('spike_active_mining', 'true');
+            localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+          }
+          if (typeof data.user.balanceSpk === 'number' && !isNaN(data.user.balanceSpk)) {
+            setWalletSpk((prev) => Math.max(prev, data.user.balanceSpk));
+          }
+
           // If local balance was higher/different than server, sync back to server database
           if (cachedBal !== null && uBal !== null && cachedBal !== uBal) {
             fetch('/api/user/sync-balance', {
@@ -1343,15 +1358,7 @@ export default function App() {
 
   const handleDepositSuccess = (newBalance: number, txHash: string) => {
     setWalletBalance(newBalance);
-    if (walletAddress) {
-      const norm = walletAddress.toLowerCase();
-      localStorage.setItem(`spike_bal_${norm}`, newBalance.toFixed(2));
-      window.dispatchEvent(
-        new CustomEvent('spike_balance_updated', {
-          detail: { address: norm, balanceUsdt: newBalance },
-        })
-      );
-    }
+    const now = Date.now();
     const cleanHash = txHash.length > 14 ? `${txHash.slice(0, 8)}...${txHash.slice(-6)}` : txHash;
     const newTx: RewardTransaction = {
       id: `tx-dep-${Date.now()}`,
@@ -1382,23 +1389,52 @@ export default function App() {
       ],
       userAddress: walletAddress,
     };
-    setNodes((prev) => (prev.some((n) => n.status === 'mining') ? prev : [activeNode, ...prev]));
+    const updatedNodes = nodes.some((n) => n.status === 'mining') ? nodes : [activeNode, ...nodes];
+    setNodes(updatedNodes);
 
-    // Start 24-hour harvesting cycle from 0 SPIKE
+    if (walletAddress) {
+      const norm = walletAddress.toLowerCase();
+      localStorage.setItem(`spike_bal_${norm}`, newBalance.toFixed(2));
+      localStorage.setItem(`spike_nodes_${norm}`, JSON.stringify(updatedNodes));
+      localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+      localStorage.setItem(`spike_cycle_start_${norm}`, String(now));
+      localStorage.setItem(`spike_accumulated_spk_${norm}`, '0');
+      localStorage.setItem(`spike_accumulated_usdt_${norm}`, '0');
+
+      window.dispatchEvent(
+        new CustomEvent('spike_balance_updated', {
+          detail: { address: norm, balanceUsdt: newBalance },
+        })
+      );
+
+      // Sync nodes and balance immediately to backend database
+      fetch('/api/nodes/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userAddress: walletAddress, nodes: updatedNodes }),
+      }).catch(() => {});
+
+      fetch('/api/user/sync-balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: norm,
+          balanceUsdt: newBalance,
+          miningCycleStartTime: now,
+        }),
+      }).catch(() => {});
+    }
+
     try {
       localStorage.setItem('spike_active_mining', 'true');
-      if (walletAddress) {
-        const norm = walletAddress.toLowerCase();
-        localStorage.setItem(`spike_mining_active_${norm}`, 'true');
-        localStorage.setItem(`spike_cycle_start_${norm}`, String(Date.now()));
-        localStorage.setItem(`spike_accumulated_spk_${norm}`, '0');
-        localStorage.setItem(`spike_accumulated_usdt_${norm}`, '0');
-      }
+      localStorage.setItem('spike_nodes_global', JSON.stringify(updatedNodes));
+      localStorage.setItem('spike_balance_usdt', String(newBalance));
+      localStorage.setItem('spike_cycle_start_global', String(now));
       localStorage.setItem('spike_accumulated_spk_global', '0');
       localStorage.setItem('spike_accumulated_usdt_global', '0');
       window.dispatchEvent(
         new CustomEvent('spike_mining_started', {
-          detail: { address: walletAddress, startTime: Date.now() },
+          detail: { address: walletAddress, startTime: now },
         })
       );
     } catch {}

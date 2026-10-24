@@ -28,7 +28,7 @@
         },
         "role": {
           "type": "string",
-          "enum": ["admin", "user", "moderator"]
+          "enum": ["master", "admin", "user", "moderator"]
         },
         "status": {
           "type": "string",

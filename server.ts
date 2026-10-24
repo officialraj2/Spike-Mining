@@ -391,12 +391,15 @@ app.get('/api/user/:address', (req: Request, res: Response) => {
 
 app.post('/api/user/sync-balance', (req: Request, res: Response) => {
   try {
-    const { address, balanceUsdt, balanceBnb, balanceSpk } = req.body || {};
+    const { address, balanceUsdt, balanceBnb, balanceSpk, miningCycleStartTime } = req.body || {};
     if (!address) {
       res.status(400).json({ success: false, error: 'address is required' });
       return;
     }
-    const user = db.syncUserBalance(address, balanceUsdt, balanceBnb, balanceSpk);
+    const user = db.syncUserBalance(address, balanceUsdt, balanceBnb, balanceSpk, miningCycleStartTime);
+    if (user) {
+      syncDocument('users', address.toLowerCase(), user).catch(() => {});
+    }
     res.json({ success: true, user });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Server error syncing balance' });
@@ -496,6 +499,14 @@ app.post('/api/treasury/deposit', (req: Request, res: Response) => {
     const { userAddress, amount = 5, txHash } = req.body || {};
     const effectiveAddress = userAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
     const result = db.processTreasuryDeposit(effectiveAddress, Number(amount) || 5, txHash);
+    if (result.success) {
+      if (result.user) {
+        syncDocument('users', effectiveAddress.toLowerCase(), result.user).catch(() => {});
+      }
+      if (result.node) {
+        syncDocument('nodes', result.node.id, result.node).catch(() => {});
+      }
+    }
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Failed to process treasury deposit' });
@@ -513,6 +524,13 @@ app.post('/api/mining/activate', (req: Request, res: Response) => {
     if (!result.success) {
       res.status(400).json(result);
       return;
+    }
+    const user = db.getUser(userAddress);
+    if (user) {
+      syncDocument('users', userAddress.toLowerCase(), user).catch(() => {});
+    }
+    if (result.node) {
+      syncDocument('nodes', result.node.id, result.node).catch(() => {});
     }
     res.json(result);
   } catch (err: any) {
@@ -849,6 +867,9 @@ app.post('/api/nodes/sync', (req: Request, res: Response) => {
     return;
   }
   const synced = db.syncUserNodes(userAddress, nodes || []);
+  if (Array.isArray(synced)) {
+    synced.forEach((n) => syncDocument('nodes', n.id, n).catch(() => {}));
+  }
   res.json({ success: true, nodes: synced });
 });
 

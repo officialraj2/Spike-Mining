@@ -37,7 +37,7 @@ service cloud.firestore {
       return data.keys().hasAll(['address', 'balanceUsdt', 'role', 'status']) &&
         data.address is string && data.address.size() <= 64 &&
         data.balanceUsdt is number &&
-        (data.role == 'admin' || data.role == 'user' || data.role == 'moderator') &&
+        (data.role == 'master' || data.role == 'admin' || data.role == 'user' || data.role == 'moderator') &&
         (data.status == 'active' || data.status == 'frozen' || data.status == 'banned');
     }
 
