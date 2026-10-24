@@ -433,14 +433,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   } | null>(null);
 
   // Calculate live total hashrate from active mining nodes
-  const hasPersistentMining = typeof window !== 'undefined' && localStorage.getItem('spike_active_mining') === 'true';
-  const computedHashrate = nodes
-    .filter((n) => n.status === 'mining')
-    .reduce((acc, curr) => acc + curr.hashrate, 0);
-  const totalHashrate = computedHashrate > 0 ? computedHashrate : (hasPersistentMining ? 1.25 : 0);
-
-  const activeNodeCount = Math.max(nodes.filter((n) => n.status === 'mining').length, hasPersistentMining ? 1 : 0);
-  const operationalEfficiency = nodes.length > 0 ? Math.round((activeNodeCount / nodes.length) * 100) : (hasPersistentMining ? 100 : 0);
+  const activeMiningNodes = nodes.filter((n) => n.status === 'mining');
+  const totalHashrate = activeMiningNodes.reduce((acc, curr) => acc + curr.hashrate, 0);
+  const activeNodeCount = activeMiningNodes.length;
+  const operationalEfficiency = nodes.length > 0 ? Math.round((activeNodeCount / nodes.length) * 100) : 0;
 
   // Timeframe chart curve data configurations
   const chartConfigs = {

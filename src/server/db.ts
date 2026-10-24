@@ -1887,6 +1887,83 @@ class PersistentDatabase {
     return this.data;
   }
 
+  public purgeNonMasterData(customMasters?: string[]): {
+    success: boolean;
+    remainingUsers: number;
+    removedUsers: number;
+    removedNodes: number;
+    removedReferrals: number;
+    removedTransactions: number;
+  } {
+    const masters = (customMasters && customMasters.length > 0)
+      ? customMasters
+      : [
+          '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+          '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+        ];
+    const masterLower = masters.map((m) => m.toLowerCase().trim());
+
+    const initialUserCount = this.data.users.length;
+    const initialNodeCount = this.data.nodes.length;
+    const initialRefCount = this.data.referrals.length;
+    const initialTxCount = this.data.transactions.length;
+
+    // Filter users: keep only master addresses
+    this.data.users = this.data.users.filter((u) => masterLower.includes(u.address.toLowerCase().trim()));
+
+    // If master doesn't exist, create default master
+    if (this.data.users.length === 0) {
+      this.data.users.push({
+        address: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+        balanceUsdt: 0.0,
+        balanceBnb: 0.0,
+        totalMined: 0.0,
+        balanceSpk: 0.0,
+        referralCode: 'SPK-3471E0',
+        referredBy: null,
+        role: 'master',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        lastActive: new Date().toISOString(),
+        notes: 'Master Creator & Protocol Root Authority',
+      });
+    }
+
+    // Filter nodes: keep only master nodes
+    this.data.nodes = this.data.nodes.filter((n) => masterLower.includes(n.userAddress.toLowerCase().trim()));
+
+    // Filter referrals: keep only referrals where both referrer and referee are valid remaining users
+    const validUserAddrs = new Set(this.data.users.map((u) => u.address.toLowerCase().trim()));
+    this.data.referrals = this.data.referrals.filter(
+      (r) => validUserAddrs.has(r.referrerAddress.toLowerCase().trim()) && validUserAddrs.has(r.refereeAddress.toLowerCase().trim())
+    );
+
+    // Filter transactions: keep only master transactions
+    this.data.transactions = this.data.transactions.filter((t) => t.userAddress && masterLower.includes(t.userAddress.toLowerCase().trim()));
+
+    // Filter testnet wallets and txs
+    this.data.testnetWallets = (this.data.testnetWallets || []).filter((w) => masterLower.includes(w.address.toLowerCase().trim()));
+    this.data.testnetTransactions = (this.data.testnetTransactions || []).filter((t) => masterLower.includes(t.userAddress.toLowerCase().trim()));
+    this.data.withdrawalRequests = (this.data.withdrawalRequests || []).filter((w) => masterLower.includes(w.userAddress.toLowerCase().trim()));
+
+    this.logAudit(
+      'System Admin',
+      'PURGE_NON_MASTER_DATA',
+      'All Non-Master Addresses',
+      `Purged ${initialUserCount - this.data.users.length} users, ${initialNodeCount - this.data.nodes.length} nodes, ${initialRefCount - this.data.referrals.length} referrals.`
+    );
+
+    this.save();
+    return {
+      success: true,
+      remainingUsers: this.data.users.length,
+      removedUsers: initialUserCount - this.data.users.length,
+      removedNodes: initialNodeCount - this.data.nodes.length,
+      removedReferrals: initialRefCount - this.data.referrals.length,
+      removedTransactions: initialTxCount - this.data.transactions.length,
+    };
+  }
+
   // ---- Testnet SPIKE Token & Auto-Buy Engine ----
   public getTestnetSpikeToken(): DbTestnetSpikeToken {
     if (!this.data.testnetSpikeToken) {

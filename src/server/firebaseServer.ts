@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, setLogLevel } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, setLogLevel } from 'firebase/firestore';
 import fs from 'fs';
 import path from 'path';
 
@@ -219,3 +219,79 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
     return { success: false, usersLoaded: 0, referralsLoaded: 0 };
   }
 }
+
+/**
+ * Purges all non-master documents from Firestore collections (users, nodes, referrals, transactions)
+ */
+export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Promise<{
+  success: boolean;
+  deletedUsers: number;
+  deletedNodes: number;
+  deletedReferrals: number;
+  deletedTransactions: number;
+}> {
+  if (!firestore) {
+    return { success: false, deletedUsers: 0, deletedNodes: 0, deletedReferrals: 0, deletedTransactions: 0 };
+  }
+  const masterLower = masterAddresses.map((a) => a.toLowerCase().trim());
+  let deletedUsers = 0;
+  let deletedNodes = 0;
+  let deletedReferrals = 0;
+  let deletedTransactions = 0;
+
+  try {
+    // Delete non-master nodes
+    const nodesSnap = await getDocs(collection(firestore, 'nodes'));
+    for (const d of nodesSnap.docs) {
+      const data = d.data();
+      const userAddr = (data.userAddress || '').toLowerCase().trim();
+      if (!masterLower.includes(userAddr)) {
+        await deleteDoc(d.ref).catch(() => {});
+        deletedNodes++;
+      }
+    }
+
+    // Delete non-master users
+    const usersSnap = await getDocs(collection(firestore, 'users'));
+    for (const d of usersSnap.docs) {
+      const data = d.data();
+      const addr = (data.address || d.id || '').toLowerCase().trim();
+      if (!masterLower.includes(addr)) {
+        await deleteDoc(d.ref).catch(() => {});
+        deletedUsers++;
+      }
+    }
+
+    // Delete non-master referrals
+    const refSnap = await getDocs(collection(firestore, 'referrals'));
+    for (const d of refSnap.docs) {
+      const data = d.data();
+      const referrerAddr = (data.referrerAddress || '').toLowerCase().trim();
+      const refereeAddr = (data.refereeAddress || '').toLowerCase().trim();
+      if (!masterLower.includes(referrerAddr) && !masterLower.includes(refereeAddr)) {
+        await deleteDoc(d.ref).catch(() => {});
+        deletedReferrals++;
+      }
+    }
+
+    // Delete non-master transactions
+    const txSnap = await getDocs(collection(firestore, 'transactions'));
+    for (const d of txSnap.docs) {
+      const data = d.data();
+      const userAddr = (data.userAddress || '').toLowerCase().trim();
+      if (!masterLower.includes(userAddr)) {
+        await deleteDoc(d.ref).catch(() => {});
+        deletedTransactions++;
+      }
+    }
+
+    console.log(
+      `[Firebase Server] Purged non-master records: ${deletedUsers} users, ${deletedNodes} nodes, ${deletedReferrals} referrals, ${deletedTransactions} transactions.`
+    );
+    return { success: true, deletedUsers, deletedNodes, deletedReferrals, deletedTransactions };
+  } catch (err) {
+    console.warn('[Firebase Server] Error purging non-master documents:', err);
+    return { success: false, deletedUsers, deletedNodes, deletedReferrals, deletedTransactions };
+  }
+}
+

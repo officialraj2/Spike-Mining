@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastSaved": "2026-10-22T07:32:42.455Z",
+  "lastSaved": "2026-10-24T17:44:02.586Z",
   "users": [
     {
       "address": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
@@ -28,7 +28,7 @@
     "miningCycleHours": 24,
     "dailyRewardSpk": 35,
     "minDepositUsdt": 5,
-    "pancakeRouterAddress": "0x10ED43C718714eb63d5aA57B78B54704E256024E",
+    "pancakeRouterAddress": "0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b",
     "testnetFastCycleEnabled": false,
     "maintenanceMode": false,
     "stratumPoolUrl": "stratum+tcp://pool.spikenodes.com:443",
@@ -62,6 +62,110 @@
   },
   "auditLogs": [
     {
+      "id": "audit-1792863842408-618",
+      "adminUser": "System Admin",
+      "action": "PURGE_NON_MASTER_DATA",
+      "target": "All Non-Master Addresses",
+      "details": "Purged 0 users, 0 nodes, 4 referrals.",
+      "timestamp": "2026-10-24T17:44:02.408Z"
+    },
+    {
+      "id": "audit-1792863812292-553",
+      "adminUser": "System Admin",
+      "action": "PURGE_NON_MASTER_DATA",
+      "target": "All Non-Master Addresses",
+      "details": "Purged 1 users, 0 nodes, 0 referrals.",
+      "timestamp": "2026-10-24T17:43:32.292Z"
+    },
+    {
+      "id": "audit-1792863808329-123",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715->0x8888888888888888888888888888888888888888",
+      "details": "Linked partner 0x8888888888888888888888888888888888888888 to sponsor 0x3471e07c4d2f7e11c155760a7b386e616b5c3715 (Code: SPK-3471E0)",
+      "timestamp": "2026-10-24T17:43:28.329Z"
+    },
+    {
+      "id": "audit-1792863808329-203",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x8888888888888888888888888888888888888888",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-24T17:43:28.329Z"
+    },
+    {
+      "id": "audit-1792863690316-663",
+      "adminUser": "System Admin",
+      "action": "PURGE_NON_MASTER_DATA",
+      "target": "All Non-Master Addresses",
+      "details": "Purged 3 users, 0 nodes, 0 referrals.",
+      "timestamp": "2026-10-24T17:41:30.316Z"
+    },
+    {
+      "id": "audit-1792863673157-467",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715->0x3333333333333333333333333333333333333333",
+      "details": "Linked partner 0x3333333333333333333333333333333333333333 to sponsor 0x3471e07c4d2f7e11c155760a7b386e616b5c3715 (Code: SPK-3471E0)",
+      "timestamp": "2026-10-24T17:41:13.157Z"
+    },
+    {
+      "id": "audit-1792863673157-489",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x3333333333333333333333333333333333333333",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-24T17:41:13.157Z"
+    },
+    {
+      "id": "audit-1792863668592-46",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715->0x2222222222222222222222222222222222222222",
+      "details": "Linked partner 0x2222222222222222222222222222222222222222 to sponsor 0x3471e07c4d2f7e11c155760a7b386e616b5c3715 (Code: SPK-3471E0)",
+      "timestamp": "2026-10-24T17:41:08.592Z"
+    },
+    {
+      "id": "audit-1792863668592-54",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x2222222222222222222222222222222222222222",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-24T17:41:08.592Z"
+    },
+    {
+      "id": "audit-1792863645885-122",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715->0x1111111111111111111111111111111111111111",
+      "details": "Linked partner 0x1111111111111111111111111111111111111111 to sponsor 0x3471e07c4d2f7e11c155760a7b386e616b5c3715 (Code: SPK-3471E0)",
+      "timestamp": "2026-10-24T17:40:45.885Z"
+    },
+    {
+      "id": "audit-1792863645884-307",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x1111111111111111111111111111111111111111",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-10-24T17:40:45.884Z"
+    },
+    {
+      "id": "audit-1792862847214-903",
+      "adminUser": "System Admin",
+      "action": "PURGE_NON_MASTER_DATA",
+      "target": "All Non-Master Addresses",
+      "details": "Purged 0 users, 0 nodes, 0 referrals.",
+      "timestamp": "2026-10-24T17:27:27.214Z"
+    },
+    {
+      "id": "audit-1792862272396-558",
+      "adminUser": "System Admin",
+      "action": "PURGE_NON_MASTER_DATA",
+      "target": "All Non-Master Addresses",
+      "details": "Purged 0 users, 0 nodes, 0 referrals.",
+      "timestamp": "2026-10-24T17:17:52.396Z"
+    },
+    {
       "id": "audit-1792654362455",
       "adminUser": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "action": "MAINNET_FRESH_RESET",
@@ -70,6 +174,7 @@
       "timestamp": "2026-10-22T07:32:42.455Z"
     }
   ],
+  "withdrawalRequests": [],
   "testnetWallets": [],
   "testnetTransactions": [],
   "testnetSpikeToken": {

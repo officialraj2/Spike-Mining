@@ -3,7 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import path from 'path';
 import { db } from './src/server/db.ts';
-import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb } from './src/server/firebaseServer.ts';
+import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb, purgeNonMasterFirestoreData } from './src/server/firebaseServer.ts';
 import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
 import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from './src/db/users.ts';
 import { db as sqlDb } from './src/db/index.ts';
@@ -82,6 +82,29 @@ app.post('/api/db/reset-mainnet', (req: Request, res: Response) => {
   const adminAddress = req.body.adminAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
   const result = db.resetMainnetBaseline(adminAddress);
   res.json(result);
+});
+
+app.post('/api/db/clean-to-master-only', async (req: Request, res: Response) => {
+  try {
+    const masterWallets = req.body.masterWallets || [
+      '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+      '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+    ];
+    // 1. Purge memory and local JSON database
+    const dbResult = db.purgeNonMasterData(masterWallets);
+    
+    // 2. Purge Firestore collections
+    const firestoreResult = await purgeNonMasterFirestoreData(masterWallets);
+
+    res.json({
+      success: true,
+      message: 'All non-master addresses, mining records, nodes, and test data successfully cleaned from database.',
+      database: dbResult,
+      firestore: firestoreResult,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to clean database' });
+  }
 });
 
 // ============================================================

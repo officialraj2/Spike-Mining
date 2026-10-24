@@ -139,8 +139,8 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   useEffect(() => {
     refreshLiveStats();
 
-    // Fast live poll every 3 seconds so partners joining reflect smoothly
-    const interval = setInterval(refreshLiveStats, 3000);
+    // Fast live poll every 1.8 seconds so partners joining reflect ultra-smoothly
+    const interval = setInterval(refreshLiveStats, 1800);
 
     const handlePartnerEvent = () => {
       refreshLiveStats();
@@ -155,11 +155,23 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     };
     window.addEventListener('storage', handleStorageChange);
 
+    // Cross-tab real-time sync channel
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('spike_referral_live_sync');
+      bc.onmessage = () => {
+        refreshLiveStats();
+      };
+    } catch {}
+
     return () => {
       clearInterval(interval);
       window.removeEventListener('spike_partner_registered', handlePartnerEvent);
       window.removeEventListener('focus', refreshLiveStats);
       window.removeEventListener('storage', handleStorageChange);
+      if (bc) {
+        try { bc.close(); } catch {}
+      }
     };
   }, [refreshLiveStats]);
 
@@ -530,13 +542,37 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </div>
 
           {!activeSponsor && onBindSponsor && (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <input
                 type="text"
                 placeholder="Paste link, SPK-..., or 0x..."
                 value={sponsorInput}
+                disabled={bindingSponsor}
                 onChange={(e) => setSponsorInput(e.target.value)}
-                className="bg-[#122130] border border-[#1c2b3b] text-white font-mono text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-[#00F0FF] w-full sm:w-64 placeholder:text-gray-500"
+                onKeyDown={async (e) => {
+                  if (e.key === 'Enter' && !bindingSponsor && sponsorInput.trim()) {
+                    e.preventDefault();
+                    const input = sponsorInput.trim();
+                    setBindingSponsor(true);
+                    try {
+                      const ok = await onBindSponsor(input);
+                      if (ok) {
+                        setBindMessage('✓ Sponsor bonded! Team partner added.');
+                        setSponsorInput('');
+                        refreshLiveStats();
+                        try {
+                          const bc = new BroadcastChannel('spike_referral_live_sync');
+                          bc.postMessage({ type: 'PARTNER_BOUND', input });
+                          bc.close();
+                        } catch {}
+                        setTimeout(() => setBindMessage(null), 4000);
+                      }
+                    } finally {
+                      setBindingSponsor(false);
+                    }
+                  }
+                }}
+                className="bg-[#122130] border border-[#1c2b3b] text-white font-mono text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-[#00F0FF] w-full sm:w-64 placeholder:text-gray-500 disabled:opacity-50"
               />
               <button
                 disabled={bindingSponsor || !sponsorInput.trim()}
@@ -547,22 +583,43 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                   try {
                     const ok = await onBindSponsor(input);
                     if (ok) {
-                      setBindMessage('✓ Sponsor processed & team partner updated!');
+                      setBindMessage('✓ Sponsor bonded! Team partner added.');
                       setSponsorInput('');
                       refreshLiveStats();
+                      try {
+                        const bc = new BroadcastChannel('spike_referral_live_sync');
+                        bc.postMessage({ type: 'PARTNER_BOUND', input });
+                        bc.close();
+                      } catch {}
                       setTimeout(() => setBindMessage(null), 4000);
                     }
                   } finally {
                     setBindingSponsor(false);
                   }
                 }}
-                className="px-3.5 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] text-[#0A0F1D] font-bold text-xs font-headline transition-all disabled:opacity-50 shrink-0 shadow-sm"
+                className="px-4 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] active:scale-95 text-[#0A0F1D] font-bold text-xs font-headline transition-all disabled:opacity-50 shrink-0 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                {bindingSponsor ? 'Processing...' : 'Process / Bind'}
+                {bindingSponsor ? (
+                  <>
+                    <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+                    <span>Bonding...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-[15px]">link</span>
+                    <span>Bond Sponsor</span>
+                  </>
+                )}
               </button>
             </div>
           )}
-          {bindMessage && <span className="text-xs text-emerald-400 font-mono">{bindMessage}</span>}
+          {bindMessage && (
+            <div className="w-full text-left sm:text-right mt-1">
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-mono font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                {bindMessage}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Live Invitation & Partner Tracking Action Bar */}

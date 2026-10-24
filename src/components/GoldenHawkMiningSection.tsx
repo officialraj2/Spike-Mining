@@ -52,7 +52,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       if (walletAddress) {
         return localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true';
       }
-      return localStorage.getItem('spike_active_mining') === 'true';
+      return false;
     } catch {
       return false;
     }
@@ -73,8 +73,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         const val = localStorage.getItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`);
         if (val && !isNaN(Number(val))) return Number(val);
       }
-      const globalVal = localStorage.getItem('spike_accumulated_spk_global');
-      if (globalVal && !isNaN(Number(globalVal))) return Number(globalVal);
       return 0;
     } catch {
       return 0;
@@ -86,8 +84,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         const val = localStorage.getItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
         if (val && !isNaN(Number(val))) return Number(val);
       }
-      const globalVal = localStorage.getItem('spike_accumulated_usdt_global');
-      if (globalVal && !isNaN(Number(globalVal))) return Number(globalVal);
       return 0;
     } catch {
       return 0;
@@ -100,9 +96,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         const val = localStorage.getItem(`spike_mining_shares_${walletAddress.toLowerCase()}`);
         if (val && !isNaN(Number(val))) return Number(val);
       }
-      return 124;
+      return 0;
     } catch {
-      return 124;
+      return 0;
     }
   });
   const [lastBlockTime, setLastBlockTime] = useState<string>('Standby');
@@ -122,11 +118,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         const stored = localStorage.getItem(`spike_cycle_start_${walletAddress.toLowerCase()}`);
         if (stored && !isNaN(Number(stored))) return Number(stored);
       }
-      const globalStored = localStorage.getItem('spike_cycle_start_global');
-      if (globalStored && !isNaN(Number(globalStored))) return Number(globalStored);
-      return Date.now();
+      return 0;
     } catch {
-      return Date.now();
+      return 0;
     }
   });
 
@@ -146,9 +140,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       setCycleStartTime(now);
       setSecondsRemaining(86400);
       try {
-        localStorage.setItem('spike_active_mining', 'true');
-        localStorage.setItem('spike_cycle_start_global', String(now));
-        localStorage.setItem('spike_accumulated_spk_global', '0');
         if (walletAddress) {
           localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
           localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(now));
@@ -162,7 +153,13 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
   // Synchronize cycle start time and mining status whenever walletAddress changes or hydrates
   useEffect(() => {
-    if (!walletAddress) return;
+    if (!walletAddress) {
+      setHasDeposited5Usdt(false);
+      setAccumulatedSpike(0);
+      setAccumulatedUsdt(0);
+      setSharesCount(0);
+      return;
+    }
     const norm = walletAddress.toLowerCase();
     const stored = localStorage.getItem(`spike_cycle_start_${norm}`);
     if (stored && !isNaN(Number(stored))) {
@@ -171,10 +168,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       const elapsed = Math.floor((Date.now() - parsedStart) / 1000);
       setSecondsRemaining(Math.max(0, 86400 - elapsed));
     }
-    const isAct = localStorage.getItem(`spike_mining_active_${norm}`) === 'true' || localStorage.getItem('spike_active_mining') === 'true';
-    if (isAct) {
-      setHasDeposited5Usdt(true);
-    }
+    const isAct = localStorage.getItem(`spike_mining_active_${norm}`) === 'true';
+    setHasDeposited5Usdt(isAct);
     const cachedSpk = localStorage.getItem(`spike_accumulated_spk_${norm}`);
     if (cachedSpk && !isNaN(Number(cachedSpk))) {
       setAccumulatedSpike(Number(cachedSpk));
@@ -206,15 +201,11 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
   // Sync accumulated rewards to localStorage
   useEffect(() => {
-    if (isMining && accumulatedSpike > 0) {
+    if (isMining && accumulatedSpike > 0 && walletAddress) {
       try {
-        localStorage.setItem('spike_accumulated_spk_global', String(accumulatedSpike));
-        localStorage.setItem('spike_accumulated_usdt_global', String(accumulatedUsdt));
-        if (walletAddress) {
-          localStorage.setItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`, String(accumulatedSpike));
-          localStorage.setItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`, String(accumulatedUsdt));
-          localStorage.setItem(`spike_mining_shares_${walletAddress.toLowerCase()}`, String(sharesCount));
-        }
+        localStorage.setItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`, String(accumulatedSpike));
+        localStorage.setItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`, String(accumulatedUsdt));
+        localStorage.setItem(`spike_mining_shares_${walletAddress.toLowerCase()}`, String(sharesCount));
       } catch {}
     }
   }, [accumulatedSpike, accumulatedUsdt, sharesCount, walletAddress, isMining]);
@@ -376,11 +367,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
       try {
         localStorage.setItem(`spike_spk_${userAddr.toLowerCase()}`, String(newSpkBalance));
-        localStorage.setItem('spike_balance_spk', String(newSpkBalance));
-        localStorage.setItem('spike_active_mining', 'true');
-        localStorage.setItem('spike_cycle_start_global', String(nextCycleStart));
-        localStorage.removeItem('spike_accumulated_spk_global');
-        localStorage.removeItem('spike_accumulated_usdt_global');
         if (walletAddress) {
           localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
           localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(nextCycleStart));
@@ -469,11 +455,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
       try {
         localStorage.setItem(`spike_spk_${userAddr.toLowerCase()}`, String(newSpkBalance));
-        localStorage.setItem('spike_balance_spk', String(newSpkBalance));
-        localStorage.setItem('spike_active_mining', 'true');
-        localStorage.setItem('spike_cycle_start_global', String(nextCycleStart));
-        localStorage.removeItem('spike_accumulated_spk_global');
-        localStorage.removeItem('spike_accumulated_usdt_global');
         if (walletAddress) {
           localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
           localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(nextCycleStart));
@@ -1049,7 +1030,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                             setCycleStartTime(now);
                             setSecondsRemaining(86400);
                             try {
-                              localStorage.setItem('spike_cycle_start_global', String(now));
                               if (walletAddress) {
                                 localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(now));
                               }

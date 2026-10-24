@@ -70,28 +70,6 @@ export default function App() {
           if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
       }
-      const globalNodes = localStorage.getItem('spike_nodes_global');
-      if (globalNodes) {
-        const parsed = JSON.parse(globalNodes);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-      if (localStorage.getItem('spike_active_mining') === 'true') {
-        return [{
-          id: 'spk-node-active',
-          name: 'SPIKE ASIC Rig #1',
-          region: 'US-East (Stratum Cluster)',
-          status: 'mining',
-          hashrate: 1.25,
-          temperature: 64,
-          shareAcceptance: 99.98,
-          fanSpeed: 75,
-          powerUsage: 1400,
-          uptimeDays: 1,
-          algorithm: 'SHA-256 (Stratum)',
-          logs: ['24-Hour Mining Cycle Active · Connected to stratum pool'],
-          userAddress: savedAddr || '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-        }];
-      }
       return [];
     } catch {
       return [];
@@ -105,11 +83,9 @@ export default function App() {
         const cached = localStorage.getItem(`spike_bal_${savedAddr.toLowerCase()}`);
         if (cached !== null && !isNaN(Number(cached))) return Number(cached);
       }
-      const globalBal = localStorage.getItem('spike_balance_usdt');
-      if (globalBal !== null && !isNaN(Number(globalBal))) return Number(globalBal);
-      return 10.0;
+      return 0.0;
     } catch {
-      return 10.0;
+      return 0.0;
     }
   });
   const [walletBNB, setWalletBNB] = useState<number>(() => {
@@ -119,11 +95,9 @@ export default function App() {
         const cached = localStorage.getItem(`spike_bnb_${savedAddr.toLowerCase()}`);
         if (cached !== null && !isNaN(Number(cached))) return Number(cached);
       }
-      const globalBnb = localStorage.getItem('spike_balance_bnb');
-      if (globalBnb !== null && !isNaN(Number(globalBnb))) return Number(globalBnb);
-      return 0.005;
+      return 0.0;
     } catch {
-      return 0.005;
+      return 0.0;
     }
   });
   // Real-time on-chain SPIKE BEP-20 token balance (Contract: 0xc213905ac995bCC943c077b7918c8134094A9267)
@@ -139,14 +113,7 @@ export default function App() {
       return 0.0;
     }
   });
-  const [dailyEarnings, setDailyEarnings] = useState<number>(() => {
-    try {
-      if (localStorage.getItem('spike_active_mining') === 'true') return 48.75;
-      return 0;
-    } catch {
-      return 0;
-    }
-  });
+  const [dailyEarnings, setDailyEarnings] = useState<number>(() => 0);
   const [network, setNetwork] = useState<string>('BEP-20 / BSC Network');
   const [referralStats, setReferralStats] = useState<any>({
     directPartners: 0,
@@ -450,7 +417,6 @@ export default function App() {
   // Auto-persist wallet balance across reloads and sync to server
   useEffect(() => {
     try {
-      localStorage.setItem('spike_balance_usdt', String(walletBalance));
       if (walletAddress) {
         const norm = walletAddress.toLowerCase();
         localStorage.setItem(`spike_bal_${norm}`, String(walletBalance));
@@ -463,31 +429,27 @@ export default function App() {
     } catch {}
   }, [walletBalance, walletAddress]);
 
+  // One-time cleanup effect on mount to purge any lingering cross-wallet global keys
+  useEffect(() => {
+    try {
+      localStorage.removeItem('spike_active_mining');
+      localStorage.removeItem('spike_nodes_global');
+      localStorage.removeItem('spike_cycle_start_global');
+      localStorage.removeItem('spike_accumulated_spk_global');
+      localStorage.removeItem('spike_accumulated_usdt_global');
+      localStorage.removeItem('spike_balance_usdt');
+      localStorage.removeItem('spike_balance_bnb');
+    } catch {}
+  }, []);
+
   // Sync state with persistent Firebase Firestore & backend database (Real-time live sync)
   useEffect(() => {
     if (!walletAddress) {
-      // Keep cached global balance & nodes so reloads never wipe the user view to 0
-      const globalBal = localStorage.getItem('spike_balance_usdt');
-      if (globalBal !== null && !isNaN(Number(globalBal))) {
-        setWalletBalance(Number(globalBal));
-      }
-      if (localStorage.getItem('spike_active_mining') === 'true') {
-        setNodes((prev) => (prev.length > 0 ? prev : [{
-          id: 'spk-node-active',
-          name: 'SPIKE ASIC Rig #1',
-          region: 'US-East (Stratum Cluster)',
-          status: 'mining',
-          hashrate: 1.25,
-          temperature: 64,
-          shareAcceptance: 99.98,
-          fanSpeed: 75,
-          powerUsage: 1400,
-          uptimeDays: 1,
-          algorithm: 'SHA-256 (Stratum)',
-          logs: ['24-Hour Mining Cycle Active · Connected to stratum pool'],
-          userAddress: '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-        }]));
-      }
+      setWalletBalance(0);
+      setWalletBNB(0);
+      setWalletSpk(0);
+      setNodes([]);
+      setDailyEarnings(0);
       return;
     }
 
@@ -495,17 +457,17 @@ export default function App() {
 
     // 1. Immediately load local cache if present strictly for this specific address
     try {
-      const cachedUsdt = localStorage.getItem(`spike_bal_${norm}`) || localStorage.getItem('spike_balance_usdt');
-      const cachedBnb = localStorage.getItem(`spike_bnb_${norm}`) || localStorage.getItem('spike_balance_bnb');
+      const cachedUsdt = localStorage.getItem(`spike_bal_${norm}`);
+      const cachedBnb = localStorage.getItem(`spike_bnb_${norm}`);
       if (cachedUsdt !== null && !isNaN(Number(cachedUsdt))) {
         setWalletBalance(Number(cachedUsdt));
       } else {
-        setWalletBalance(15.0);
+        setWalletBalance(0.0);
       }
       if (cachedBnb !== null && !isNaN(Number(cachedBnb))) {
         setWalletBNB(Number(cachedBnb));
       } else {
-        setWalletBNB(0.005);
+        setWalletBNB(0.0);
       }
 
       // Load cached on-chain SPIKE token balance
@@ -530,7 +492,7 @@ export default function App() {
         .catch(() => {});
 
       // Load cached nodes immediately so mining rigs stay persistent on refresh
-      const cachedNodes = localStorage.getItem(`spike_nodes_${norm}`) || localStorage.getItem('spike_nodes_global');
+      const cachedNodes = localStorage.getItem(`spike_nodes_${norm}`);
       let loadedNodes: MiningNode[] = [];
       if (cachedNodes) {
         try {
@@ -541,33 +503,13 @@ export default function App() {
         } catch {}
       }
 
-      // If active mining is flagged or previously running, guarantee active rig is never lost
-      if (loadedNodes.length === 0 && (localStorage.getItem('spike_active_mining') === 'true' || localStorage.getItem(`spike_mining_active_${norm}`) === 'true')) {
-        loadedNodes = [{
-          id: 'spk-node-active',
-          name: 'SPIKE ASIC Rig #1',
-          region: 'US-East (Stratum Cluster)',
-          status: 'mining',
-          hashrate: 1.25,
-          temperature: 64,
-          shareAcceptance: 99.98,
-          fanSpeed: 75,
-          powerUsage: 1400,
-          uptimeDays: 1,
-          algorithm: 'SHA-256 (Stratum)',
-          logs: ['24-Hour Mining Cycle Active · Connected to stratum pool'],
-          userAddress: norm,
-        }];
-        try {
-          localStorage.setItem(`spike_nodes_${norm}`, JSON.stringify(loadedNodes));
-        } catch {}
-      }
-
+      setNodes(loadedNodes);
       if (loadedNodes.length > 0) {
-        setNodes(loadedNodes);
         const activeMining = loadedNodes.filter((n: MiningNode) => n.status === 'mining');
         const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
         setDailyEarnings(+calculatedYield.toFixed(2));
+      } else {
+        setDailyEarnings(0);
       }
 
       // Load cached referral stats
@@ -609,14 +551,12 @@ export default function App() {
               setWalletBalance(fsData.balanceUsdt);
               try {
                 localStorage.setItem(`spike_bal_${norm}`, String(fsData.balanceUsdt));
-                localStorage.setItem('spike_balance_usdt', String(fsData.balanceUsdt));
               } catch {}
             }
             if (typeof fsData.balanceBnb === 'number') {
               setWalletBNB(fsData.balanceBnb);
               try {
                 localStorage.setItem(`spike_bnb_${norm}`, String(fsData.balanceBnb));
-                localStorage.setItem('spike_balance_bnb', String(fsData.balanceBnb));
               } catch {}
             }
           }
@@ -697,21 +637,19 @@ export default function App() {
           const bBal = typeof data.user.balanceBnb === 'number' ? data.user.balanceBnb : null;
           
           // Priority: Check local cache first so user's active session earnings/deposits/swaps are never reverted!
-          const cachedBalStr = localStorage.getItem(`spike_bal_${norm}`) || localStorage.getItem('spike_balance_usdt');
+          const cachedBalStr = localStorage.getItem(`spike_bal_${norm}`);
           const cachedBal = cachedBalStr !== null && !isNaN(Number(cachedBalStr)) ? Number(cachedBalStr) : null;
-          const effectiveBal = cachedBal !== null ? cachedBal : (uBal !== null ? uBal : 15.0);
+          const effectiveBal = cachedBal !== null ? cachedBal : (uBal !== null ? uBal : 0.0);
           
           setWalletBalance(effectiveBal);
           try {
             localStorage.setItem(`spike_bal_${norm}`, String(effectiveBal));
-            localStorage.setItem('spike_balance_usdt', String(effectiveBal));
           } catch {}
 
           if (bBal !== null) {
             setWalletBNB(bBal);
             try {
               localStorage.setItem(`spike_bnb_${norm}`, String(bBal));
-              localStorage.setItem('spike_balance_bnb', String(bBal));
             } catch {}
           }
 
@@ -719,11 +657,9 @@ export default function App() {
             const localCycle = localStorage.getItem(`spike_cycle_start_${norm}`);
             if (!localCycle || isNaN(Number(localCycle))) {
               localStorage.setItem(`spike_cycle_start_${norm}`, String(data.user.miningCycleStartTime));
-              localStorage.setItem('spike_cycle_start_global', String(data.user.miningCycleStartTime));
             }
           }
           if (data.user.hasActivatedMining || data.user.hasDepositedTreasury) {
-            localStorage.setItem('spike_active_mining', 'true');
             localStorage.setItem(`spike_mining_active_${norm}`, 'true');
           }
           if (typeof data.user.balanceSpk === 'number' && !isNaN(data.user.balanceSpk)) {
@@ -744,9 +680,7 @@ export default function App() {
           setNodes(data.nodes);
           try {
             localStorage.setItem(`spike_nodes_${norm}`, JSON.stringify(data.nodes));
-            localStorage.setItem('spike_nodes_global', JSON.stringify(data.nodes));
             if (data.nodes.some((n: MiningNode) => n.status === 'mining')) {
-              localStorage.setItem('spike_active_mining', 'true');
               localStorage.setItem(`spike_mining_active_${norm}`, 'true');
             }
           } catch {}
@@ -754,44 +688,11 @@ export default function App() {
           const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
           setDailyEarnings(+calculatedYield.toFixed(2));
         } else {
-          // If server currently has no nodes recorded for user, sync active client-side nodes to server
+          // If server currently has no nodes recorded for user, clear local state
+          setNodes([]);
+          setDailyEarnings(0);
           try {
-            const localCachedNodes = localStorage.getItem(`spike_nodes_${norm}`) || localStorage.getItem('spike_nodes_global');
-            let nodesToSync: MiningNode[] = [];
-            if (localCachedNodes) {
-              const parsed = JSON.parse(localCachedNodes);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                nodesToSync = parsed;
-              }
-            }
-            if (nodesToSync.length === 0 && (localStorage.getItem('spike_active_mining') === 'true' || localStorage.getItem(`spike_mining_active_${norm}`) === 'true')) {
-              nodesToSync = [{
-                id: 'spk-node-active',
-                name: 'SPIKE ASIC Rig #1',
-                region: 'US-East (Stratum Cluster)',
-                status: 'mining',
-                hashrate: 1.25,
-                temperature: 64,
-                shareAcceptance: 99.98,
-                fanSpeed: 75,
-                powerUsage: 1400,
-                uptimeDays: 1,
-                algorithm: 'SHA-256 (Stratum)',
-                logs: ['24-Hour Mining Cycle Active · Connected to stratum pool'],
-                userAddress: norm,
-              }];
-            }
-            if (nodesToSync.length > 0) {
-              setNodes(nodesToSync);
-              const activeMining = nodesToSync.filter((n: MiningNode) => n.status === 'mining');
-              const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
-              setDailyEarnings(+calculatedYield.toFixed(2));
-              fetch('/api/nodes/sync', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userAddress: walletAddress, nodes: nodesToSync }),
-              }).catch(() => {});
-            }
+            localStorage.removeItem(`spike_nodes_${norm}`);
           } catch {}
         }
         // Set rewards transactions
@@ -1029,8 +930,6 @@ export default function App() {
       const updated = prev.map((n) => (n.id === nodeId ? { ...n, status: 'idle' as const, temperature: 45 } : n));
       const hasAnyMining = updated.some((n) => n.status === 'mining');
       try {
-        localStorage.setItem('spike_active_mining', hasAnyMining ? 'true' : 'false');
-        localStorage.setItem('spike_nodes_global', JSON.stringify(updated));
         if (walletAddress) {
           localStorage.setItem(`spike_nodes_${walletAddress.toLowerCase()}`, JSON.stringify(updated));
           localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, hasAnyMining ? 'true' : 'false');
@@ -1050,8 +949,6 @@ export default function App() {
     setNodes((prev) => {
       const updated = prev.map((n) => (n.id === nodeId ? { ...n, status: 'mining' as const, temperature: 63 } : n));
       try {
-        localStorage.setItem('spike_active_mining', 'true');
-        localStorage.setItem('spike_nodes_global', JSON.stringify(updated));
         if (walletAddress) {
           localStorage.setItem(`spike_nodes_${walletAddress.toLowerCase()}`, JSON.stringify(updated));
           localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
@@ -1083,9 +980,6 @@ export default function App() {
     setNodes(updatedNodes);
 
     try {
-      localStorage.setItem('spike_active_mining', 'true');
-      localStorage.setItem('spike_nodes_global', JSON.stringify(updatedNodes));
-      localStorage.setItem('spike_balance_usdt', String(updatedBalance));
       if (walletAddress) {
         localStorage.setItem(`spike_nodes_${walletAddress.toLowerCase()}`, JSON.stringify(updatedNodes));
         localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
@@ -1426,12 +1320,6 @@ export default function App() {
     }
 
     try {
-      localStorage.setItem('spike_active_mining', 'true');
-      localStorage.setItem('spike_nodes_global', JSON.stringify(updatedNodes));
-      localStorage.setItem('spike_balance_usdt', String(newBalance));
-      localStorage.setItem('spike_cycle_start_global', String(now));
-      localStorage.setItem('spike_accumulated_spk_global', '0');
-      localStorage.setItem('spike_accumulated_usdt_global', '0');
       window.dispatchEvent(
         new CustomEvent('spike_mining_started', {
           detail: { address: walletAddress, startTime: now },
@@ -1696,6 +1584,11 @@ export default function App() {
         }
 
         window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
+        try {
+          const bc = new BroadcastChannel('spike_referral_live_sync');
+          bc.postMessage({ type: 'PARTNER_JOINED', data });
+          bc.close();
+        } catch {}
         addToast('Sponsor Linked & Counted', data.message || 'Sponsor verified and partner counted toward team milestones!', 'success');
         return true;
       } else {
@@ -1839,11 +1732,9 @@ export default function App() {
               setWalletBalance((prev) => {
                 const updated = +(prev + amt).toFixed(2);
                 try {
-                  localStorage.setItem('spike_balance_usdt', String(updated));
                   if (walletAddress) {
                     localStorage.setItem(`spike_bal_${walletAddress.toLowerCase()}`, String(updated));
                   }
-                  localStorage.setItem('spike_active_mining', 'true');
                 } catch {}
                 return updated;
               });
