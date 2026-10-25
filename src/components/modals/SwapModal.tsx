@@ -219,24 +219,24 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     }
   };
 
-  // ABI Helper for PancakeSwap V2 Router swapExactTokensForTokensSupportingFeeOnTransferTokens
-  const encodePancakeSwapSellData = (
+  // ABI Helper for PancakeSwap V3 Smart Router exactInputSingle
+  const encodePancakeSwapV3SellData = (
+    tokenInAddr: string,
+    tokenOutAddr: string,
+    feeTier: number,
+    recipientAddr: string,
     amountInBig: bigint,
-    amountOutMinBig: bigint,
-    path: [string, string],
-    toAddress: string,
-    deadline: number
+    amountOutMinBig: bigint
   ): string => {
-    const selector = '5c11d795'; // swapExactTokensForTokensSupportingFeeOnTransferTokens
-    const p1 = amountInBig.toString(16).padStart(64, '0');
-    const p2 = amountOutMinBig.toString(16).padStart(64, '0');
-    const p3 = (160).toString(16).padStart(64, '0'); // offset of path array (5 parameters * 32 bytes = 160)
-    const p4 = toAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-    const p5 = deadline.toString(16).padStart(64, '0');
-    const arrLen = (2).toString(16).padStart(64, '0');
-    const item0 = path[0].toLowerCase().replace(/^0x/, '').padStart(64, '0');
-    const item1 = path[1].toLowerCase().replace(/^0x/, '').padStart(64, '0');
-    return `0x${selector}${p1}${p2}${p3}${p4}${p5}${arrLen}${item0}${item1}`;
+    const selector = '04e45aaf'; // exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))
+    const tokenIn = tokenInAddr.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+    const tokenOut = tokenOutAddr.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+    const fee = feeTier.toString(16).padStart(64, '0');
+    const recipient = recipientAddr.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+    const amountIn = amountInBig.toString(16).padStart(64, '0');
+    const amountOutMin = amountOutMinBig.toString(16).padStart(64, '0');
+    const sqrtPriceLimit = (0).toString(16).padStart(64, '0');
+    return `0x${selector}${tokenIn}${tokenOut}${fee}${recipient}${amountIn}${amountOutMin}${sqrtPriceLimit}`;
   };
 
   const handleExecuteSwap = async () => {
@@ -251,6 +251,9 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     const addr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
     const win = typeof window !== 'undefined' ? (window as any) : null;
     let onChainTxHash: string | null = null;
+
+    // PancakeSwap V3 Smart Router on BSC Mainnet matching Liquidity Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c)
+    const PANCAKE_ROUTER_ADDRESS = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
 
     // 1. DIRECT SMART CONTRACT WALLET INTEGRATION (MetaMask, TrustWallet, TokenPocket, etc.)
     if (win && win.ethereum) {
@@ -284,12 +287,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         const minOutExpected = toAmount * (1 - parseFloat(slippage || '0.5') / 100);
         const amountOutMinBig = BigInt(Math.max(0, Math.floor(minOutExpected * 10 ** decimals)));
 
-        const PANCAKE_ROUTER_ADDRESS = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
         const cleanSpender = PANCAKE_ROUTER_ADDRESS.toLowerCase().replace(/^0x/, '').padStart(64, '0');
         const cleanOwner = userWallet.toLowerCase().replace(/^0x/, '').padStart(64, '0');
 
-        // Check allowance of SPIKE token for PancakeSwap Router
-        setSwapStatusStep('Checking PancakeSwap Router Allowance...');
+        // Check allowance of SPIKE token for PancakeSwap V3 Smart Router
+        setSwapStatusStep('Checking PancakeSwap V3 Router Allowance...');
         let currentAllowance = 0n;
         try {
           const allowData = `0xdd62ed3e${cleanOwner}${cleanSpender}`;
@@ -304,7 +306,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
         // Prompt token approval in wallet if needed
         if (currentAllowance < amountInBig) {
-          setSwapStatusStep('Please Approve PancakeSwap Router in Wallet...');
+          setSwapStatusStep('Please Approve PancakeSwap V3 Router in Wallet...');
           const approveData = `0x095ea7b3${cleanSpender}ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff`;
           await win.ethereum.request({
             method: 'eth_sendTransaction',
@@ -314,18 +316,18 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               data: approveData,
             }],
           });
-          setSwapStatusStep('Allowance Approved! Preparing PancakeSwap Router Call...');
+          setSwapStatusStep('Allowance Approved! Calling PancakeSwap V3 Router...');
         }
 
-        // Send PancakeSwap Router Sell transaction directly to user wallet
+        // Call PancakeSwap V3 Router exactInputSingle with fee tier 500 (0.05%)
         setSwapStatusStep('Confirm PancakeSwap Sell in Your Wallet...');
-        const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 min deadline
-        const routerCallData = encodePancakeSwapSellData(
-          amountInBig,
-          amountOutMinBig,
-          [SPIKE_CONTRACT_ADDRESS, USDT_CONTRACT_ADDRESS],
+        const routerCallData = encodePancakeSwapV3SellData(
+          SPIKE_CONTRACT_ADDRESS,
+          USDT_CONTRACT_ADDRESS,
+          500, // PancakeSwap V3 Pool 0xdB75...2F3c Fee Tier
           userWallet,
-          deadline
+          amountInBig,
+          amountOutMinBig
         );
 
         onChainTxHash = await win.ethereum.request({
@@ -967,17 +969,29 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] font-mono text-[#94a3b8]">
             <span className="flex items-center gap-1.5 text-emerald-400">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Router: 0x10ED...024E • Pool: 0xdB75...2F3c</span>
+              <span>PancakeSwap V3 Router: 0x13f4...8Dd4 • Pool: 0xdB75...2F3c</span>
             </span>
-            <a
-              href="https://bscscan.com/address/0x10ED43C718714eb63d5aA57B78B54704E256024E"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[#00F0FF] hover:underline inline-flex items-center gap-1"
-            >
-              <span>PancakeSwap Router on BscScan</span>
-              <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href="https://pancakeswap.finance/swap?inputCurrency=0xc213905ac995bCC943c077b7918c8134094A9267&outputCurrency=0x55d398326f99059fF775485246999027B3197955"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#D4AF37] hover:underline inline-flex items-center gap-1 font-semibold"
+              >
+                <span>Open on PancakeSwap.finance</span>
+                <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+              </a>
+              <span className="text-[#334155]">•</span>
+              <a
+                href="https://bscscan.com/address/0x13f4EA83D0bd40E75C8222255bc855a974568Dd4"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#00F0FF] hover:underline inline-flex items-center gap-1"
+              >
+                <span>BscScan</span>
+                <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+              </a>
+            </div>
           </div>
         </div>
       </div>

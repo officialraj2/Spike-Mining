@@ -230,7 +230,7 @@ const INITIAL_DATA: DatabaseSchema = {
     miningCycleHours: 24,
     dailyRewardSpk: 35.0,
     minDepositUsdt: 5.0,
-    pancakeRouterAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+    pancakeRouterAddress: '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4',
     pancakePairAddress: '0xdB75fAB72e56492CFE870344D115C57047992F3c',
     testnetFastCycleEnabled: false,
     maintenanceMode: false,
