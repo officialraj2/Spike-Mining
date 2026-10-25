@@ -3770,7 +3770,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <label className="block text-[#94a3b8] mb-1">PancakeSwap V2 Router Contract</label>
                 <input
                   type="text"
-                  value={settingsForm.pancakeRouterAddress || '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b'}
+                  value={settingsForm.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'}
                   onChange={(e) =>
                     setSettingsForm((prev) => ({ ...prev, pancakeRouterAddress: e.target.value }))
                   }
@@ -3778,6 +3778,21 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 />
                 <span className="text-[10px] text-[#00F0FF]/80 mt-1 block">
                   Router executing smart contract auto-buy swaps into user's MetaMask/Web3 wallet upon claim.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-[#94a3b8] mb-1">PancakeSwap Liquidity Pool (Pair) Contract</label>
+                <input
+                  type="text"
+                  value={settingsForm.pancakePairAddress || '0xdB75fAB72e56492CFE870344D115C57047992F3c'}
+                  onChange={(e) =>
+                    setSettingsForm((prev) => ({ ...prev, pancakePairAddress: e.target.value }))
+                  }
+                  className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-[#D4AF37]"
+                />
+                <span className="text-[10px] text-[#D4AF37] mt-1 block">
+                  Official PancakeSwap AMM Liquidity Pool pair (0xdB75fAB72e56492CFE870344D115C57047992F3c) for SPIKE/USDT swaps &amp; mining claims.
                 </span>
               </div>
 

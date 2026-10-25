@@ -4,10 +4,12 @@ import { SPIKE_LOGO_URL } from '../../data/mockData';
 import { TradingViewChart } from '../TradingViewChart';
 import { GoldenHawkMiningSection } from '../GoldenHawkMiningSection';
 
-const BSCSCAN_TOKEN_URL = 'https://bscscan.com/token/0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-export const PANCAKESWAP_ROUTER_ADDRESS = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
-export const BSCSCAN_ROUTER_URL = 'https://bscscan.com/address/0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
-const PANCAKESWAP_ROUTER_URL = 'https://pancakeswap.finance/swap?outputCurrency=0x71C8a914B97e889F12A0987cB32456Fa12349A2';
+const BSCSCAN_TOKEN_URL = 'https://bscscan.com/token/0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+export const PANCAKESWAP_PAIR_CONTRACT = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
+export const BSCSCAN_PAIR_URL = 'https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c';
+export const PANCAKESWAP_ROUTER_ADDRESS = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
+export const BSCSCAN_ROUTER_URL = 'https://bscscan.com/address/0x10ED43C718714eb63d5aA57B78B54704E256024E';
+const PANCAKESWAP_ROUTER_URL = 'https://pancakeswap.finance/swap?outputCurrency=0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
 
 interface CandleTick {
   time: string;
@@ -1101,14 +1103,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </button>
                   </div>
 
+                  {/* Official PancakeSwap Liquidity Pool Contract */}
+                  <div className="flex items-center gap-1.5 bg-[#0a1827] px-2.5 py-1 rounded-lg border border-[#D4AF37]/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
+                    <span className="text-[#94a3b8]">Pool (Pair):</span>
+                    <button
+                      onClick={() => onCopyText(PANCAKESWAP_PAIR_CONTRACT)}
+                      className="text-[#D4AF37] hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                      title="Click to copy PancakeSwap Liquidity Pool Contract (0xdB75fAB72e56492CFE870344D115C57047992F3c)"
+                    >
+                      <span>
+                        {`${PANCAKESWAP_PAIR_CONTRACT.substring(0, 8)}...${PANCAKESWAP_PAIR_CONTRACT.substring(PANCAKESWAP_PAIR_CONTRACT.length - 4)}`}
+                      </span>
+                      <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                    </button>
+                    <a
+                      href={BSCSCAN_PAIR_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#94a3b8] hover:text-[#D4AF37]"
+                      title="Open PancakeSwap Pool on BSCScan"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </a>
+                  </div>
+
                   {/* Official PancakeSwap Router Contract */}
                   <div className="flex items-center gap-1.5 bg-[#0a1827] px-2.5 py-1 rounded-lg border border-[#00F0FF]/30">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[#94a3b8]">Router Contract:</span>
+                    <span className="text-[#94a3b8]">Router:</span>
                     <button
                       onClick={() => onCopyText(PANCAKESWAP_ROUTER_ADDRESS)}
                       className="text-emerald-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
-                      title="Click to copy PancakeSwap Router Contract (0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b)"
+                      title="Click to copy PancakeSwap Router Contract"
                     >
                       <span>
                         {`${PANCAKESWAP_ROUTER_ADDRESS.substring(0, 8)}...${PANCAKESWAP_ROUTER_ADDRESS.substring(PANCAKESWAP_ROUTER_ADDRESS.length - 4)}`}

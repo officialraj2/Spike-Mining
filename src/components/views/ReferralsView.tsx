@@ -207,8 +207,8 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     .reduce((sum, m) => sum + m.rewardUsd, 0);
 
   const serverEarned = effectiveStats?.totalCommissions ?? 0;
-  // Total Earned will always display the claimed milestone rewards!
-  const totalEarnedUsdt = Math.max(serverEarned, +(serverEarned + claimedMilestoneRewardSum).toFixed(2), claimedMilestoneRewardSum);
+  // Total Earned accurately displays the highest verified earned milestone & referral commissions without double-counting
+  const totalEarnedUsdt = Math.max(serverEarned, claimedMilestoneRewardSum);
   
   const referralsList = effectiveStats?.referrals || [];
   const rawSponsor = effectiveStats?.referredBy || null;

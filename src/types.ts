@@ -15,7 +15,9 @@ export interface AdminMetrics {
   dailyYieldPercent: number;
 }
 
-export const DEFAULT_PANCAKESWAP_ROUTER_ADDRESS = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
+export const DEFAULT_PANCAKESWAP_ROUTER_ADDRESS = '0x10ED43C718714eb63d5aA57B78B54704E256024E'; // Official PancakeSwap V2 Router on BSC
+export const DEFAULT_PANCAKESWAP_PAIR_ADDRESS = '0xdB75fAB72e56492CFE870344D115C57047992F3c'; // Official PancakeSwap Liquidity Pool (Pair)
+export const PANCAKESWAP_PAIR_CONTRACT = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
 
 export interface LiveTxn {
   id: string;
@@ -79,6 +81,7 @@ export interface AdminSettings {
   dailyRewardSpk?: number;
   minDepositUsdt?: number;
   pancakeRouterAddress?: string;
+  pancakePairAddress?: string;
   testnetFastCycleEnabled?: boolean;
   maintenanceMode: boolean;
   maintenanceMessage?: string;

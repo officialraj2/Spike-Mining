@@ -136,11 +136,15 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
   success: boolean;
   usersLoaded: number;
   referralsLoaded: number;
+  nodesLoaded: number;
+  transactionsLoaded: number;
 }> {
-  if (!firestore) return { success: false, usersLoaded: 0, referralsLoaded: 0 };
+  if (!firestore) return { success: false, usersLoaded: 0, referralsLoaded: 0, nodesLoaded: 0, transactionsLoaded: 0 };
   try {
     let usersLoaded = 0;
     let referralsLoaded = 0;
+    let nodesLoaded = 0;
+    let transactionsLoaded = 0;
     const userCodeMap = new Map<string, string>(); // code/slice -> canonical address
 
     // 1. Fetch all users from Firestore
@@ -209,14 +213,59 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
       }
     });
 
+    // 3. Fetch nodes from Firestore
+    try {
+      const nodesSnap = await getDocs(collection(firestore, 'nodes'));
+      nodesSnap.forEach((d) => {
+        const data = d.data();
+        const nodeId = data.id || d.id;
+        if (!nodeId) return;
+        const existingIdx = dbInstance.data.nodes.findIndex((n: any) => n.id === nodeId);
+        if (existingIdx >= 0) {
+          dbInstance.data.nodes[existingIdx] = { ...dbInstance.data.nodes[existingIdx], ...data };
+        } else {
+          dbInstance.data.nodes.push({ ...data, id: nodeId });
+          nodesLoaded++;
+        }
+      });
+    } catch (nodeErr) {
+      console.warn('[Firebase Server] Node hydration notice:', nodeErr);
+    }
+
+    // 4. Fetch transactions from Firestore
+    try {
+      const txSnap = await getDocs(collection(firestore, 'transactions'));
+      txSnap.forEach((d) => {
+        const data = d.data();
+        const txId = data.id || d.id;
+        if (!txId) return;
+        const exists = dbInstance.data.transactions.some((t: any) => t.id === txId || t.txHash === data.txHash);
+        if (!exists) {
+          dbInstance.data.transactions.push({ ...data, id: txId });
+          transactionsLoaded++;
+        }
+      });
+    } catch (txErr) {
+      console.warn('[Firebase Server] Transaction hydration notice:', txErr);
+    }
+
+    // 5. Fetch global settings if present
+    try {
+      const settingsDoc = await getDoc(doc(firestore, 'settings', 'global'));
+      if (settingsDoc.exists()) {
+        const sData = settingsDoc.data();
+        dbInstance.data.settings = { ...dbInstance.data.settings, ...sData };
+      }
+    } catch {}
+
     dbInstance.save();
     console.log(
-      `[Firebase Server] Successfully synced Firestore data: ${usersLoaded} users, ${referralsLoaded} new referrals loaded (Total in memory: ${dbInstance.data.referrals.length}).`
+      `[Firebase Server] Successfully synced Firestore data: ${usersLoaded} users, ${referralsLoaded} new referrals, ${nodesLoaded} nodes, ${transactionsLoaded} transactions.`
     );
-    return { success: true, usersLoaded, referralsLoaded };
+    return { success: true, usersLoaded, referralsLoaded, nodesLoaded, transactionsLoaded };
   } catch (err: any) {
     console.error('[Firebase Server] Error loading data from Firestore:', err);
-    return { success: false, usersLoaded: 0, referralsLoaded: 0 };
+    return { success: false, usersLoaded: 0, referralsLoaded: 0, nodesLoaded: 0, transactionsLoaded: 0 };
   }
 }
 

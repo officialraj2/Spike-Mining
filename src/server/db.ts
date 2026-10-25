@@ -81,6 +81,7 @@ export interface DbSettings {
   dailyRewardSpk: number;
   minDepositUsdt: number;
   pancakeRouterAddress: string;
+  pancakePairAddress: string;
   testnetFastCycleEnabled: boolean;
   maintenanceMode: boolean;
   maintenanceMessage?: string;
@@ -230,6 +231,7 @@ const INITIAL_DATA: DatabaseSchema = {
     dailyRewardSpk: 35.0,
     minDepositUsdt: 5.0,
     pancakeRouterAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+    pancakePairAddress: '0xdB75fAB72e56492CFE870344D115C57047992F3c',
     testnetFastCycleEnabled: false,
     maintenanceMode: false,
     stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
@@ -281,7 +283,7 @@ const INITIAL_DATA: DatabaseSchema = {
     circulatingSupply: 0,
     decimals: 18,
     contractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-    pair: 'SPIKE / USDT',
+    pair: '0xdB75fAB72e56492CFE870344D115C57047992F3c',
     poolSpkReserve: 10_000_000,
     poolUsdtReserve: 345_000,
     currentPrice: 1.12,
@@ -336,8 +338,11 @@ class PersistentDatabase {
           if (!loadedSettings.treasuryWalletAddress) {
             loadedSettings.treasuryWalletAddress = '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
           }
-          if (!loadedSettings.pancakeRouterAddress || loadedSettings.pancakeRouterAddress === '0x10ED43C718714eb63d5aA57B78B54704E256024E') {
-            loadedSettings.pancakeRouterAddress = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
+          if (!loadedSettings.pancakeRouterAddress) {
+            loadedSettings.pancakeRouterAddress = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
+          }
+          if (!loadedSettings.pancakePairAddress) {
+            loadedSettings.pancakePairAddress = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
           }
           if (typeof loadedSettings.treasuryBalanceUsdt !== 'number') {
             loadedSettings.treasuryBalanceUsdt = 0.0;
@@ -1814,6 +1819,7 @@ class PersistentDatabase {
         dailyRewardSpk: 35.0,
         minDepositUsdt: 5.0,
         pancakeRouterAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+        pancakePairAddress: '0xdB75fAB72e56492CFE870344D115C57047992F3c',
         testnetFastCycleEnabled: false,
         maintenanceMode: false,
         stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
@@ -2053,6 +2059,7 @@ class PersistentDatabase {
     tx: DbTestnetTx;
     route?: string[];
     routerAddress?: string;
+    pairAddress?: string;
     slippageUsed?: number;
     error?: string;
   } {
@@ -2120,7 +2127,7 @@ class PersistentDatabase {
       status: 'Confirmed',
       blockNumber,
       gasFeeBnb: 0.00015,
-      details: `PancakeRouter.swapTokensForExactTokens(amountOut=${exactMinedSpk.toFixed(5)} SPK, maxIn=${maxUsdtWithSlippage.toFixed(5)} USDT, path=[USDT->SPK], deadline=fast) [Best Slippage: ${effectiveSlippage}% | Hashrate: ${hashrate.toFixed(2)} TH/s]`,
+      details: `PancakeRouter.swapTokensForExactTokens(amountOut=${exactMinedSpk.toFixed(5)} SPK, maxIn=${maxUsdtWithSlippage.toFixed(5)} USDT, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=${this.data.settings.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'}) [Rate: $${newPrice} USDT/SPK | Hashrate: ${hashrate.toFixed(2)} TH/s]`,
       timestamp: new Date().toISOString(),
     };
 
@@ -2136,7 +2143,8 @@ class PersistentDatabase {
       token,
       tx,
       route: ['USDT', 'SPK'],
-      routerAddress: this.data.settings.pancakeRouterAddress || '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b',
+      routerAddress: this.data.settings.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+      pairAddress: this.data.settings.pancakePairAddress || '0xdB75fAB72e56492CFE870344D115C57047992F3c',
       slippageUsed: effectiveSlippage,
     };
   }
@@ -2193,7 +2201,7 @@ class PersistentDatabase {
         status: 'Confirmed',
         blockNumber: 42918500 + (this.data.testnetTransactions?.length || 0),
         gasFeeBnb: 0.00015,
-        details: `Swap ${numIn} USDT -> ${amountOut} SPK on PancakeSwap Testnet`,
+        details: `Swap ${numIn} USDT -> ${amountOut} SPK on PancakeSwap Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c) via Router (${this.data.settings.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'})`,
         timestamp: new Date().toISOString(),
       };
 
@@ -2252,7 +2260,7 @@ class PersistentDatabase {
         status: 'Confirmed',
         blockNumber: 42918500 + (this.data.testnetTransactions?.length || 0),
         gasFeeBnb: 0.00015,
-        details: `Swap ${numIn} SPK -> ${amountOut} USDT on PancakeSwap Testnet`,
+        details: `Swap ${numIn} SPK -> ${amountOut} USDT on PancakeSwap Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c) via Router (${this.data.settings.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'})`,
         timestamp: new Date().toISOString(),
       };
 

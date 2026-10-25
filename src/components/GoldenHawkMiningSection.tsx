@@ -307,13 +307,14 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     setClaimProgressStep(1);
     setAutoBuyNotice('Validating Stratum Proof-of-Work shares on BSC...');
 
-    const routerAddr = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b'; // Official PancakeSwap Router Contract
+    const poolAddr = '0xdB75fAB72e56492CFE870344D115C57047992F3c'; // Official PancakeSwap Liquidity Pool (Pair) Contract
+    const routerAddr = '0x10ED43C718714eb63d5aA57B78B54704E256024E'; // Official PancakeSwap V2 Router
     const userAddr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
 
     try {
       await new Promise((r) => setTimeout(r, 600));
       setClaimProgressStep(2);
-      setAutoBuyNotice('Executing PancakeSwap Router swap (USDT → SPIKE)...');
+      setAutoBuyNotice('Executing PancakeSwap Pool Swap (USDT → SPIKE via 0xdB75...2F3c)...');
 
       const res = await fetch('/api/testnet/harvest-autobuy', {
         method: 'POST',
@@ -342,7 +343,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         status: 'Confirmed',
         blockNumber: 42918500 + Math.floor(Math.random() * 1000),
         gasFeeBnb: 0.00015,
-        details: `PancakeRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(5)} SPK, router=0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b)`,
+        details: `PancakeRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(5)} SPK, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x10ED43C718714eb63d5aA57B78B54704E256024E)`,
         timestamp: new Date().toISOString(),
       };
 
@@ -433,7 +434,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         status: 'Confirmed',
         blockNumber: 42918500,
         gasFeeBnb: 0.00015,
-        details: `PancakeRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(5)} SPK, router=0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b)`,
+        details: `PancakeRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(5)} SPK, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x10ED43C718714eb63d5aA57B78B54704E256024E)`,
         timestamp: new Date().toISOString(),
       };
       let currentSpk = 0;
@@ -908,11 +909,11 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   </div>
                 </div>
 
-                {/* PancakeSwap Router BSC Details */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0a1f33] border border-[#00F0FF]/25 text-[10px] font-mono text-[#00F0FF]">
-                  <span className="material-symbols-outlined text-[13px] text-[#00F0FF]">currency_exchange</span>
-                  <span className="text-[#94a3b8]">Router:</span>
-                  <span className="font-bold text-white">0xd74e...b38b</span>
+                {/* PancakeSwap Liquidity Pool & Router BSC Details */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0a1f33] border border-[#D4AF37]/30 text-[10px] font-mono text-[#D4AF37]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
+                  <span className="text-[#94a3b8]">Pool:</span>
+                  <span className="font-bold text-[#D4AF37]">0xdB75...2F3c</span>
                   <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[9px]">PancakeSwap V2</span>
                 </div>
               </div>
@@ -1169,8 +1170,12 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
             <div className="p-3.5 rounded-2xl bg-[#061423] border border-[#1c2b3b] space-y-2.5 font-mono text-xs">
               <div className="flex items-center justify-between text-[#94a3b8]">
+                <span>PancakeSwap Pool:</span>
+                <span className="text-[#D4AF37] font-bold">0xdB75...2F3c</span>
+              </div>
+              <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Pancake Router:</span>
-                <span className="text-[#00F0FF] font-bold">0xd74e...b38b</span>
+                <span className="text-[#00F0FF] font-bold">0x10ED...024E</span>
               </div>
               <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Routing Action:</span>
@@ -1271,24 +1276,49 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
               <div className="p-3.5 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b] space-y-2">
                 <div className="flex items-center justify-between text-[#94a3b8]">
-                  <span>PancakeSwap Router:</span>
+                  <span>PancakeSwap Pool (Pair):</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-[#00F0FF] font-bold">0xd74e...b38b</span>
+                    <span className="text-[#D4AF37] font-bold">0xdB75...2F3c</span>
                     <button
                       onClick={() => {
                         if (navigator.clipboard) {
-                          navigator.clipboard.writeText('0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b');
+                          navigator.clipboard.writeText('0xdB75fAB72e56492CFE870344D115C57047992F3c');
                           setCopiedRouterModal(true);
                           setTimeout(() => setCopiedRouterModal(false), 2000);
                         }
                       }}
                       className="text-gray-400 hover:text-white cursor-pointer ml-1"
-                      title="Copy Router Address"
+                      title="Copy PancakeSwap Pool Address"
                     >
                       <span className="material-symbols-outlined text-[13px]">
                         {copiedRouterModal ? 'check' : 'content_copy'}
                       </span>
                     </button>
+                    <a
+                      href="https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#94a3b8] hover:text-[#00F0FF] ml-0.5"
+                      title="View Pool on BSCScan"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-[#94a3b8]">
+                  <span>PancakeSwap Router:</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[#00F0FF] font-bold">0x10ED...024E</span>
+                    <a
+                      href="https://bscscan.com/address/0x10ED43C718714eb63d5aA57B78B54704E256024E"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#94a3b8] hover:text-white ml-0.5"
+                      title="View Router on BSCScan"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </a>
                   </div>
                 </div>
 

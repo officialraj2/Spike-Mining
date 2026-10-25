@@ -883,6 +883,14 @@ app.post('/api/nodes/deploy', (req: Request, res: Response) => {
     costUsdt: Number(costUsdt),
   });
 
+  if (newNode) {
+    syncDocument('nodes', newNode.id, newNode).catch(() => {});
+  }
+  const updatedUserAfterNode = db.getUser(userAddress);
+  if (updatedUserAfterNode) {
+    syncDocument('users', userAddress.toLowerCase(), updatedUserAfterNode).catch(() => {});
+  }
+
   res.json({ success: true, node: newNode });
 });
 
@@ -927,6 +935,9 @@ app.post('/api/nodes/:id/action', (req: Request, res: Response) => {
     });
     updated = created;
   }
+  if (updated) {
+    syncDocument('nodes', updated.id, updated).catch(() => {});
+  }
   res.json({ success: !!updated, node: updated });
 });
 
@@ -946,6 +957,14 @@ app.post('/api/transactions/record', (req: Request, res: Response) => {
   // Adjust balance if applicable
   if (type === 'claim' || type === 'faucet' || type === 'referral_bonus') {
     db.adjustUserBalance(userAddress, Number(amount), 0, details || type, 'SYSTEM');
+  }
+
+  if (created) {
+    syncDocument('transactions', created.id, created).catch(() => {});
+    const updatedUser = db.getUser(userAddress);
+    if (updatedUser) {
+      syncDocument('users', userAddress.toLowerCase(), updatedUser).catch(() => {});
+    }
   }
 
   res.json({ success: true, transaction: created });
@@ -1167,6 +1186,15 @@ app.get('/api/bsc/balances/:address', async (req: Request, res: Response) => {
 // STATIC & FRONTEND SPA SERVING
 // ============================================================
 async function startServer() {
+  // 1. Initial State Hydration from Cloud Firestore: Ensures spikenodes.com and *.run.app share 100% identical data
+  try {
+    console.log('[FIREBASE] Synchronizing data from shared Cloud Firestore database...');
+    const syncRes = await loadFirestoreDataIntoDb(db);
+    console.log(`[FIREBASE] Hydration completed: ${syncRes.usersLoaded} users, ${syncRes.referralsLoaded} referrals, ${syncRes.nodesLoaded} nodes, ${syncRes.transactionsLoaded} transactions synchronized.`);
+  } catch (err) {
+    console.warn('[FIREBASE] Startup hydration notice (using persistent local cache):', err);
+  }
+
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve('dist')));
     app.get('*', (req: Request, res: Response) => {

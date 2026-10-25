@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LiveTxn } from '../types';
 
-export const PANCAKESWAP_ROUTER_CONTRACT = '0xd74eb1ee921a04589f5d0a4554938c1d06fbb38b';
+export const PANCAKESWAP_PAIR_CONTRACT = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
+export const PANCAKESWAP_ROUTER_CONTRACT = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
 
 export interface TVCandle {
   time: string;
@@ -82,6 +83,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const [hoveredCandle, setHoveredCandle] = useState<TVCandle | null>(null);
   const [crosshairPos, setCrosshairPos] = useState<{ x: number; y: number } | null>(null);
   const [copiedRouter, setCopiedRouter] = useState(false);
+  const [copiedPair, setCopiedPair] = useState(false);
   const [lastTxNotice, setLastTxNotice] = useState<string | null>(null);
 
   // Candlesticks built and maintained from SPIKE / USDT pair transactions ($1.00 - $1.20 range)
@@ -101,6 +103,16 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
     }
     setCopiedRouter(true);
     setTimeout(() => setCopiedRouter(false), 2000);
+  };
+
+  const handleCopyPair = () => {
+    if (onCopyText) {
+      onCopyText(PANCAKESWAP_PAIR_CONTRACT);
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(PANCAKESWAP_PAIR_CONTRACT);
+    }
+    setCopiedPair(true);
+    setTimeout(() => setCopiedPair(false), 2000);
   };
 
   // Process incoming transactions of the SPIKE / USDT pair and dynamically update graph
@@ -321,11 +333,40 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
           </div>
         </div>
 
-        {/* Right Tools: PancakeSwap Router Contract Badge with One-Click Copy */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right Tools: PancakeSwap Pool & Router Contract Badges with One-Click Copy */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {/* PancakeSwap Liquidity Pool (Pair) */}
+          <div className="flex items-center gap-1.5 bg-[#0a1827] border border-[#D4AF37]/30 px-2.5 py-1 rounded-lg text-xs font-mono">
+            <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
+            <span className="text-[#94a3b8] hidden lg:inline">Pool (Pair):</span>
+            <button
+              onClick={handleCopyPair}
+              className="text-[#D4AF37] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+              title="Click to copy PancakeSwap Liquidity Pool Contract Address (0xdB75fAB72e56492CFE870344D115C57047992F3c)"
+            >
+              <span>0xdB75...2F3c</span>
+              <span className="material-symbols-outlined text-[12px]">
+                {copiedPair ? 'check' : 'content_copy'}
+              </span>
+            </button>
+            {copiedPair && (
+              <span className="text-emerald-400 text-[10px] font-bold">Copied!</span>
+            )}
+            <a
+              href="https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c"
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#94a3b8] hover:text-[#D4AF37]"
+              title="View Pool on BSCScan"
+            >
+              <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+            </a>
+          </div>
+
+          {/* PancakeSwap Router */}
           <div className="flex items-center gap-1.5 bg-[#0a1827] border border-[#00F0FF]/30 px-2.5 py-1 rounded-lg text-xs font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[#94a3b8] hidden md:inline">PancakeSwap Router:</span>
+            <span className="text-[#94a3b8] hidden lg:inline">Router:</span>
             <button
               onClick={handleCopyRouter}
               className="text-[#00F0FF] hover:underline font-bold flex items-center gap-1 cursor-pointer"

@@ -415,36 +415,46 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
           {/* Official BEP-20 Contract & On-Chain Sync Bar */}
           <div className="p-2.5 rounded-xl bg-[#061423] border border-[#1c2b3b] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="text-[#94a3b8]">SPIKE (BSC):</span>
-              <span className="text-[#00F0FF] font-bold" title={SPIKE_CONTRACT_ADDRESS}>
-                0xc213...9267
-              </span>
-              <button
-                type="button"
-                onClick={copyContract}
-                className="px-1.5 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] text-[#cbd5e1] hover:text-white border border-[#1c2b3b] text-[10px] flex items-center gap-1 transition-all"
-                title="Copy SPIKE Smart Contract Address"
-              >
-                <span className="material-symbols-outlined text-[12px]">
-                  {copiedContract ? 'check' : 'content_copy'}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span>{copiedContract ? 'Copied' : 'Copy'}</span>
-              </button>
-              <a
-                href={`https://bscscan.com/token/${SPIKE_CONTRACT_ADDRESS}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#94a3b8] hover:text-[#00F0FF] flex items-center gap-0.5 text-[10px] transition-colors"
-                title="View on BscScan"
-              >
-                <span>BscScan</span>
-                <span className="material-symbols-outlined text-[11px]">open_in_new</span>
-              </a>
+                <span className="text-[#94a3b8]">SPIKE:</span>
+                <span className="text-[#00F0FF] font-bold" title={SPIKE_CONTRACT_ADDRESS}>
+                  0xc213...9267
+                </span>
+                <button
+                  type="button"
+                  onClick={copyContract}
+                  className="px-1.5 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] text-[#cbd5e1] hover:text-white border border-[#1c2b3b] text-[10px] flex items-center gap-1 transition-all"
+                  title="Copy SPIKE Smart Contract Address"
+                >
+                  <span className="material-symbols-outlined text-[12px]">
+                    {copiedContract ? 'check' : 'content_copy'}
+                  </span>
+                  <span>{copiedContract ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+
+              {/* Official PancakeSwap Liquidity Pool Contract */}
+              <div className="flex items-center gap-1.5 border-l border-[#1c2b3b] pl-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
+                <span className="text-[#94a3b8]">Pool:</span>
+                <span className="text-[#D4AF37] font-bold" title="0xdB75fAB72e56492CFE870344D115C57047992F3c">
+                  0xdB75...2F3c
+                </span>
+                <a
+                  href="https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#94a3b8] hover:text-[#D4AF37] flex items-center gap-0.5 text-[10px] transition-colors"
+                  title="View PancakeSwap Liquidity Pool on BscScan"
+                >
+                  <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+                </a>
+              </div>
             </div>
 
             <button
@@ -512,7 +522,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   <div className="flex items-center justify-between text-[#cbd5e1]">
                     <span>PancakeSwap Route:</span>
                     <span className="text-white font-bold">
-                      {confirmedDetails.fromToken} ➔ PancakeSwap (0xd74e...b38b) ➔ {confirmedDetails.toToken}
+                      {confirmedDetails.fromToken} ➔ PancakeSwap Pool (0xdB75...2F3c) ➔ {confirmedDetails.toToken}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -823,7 +833,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="font-mono text-[11px]">Liquidity Route</span>
               <span className="font-mono text-white text-[11px]">
-                {fromToken.symbol} ➔ PancakeSwap (0xd74e...b38b) ➔ {toToken.symbol}
+                {fromToken.symbol} ➔ PancakeSwap Pool (0xdB75...2F3c) ➔ {toToken.symbol}
               </span>
             </div>
           </div>
