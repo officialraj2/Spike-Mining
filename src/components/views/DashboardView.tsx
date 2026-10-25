@@ -706,8 +706,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }}
       />
 
-      {/* 4 Metric Cards matching Image 2 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      {/* 3 Primary Metric Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Card 1: Protocol Hashrate Velocity (Image Spec: Direct Referral Tier) */}
         <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
           <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#00F0FF]/5 rounded-full blur-xl group-hover:bg-[#00F0FF]/15 transition-all"></div>
@@ -832,59 +832,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </span>
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Protocol Treasury Vault (Official Company Reserve) */}
-        <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
-          <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#D4AF37]/5 rounded-full blur-xl group-hover:bg-[#D4AF37]/15 transition-all"></div>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em] flex items-center gap-1.5">
-              <span>Treasury Vault</span>
-              <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30 font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live On-Chain
-              </span>
-            </span>
-            <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">
-              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                account_balance
-              </span>
-            </div>
-          </div>
-          <div>
-            <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-0.5 tabular-nums tracking-tight flex items-baseline gap-2">
-              <span>{treasuryData.treasuryBalanceUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-              <span className="text-lg lg:text-xl text-[#D4AF37] font-semibold tracking-normal">USDT</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#94a3b8] font-mono mb-2">
-              <span className="material-symbols-outlined text-[13px] text-emerald-400">shield_lock</span>
-              <span className="text-emerald-300 font-semibold">BSC Mainnet BEP-20</span>
-              <span className="text-[#475569]">•</span>
-              <span className="text-[11px] text-[#94a3b8]">Live Protocol Reserve</span>
-            </div>
-            <div className="text-[10px] font-mono text-[#64748b] truncate mb-2">
-              Vault: {treasuryData.treasuryWalletAddress.substring(0, 8)}...{treasuryData.treasuryWalletAddress.substring(treasuryData.treasuryWalletAddress.length - 6)}
-            </div>
-            <div className="flex flex-wrap items-center gap-2.5 mt-2">
-              {walletBalance < 15 || nodes.some((n) => n.status === 'mining') ? (
-                <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-mono font-semibold flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[14px]">verified</span>
-                  <span>Step 1 Active • Protocol Entry Verified</span>
-                </div>
-              ) : (
-                onOpenDepositModal && (
-                  <button
-                    onClick={onOpenDepositModal}
-                    className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/35 hover:to-[#f59e0b]/35 text-[#D4AF37] border border-[#D4AF37]/50 hover:border-[#D4AF37] text-xs font-headline font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-                    title="Deposit 5 USDT Protocol Entry Fee to Official Treasury Vault"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">payments</span>
-                    <span>+ Deposit 5$ to Treasury (Step 1)</span>
-                  </button>
-                )
-              )}
             </div>
           </div>
         </div>
