@@ -485,25 +485,146 @@ async function verifyBscTxReceipt(txHash: string): Promise<{
   return { verifiedOnChain: false, status: 'Pending' };
 }
 
-app.get('/api/deposit/config', (_req: Request, res: Response) => {
-  const treasury = db.getTreasuryInfo();
-  res.json({
-    success: true,
-    officialWallet: treasury.treasuryWalletAddress,
-    amount: 5,
-    miningActivationCost: 10,
-    totalProjectCost: 15,
-    network: 'BNB Smart Chain (BEP-20)',
-    autoVerify: true,
-    treasuryBalanceUsdt: treasury.treasuryBalanceUsdt,
-  });
+// ============================================================
+// ON-CHAIN BSC BALANCES & RPC HELPERS (SPIKE & USDT BEP-20)
+// ============================================================
+const SPIKE_CONTRACT_BSC = '0xc213905ac995bCC943c077b7918c8134094A9267';
+const USDT_CONTRACT_BSC = '0x55d398326f99059fF775485246999027B3197955';
+const BSC_RPC_URLS = [
+  'https://bsc-dataseed.binance.org/',
+  'https://bsc-dataseed1.defibit.io/',
+  'https://binance.llamarpc.com',
+  'https://rpc.ankr.com/bsc',
+];
+
+async function callBscRpcNode(method: string, params: any[]): Promise<string | null> {
+  for (const url of BSC_RPC_URLS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.result !== undefined) {
+          return json.result;
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
+const formatTokenDecimals = (hex: string | null, decimals = 18): number => {
+  if (!hex || hex === '0x') return 0;
+  try {
+    const bi = BigInt(hex);
+    const divisor = BigInt(10 ** decimals);
+    const whole = bi / divisor;
+    const remainder = bi % divisor;
+    const remFloat = Number(remainder) / (10 ** decimals);
+    return +(Number(whole) + remFloat).toFixed(4);
+  } catch {
+    return 0;
+  }
+};
+
+async function fetchOnChainTokenBalance(tokenContract: string, walletAddress: string, decimals = 18): Promise<number> {
+  if (!walletAddress || !walletAddress.startsWith('0x') || walletAddress.length < 10) return 0;
+  try {
+    const cleanAddr = walletAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+    const dataPayload = '0x70a08231' + cleanAddr;
+    const rawHex = await callBscRpcNode('eth_call', [{ to: tokenContract, data: dataPayload }, 'latest']);
+    return formatTokenDecimals(rawHex, decimals);
+  } catch {
+    return 0;
+  }
+}
+
+// Check on-chain BEP-20 USDT across official protocol deposit wallet and creator reserve
+async function getLiveTreasuryUsdt(): Promise<{ totalUsdt: number; breakdown: Record<string, number> }> {
+  const wallets = [
+    '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7', // Official Protocol Deposit Wallet (5.00 USDT on BSC mainnet)
+    '0x3471e07c4d2f7e11c155760a7b386e616b5c3715', // Master Protocol Creator / Reserve
+  ];
+  const breakdown: Record<string, number> = {};
+  try {
+    const balances = await Promise.all(
+      wallets.map(async (addr) => {
+        const bal = await fetchOnChainTokenBalance(USDT_CONTRACT_BSC, addr, 18);
+        breakdown[addr] = bal;
+        return bal;
+      })
+    );
+    const totalUsdt = +balances.reduce((sum, b) => sum + b, 0).toFixed(2);
+    return { totalUsdt, breakdown };
+  } catch {
+    return { totalUsdt: 0, breakdown };
+  }
+}
+
+app.get('/api/deposit/config', async (_req: Request, res: Response) => {
+  try {
+    const live = await getLiveTreasuryUsdt();
+    const currentStored = typeof db.getSettings().treasuryBalanceUsdt === 'number' ? db.getSettings().treasuryBalanceUsdt : 0;
+    const effectiveUsdt = Math.max(currentStored, live.totalUsdt);
+    if (effectiveUsdt > currentStored) {
+      db.updateTreasuryBalance(effectiveUsdt);
+      syncDocument('settings', 'global', db.getSettings()).catch(() => {});
+    }
+    const treasury = db.getTreasuryInfo();
+    res.json({
+      success: true,
+      officialWallet: treasury.treasuryWalletAddress,
+      amount: 5,
+      miningActivationCost: 10,
+      totalProjectCost: 15,
+      network: 'BNB Smart Chain (BEP-20)',
+      autoVerify: true,
+      treasuryBalanceUsdt: effectiveUsdt,
+      onChainBreakdown: live.breakdown,
+    });
+  } catch (err: any) {
+    const treasury = db.getTreasuryInfo();
+    res.json({
+      success: true,
+      officialWallet: treasury.treasuryWalletAddress,
+      amount: 5,
+      miningActivationCost: 10,
+      totalProjectCost: 15,
+      network: 'BNB Smart Chain (BEP-20)',
+      autoVerify: true,
+      treasuryBalanceUsdt: treasury.treasuryBalanceUsdt,
+    });
+  }
 });
 
-app.get('/api/treasury', (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    ...db.getTreasuryInfo(),
-  });
+app.get('/api/treasury', async (_req: Request, res: Response) => {
+  try {
+    const live = await getLiveTreasuryUsdt();
+    const currentStored = typeof db.getSettings().treasuryBalanceUsdt === 'number' ? db.getSettings().treasuryBalanceUsdt : 0;
+    const effectiveUsdt = Math.max(currentStored, live.totalUsdt);
+    if (effectiveUsdt > currentStored) {
+      db.updateTreasuryBalance(effectiveUsdt);
+      syncDocument('settings', 'global', db.getSettings()).catch(() => {});
+    }
+    res.json({
+      success: true,
+      ...db.getTreasuryInfo(),
+      treasuryBalanceUsdt: effectiveUsdt,
+      onChainBreakdown: live.breakdown,
+    });
+  } catch (err: any) {
+    res.json({
+      success: true,
+      ...db.getTreasuryInfo(),
+    });
+  }
 });
 
 app.post('/api/admin/treasury/update-address', (req: Request, res: Response) => {
@@ -514,6 +635,7 @@ app.post('/api/admin/treasury/update-address', (req: Request, res: Response) => 
       res.status(400).json(result);
       return;
     }
+    syncDocument('settings', 'global', db.getSettings()).catch(() => {});
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Failed to update treasury address' });
@@ -532,6 +654,7 @@ app.post('/api/treasury/deposit', (req: Request, res: Response) => {
       if (result.node) {
         syncDocument('nodes', result.node.id, result.node).catch(() => {});
       }
+      syncDocument('settings', 'global', db.getSettings()).catch(() => {});
     }
     res.json(result);
   } catch (err: any) {
@@ -558,6 +681,7 @@ app.post('/api/mining/activate', (req: Request, res: Response) => {
     if (result.node) {
       syncDocument('nodes', result.node.id, result.node).catch(() => {});
     }
+    syncDocument('settings', 'global', db.getSettings()).catch(() => {});
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Failed to activate mining via smart contract' });
@@ -609,6 +733,7 @@ app.post('/api/deposit/verify-hash', async (req: Request, res: Response) => {
     if (result.transaction) {
       syncDocument('transactions', result.transaction.id, result.transaction).catch(() => {});
     }
+    syncDocument('settings', 'global', db.getSettings()).catch(() => {});
 
     res.json({
       success: true,
@@ -1083,41 +1208,6 @@ app.get('/api/testnet/transactions', (req: Request, res: Response) => {
   }
 });
 
-// ============================================================
-// ON-CHAIN BSC BALANCES API (SPIKE & USDT BEP-20 CONTRACTS)
-// ============================================================
-const SPIKE_CONTRACT_BSC = '0xc213905ac995bCC943c077b7918c8134094A9267';
-const USDT_CONTRACT_BSC = '0x55d398326f99059fF775485246999027B3197955';
-const BSC_RPC_URLS = [
-  'https://bsc-dataseed.binance.org/',
-  'https://bsc-dataseed1.defibit.io/',
-  'https://binance.llamarpc.com',
-  'https://rpc.ankr.com/bsc',
-];
-
-async function callBscRpcNode(method: string, params: any[]): Promise<string | null> {
-  for (const url of BSC_RPC_URLS) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.result !== undefined) {
-          return json.result;
-        }
-      }
-    } catch {}
-  }
-  return null;
-}
-
 app.get('/api/bsc/balances/:address', async (req: Request, res: Response) => {
   const address = (req.params.address || '').trim();
   if (!address.startsWith('0x') || address.length < 10) {
@@ -1135,24 +1225,9 @@ app.get('/api/bsc/balances/:address', async (req: Request, res: Response) => {
       callBscRpcNode('eth_getBalance', [address, 'latest']),
     ]);
 
-    const formatToken = (hex: string | null, decimals = 18): number => {
-      if (!hex || hex === '0x') return 0;
-      try {
-        const bi = BigInt(hex);
-        const divisor = BigInt(10 ** decimals);
-        const whole = bi / divisor;
-        const remainder = bi % divisor;
-        // Keep up to 6 decimal places as number
-        const remFloat = Number(remainder) / (10 ** decimals);
-        return +(Number(whole) + remFloat).toFixed(4);
-      } catch {
-        return 0;
-      }
-    };
-
-    const spikeBalance = formatToken(rawSpikeHex, 18);
-    const usdtBalance = formatToken(rawUsdtHex, 18);
-    const bnbBalance = formatToken(rawBnbHex, 18);
+    const spikeBalance = formatTokenDecimals(rawSpikeHex, 18);
+    const usdtBalance = formatTokenDecimals(rawUsdtHex, 18);
+    const bnbBalance = formatTokenDecimals(rawBnbHex, 18);
 
     res.json({
       success: true,

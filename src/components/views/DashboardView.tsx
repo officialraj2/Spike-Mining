@@ -184,12 +184,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   useEffect(() => {
     fetchTreasuryInfo();
+    const interval = setInterval(fetchTreasuryInfo, 3500);
     const handleUpdated = () => fetchTreasuryInfo();
     window.addEventListener('spike_balance_updated', handleUpdated);
     window.addEventListener('treasuryUpdated', handleUpdated);
+    window.addEventListener('focus', handleUpdated);
     return () => {
+      clearInterval(interval);
       window.removeEventListener('spike_balance_updated', handleUpdated);
       window.removeEventListener('treasuryUpdated', handleUpdated);
+      window.removeEventListener('focus', handleUpdated);
     };
   }, []);
 
@@ -838,9 +842,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center justify-between mb-4">
             <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em] flex items-center gap-1.5">
               <span>Treasury Vault</span>
-              <span className="inline-flex items-center gap-1 text-[9px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30 font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                Company Official
+              <span className="inline-flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live On-Chain
               </span>
             </span>
             <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">
@@ -850,15 +854,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div>
-            <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-0.5 tabular-nums tracking-tight">
-              {treasuryData.treasuryBalanceUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })}{' '}
+            <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-0.5 tabular-nums tracking-tight flex items-baseline gap-2">
+              <span>{treasuryData.treasuryBalanceUsdt.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
               <span className="text-lg lg:text-xl text-[#D4AF37] font-semibold tracking-normal">USDT</span>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-[#94a3b8] font-mono mb-2 truncate">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#94a3b8] font-mono mb-2">
               <span className="material-symbols-outlined text-[13px] text-emerald-400">shield_lock</span>
-              <span className="text-emerald-300 font-semibold">Official Protocol Vault</span>
+              <span className="text-emerald-300 font-semibold">BSC Mainnet BEP-20</span>
               <span className="text-[#475569]">•</span>
-              <span className="text-[11px] text-[#94a3b8]">Non-Claimable Reserve</span>
+              <span className="text-[11px] text-[#94a3b8]">Live Protocol Reserve</span>
+            </div>
+            <div className="text-[10px] font-mono text-[#64748b] truncate mb-2">
+              Vault: {treasuryData.treasuryWalletAddress.substring(0, 8)}...{treasuryData.treasuryWalletAddress.substring(treasuryData.treasuryWalletAddress.length - 6)}
             </div>
             <div className="flex flex-wrap items-center gap-2.5 mt-2">
               {walletBalance < 15 || nodes.some((n) => n.status === 'mining') ? (

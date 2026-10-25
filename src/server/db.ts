@@ -236,7 +236,7 @@ const INITIAL_DATA: DatabaseSchema = {
     maintenanceMode: false,
     stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
     bscContractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-    treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    treasuryWalletAddress: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
     treasuryBalanceUsdt: 0.0,
     minWithdrawalUsdt: 5.0,
     autoPayoutEnabled: true,
@@ -1158,6 +1158,9 @@ class PersistentDatabase {
     const user = this.upsertUser({ address: norm });
     user.balanceUsdt = +(user.balanceUsdt + amount).toFixed(2);
     user.lastActive = new Date().toISOString();
+
+    const currentTreasury = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
+    this.data.settings.treasuryBalanceUsdt = +(currentTreasury + amount).toFixed(2);
 
     const newTx = this.createTransaction({
       userAddress: norm,
@@ -2280,7 +2283,7 @@ class PersistentDatabase {
 
   public getTreasuryInfo() {
     return {
-      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
       treasuryBalanceUsdt: typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0,
       depositRequiredUsdt: 5.0,
       miningCostUsdt: 10.0,
@@ -2289,6 +2292,13 @@ class PersistentDatabase {
       contractAddress: this.data.settings.bscContractAddress,
       lastUpdated: new Date().toISOString(),
     };
+  }
+
+  public updateTreasuryBalance(newBalance: number): number {
+    this.data.settings.treasuryBalanceUsdt = +Number(newBalance).toFixed(2);
+    this.data.settings.updatedAt = new Date().toISOString();
+    this.save();
+    return this.data.settings.treasuryBalanceUsdt;
   }
 
   public updateTreasuryAddress(newAddress: string, adminUser = 'admin'): { success: boolean; treasuryWalletAddress: string; error?: string } {
@@ -2520,7 +2530,7 @@ class PersistentDatabase {
       spkPrice: token.currentPrice,
       remainingUsdt: user.balanceUsdt,
       treasuryBalanceUsdt: this.data.settings.treasuryBalanceUsdt,
-      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
       swapTxHash,
       contractTxHash,
     };
