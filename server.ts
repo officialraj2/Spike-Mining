@@ -1,10 +1,12 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import path from 'path';
 import { db } from './src/server/db.ts';
 import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb, purgeNonMasterFirestoreData } from './src/server/firebaseServer.ts';
-import { requireAuth, AuthRequest } from './src/middleware/auth.ts';
+import { requireAuth } from './src/middleware/auth.ts';
+import type { AuthRequest } from './src/middleware/auth.ts';
 import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from './src/db/users.ts';
 import { db as sqlDb } from './src/db/index.ts';
 
@@ -13,8 +15,9 @@ dotenv.config();
 const app = express();
 const argPortIndex = process.argv.indexOf('--port');
 const argPort = argPortIndex !== -1 && process.argv[argPortIndex + 1] ? parseInt(process.argv[argPortIndex + 1], 10) : undefined;
+const envPort = process.env.PORT ? parseInt(process.env.PORT, 10) : undefined;
 // Runtime environment strictly mandates port 3000 for dev & preview. Avoid port 8080 which is container nginx.
-const PORT = (argPort && argPort !== 8080) ? argPort : 3000;
+const PORT = (envPort && envPort !== 8080) ? envPort : ((argPort && argPort !== 8080) ? argPort : 3000);
 
 // Global Middleware & CORS
 app.use((req, res, next) => {
