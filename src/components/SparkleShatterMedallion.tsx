@@ -345,9 +345,9 @@ export const SparkleShatterMedallion: React.FC<SparkleShatterMedallionProps> = (
           })}
 
           {/* Dynamic Electric Lightning Bolts */}
-          {activeLightning.map((bolt) => (
+          {activeLightning.map((bolt, i) => (
             <path
-              key={`bolt-${bolt.id}`}
+              key={`bolt-${bolt.id}-${i}`}
               d={bolt.path}
               fill="none"
               stroke={bolt.color}

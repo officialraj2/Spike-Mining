@@ -248,7 +248,10 @@ export default function App() {
   // Sync tab and capture referral link parameters (?tab=..., ?ref=..., /ref/...)
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
+      let params = new URLSearchParams(window.location.search);
+      if (!params.get('ref') && !params.get('sponsor') && window.location.hash.includes('?')) {
+        params = new URLSearchParams(window.location.hash.slice(window.location.hash.indexOf('?') + 1));
+      }
       const tabParam = params.get('tab');
       if (tabParam === 'admin' || window.location.hash === '#admin') {
         setActiveTab('admin');
@@ -259,8 +262,8 @@ export default function App() {
         setActiveTab(tabParam as TabType);
       }
 
-      // Capture referral code or address from URL (?ref=..., ?referrer=..., or /ref/..., /r/...)
-      let refVal = params.get('ref') || params.get('referrer') || params.get('r');
+      // Capture referral code or address from URL (?ref=..., ?code=..., ?referrer=..., or /ref/..., /r/...)
+      let refVal = params.get('ref') || params.get('code') || params.get('referrer') || params.get('r');
       const sponsorParam = params.get('sponsor');
       let sponsorAddr: string | null = null;
       if (sponsorParam && /^0x[a-fA-F0-9]{40}$/i.test(sponsorParam.trim())) {
@@ -770,12 +773,31 @@ export default function App() {
     const handleWindowFocus = () => {
       syncLiveReferralData();
     };
-    window.addEventListener('focus', handleWindowFocus);
-
     const handlePartnerRegistered = () => {
       syncLiveReferralData();
     };
     window.addEventListener('spike_partner_registered', handlePartnerRegistered);
+
+    const handleWithdrawalEvent = (e: Event) => {
+      const ce = e as CustomEvent;
+      if (ce.detail && (!ce.detail.userAddress || ce.detail.userAddress.toLowerCase() === norm)) {
+        if (typeof ce.detail.remainingBalance === 'number') {
+          setWalletBalance(ce.detail.remainingBalance);
+          try {
+            localStorage.setItem(`spike_bal_${norm}`, String(ce.detail.remainingBalance));
+          } catch {}
+        }
+        syncLiveReferralData();
+        if (ce.detail.request) {
+          addToast(
+            'Withdrawal Cleared & Paid!',
+            `$${ce.detail.request.amount?.toFixed(2)} USDT milestone payout cleared by admin. Balance updated to $${(ce.detail.remainingBalance || 0).toFixed(2)} USDT.`,
+            'success'
+          );
+        }
+      }
+    };
+    window.addEventListener('spike_withdrawal_updated', handleWithdrawalEvent);
 
     return () => {
       if (unsubscribeFirestore) unsubscribeFirestore();
@@ -783,6 +805,7 @@ export default function App() {
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('spike_partner_registered', handlePartnerRegistered);
       window.removeEventListener('spike_balance_updated', handleBalanceEvent);
+      window.removeEventListener('spike_withdrawal_updated', handleWithdrawalEvent);
       window.removeEventListener('spike_onchain_balances_updated', handleOnChainEvent);
       window.removeEventListener('spike_hashrate_updated', handleHashrateEvent);
       window.removeEventListener('storage', handleStorageChange);
@@ -810,7 +833,7 @@ export default function App() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const addToast = (title: string, message: string, type: ToastMessage['type'] = 'success') => {
-    const id = Date.now().toString();
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     setToasts((prev) => [...prev, { id, title, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -1013,7 +1036,7 @@ export default function App() {
       : `0x${Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}...${Array.from({ length: 4 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
 
     const newTx: RewardTransaction = {
-      id: `tx-node-${Date.now()}`,
+      id: `tx-node-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       txHash: txHashToUse,
       rewardSource: `Smart Contract Call: Mining Node Activation (${newNode.name}) → Treasury Vault (0x3471...3715)`,
       amount: -costUsdt,
@@ -1074,7 +1097,7 @@ export default function App() {
     ).join('')}`;
 
     const newTx: RewardTransaction = {
-      id: `tx-${Date.now()}`,
+      id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       txHash: randomTxHash,
       rewardSource: 'Daily Epoch Payout (Manual Claim)',
       amount: amount,
@@ -1190,7 +1213,6 @@ export default function App() {
   };
 
   const handleClaimReferralMilestone = (amountUsd: number, milestoneLabel: string = 'Team Milestone') => {
-    setWalletBalance((prev) => +(prev + amountUsd).toFixed(2));
     const randomTxHash = `0x${Array.from({ length: 4 }, () =>
       Math.floor(Math.random() * 16).toString(16)
     ).join('')}...${Array.from({ length: 4 }, () =>
@@ -1207,12 +1229,13 @@ export default function App() {
     };
     setRewards((prev) => [newTx, ...prev]);
 
-    // Update referralStats totalCommissions so the Total Earned card immediately reflects the award
+    // Update referralStats milestone rewards cleanly
     setReferralStats((prev: any) => {
+      const prevClaimed = Number(prev?.milestoneRewardsClaimed || 0);
+      const updatedClaimed = +(prevClaimed + amountUsd).toFixed(2);
       const updated = {
         ...prev,
-        totalCommissions: +(Number(prev?.totalCommissions || 0) + amountUsd).toFixed(2),
-        milestoneRewardsClaimed: +(Number(prev?.milestoneRewardsClaimed || 0) + amountUsd).toFixed(2),
+        milestoneRewardsClaimed: updatedClaimed,
       };
       if (walletAddress) {
         try {
@@ -1231,7 +1254,7 @@ export default function App() {
         type: 'milestone_reward',
         amount: amountUsd,
         currency: 'USDT',
-        details: `Team Career Milestone (${milestoneLabel}) Payout`,
+        details: `Team Career Milestone (${milestoneLabel}) Earned`,
         txHash: randomTxHash,
       }),
     }).catch(() => {});
@@ -1245,7 +1268,7 @@ export default function App() {
 
     addToast(
       'Milestone Reward Claimed!',
-      `+${amountUsd} USDT milestone bonus unlocked and credited to your Total Earned & Wallet!`,
+      `+${amountUsd} USDT milestone bonus unlocked! Ready for withdrawal to your BSC wallet.`,
       'success'
     );
   };
@@ -1255,7 +1278,7 @@ export default function App() {
     const now = Date.now();
     const cleanHash = txHash.length > 14 ? `${txHash.slice(0, 8)}...${txHash.slice(-6)}` : txHash;
     const newTx: RewardTransaction = {
-      id: `tx-dep-${Date.now()}`,
+      id: `tx-dep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       txHash: cleanHash,
       rewardSource: 'Step 1: 5 USDT Protocol Deposit to Official Treasury Vault',
       amount: -5,
@@ -1265,7 +1288,7 @@ export default function App() {
     };
     // Activate mining node upon 5$ deposit to treasury
     const activeNode: MiningNode = {
-      id: `node-${Date.now()}`,
+      id: `node-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       name: `SPIKE ASIC Rig #${nodes.length + 1}`,
       region: 'US-East (Stratum Cluster)',
       status: 'mining',

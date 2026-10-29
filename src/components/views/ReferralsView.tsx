@@ -74,30 +74,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     }
   }, [walletAddress, refCode]);
 
-  // Current active origin (auto-adapts to testing preview, localhost, or production)
-  const currentOrigin = typeof window !== 'undefined' && window.location.origin
-    ? window.location.origin
-    : 'https://spikenodes.com';
+  // Official Production Referral Link (spikenodes.com - 100% Live, SSL Secured)
+  const productionRefLink = walletAddress
+    ? `https://spikenodes.com/?ref=${refCode}&sponsor=${walletAddress}`
+    : `https://spikenodes.com/?ref=${refCode}`;
 
-  const isPreviewOrDev = typeof window !== 'undefined' && (
-    window.location.hostname.includes('run.app') ||
-    window.location.hostname.includes('localhost') ||
-    window.location.hostname.includes('127.0.0.1')
-  );
-
-  // Official production domain (spikenodes.com) for all public referral links
-  const selectedBaseOrigin = 'https://spikenodes.com';
-  const [linkFormat, setLinkFormat] = useState<'short' | 'full'>('short');
-
-  // Short referral link with sponsor wallet parameter for 100% deterministic matching
-  const shortRefLink = walletAddress
-    ? `${selectedBaseOrigin}/ref/${refCode}?sponsor=${walletAddress}`
-    : `${selectedBaseOrigin}/ref/${refCode}`;
-
-  // Universal address link fallback
-  const fullRefLink = walletAddress ? `${selectedBaseOrigin}/?ref=${walletAddress}` : `${selectedBaseOrigin}/?ref=USER`;
-
-  const activeLinkToCopy = linkFormat === 'short' ? shortRefLink : fullRefLink;
+  const activeLinkToCopy = productionRefLink;
 
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -135,6 +117,28 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     } catch {}
   }, [walletAddress]);
 
+  // Withdrawal Modal State & User Request Management
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
+  const [withdrawAddress, setWithdrawAddress] = useState<string>(walletAddress || '');
+  const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState(false);
+  const [withdrawMessage, setWithdrawMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [activeWithdrawals, setActiveWithdrawals] = useState<WithdrawalItem[]>([]);
+
+  // Fetch user's withdrawal requests from backend & Firestore
+  const fetchUserWithdrawals = React.useCallback(async () => {
+    if (!walletAddress || !walletAddress.startsWith('0x')) return;
+    try {
+      const res = await fetch(`/api/withdrawals?userAddress=${walletAddress}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.withdrawals)) {
+          setActiveWithdrawals(data.withdrawals);
+        }
+      }
+    } catch {}
+  }, [walletAddress]);
+
   // Auto-sync on mount, on wallet change, on window focus, and on background periodic intervals
   useEffect(() => {
     refreshLiveStats();
@@ -144,13 +148,17 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
     const handlePartnerEvent = () => {
       refreshLiveStats();
+      fetchUserWithdrawals();
     };
     window.addEventListener('spike_partner_registered', handlePartnerEvent);
+    window.addEventListener('spike_withdrawal_updated', handlePartnerEvent);
+    window.addEventListener('spike_balance_updated', handlePartnerEvent);
     window.addEventListener('focus', refreshLiveStats);
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key && e.key.includes('spike_referral')) {
+      if (e.key && (e.key.includes('spike_referral') || e.key.includes('spike_bal') || e.key.includes('spike_withdraw'))) {
         refreshLiveStats();
+        fetchUserWithdrawals();
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -161,19 +169,22 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       bc = new BroadcastChannel('spike_referral_live_sync');
       bc.onmessage = () => {
         refreshLiveStats();
+        fetchUserWithdrawals();
       };
     } catch {}
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('spike_partner_registered', handlePartnerEvent);
+      window.removeEventListener('spike_withdrawal_updated', handlePartnerEvent);
+      window.removeEventListener('spike_balance_updated', handlePartnerEvent);
       window.removeEventListener('focus', refreshLiveStats);
       window.removeEventListener('storage', handleStorageChange);
       if (bc) {
         try { bc.close(); } catch {}
       }
     };
-  }, [refreshLiveStats]);
+  }, [refreshLiveStats, fetchUserWithdrawals]);
 
   // Track claimed milestone IDs per wallet
   const storageKey = `spike_claimed_milestones_${walletAddress || 'default'}`;
@@ -201,14 +212,14 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const downlinePartners = effectiveStats?.downlinePartners ?? 0;
   const totalTeamPartners = directPartners + downlinePartners;
 
-  // Calculate total milestone reward sum claimed by this user
+  // Calculate total milestone reward sum claimed by this user from verified milestone tiers
   const claimedMilestoneRewardSum = TEAM_MILESTONE_TIERS
     .filter((m) => claimedMilestones.includes(m.id))
     .reduce((sum, m) => sum + m.rewardUsd, 0);
 
-  const serverEarned = effectiveStats?.totalCommissions ?? 0;
-  // Total Earned accurately displays the highest verified earned milestone & referral commissions without double-counting
-  const totalEarnedUsdt = Math.max(serverEarned, claimedMilestoneRewardSum);
+  const directCommissions = (effectiveStats?.referrals || []).reduce((acc: number, r: any) => acc + (r.commissionUsdt || 0), 0);
+  // Total Earned strictly equals the sum of genuine claimed milestone rewards + direct referral commissions
+  const totalEarnedUsdt = +(claimedMilestoneRewardSum + directCommissions).toFixed(2);
   
   const referralsList = effectiveStats?.referrals || [];
   const rawSponsor = effectiveStats?.referredBy || null;
@@ -220,34 +231,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
      rawSponsor.toLowerCase().replace(/^(spike-|spk-)/i, '') === walletAddress.toLowerCase().slice(2, 8))
   );
   const activeSponsor = isSelfSponsor ? null : rawSponsor;
-
-  // Withdrawal Modal State & User Request Management
-  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
-  const [withdrawAddress, setWithdrawAddress] = useState<string>(walletAddress || '');
-  const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState(false);
-  const [withdrawMessage, setWithdrawMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [activeWithdrawals, setActiveWithdrawals] = useState<WithdrawalItem[]>([]);
-
-  // Fetch user's withdrawal requests from backend & Firestore
-  const fetchUserWithdrawals = React.useCallback(async () => {
-    if (!walletAddress || !walletAddress.startsWith('0x')) return;
-    try {
-      const res = await fetch(`/api/withdrawals?userAddress=${walletAddress}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.withdrawals)) {
-          setActiveWithdrawals(data.withdrawals);
-        }
-      }
-    } catch {}
-  }, [walletAddress]);
-
-  useEffect(() => {
-    fetchUserWithdrawals();
-    const interval = setInterval(fetchUserWithdrawals, 4000);
-    return () => clearInterval(interval);
-  }, [fetchUserWithdrawals]);
 
   // Keep withdrawAddress synced with connected wallet
   useEffect(() => {
@@ -263,7 +246,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     .filter((w) => w.status === 'approved')
     .reduce((sum, w) => sum + w.amount, 0);
 
-  // Available rewards to withdraw
+  // Available rewards to withdraw: Genuine claimed rewards minus (pending + cleared payouts)
   const availableToWithdraw = Math.max(0, +(totalEarnedUsdt - (pendingAmount + approvedAmount)).toFixed(2));
 
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
@@ -285,19 +268,20 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     onClaimReferralRewards(amountUsd, milestoneLabel);
     setClaimSuccess(milestoneLabel);
     const milestoneId = nextClaimable?.id || TEAM_MILESTONE_TIERS.find(m => m.label === milestoneLabel)?.id || '';
-    setClaimedMilestones((prev) => {
-      const updated = prev.includes(milestoneId) ? prev : [...prev, milestoneId];
-      try { localStorage.setItem(storageKey, JSON.stringify(updated)); } catch {}
-      return updated;
-    });
+    const updatedMilestones = claimedMilestones.includes(milestoneId) ? claimedMilestones : [...claimedMilestones, milestoneId];
+    setClaimedMilestones(updatedMilestones);
+    try { localStorage.setItem(storageKey, JSON.stringify(updatedMilestones)); } catch {}
 
-    // Update localStats totalCommissions immediately so the Total Earned card updates on screen
+    const newMilestoneSum = TEAM_MILESTONE_TIERS
+      .filter((m) => updatedMilestones.includes(m.id))
+      .reduce((sum, m) => sum + m.rewardUsd, 0);
+
     setLocalStats((prev) => {
       if (!prev) return null;
       return {
         ...prev,
-        totalCommissions: +(Number(prev.totalCommissions || 0) + amountUsd).toFixed(2),
-        milestoneRewardsClaimed: +(Number(prev.milestoneRewardsClaimed || 0) + amountUsd).toFixed(2),
+        totalCommissions: +(newMilestoneSum + directCommissions).toFixed(2),
+        milestoneRewardsClaimed: newMilestoneSum,
       };
     });
 
@@ -319,9 +303,9 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       });
       return;
     }
-    const dest = withdrawAddress.trim();
-    if (!dest.startsWith('0x') || dest.length !== 42) {
-      setWithdrawMessage({ text: 'Please enter a valid BEP-20 (BSC) wallet address starting with 0x (42 characters).', type: 'error' });
+    const dest = (walletAddress || withdrawAddress || '').trim();
+    if (!walletAddress || !dest.startsWith('0x') || dest.length !== 42) {
+      setWithdrawMessage({ text: 'Please connect your Web3 wallet extension to withdraw. Destination is strictly locked to your connected wallet.', type: 'error' });
       return;
     }
 
@@ -413,18 +397,19 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
                   Your Referral Link
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-mono bg-[#00F0FF]/10 text-[#00F0FF] border border-[#00F0FF]/30 font-bold">
-                  <span>🌐 spikenodes.com</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[#D4AF37] text-[10px] font-mono font-bold tracking-wide">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse"></span>
+                  🌐 Production (spikenodes.com)
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono flex items-center gap-1 text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>✓ Verified Official Link</span>
+                <span className="text-[10px] font-mono flex items-center gap-1 text-emerald-400 font-semibold">
+                  <span className="material-symbols-outlined text-[14px]">verified</span>
+                  <span>100% Live & SSL Verified</span>
                 </span>
               </div>
             </div>
@@ -447,6 +432,17 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 <span>{copied ? 'Copied!' : 'Copy Link'}</span>
               </button>
 
+              {/* Direct Open / Test Button */}
+              <a
+                href={activeLinkToCopy}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+                title="Open production link in new tab to test"
+              >
+                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+              </a>
+
               {/* Native / Social Share Button */}
               <div className="relative">
                 <button
@@ -462,15 +458,29 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                     }
                   }}
                   className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors"
-                  title="Share link"
+                  title="Share production link"
                 >
                   <span className="material-symbols-outlined text-[18px]">share</span>
                 </button>
 
                 {showShareMenu && (
-                  <div className="absolute right-0 top-full mt-2 z-30 w-44 bg-[#0d1624] border border-[#1c2b3b] rounded-xl p-2 shadow-xl space-y-1">
+                  <div className="absolute right-0 top-full mt-2 z-30 w-52 bg-[#0d1624] border border-[#1c2b3b] rounded-xl p-2 shadow-xl space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onCopyText(productionRefLink);
+                        setCopied(true);
+                        setShowShareMenu(false);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors text-left cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">content_copy</span>
+                      <span>Copy Production Link</span>
+                    </button>
+                    <div className="my-1 border-t border-[#1c2b3b]/70" />
                     <a
-                      href={`https://wa.me/?text=${encodeURIComponent(`Join my SPIKE mining team and start earning with code ${refCode}! ${activeLinkToCopy}`)}`}
+                      href={`https://wa.me/?text=${encodeURIComponent(`Join my SPIKE mining team and start earning with code ${refCode}!\n\n${productionRefLink}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
@@ -478,7 +488,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                       <span>💬 WhatsApp</span>
                     </a>
                     <a
-                      href={`https://t.me/share/url?url=${encodeURIComponent(activeLinkToCopy)}&text=${encodeURIComponent(`Join my SPIKE mining team with code ${refCode}!`)}`}
+                      href={`https://t.me/share/url?url=${encodeURIComponent(productionRefLink)}&text=${encodeURIComponent(`Join my SPIKE mining team with code ${refCode}!`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
@@ -486,7 +496,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                       <span>✈️ Telegram</span>
                     </a>
                     <a
-                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join my @SpikeNodes mining team using code ${refCode}! ${activeLinkToCopy}`)}`}
+                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join my @SpikeNodes mining team using code ${refCode}! ${productionRefLink}`)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
@@ -496,6 +506,18 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Quick helper badge for production link */}
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#94a3b8] font-mono">
+              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                <span className="material-symbols-outlined text-[14px]">verified</span>
+                Official Production Link
+              </span>
+              <span>•</span>
+              <span>100% Live on spikenodes.com (Works in TrustWallet, MetaMask, Chrome)</span>
+              <span>•</span>
+              <span className="text-[#00F0FF]">Sponsor: {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : refCode}</span>
             </div>
           </div>
 
@@ -684,21 +706,46 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           <div>
             <div className="flex items-center justify-between">
               <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
-                Total Earned
+                Available Reward Balance
               </div>
-              <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 uppercase">
-                Milestones
+              <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
+                availableToWithdraw > 0
+                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  : approvedAmount > 0
+                  ? 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/30'
+                  : 'bg-[#1c2b3b] text-[#94a3b8] border-[#1c2b3b]'
+              }`}>
+                {availableToWithdraw > 0 ? 'Withdrawable' : approvedAmount > 0 ? 'Cleared & Paid' : '0.00 Balance'}
               </span>
             </div>
-            <div className="text-3xl font-extrabold font-headline text-[#D4AF37] mt-1 tabular-nums tracking-tight">
-              +{totalEarnedUsdt.toFixed(2)} <span className="text-sm text-white font-semibold">USDT</span>
+            <div className="text-3xl font-extrabold font-headline mt-1 tabular-nums tracking-tight flex items-baseline gap-1.5">
+              <span className={availableToWithdraw > 0 ? 'text-[#D4AF37]' : 'text-slate-300'}>
+                {availableToWithdraw.toFixed(2)}
+              </span>
+              <span className="text-sm text-white font-semibold font-headline">USDT</span>
             </div>
-            <div className="text-xs text-[#D4AF37] font-mono mt-1 font-medium flex flex-wrap items-center justify-between gap-1">
-              <span>Claimed from Team Milestones</span>
+            <div className="text-xs font-mono mt-2 font-medium flex flex-col gap-1 text-[#94a3b8] pt-1.5 border-t border-[#1c2b3b]/50">
+              <div className="flex items-center justify-between">
+                <span>Lifetime Milestones:</span>
+                <span className="text-white font-semibold">+{totalEarnedUsdt.toFixed(2)} USDT</span>
+              </div>
+              {approvedAmount > 0 && (
+                <div className="flex items-center justify-between text-emerald-400">
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                    <span>Admin Cleared &amp; Paid:</span>
+                  </span>
+                  <span className="font-semibold">-${approvedAmount.toFixed(2)} USDT</span>
+                </div>
+              )}
               {pendingAmount > 0 && (
-                <span className="text-amber-400 font-mono text-[10px] animate-pulse">
-                  (${pendingAmount.toFixed(2)} Pending)
-                </span>
+                <div className="flex items-center justify-between text-amber-400 animate-pulse">
+                  <span className="flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[13px]">hourglass_top</span>
+                    <span>Under Admin Review:</span>
+                  </span>
+                  <span className="font-semibold">${pendingAmount.toFixed(2)} USDT Pending</span>
+                </div>
               )}
             </div>
           </div>
@@ -707,15 +754,29 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           <div className="mt-4 pt-3 border-t border-[#1c2b3b]">
             <button
               type="button"
+              disabled={availableToWithdraw <= 0}
               onClick={() => {
-                setWithdrawAmount(availableToWithdraw > 0 ? String(availableToWithdraw) : '');
+                if (availableToWithdraw <= 0) return;
+                setWithdrawAmount(String(availableToWithdraw));
                 setWithdrawAddress(walletAddress || '');
                 setIsWithdrawModalOpen(true);
               }}
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.35)] transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+              className={`w-full py-2.5 px-3 rounded-xl font-headline font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                availableToWithdraw > 0
+                  ? 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#7df4ff] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.35)] active:scale-95 cursor-pointer'
+                  : 'bg-[#1c2b3b]/60 text-[#64748b] border border-[#1c2b3b] cursor-not-allowed opacity-80'
+              }`}
             >
               <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
-              <span>Withdraw Rewards {availableToWithdraw > 0 ? `(${availableToWithdraw.toFixed(2)} USDT)` : ''}</span>
+              <span>
+                {availableToWithdraw > 0
+                  ? `Withdraw Rewards (${availableToWithdraw.toFixed(2)} USDT)`
+                  : pendingAmount > 0
+                  ? `Withdrawal Pending Admin Approval ($${pendingAmount.toFixed(2)})`
+                  : approvedAmount > 0
+                  ? 'All Rewards Cleared & Paid (0.00 USDT)'
+                  : '0.00 USDT Available to Withdraw'}
+              </span>
             </button>
           </div>
         </div>
@@ -884,23 +945,34 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-mono font-bold text-[#c6c6cc] mb-1.5">
-                  Destination BSC (BEP-20) Wallet Address
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-mono font-bold text-[#c6c6cc] flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[14px] text-[#00F0FF]">account_balance_wallet</span>
+                    <span>Destination BSC (BEP-20) Wallet Address</span>
+                  </label>
+                  <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1 font-semibold">
+                    <span className="material-symbols-outlined text-[13px]">lock</span>
+                    Locked & Non-Editable
+                  </span>
+                </div>
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="0x..."
-                    value={withdrawAddress}
-                    onChange={(e) => setWithdrawAddress(e.target.value)}
-                    className="w-full bg-[#05111e] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-4 py-3 text-white font-mono text-xs sm:text-sm outline-none transition-colors"
+                    readOnly
+                    tabIndex={-1}
+                    value={walletAddress || withdrawAddress || ''}
+                    placeholder="No wallet connected..."
+                    className="w-full bg-[#030914] border border-[#1a2c3d] rounded-xl px-4 py-3 text-[#00F0FF] font-mono text-xs sm:text-sm outline-none cursor-not-allowed select-all pr-28 transition-colors shadow-inner opacity-90"
                   />
-                  {walletAddress && withdrawAddress.toLowerCase() === walletAddress.toLowerCase() && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      Connected Wallet
-                    </span>
-                  )}
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold pointer-events-none select-none">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Connected</span>
+                  </div>
                 </div>
+                <p className="mt-1.5 text-[11px] font-mono text-[#64748b] flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[13px] text-[#00F0FF]">shield</span>
+                  <span>Locked directly to your active Web3 wallet extension to prevent tampering.</span>
+                </p>
               </div>
 
               {/* Protocol Specs Badge */}
@@ -970,9 +1042,9 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 </div>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
-                  {activeWithdrawals.map((w) => (
+                  {activeWithdrawals.map((w, idx) => (
                     <div
-                      key={w.id}
+                      key={`${w.id || 'wdr'}-${idx}`}
                       className="p-2.5 rounded-xl bg-[#071322] border border-[#1c2b3b] flex items-center justify-between gap-3 text-xs"
                     >
                       <div>

@@ -349,9 +349,36 @@ export const AdminView: React.FC<AdminViewProps> = ({
       });
       const data = await safeJsonParse(res);
       if (res.ok && data?.success) {
+        const reqUser = data.request?.userAddress?.toLowerCase();
+        const remainingBal = typeof data.remainingBalance === 'number' ? data.remainingBalance : 0;
+
+        // Broadcast real-time balance update and withdrawal approval
+        try {
+          if (reqUser) {
+            localStorage.setItem(`spike_bal_${reqUser}`, String(remainingBal));
+            const activeWallet = localStorage.getItem('spike_wallet_address');
+            if (activeWallet && activeWallet.toLowerCase() === reqUser) {
+              localStorage.setItem('spike_balance_usdt', String(remainingBal));
+            }
+          }
+          window.dispatchEvent(
+            new CustomEvent('spike_balance_updated', {
+              detail: { address: reqUser, balanceUsdt: remainingBal },
+            })
+          );
+          window.dispatchEvent(
+            new CustomEvent('spike_withdrawal_updated', {
+              detail: { requestId: id, request: data.request, remainingBalance: remainingBal, userAddress: reqUser },
+            })
+          );
+          const bc = new BroadcastChannel('spike_referral_live_sync');
+          bc.postMessage({ type: 'WITHDRAWAL_APPROVED', id, remainingBalance: remainingBal, userAddress: reqUser });
+          bc.close();
+        } catch {}
+
         onNotify?.(
-          'Withdrawal Approved & Done!',
-          `Withdrawal request #${id.slice(-6)} marked as Done! Payout tx recorded: ${data.request?.txHash?.slice(0, 16)}...`,
+          'Withdrawal Cleared & Paid!',
+          `Withdrawal request #${id.slice(-6)} ($${data.request?.amount} USDT) approved! Payout tx: ${data.request?.txHash?.slice(0, 16)}... User balance updated to $${remainingBal.toFixed(2)} USDT.`,
           'success'
         );
         fetchAllData(true);
@@ -1934,8 +1961,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#1c2b3b]/60">
-                    {transactions.slice(0, 5).map((tx) => (
-                      <tr key={tx.id} className="hover:bg-[#122130]/50 transition-colors">
+                    {transactions.slice(0, 5).map((tx, idx) => (
+                      <tr key={`${tx.id || 'tx'}-${idx}`} className="hover:bg-[#122130]/50 transition-colors">
                         <td className="py-2.5 text-[#00F0FF]">
                           {tx.userAddress ? `${tx.userAddress.slice(0, 8)}...` : 'System'}
                         </td>
@@ -2267,7 +2294,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#1c2b3b]">
-                      {filtered.map((item) => {
+                      {filtered.map((item, idx) => {
                         const isPending = item.status === 'pending';
                         const isApproved = item.status === 'approved';
                         const isRejected = item.status === 'rejected';
@@ -2275,7 +2302,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
                         return (
                           <tr
-                            key={item.id}
+                            key={`${item.id || 'wdr'}-${idx}`}
                             className={`hover:bg-[#122130]/50 transition-colors ${
                               isPending ? 'bg-amber-500/5' : ''
                             }`}
@@ -2818,8 +2845,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   {transactions
                     .filter((t) => t.rewardSource?.includes('Faucet') || t.rewardSource?.includes('Admin') || t.amount > 0)
                     .slice(0, 6)
-                    .map((tx) => (
-                      <div key={tx.id} className="p-2.5 rounded-xl bg-[#122130] border border-[#1c2b3b] text-xs font-mono flex items-center justify-between">
+                    .map((tx, idx) => (
+                      <div key={`${tx.id || 'tx'}-${idx}`} className="p-2.5 rounded-xl bg-[#122130] border border-[#1c2b3b] text-xs font-mono flex items-center justify-between">
                         <div className="truncate mr-2">
                           <div className="text-white font-semibold truncate">{tx.rewardSource}</div>
                           <div className="text-[10px] text-[#94a3b8] truncate">{tx.txHash}</div>
@@ -3638,8 +3665,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1c2b3b]/60">
-                  {transactions.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-[#122130]/40 transition-colors">
+                  {transactions.map((tx, idx) => (
+                    <tr key={`${tx.id || 'tx'}-${idx}`} className="hover:bg-[#122130]/40 transition-colors">
                       <td className="p-3.5 text-white font-medium">{tx.id}</td>
                       <td className="p-3.5 text-[#00F0FF]">
                         {tx.userAddress ? `${tx.userAddress.slice(0, 8)}...` : 'System'}
@@ -4163,9 +4190,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </div>
 
             <div className="space-y-2 max-h-96 overflow-y-auto pr-2 scrollbar-thin">
-              {auditLogs.map((log) => (
+              {auditLogs.map((log, idx) => (
                 <div
-                  key={log.id}
+                  key={`${log.id || 'log'}-${idx}`}
                   className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b]/60 text-xs font-mono flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                 >
                   <div className="space-y-1">

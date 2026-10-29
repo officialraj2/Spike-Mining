@@ -875,7 +875,10 @@ app.get(['/ref/:code', '/r/:code'], (req: Request, res: Response) => {
   }
   const qs = new URLSearchParams(queryObj).toString();
   const target = `/?ref=${encodeURIComponent(code)}${qs ? `&${qs}` : ''}`;
-  res.redirect(target);
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.redirect(302, target);
 });
 
 
@@ -936,6 +939,9 @@ app.post('/api/admin/withdrawals/:id/approve', (req: Request, res: Response) => 
 
     if (result.success && result.request) {
       syncDocument('withdrawals', result.request.id, result.request).catch(() => {});
+      if (result.user) {
+        syncDocument('users', result.user.address.toLowerCase(), result.user).catch(() => {});
+      }
     }
 
     res.json(result);
@@ -1168,14 +1174,15 @@ app.post('/api/testnet/wallet/faucet', (req: Request, res: Response) => {
 
 app.post('/api/testnet/harvest-autobuy', (req: Request, res: Response) => {
   try {
-    const { address, minedSpkAmount = 25.0, hashrate = 1.25, slippageTolerance = 0.2 } = req.body;
+    const { address, minedSpkAmount = 25.0, hashrate = 1.25, slippageTolerance = 0.2, txHash } = req.body;
     const targetAddr = (address && typeof address === 'string' && address.trim()) ? address.trim() : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
     const numAmount = Number(minedSpkAmount) > 0 ? Number(minedSpkAmount) : 25.0;
     const result = db.executeTestnetHarvestAutoBuy(
       targetAddr,
       numAmount,
       Number(hashrate) || 1.25,
-      Number(slippageTolerance) || 0.2
+      Number(slippageTolerance) || 0.2,
+      txHash
     );
     res.json(result);
   } catch (err: any) {

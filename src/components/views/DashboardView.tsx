@@ -349,7 +349,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         const randomEnd = Math.random().toString(16).substring(2, 6);
 
         const newTx: LiveTxn = {
-          id: `tx-${Date.now()}`,
+          id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           type: isBuyTrade ? 'buy' : 'sell',
           amountSpk: tradeAmount,
           amountUsd: tradeUsd,
@@ -389,7 +389,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const shortW = `${userWallet.substring(0, 6)}...${userWallet.substring(userWallet.length - 4)}`;
 
       const tradeTx: LiveTxn = {
-        id: `user-tx-${Date.now()}`,
+        id: `user-tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         type: isBuy ? 'buy' : 'sell',
         amountSpk: Math.round(spkAmount),
         amountUsd: +usdtAmount.toFixed(2),
@@ -566,7 +566,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         // Push bullish trade to order stream
         const newTrade: LiveTxn = {
-          id: `tx-spk-${Date.now()}`,
+          id: `tx-spk-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           type: 'buy',
           amountSpk: Math.round(data.tx.spkAmount),
           amountUsd: Number(data.tx.usdtAmount.toFixed(2)),
@@ -692,7 +692,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             setLastAutoBuyReceipt(tx);
             setTestnetTransactions((prev) => [tx, ...prev]);
             const newTrade: LiveTxn = {
-              id: `tx-spk-${Date.now()}`,
+              id: `tx-spk-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
               type: 'buy',
               amountSpk: Math.round(tx.spkAmount),
               amountUsd: Number(tx.usdtAmount.toFixed(2)),

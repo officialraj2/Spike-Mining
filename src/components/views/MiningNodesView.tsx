@@ -268,13 +268,13 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredNodes.map((node) => {
+          {filteredNodes.map((node, idx) => {
           const isMining = node.status === 'mining';
           const isSelected = selectedNodeLogs?.id === node.id;
 
           return (
             <div
-              key={node.id}
+              key={`${node.id || 'node'}-${idx}`}
               className={`bg-[#122130] rounded-xl p-5 border transition-all ${
                 isSelected
                   ? 'border-[#00F0FF]/60 shadow-[0_0_20px_rgba(0,240,255,0.1)]'
