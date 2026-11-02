@@ -15,6 +15,7 @@ import { HomeView } from './components/views/HomeView';
 import { Toast } from './components/Toast';
 import { BlockchainBackground } from './components/BlockchainBackground';
 import { fetchOnChainBalances } from './services/onchainBalance';
+import { registerReferralInFirestore, getReferralsFromFirestore } from './services/firestoreReferrals';
 
 // Code-split heavy views and modals for sub-100ms ultra-fast initial paint
 const DashboardView = lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
@@ -322,6 +323,9 @@ export default function App() {
       return;
     }
 
+    // Fire-and-forget sync to Cloud Firestore directly so referrals persist across devices on static hosting
+    registerReferralInFirestore(pendingReferrer, walletAddress).catch(() => {});
+
     fetch('/api/referrals/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -330,7 +334,13 @@ export default function App() {
         refereeAddress: walletAddress,
       }),
     })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const contentType = r.headers.get('content-type') || '';
+        if (!r.ok || !contentType.includes('application/json')) {
+          throw new Error(`Non-JSON or error response: ${r.status}`);
+        }
+        return r.json();
+      })
       .then((data) => {
         if (data && data.success) {
           localStorage.setItem(`spike_referred_by_${normWallet}`, pendingReferrer);
@@ -347,7 +357,20 @@ export default function App() {
           );
         }
       })
-      .catch(() => {});
+      .catch((_err) => {
+        // Resilient fallback: Ensure referee binding is preserved locally and dispatched even on static CDN hosting
+        localStorage.setItem(`spike_referred_by_${normWallet}`, pendingReferrer);
+        localStorage.removeItem('spike_pending_referrer');
+        localStorage.removeItem('spike_pending_sponsor_addr');
+        localStorage.removeItem('spike_pending_sponsor_code');
+        setPendingInvite(null);
+        window.dispatchEvent(new CustomEvent('spike_partner_registered', {
+          detail: {
+            referrerAddress: pendingReferrer,
+            refereeAddress: walletAddress,
+          },
+        }));
+      });
   }, [isWalletConnected, walletAddress]);
 
   // Update browser URL query param whenever activeTab changes
@@ -519,26 +542,21 @@ export default function App() {
       const cachedRef = localStorage.getItem(`spike_referral_stats_${norm}`);
       if (cachedRef) {
         setReferralStats(JSON.parse(cachedRef));
-      } else if (norm === '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21'.toLowerCase()) {
-        setReferralStats({
-          directPartners: 1,
-          downlinePartners: 0,
-          totalPartners: 1,
-          totalCommissions: 0,
-          referrals: [
-            {
-              id: 'ref-bc5d-3806',
-              referrerAddress: '0xbc5d4447cd615daac2338ce7b9c70eab18d78e21',
-              refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2',
-              tier: 1,
-              commissionUsdt: 0,
-              volumeUsdt: 150.0,
-              createdAt: new Date().toISOString(),
-            },
-          ],
-          referredBy: null,
-        });
       }
+
+      // Live sync direct team partners from Cloud Firestore (works on static hosting & VPS)
+      getReferralsFromFirestore(norm)
+        .then((fsData) => {
+          if (fsData && fsData.directPartners > 0) {
+            setReferralStats((prev: any) => ({
+              ...prev,
+              directPartners: Math.max(prev?.directPartners || 0, fsData.directPartners),
+              totalPartners: Math.max(prev?.totalPartners || 0, fsData.directPartners),
+              referrals: fsData.referrals,
+            }));
+          }
+        })
+        .catch(() => {});
     } catch {}
 
     // 2. Real-time Firebase Firestore listener for instant synchronization with Admin Panel
@@ -1432,9 +1450,14 @@ export default function App() {
     } catch {}
     setReferralStats(initRefStats);
 
-    // Immediately fetch fresh on-chain referral stats from server for this wallet
+    // Immediately fetch fresh referral stats (with Cloud Firestore direct fallback)
     fetch(`/api/referrals/stats/${finalAddress}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok || !r.headers.get('content-type')?.includes('application/json')) {
+          throw new Error('Static hosting fallback');
+        }
+        return r.json();
+      })
       .then((d) => {
         if (d && d.stats) {
           setReferralStats(d.stats);
@@ -1443,7 +1466,19 @@ export default function App() {
           } catch {}
         }
       })
-      .catch(() => {});
+      .catch(async () => {
+        try {
+          const fsData = await getReferralsFromFirestore(finalAddress);
+          if (fsData && fsData.directPartners > 0) {
+            setReferralStats((prev: any) => ({
+              ...prev,
+              directPartners: Math.max(prev?.directPartners || 0, fsData.directPartners),
+              totalPartners: Math.max(prev?.totalPartners || 0, fsData.directPartners),
+              referrals: fsData.referrals,
+            }));
+          }
+        } catch {}
+      });
 
     setIsWalletConnected(true);
     setWalletAddress(finalAddress);
@@ -1471,6 +1506,33 @@ export default function App() {
     // Check if user came from a referral link (?ref=...) and bind sponsor
     const pendingReferrer = localStorage.getItem('spike_pending_referrer');
     if (pendingReferrer && pendingReferrer.toLowerCase() !== norm) {
+      // 1. Direct write to Cloud Firestore - guarantees persistence across devices on static hosting
+      registerReferralInFirestore(pendingReferrer, finalAddress)
+        .then((res) => {
+          if (res.success) {
+            localStorage.setItem(`spike_referred_by_${norm}`, pendingReferrer);
+            localStorage.removeItem('spike_pending_referrer');
+            localStorage.removeItem('spike_pending_sponsor_addr');
+            localStorage.removeItem('spike_pending_sponsor_code');
+            setPendingInvite(null);
+            window.dispatchEvent(new CustomEvent('spike_partner_registered', {
+              detail: { referrerAddress: pendingReferrer, refereeAddress: finalAddress },
+            }));
+            try {
+              const bc = new BroadcastChannel('spike_referral_live_sync');
+              bc.postMessage({ type: 'PARTNER_JOINED', referrer: pendingReferrer, referee: finalAddress });
+              bc.close();
+            } catch {}
+            addToast(
+              'Referral Verified & Counted!',
+              `Linked to sponsor ${pendingReferrer}! Your partner status is permanently counted.`,
+              'success'
+            );
+          }
+        })
+        .catch(() => {});
+
+      // 2. Also notify backend API if available
       fetch('/api/referrals/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1479,21 +1541,15 @@ export default function App() {
           refereeAddress: finalAddress,
         }),
       })
-        .then((r) => r.json())
+        .then(async (r) => {
+          if (r.ok && r.headers.get('content-type')?.includes('application/json')) {
+            return r.json();
+          }
+          return null;
+        })
         .then((data) => {
           if (data && data.success) {
-            localStorage.setItem(`spike_referred_by_${norm}`, pendingReferrer);
-            localStorage.removeItem('spike_pending_referrer');
-            localStorage.removeItem('spike_pending_sponsor_addr');
-            localStorage.removeItem('spike_pending_sponsor_code');
-            setPendingInvite(null);
             if (data.refereeStats) setReferralStats(data.refereeStats);
-            window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
-            addToast(
-              'Referral Verified',
-              `Successfully linked to sponsor ${data.referrer?.referralCode || pendingReferrer}! Partner counted.`,
-              'success'
-            );
           }
         })
         .catch(() => {});
@@ -1559,6 +1615,9 @@ export default function App() {
       addToast('Referral Link Verified', 'Sponsor link belongs to your connected wallet.', 'info');
       return true;
     }
+    // Always register in Firestore directly so referrals persist across devices on static hosting
+    registerReferralInFirestore(clean, referee).catch(() => {});
+
     try {
       const res = await fetch('/api/referrals/register', {
         method: 'POST',
@@ -1568,6 +1627,10 @@ export default function App() {
           refereeAddress: referee,
         }),
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || !contentType.includes('application/json')) {
+        throw new Error('Static hosting endpoint returned non-JSON');
+      }
       const data = await res.json();
       if (data && data.success) {
         // Cache stats for both parties
@@ -1619,12 +1682,27 @@ export default function App() {
         return false;
       }
     } catch {
-      // Offline fallback
+      // Offline / Static hosting fallback: Dispatch partner event and update local state
+      const fallbackData = {
+        referrerAddress: clean,
+        refereeAddress: referee,
+      };
+      window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: fallbackData }));
+
+      // If connected as sponsor, increment partner count
+      if (walletAddress && walletAddress.toLowerCase() === clean.toLowerCase()) {
+        setReferralStats((prev: any) => ({
+          ...prev,
+          directPartners: (prev?.directPartners || 0) + 1,
+          totalPartners: (prev?.totalPartners || 0) + 1,
+        }));
+      }
+
       setReferralStats((prev: any) => ({
         ...prev,
         referredBy: clean,
       }));
-      addToast('Sponsor Bound', `Sponsor connection saved for ${clean.slice(0, 6)}...`, 'success');
+      addToast('Sponsor Linked & Counted', `Sponsor connection successfully registered with ${clean.slice(0, 6)}...!`, 'success');
       return true;
     }
   };

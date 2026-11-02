@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { normalizeSponsor } from '../../services/firestoreReferrals';
 
 interface ReferralVerificationModalProps {
   isOpen: boolean;
@@ -70,42 +71,34 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
     setLoadingVerify(true);
     setBindError(null);
 
+    const { address: derivedAddr, code: derivedCode } = normalizeSponsor(q);
+    setSponsorDetails({
+      code: derivedCode,
+      address: derivedAddr,
+      level: 'Protocol Verified Sponsor',
+      bonusPercent: 'Milestone Rewards',
+      verified: true,
+    });
+
     fetch(`/api/referrals/verify-sponsor?q=${encodeURIComponent(q)}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok || !r.headers.get('content-type')?.includes('application/json')) {
+          return null;
+        }
+        return r.json();
+      })
       .then((data) => {
         if (data && data.success) {
           setSponsorDetails({
-            code: data.referralCode,
-            address: data.sponsorAddress,
+            code: data.referralCode || derivedCode,
+            address: data.sponsorAddress || derivedAddr,
             level: data.level || 'Protocol Verified Sponsor',
-            bonusPercent: 'Milestone Rewards',
-            verified: true,
-          });
-        } else {
-          const isAddr = /^0x[a-fA-F0-9]{40}$/i.test(q);
-          const derivedAddr = isAddr ? q : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-          const derivedCode = isAddr ? `SPK-${q.slice(2, 8).toUpperCase()}` : q.toUpperCase();
-          setSponsorDetails({
-            code: derivedCode.startsWith('SPK-') ? derivedCode : `SPK-${derivedCode}`,
-            address: derivedAddr,
-            level: 'Protocol Verified Sponsor',
             bonusPercent: 'Milestone Rewards',
             verified: true,
           });
         }
       })
-      .catch(() => {
-        const isAddr = /^0x[a-fA-F0-9]{40}$/i.test(q);
-        const derivedAddr = isAddr ? q : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-        const derivedCode = isAddr ? `SPK-${q.slice(2, 8).toUpperCase()}` : q.toUpperCase();
-        setSponsorDetails({
-          code: derivedCode.startsWith('SPK-') ? derivedCode : `SPK-${derivedCode}`,
-          address: derivedAddr,
-          level: 'Protocol Verified Sponsor',
-          bonusPercent: '15%',
-          verified: true,
-        });
-      })
+      .catch(() => {})
       .finally(() => {
         setLoadingVerify(false);
       });

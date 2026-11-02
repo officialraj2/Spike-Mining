@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { db } from './src/server/db.ts';
 import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb, purgeNonMasterFirestoreData } from './src/server/firebaseServer.ts';
 import { requireAuth } from './src/middleware/auth.ts';
@@ -11,6 +12,35 @@ import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from '
 import { db as sqlDb } from './src/db/index.ts';
 
 dotenv.config();
+
+// Prevent dev server process from dying on background network interruptions, transient EADDRINUSE, or Firestore quota notices
+process.on('uncaughtException', (err: any) => {
+  const msg = err?.message || String(err);
+  if (
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('quota') ||
+    msg.includes('EADDRINUSE') ||
+    msg.includes('ECONNRESET') ||
+    msg.includes('Port 24678 is already in use')
+  ) {
+    console.warn('[Handled Background Server Notice]:', msg);
+    return;
+  }
+  console.error('[Server Uncaught Exception]:', err);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  const msg = reason?.message || String(reason);
+  if (
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('quota') ||
+    msg.includes('ECONNRESET')
+  ) {
+    console.warn('[Handled Background Promise Rejection]:', msg);
+    return;
+  }
+  console.error('[Server Unhandled Rejection]:', reason);
+});
 
 const app = express();
 const argPortIndex = process.argv.indexOf('--port');
@@ -38,6 +68,30 @@ app.get('/favicon.ico', (_req: Request, res: Response) => {
 });
 app.get('/robots.txt', (_req: Request, res: Response) => {
   res.type('text/plain').send('User-agent: *\nAllow: /');
+});
+
+// Direct Project ZIP Download route for user export/backup
+app.get(['/download-project-zip', '/spikenodes-project.zip', '/api/download-zip'], (_req: Request, res: Response) => {
+  const zipPath = path.resolve('public', 'spikenodes-project.zip');
+  if (fs.existsSync(zipPath)) {
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="spikenodes-full-project.zip"');
+    res.download(zipPath, 'spikenodes-full-project.zip');
+  } else {
+    res.status(404).send('Project zip file not found.');
+  }
+});
+
+// Ready-to-upload Hostinger public_html ZIP (Contains only compiled production assets and .htaccess)
+app.get(['/download-hostinger-zip', '/spikenodes-hostinger-dist.zip'], (_req: Request, res: Response) => {
+  const distZipPath = path.resolve('public', 'spikenodes-hostinger-dist.zip');
+  if (fs.existsSync(distZipPath)) {
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="spikenodes-hostinger-public_html.zip"');
+    res.download(distZipPath, 'spikenodes-hostinger-public_html.zip');
+  } else {
+    res.status(404).send('Hostinger zip not found.');
+  }
 });
 
 // ============================================================
@@ -1284,19 +1338,36 @@ async function startServer() {
     });
   } else {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`SPIKE Full-Stack Server running at http://0.0.0.0:${PORT}`);
     console.log(`[DB] Persistent Database connected at .data/spike_database.json`);
     console.log(`[ADMIN] Admin API routes live at /api/admin/*`);
     console.log(`[FIREBASE] Cloud Firestore connected: ${firebaseConfig?.projectId || 'active'}`);
     console.log(`[CLOUDSQL] PostgreSQL Relational Database (Drizzle ORM) active`);
     console.log(`[MAINNET] Clean baseline active: Treasury $0.00, Master Creator authenticated.`);
+  });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`[Server] Port ${PORT} busy, waiting 500ms before retrying...`);
+      setTimeout(() => {
+        try {
+          server.close();
+        } catch {}
+        server.listen(PORT, '0.0.0.0');
+      }, 500);
+    } else {
+      console.error('[Server Error]:', err);
+    }
   });
 }
 

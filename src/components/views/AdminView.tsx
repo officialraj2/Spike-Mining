@@ -1023,6 +1023,17 @@ export const AdminView: React.FC<AdminViewProps> = ({
               <span>Copy Direct Link (?tab=admin)</span>
             </button>
 
+            {/* Direct Project ZIP Downloader for Hostinger/VPS */}
+            <a
+              href="/download-project-zip"
+              download="spikenodes-full-project.zip"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#FFE088] text-[#0A0F1D] font-headline font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 cursor-pointer"
+              title="Download entire codebase & database as a clean ZIP archive for Hostinger / VPS deployment"
+            >
+              <span className="material-symbols-outlined text-[18px]">folder_zip</span>
+              <span>Download Project ZIP</span>
+            </a>
+
             {/* Refresh */}
             <button
               onClick={() => fetchAllData()}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TEAM_MILESTONE_TIERS } from '../../data/mockData';
 import { TeamRewardMilestonesSection } from '../TeamRewardMilestonesSection';
 import { HashrateLevelInfo } from '../../types';
+import { getReferralsFromFirestore } from '../../services/firestoreReferrals';
 
 export interface WithdrawalItem {
   id: string;
@@ -100,19 +101,46 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     }
   }, [referralStats]);
 
-  // Real-time synchronization callback with backend stratum database
+  // Real-time synchronization callback with backend stratum database & Cloud Firestore fallback
   const refreshLiveStats = React.useCallback(async () => {
     if (!walletAddress || !walletAddress.startsWith('0x')) return;
     try {
       const res = await fetch(`/api/referrals/stats/${walletAddress}`);
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
         if (data && data.stats) {
           setLocalStats(data.stats);
           try {
             localStorage.setItem(`spike_referral_stats_${walletAddress.toLowerCase()}`, JSON.stringify(data.stats));
           } catch {}
+          return;
         }
+      }
+    } catch {}
+
+    // Fallback: Query Cloud Firestore directly so team stats are loaded even on static hosting
+    try {
+      const fsData = await getReferralsFromFirestore(walletAddress);
+      if (fsData && fsData.directPartners > 0) {
+        setLocalStats((prev) => ({
+          directPartners: Math.max(prev?.directPartners || 0, fsData.directPartners),
+          downlinePartners: prev?.downlinePartners || 0,
+          totalPartners: Math.max(prev?.totalPartners || 0, fsData.directPartners),
+          totalCommissions: prev?.totalCommissions || 0,
+          referrals: fsData.referrals.map((r, i) => ({
+            id: r.id || `fs_${i}`,
+            refereeAddress: r.refereeAddress || (r as any).address,
+            referrerAddress: walletAddress,
+            address: r.refereeAddress || (r as any).address,
+            tier: r.tier || 1,
+            joinedAt: r.joinedAt || r.createdAt || new Date().toISOString(),
+            createdAt: r.createdAt || r.joinedAt || new Date().toISOString(),
+            activeMiners: 1,
+            volumeUsdt: r.volumeUsdt || 150,
+            commissionUsdt: r.commissionUsdt || 0,
+          })),
+        }));
       }
     } catch {}
   }, [walletAddress]);
