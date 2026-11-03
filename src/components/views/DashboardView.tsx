@@ -44,7 +44,7 @@ interface DashboardViewProps {
   onOpenDeployModal: () => void;
   onOpenClaimModal: () => void;
   onOpenAuditModal: () => void;
-  onOpenSwapModal?: (initialMode?: 'sellSpike' | 'buySpike') => void;
+  onOpenSwapModal?: (initialMode?: 'sellSpike') => void;
   onOpenDepositModal?: () => void;
   onSwapSuccess?: (fromToken: string, toToken: string, fromAmount: number, toAmount: number) => void;
   walletBNB?: number;
@@ -741,13 +741,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ({totalHashrate > 0 ? totalHashrate.toFixed(2) : '1.25'} TH/s cluster)
               </span>
             </div>
-            <div className="flex items-center justify-between text-xs text-[#7df4ff] font-mono font-medium pt-1.5 border-t border-[#1c2b3b]/60">
-              <span className="text-emerald-400">1 SPK in {hashrateInfo?.targetDays || 60} Days</span>
-              <span className="text-[#00F0FF] font-bold">
-                {Math.max(referralStats?.directPartners ?? 0, hashrateInfo?.directCount ?? 0)} Directs
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-[#94a3b8] font-mono pt-1">
+            <div className="flex items-center justify-between text-[11px] text-[#94a3b8] font-mono pt-1.5 border-t border-[#1c2b3b]/60">
               <span>Total Team: <strong className="text-white font-bold">{Math.max(referralStats?.totalPartners ?? 0, hashrateInfo?.totalTeamCount ?? 0)}</strong></span>
               {hashrateInfo?.nextTier && (
                 <span className="text-[#D4AF37] truncate">
@@ -837,114 +831,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Direct Partner & Team Referral Network Live Sync Bar */}
-      <div className="bg-gradient-to-r from-[#122130] via-[#0d1d2c] to-[#122130] border border-[#1c2b3b] rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-md">
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/35 text-[#00F0FF] flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(0,240,255,0.25)]">
-            <span className="material-symbols-outlined text-[22px]">groups</span>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-headline font-bold text-white uppercase tracking-wider">
-                Direct Referral &amp; Team Network
-              </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live Network Sync
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#94a3b8] font-mono mt-1">
-              <span>Direct Partners: <strong className="text-[#00F0FF] text-sm font-bold">{Math.max(referralStats?.directPartners ?? 0, hashrateInfo?.directCount ?? 0)}</strong></span>
-              <span className="text-[#334155]">•</span>
-              <span>Total Team: <strong className="text-white text-sm font-bold">{Math.max(referralStats?.totalPartners ?? 0, hashrateInfo?.totalTeamCount ?? 0)}</strong></span>
-              <span className="text-[#334155]">•</span>
-              <span>Active Rate: <strong className="text-[#D4AF37] font-semibold">{hashrateInfo?.level || 'Fresh user'} ({hashrateInfo?.hashrate ?? 100} VH/s)</strong></span>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-          <button
-            onClick={() => onNavigateToReferrals?.()}
-            className="px-4 py-2 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-headline font-bold text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)] cursor-pointer hover:scale-105 active:scale-95"
-          >
-            <span>View Team &amp; Referral System</span>
-            <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-          </button>
-        </div>
-      </div>
 
       {/* Main Section: Live Performance Chart (2 cols) & Pool Metrics (1 col) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart Container (2 Cols) */}
         <div className="lg:col-span-2 bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between shadow-md border border-[#1c2b3b]/60">
-          {/* Header Bar with BSCScan Link & Mode Switchers */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 pb-3 border-b border-[#1c2b3b]/80">
-            <div>
-              <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <div className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-[#D4AF37]/20 to-[#00F0FF]/20 border border-[#D4AF37]/40 text-white font-headline font-bold text-xs flex items-center gap-1.5 shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
-                  <span>SPIKE (SPK) / USDT</span>
-                </div>
-
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/40">
-                  BEP-20 • 50M Supply
-                </span>
-                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>TESTNET LIVE</span>
-                  <span className="tabular-nums font-semibold">${spikeTokenInfo.currentPrice.toFixed(4)} USDT</span>
-                  <span className="text-[9px] text-emerald-300 font-normal">(+{spikeTokenInfo.change24h}%)</span>
-                </div>
-              </div>
-
-              <h2 className="text-lg md:text-xl font-bold font-headline text-white tracking-tight flex items-center gap-2">
-                <span>SPIKE (SPK) / USDT Live Trading Terminal</span>
-              </h2>
-            </div>
-
-            {/* Actions: BSCScan Verified Contract & Tab Switchers */}
-            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-              <a
-                href={BSCSCAN_TOKEN_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 rounded-xl bg-[#00F0FF]/15 hover:bg-[#00F0FF]/25 border border-[#00F0FF]/40 text-[#00F0FF] text-xs font-headline font-bold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(0,240,255,0.25)] hover:scale-102"
-                title="View Verified SPIKE Contract on BSCScan"
-              >
-                <span>BSCScan</span>
-                <span className="material-symbols-outlined text-[15px]">open_in_new</span>
-              </a>
-
-              {/* Chart Mode Toggle */}
-              <div className="flex items-center gap-1 bg-[#1c2b3b] p-1 rounded-xl">
-                <button
-                  onClick={() => setChartMode('animated-stream')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-headline font-semibold tracking-wide transition-all flex items-center gap-1 ${
-                    chartMode === 'animated-stream'
-                      ? 'bg-[#00F0FF] text-[#0A0F1D] shadow-[0_0_12px_rgba(0,240,255,0.35)] font-bold'
-                      : 'text-[#94a3b8] hover:text-white'
-                  }`}
-                  title="Live Candlestick & Trading Terminal"
-                >
-                  <span className="material-symbols-outlined text-[14px]">show_chart</span>
-                  <span>Live Stream</span>
-                </button>
-
-                <button
-                  onClick={() => setChartMode('hashrate')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-headline font-semibold tracking-wide transition-all flex items-center gap-1 ${
-                    chartMode === 'hashrate'
-                      ? 'bg-[#00F0FF] text-[#0A0F1D] shadow-[0_0_12px_rgba(0,240,255,0.35)] font-bold'
-                      : 'text-[#94a3b8] hover:text-white'
-                  }`}
-                  title="BSC Hashrate Telemetry Wave"
-                >
-                  <span className="material-symbols-outlined text-[14px]">speed</span>
-                  <span>Hashrate</span>
-                </button>
-              </div>
-            </div>
+          {/* Header Bar */}
+          <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-[#1c2b3b]/80">
+            <h2 className="text-lg md:text-xl font-bold font-headline text-white tracking-tight flex items-center gap-2">
+              <span>SPIKE (SPK) / USDT Live Trading Terminal</span>
+            </h2>
           </div>
 
           {/* ============================================================
@@ -952,77 +849,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
              ============================================================ */}
           {chartMode === 'animated-stream' && (
             <div className="w-full flex flex-col justify-between relative py-1 space-y-3">
-              {/* MEGA LIVE PRICE & HYPE BANNER */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#0d1f30] via-[#091a2a] to-[#071524] border border-[#00F0FF]/40 shadow-[0_0_20px_rgba(0,240,255,0.15)] flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-                    <span className="text-[11px] font-mono font-extrabold uppercase tracking-wider text-emerald-400">
-                      SPIKE (SPK) / USDT · LIVE AMM PRICE
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                      Range: $1.00 – $1.20
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-baseline gap-2.5">
-                    <span className="text-3xl sm:text-4xl font-extrabold font-headline text-white tracking-tight tabular-nums drop-shadow-[0_0_15px_rgba(0,240,255,0.4)]">
-                      ${spikeTokenInfo.currentPrice.toFixed(4)}
-                    </span>
-                    <span className="text-xs sm:text-sm font-headline font-bold text-emerald-400 flex items-center gap-0.5">
-                      <span className="material-symbols-outlined text-[16px]">trending_up</span>
-                      <span>
-                        +{spikeTokenInfo.change24h}% (Steady AMM Dynamic Range)
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Quick Stats Grid */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-mono">
-                  <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
-                    <div className="text-[10px] text-[#94a3b8] uppercase">24h High</div>
-                    <div className="text-white font-bold tabular-nums">
-                      ${(spikeTokenInfo.high24h ?? 1.20).toFixed(4)}
-                    </div>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
-                    <div className="text-[10px] text-[#94a3b8] uppercase">24h Low</div>
-                    <div className="text-white font-bold tabular-nums">
-                      ${(spikeTokenInfo.low24h ?? 1.00).toFixed(4)}
-                    </div>
-                  </div>
-                  <div className="px-3 py-1.5 rounded-xl bg-[#051424] border border-[#1c2b3b]">
-                    <div className="text-[10px] text-[#94a3b8] uppercase">Pool Liquidity</div>
-                    <div className="text-[#D4AF37] font-bold">
-                      ${spikeTokenInfo.poolUsdtReserve.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* BUY VS SELL PRESSURE HYPE METER */}
-              <div className="p-3 rounded-xl bg-[#081321] border border-[#1c2b3b] space-y-1.5">
-                <div className="flex justify-between items-center text-xs font-mono">
-                  <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span>BUY PRESSURE: {buyPressure.toFixed(1)}% (EXTREME BULLISH)</span>
-                    <span className="text-[10px] text-[#94a3b8]">({totalBuysCount} Buys)</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-red-400 font-bold">
-                    <span>SELL PRESSURE: {(100 - buyPressure).toFixed(1)}%</span>
-                    <span className="text-[10px] text-[#94a3b8]">({totalSellsCount} Sells)</span>
-                  </div>
-                </div>
-
-                {/* Pressure Progress Bar */}
-                <div className="w-full h-2.5 bg-red-500/30 rounded-full overflow-hidden flex shadow-inner">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-500 via-[#00F0FF] to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.6)] transition-all duration-500 rounded-full"
-                    style={{ width: `${buyPressure}%` }}
-                  />
-                </div>
-              </div>
-
               {/* TRADINGVIEW LIVE CANDLESTICK TERMINAL ACCORDING TO SPIKE & USDT TRANSACTIONS */}
               <TradingViewChart
                 pairName="SPIKE (SPK) / USDT [BEP-20]"
@@ -1032,83 +858,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 onCopyText={onCopyText}
                 onBuyClick={() => {
                   if (onOpenSwapModal) {
-                    onOpenSwapModal('buySpike');
+                    onOpenSwapModal('sellSpike');
                   } else {
                     onCopyText(spikeTokenInfo.contractAddress);
                   }
                 }}
               />
 
-              {/* Bottom Quick Bar with Direct Contract Details & PancakeSwap Router Details */}
-              <div className="flex flex-wrap items-center justify-between gap-3 mt-2 pt-2 border-t border-[#1c2b3b]/70 text-xs font-mono text-[#94a3b8]">
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* SPIKE BEP-20 Token Contract */}
-                  <div className="flex items-center gap-1.5 bg-[#0a1827] px-2.5 py-1 rounded-lg border border-[#1e2d42]">
-                    <span className="text-[#94a3b8]">SPIKE (BEP-20):</span>
-                    <button
-                      onClick={() => onCopyText(spikeTokenInfo.contractAddress)}
-                      className="text-[#00F0FF] hover:underline flex items-center gap-1 font-semibold cursor-pointer"
-                      title="Click to copy SPIKE Token Contract"
-                    >
-                      <span>
-                        {`${spikeTokenInfo.contractAddress.substring(0, 8)}...${spikeTokenInfo.contractAddress.substring(spikeTokenInfo.contractAddress.length - 4)}`}
-                      </span>
-                      <span className="material-symbols-outlined text-[13px]">content_copy</span>
-                    </button>
-                  </div>
-
-                  {/* Official PancakeSwap Liquidity Pool Contract */}
-                  <div className="flex items-center gap-1.5 bg-[#0a1827] px-2.5 py-1 rounded-lg border border-[#D4AF37]/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
-                    <span className="text-[#94a3b8]">Pool (Pair):</span>
-                    <button
-                      onClick={() => onCopyText(PANCAKESWAP_PAIR_CONTRACT)}
-                      className="text-[#D4AF37] hover:underline flex items-center gap-1 font-bold cursor-pointer"
-                      title="Click to copy PancakeSwap Liquidity Pool Contract (0xdB75fAB72e56492CFE870344D115C57047992F3c)"
-                    >
-                      <span>
-                        {`${PANCAKESWAP_PAIR_CONTRACT.substring(0, 8)}...${PANCAKESWAP_PAIR_CONTRACT.substring(PANCAKESWAP_PAIR_CONTRACT.length - 4)}`}
-                      </span>
-                      <span className="material-symbols-outlined text-[13px]">content_copy</span>
-                    </button>
-                    <a
-                      href={BSCSCAN_PAIR_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[#94a3b8] hover:text-[#D4AF37]"
-                      title="Open PancakeSwap Pool on BSCScan"
-                    >
-                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-                    </a>
-                  </div>
-
-                  {/* Official PancakeSwap Router Contract */}
-                  <div className="flex items-center gap-1.5 bg-[#0a1827] px-2.5 py-1 rounded-lg border border-[#00F0FF]/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="text-[#94a3b8]">Router:</span>
-                    <button
-                      onClick={() => onCopyText(PANCAKESWAP_ROUTER_ADDRESS)}
-                      className="text-emerald-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
-                      title="Click to copy PancakeSwap Router Contract"
-                    >
-                      <span>
-                        {`${PANCAKESWAP_ROUTER_ADDRESS.substring(0, 8)}...${PANCAKESWAP_ROUTER_ADDRESS.substring(PANCAKESWAP_ROUTER_ADDRESS.length - 4)}`}
-                      </span>
-                      <span className="material-symbols-outlined text-[13px]">content_copy</span>
-                    </button>
-                    <a
-                      href={BSCSCAN_ROUTER_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[#94a3b8] hover:text-white"
-                      title="Open PancakeSwap Router on BSCScan"
-                    >
-                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-                    </a>
-                  </div>
-                </div>
-
-                {onOpenSwapModal && (
+              {/* Bottom Quick Bar: Launch DEX Swap Terminal */}
+              {onOpenSwapModal && (
+                <div className="flex items-center justify-end mt-2 pt-2 border-t border-[#1c2b3b]/70">
                   <button
                     onClick={() => onOpenSwapModal()}
                     className="text-xs text-[#00F0FF] hover:text-[#7df4ff] flex items-center gap-1.5 font-headline font-bold cursor-pointer transition-colors bg-[#00F0FF]/10 hover:bg-[#00F0FF]/20 px-3 py-1.5 rounded-xl border border-[#00F0FF]/30"
@@ -1116,8 +875,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
                     <span>Launch SPIKE DEX Swap Terminal</span>
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 

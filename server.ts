@@ -6,6 +6,7 @@ import path from 'path';
 import fs from 'fs';
 import { db } from './src/server/db.ts';
 import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb, purgeNonMasterFirestoreData } from './src/server/firebaseServer.ts';
+import { dispatchSystemAlert, getRecentAlerts, performDatabaseHealthCheck, PRIMARY_ADMIN_ALERT_EMAIL } from './src/server/databaseAlerts.ts';
 import { requireAuth } from './src/middleware/auth.ts';
 import type { AuthRequest } from './src/middleware/auth.ts';
 import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from './src/db/users.ts';
@@ -114,12 +115,118 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
-app.get('/api/db/health', (req: Request, res: Response) => {
+app.get('/api/db/health', async (req: Request, res: Response) => {
+  const healthCheck = await performDatabaseHealthCheck();
   res.json({
-    status: 'HEALTHY',
+    status: healthCheck.healthy ? 'HEALTHY' : 'WARNING',
     engine: 'SPIKE Persistent JSON ACID Database Engine',
     stats: db.getStats(),
+    healthCheck,
   });
+});
+
+// Primary Alerting & Health Monitor System (Target: officialraj2@gmail.com)
+app.get('/api/alerts/health', async (_req: Request, res: Response) => {
+  const result = await performDatabaseHealthCheck();
+  res.json({
+    success: true,
+    recipientEmail: PRIMARY_ADMIN_ALERT_EMAIL,
+    ...result,
+  });
+});
+
+app.get('/api/alerts/recent', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    recipientEmail: PRIMARY_ADMIN_ALERT_EMAIL,
+    alerts: getRecentAlerts(30),
+  });
+});
+
+app.post('/api/alerts/database', async (req: Request, res: Response) => {
+  try {
+    const { severity = 'WARNING', category = 'DATABASE', title, message, details, userAddress } = req.body || {};
+    const alert = await dispatchSystemAlert({
+      severity,
+      category,
+      title: title || 'Database Activity Notice',
+      message: message || 'Anomalous database operation captured.',
+      details: { ...details, userAddress },
+    });
+    res.json({ success: true, alert, recipientEmail: PRIMARY_ADMIN_ALERT_EMAIL });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to dispatch alert' });
+  }
+});
+
+app.post('/api/alerts/send-test', async (_req: Request, res: Response) => {
+  try {
+    const alert = await dispatchSystemAlert({
+      severity: 'INFO',
+      category: 'DATABASE',
+      title: 'Database Early-Warning Alert Test',
+      message: `Test alert successfully triggered for ${PRIMARY_ADMIN_ALERT_EMAIL}. Real-time monitoring and anomaly interception active.`,
+      details: {
+        timestamp: new Date().toISOString(),
+        databaseHealth: 'OPTIMAL',
+        registeredAdmin: PRIMARY_ADMIN_ALERT_EMAIL,
+      },
+    });
+    res.json({
+      success: true,
+      message: `Test database alert sent to ${PRIMARY_ADMIN_ALERT_EMAIL}!`,
+      alert,
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to send test alert' });
+  }
+});
+
+// Mining Session Real-Time Record & Verification Endpoints
+app.post('/api/mining/record-start', (req: Request, res: Response) => {
+  try {
+    const sessionData = req.body;
+    if (!sessionData || !sessionData.userAddress) {
+      res.status(400).json({ success: false, error: 'userAddress is required' });
+      return;
+    }
+
+    const recorded = db.recordMiningSession(sessionData);
+
+    // Sync to Firestore mining_sessions and users collection
+    syncDocument('mining_sessions', recorded.sessionId, recorded).catch((err) => {
+      dispatchSystemAlert({
+        severity: 'WARNING',
+        category: 'FIRESTORE',
+        title: 'Mining Session Firestore Sync Exception',
+        message: `Failed to sync mining session ${recorded.sessionId} to Firestore: ${err?.message || err}. Database memory copy intact.`,
+        details: { sessionId: recorded.sessionId, userAddress: recorded.userAddress },
+      });
+    });
+
+    const updatedUser = db.getUser(recorded.userAddress);
+    if (updatedUser) {
+      syncDocument('users', recorded.userAddress.toLowerCase(), updatedUser).catch(() => {});
+    }
+
+    res.json({ success: true, session: recorded });
+  } catch (err: any) {
+    dispatchSystemAlert({
+      severity: 'CRITICAL',
+      category: 'MINING_RECORD',
+      title: 'Mining Start Recording Failed',
+      message: `Fatal error in recording mining start: ${err?.message || err}`,
+      details: req.body,
+    });
+    res.status(500).json({ success: false, error: err?.message || 'Failed to record mining start' });
+  }
+});
+
+app.get('/api/mining/sessions/:address', (req: Request, res: Response) => {
+  const { address } = req.params;
+  const sessions = db.getUserMiningSessions(address);
+  const activeSession = db.getActiveMiningSession(address);
+  res.json({ success: true, activeSession, sessions });
 });
 
 app.get('/api/db/export', (req: Request, res: Response) => {

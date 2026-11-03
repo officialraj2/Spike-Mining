@@ -107,6 +107,13 @@ export interface AdminSettings {
   level1HashrateBoost?: number;
   level2HashrateBoost?: number;
   level3HashrateBoost?: number;
+  // Christmas Holiday Theme & Snowfall Engine (Controlled exclusively via Admin Panel)
+  christmasThemeEnabled?: boolean;
+  snowfallEnabled?: boolean;
+  snowfallIntensity?: 'light' | 'festive' | 'blizzard';
+  holidayGreetingText?: string;
+  santaHatEnabled?: boolean;
+  holidaySoundEnabled?: boolean;
 }
 
 export interface AdminAuditLog {

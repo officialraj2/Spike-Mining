@@ -426,12 +426,9 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           <div className="flex-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
-                  Your Referral Link
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[#D4AF37] text-[10px] font-mono font-bold tracking-wide">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse"></span>
-                  🌐 Production (spikenodes.com)
+                <span className="text-sm md:text-base font-bold font-headline text-white tracking-wide flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">share_location</span>
+                  <span>Your Referral Link</span>
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -478,7 +475,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                     if (navigator.share) {
                       navigator.share({
                         title: 'Join SPIKE Decentralized Mining',
-                        text: `Join my SPIKE mining team and get 10 USDT welcome mining power! Use code ${refCode}:`,
+                        text: `Join my SPIKE mining team and earn team milestone rewards! Use code ${refCode}:`,
                         url: activeLinkToCopy,
                       }).catch(() => {});
                     } else {
@@ -536,17 +533,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               </div>
             </div>
 
-            {/* Quick helper badge for production link */}
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#94a3b8] font-mono">
-              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                <span className="material-symbols-outlined text-[14px]">verified</span>
-                Official Production Link
-              </span>
-              <span>•</span>
-              <span>100% Live on spikenodes.com (Works in TrustWallet, MetaMask, Chrome)</span>
-              <span>•</span>
-              <span className="text-[#00F0FF]">Sponsor: {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : refCode}</span>
-            </div>
+
           </div>
 
           <div className="md:w-64 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-between">

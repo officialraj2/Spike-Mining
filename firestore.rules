@@ -126,6 +126,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Mining Sessions Collection
+    match /mining_sessions/{sessionId} {
+      allow read: if true;
+      allow create, update: if isValidId(sessionId);
+      allow delete: if isAdmin();
+    }
+
+    // System Alerts Collection
+    match /system_alerts/{alertId} {
+      allow read: if true;
+      allow create, update: if isValidId(alertId);
+      allow delete: if isAdmin();
+    }
+
     // Connection Test Document for Validation
     match /test/{testId} {
       allow read, write: if true;

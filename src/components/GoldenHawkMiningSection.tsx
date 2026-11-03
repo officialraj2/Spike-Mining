@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SPIKE_LOGO_URL } from '../data/mockData';
 import { HashrateLevelInfo } from '../types';
+import { persistMiningStart } from '../services/miningSessionSync';
 
 interface GoldenHawkMiningSectionProps {
   totalHashrate: number;
@@ -468,6 +469,16 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         }),
       }).catch(() => {});
 
+      if (userAddr) {
+        persistMiningStart({
+          userAddress: userAddr,
+          hashrateVh: activeHashrate,
+          tierName: hashrateInfo?.level || 'Falcon Titan Apex',
+          nodeName: 'Golden Hawk Cluster',
+          treasuryContributionUsdt: 5.0,
+        }).catch(() => {});
+      }
+
       if (onAutoBuySuccess) {
         onAutoBuySuccess(finalTx, { ...(data?.wallet || {}), testnetSpk: newSpkBalance }, data?.token);
       }
@@ -925,10 +936,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                     ({effectiveHashrate > 0 ? effectiveHashrate.toFixed(1) : '12.5'} TH/s cluster)
                   </span>
                 </div>
-                <div className="text-[11px] font-mono text-emerald-400 mt-1 flex items-center gap-2">
-                  <span>Target: 1 SPK in {hashrateInfo?.targetDays || 60} days</span>
-                  <span className="text-gray-500">·</span>
-                  <span className="text-[#D4AF37]">{hashrateInfo?.directCount ?? 0} Direct Referrals</span>
+                <div className="text-[11px] font-mono text-[#D4AF37] mt-1 flex items-center gap-2">
+                  <span>{hashrateInfo?.directCount ?? 0} Direct Referrals</span>
                 </div>
               </div>
 
@@ -963,42 +972,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               {/* Subtle Ambient Energy Highlight */}
               <div className="absolute top-0 right-0 w-64 h-24 bg-gradient-to-bl from-[#00F0FF]/10 via-[#D4AF37]/5 to-transparent blur-2xl pointer-events-none" />
 
-              {/* Header: Cycle Status & PancakeSwap Router Badge */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3.5 border-b border-[#182a3d]">
-                <div className="flex items-center gap-2">
-                  <div className={`flex items-center gap-2 px-2.5 py-1 rounded-full text-[11px] font-mono font-bold tracking-wide ${
-                    !isMining
-                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
-                      : is24hComplete
-                      ? 'bg-amber-400/15 text-amber-300 border border-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.25)] animate-pulse'
-                      : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
-                  }`}>
-                    <span className={`w-2 h-2 rounded-full ${
-                      !isMining
-                        ? 'bg-amber-400'
-                        : is24hComplete
-                        ? 'bg-amber-400 animate-ping'
-                        : 'bg-emerald-400 animate-ping'
-                    }`} />
-                    <span>
-                      {!isMining
-                        ? 'Mining Standby · Deposit 5 USDT'
-                        : is24hComplete
-                        ? '● 24H Cycle Complete · Mining Auto-Stopped (Claim to Resume)'
-                        : `24H Cycle Active · Auto-Stops in ${formatCountdown(secondsRemaining)}`}
-                    </span>
-                  </div>
-                </div>
-
-                {/* PancakeSwap Liquidity Pool & Router BSC Details */}
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0a1f33] border border-[#D4AF37]/30 text-[10px] font-mono text-[#D4AF37]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
-                  <span className="text-[#94a3b8]">Pool:</span>
-                  <span className="font-bold text-[#D4AF37]">0xdB75...2F3c</span>
-                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[9px]">PancakeSwap V2</span>
-                </div>
-              </div>
-
               {/* Main Mined Output & Claim Action Row */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                 {/* Left 7 Cols: Yield Output */}
@@ -1020,12 +993,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                     <span className="text-xs font-mono text-emerald-400 font-semibold">
                       (≈ ${currentMinedUsdt.toFixed(4)} USDT)
                     </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-[#94a3b8] pt-1">
-                    <span>Daily Yield: <strong className="text-white font-bold">{dailySpkYield} SPK / 24h</strong></span>
-                    <span>•</span>
-                    <span>Target: <strong className="text-[#00F0FF]">1 SPK in {targetDays} days</strong></span>
                   </div>
                 </div>
 
@@ -1085,7 +1052,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                         {isAutoBuying ? (
                           <>
                             <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                            <span className="font-extrabold uppercase tracking-wider">Routing via PancakeSwap (0xdB75...2F3c)...</span>
+                            <span className="font-extrabold uppercase tracking-wider">Routing via Nodescan...</span>
                           </>
                         ) : (
                           <>
@@ -1093,7 +1060,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                               stars
                             </span>
                             <span className="font-extrabold tracking-wider uppercase">
-                              ⚡ Claim {dailySpkYield} SPK (PancakeSwap Buy · 0xdB75...2F3c)
+                              ⚡ Claim {dailySpkYield} SPK (Claim by Nodescan)
                             </span>
                           </>
                         )}
@@ -1101,7 +1068,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
                       <div className="text-[10px] font-mono text-emerald-400 font-semibold text-center md:text-right flex items-center justify-center md:justify-end gap-1">
                         <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                        <span>Auto-Buys via PancakeSwap Pool 0xdB75fAB72e56492CFE870344D115C57047992F3c &amp; Router</span>
+                        <span>Claim via Nodescan Engine &amp; Smart Contract</span>
                       </div>
 
                       {/* Root Wallet re-arm shortcut */}
@@ -1238,7 +1205,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 </div>
                 <div>
                   <h3 className="font-headline font-bold text-base text-white">Claim Mined SPIKE</h3>
-                  <p className="text-[11px] text-[#00F0FF] font-mono">PancakeSwap V2 Routing Engine</p>
+                  <p className="text-[11px] text-[#00F0FF] font-mono">Nodescan V3 Routing Engine</p>
                 </div>
               </div>
               <button
@@ -1251,28 +1218,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
             <div className="p-3.5 rounded-2xl bg-[#061423] border border-[#1c2b3b] space-y-2.5 font-mono text-xs">
               <div className="flex items-center justify-between text-[#94a3b8]">
-                <span>PancakeSwap Pool Contract:</span>
-                <span className="text-[#D4AF37] font-bold select-all font-mono">0xdB75...2F3c</span>
-              </div>
-              <div className="p-2 rounded-xl bg-[#030b14] border border-[#172738] flex items-center justify-between text-[11px]">
-                <span className="text-white/80 truncate font-mono">0xdB75fAB72e56492CFE870344D115C57047992F3c</span>
-                <a
-                  href="https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#00F0FF] hover:underline shrink-0 ml-2 flex items-center gap-0.5 text-[10px]"
-                >
-                  <span>BscScan</span>
-                  <span className="material-symbols-outlined text-[11px]">open_in_new</span>
-                </a>
-              </div>
-              <div className="flex items-center justify-between text-[#94a3b8]">
-                <span>Pancake V2 Router:</span>
-                <span className="text-[#00F0FF] font-bold font-mono">0x10ED43C7...024E</span>
-              </div>
-              <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Routing Action:</span>
-                <span className="text-emerald-400 font-bold">swapExactTokensForTokens</span>
+                <span className="text-emerald-400 font-bold">claimTokensForNodescan</span>
               </div>
               <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Tokens to Receive:</span>
@@ -1297,10 +1244,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 <span className="text-emerald-400 font-semibold">Sponsored · 0.00015 BNB ($0.09)</span>
               </div>
             </div>
-
-            <p className="text-[11px] text-[#94a3b8] font-mono leading-relaxed">
-              Claim hone par aapke Web3 wallet se smart contract call trigger hota hai. USDT PancakeSwap Liquidity Pool (<strong>0xdB75fAB72e56492CFE870344D115C57047992F3c</strong>) aur PancakeSwap Router ke through sidhe swap hoti hai aur purchased <strong>{(is24hComplete ? dailySpkYield : (currentMinedSpk > 0 ? currentMinedSpk : dailySpkYield)).toFixed(5)} SPK</strong> tokens aapke wallet me aate hain!
-            </p>
 
             <div className="flex items-center gap-3 pt-1">
               <button

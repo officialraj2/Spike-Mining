@@ -82,9 +82,6 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const [chartType, setChartType] = useState<'candles' | 'area'>('candles');
   const [hoveredCandle, setHoveredCandle] = useState<TVCandle | null>(null);
   const [crosshairPos, setCrosshairPos] = useState<{ x: number; y: number } | null>(null);
-  const [copiedRouter, setCopiedRouter] = useState(false);
-  const [copiedPair, setCopiedPair] = useState(false);
-  const [lastTxNotice, setLastTxNotice] = useState<string | null>(null);
 
   // Candlesticks built and maintained from SPIKE / USDT pair transactions ($1.00 - $1.20 range)
   const [candles, setCandles] = useState<TVCandle[]>(() => generateSeedCandles());
@@ -92,28 +89,6 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   const [basePrice24h] = useState<number>(1.0420);
 
   const processedTxIds = useRef<Set<string>>(new Set());
-
-  // Copy helper for Router Contract
-  const handleCopyRouter = () => {
-    const text = routerAddress || PANCAKESWAP_ROUTER_CONTRACT;
-    if (onCopyText) {
-      onCopyText(text);
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-    }
-    setCopiedRouter(true);
-    setTimeout(() => setCopiedRouter(false), 2000);
-  };
-
-  const handleCopyPair = () => {
-    if (onCopyText) {
-      onCopyText(PANCAKESWAP_PAIR_CONTRACT);
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(PANCAKESWAP_PAIR_CONTRACT);
-    }
-    setCopiedPair(true);
-    setTimeout(() => setCopiedPair(false), 2000);
-  };
 
   // Process incoming transactions of the SPIKE / USDT pair and dynamically update graph
   useEffect(() => {
@@ -143,11 +118,6 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
         const tradeVol = tx.amountSpk || 1000;
         const tradeUsd = tx.amountUsd || +(tradeVol * tradePrice).toFixed(2);
 
-        // Flash transaction toast on graph
-        setLastTxNotice(
-          `${isBuy ? '🟢 BUY' : '🔴 SELL'}: ${tradeVol.toLocaleString()} SPK ($${tradeUsd.toFixed(2)}) via Router 0xd74e...b38b`
-        );
-
         // Update active candle with this transaction's execution
         const lastIdx = updated.length - 1;
         const activeCandle = { ...updated[lastIdx] };
@@ -170,9 +140,6 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
       return updated;
     });
-
-    const timer = setTimeout(() => setLastTxNotice(null), 3000);
-    return () => clearTimeout(timer);
   }, [transactions]);
 
   // Sync if currentPrice changes externally
@@ -324,81 +291,9 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             <span className="material-symbols-outlined text-[16px]">candlestick_chart</span>
           </button>
 
-          <div className="w-[1px] h-4 bg-[#2a2e39] mx-0.5"></div>
 
-          {/* Indicators fx */}
-          <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded text-[#787b86] font-mono text-xs">
-            <span className="text-[#00F0FF] font-bold">AMM</span>
-            <span className="text-[11px]">Formula Active</span>
-          </div>
         </div>
 
-        {/* Right Tools: PancakeSwap Pool & Router Contract Badges with One-Click Copy */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {/* PancakeSwap Liquidity Pool (Pair) */}
-          <div className="flex items-center gap-1.5 bg-[#0a1827] border border-[#D4AF37]/30 px-2.5 py-1 rounded-lg text-xs font-mono">
-            <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
-            <span className="text-[#94a3b8] hidden lg:inline">Pool (Pair):</span>
-            <button
-              onClick={handleCopyPair}
-              className="text-[#D4AF37] hover:underline font-bold flex items-center gap-1 cursor-pointer"
-              title="Click to copy PancakeSwap Liquidity Pool Contract Address (0xdB75fAB72e56492CFE870344D115C57047992F3c)"
-            >
-              <span>0xdB75...2F3c</span>
-              <span className="material-symbols-outlined text-[12px]">
-                {copiedPair ? 'check' : 'content_copy'}
-              </span>
-            </button>
-            {copiedPair && (
-              <span className="text-emerald-400 text-[10px] font-bold">Copied!</span>
-            )}
-            <a
-              href="https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c"
-              target="_blank"
-              rel="noreferrer"
-              className="text-[#94a3b8] hover:text-[#D4AF37]"
-              title="View Pool on BSCScan"
-            >
-              <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-            </a>
-          </div>
-
-          {/* PancakeSwap Router */}
-          <div className="flex items-center gap-1.5 bg-[#0a1827] border border-[#00F0FF]/30 px-2.5 py-1 rounded-lg text-xs font-mono">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-[#94a3b8] hidden lg:inline">Router:</span>
-            <button
-              onClick={handleCopyRouter}
-              className="text-[#00F0FF] hover:underline font-bold flex items-center gap-1 cursor-pointer"
-              title="Click to copy PancakeSwap Router Contract Address"
-            >
-              <span>{`${routerAddress.substring(0, 6)}...${routerAddress.substring(routerAddress.length - 4)}`}</span>
-              <span className="material-symbols-outlined text-[12px]">
-                {copiedRouter ? 'check' : 'content_copy'}
-              </span>
-            </button>
-            {copiedRouter && (
-              <span className="text-emerald-400 text-[10px] font-bold">Copied!</span>
-            )}
-            <a
-              href={`https://bscscan.com/address/${routerAddress}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[#94a3b8] hover:text-white"
-              title="View Router on BSCScan"
-            >
-              <span className="material-symbols-outlined text-[12px]">open_in_new</span>
-            </a>
-          </div>
-
-          <button
-            onClick={() => window.print?.()}
-            className="w-7 h-7 rounded flex items-center justify-center text-[#787b86] hover:text-[#d1d4dc] hover:bg-[#2a2e39]"
-            title="Snapshot Chart"
-          >
-            <span className="material-symbols-outlined text-[16px]">photo_camera</span>
-          </button>
-        </div>
       </div>
 
       {/* ============================================================
@@ -411,12 +306,6 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             <span className="w-2 h-2 rounded-full bg-[#D4AF37]" />
             <span>{pairName}</span>
           </div>
-
-          {/* Transaction Synced Badge */}
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-            <span>Transaction-Driven Graph</span>
-          </span>
 
           <span className="text-[#787b86]">· {selectedInterval} · BSC Mainnet/Testnet AMM</span>
 
@@ -446,14 +335,6 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
           <span className="text-white font-bold">{candles.reduce((acc, c) => acc + c.txCount, 0)}</span>
         </div>
       </div>
-
-      {/* Floating Trade Notification Banner when trades occur on PancakeSwap Router */}
-      {lastTxNotice && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 bg-[#0d2238]/95 border border-[#00F0FF] text-white px-3 py-1 rounded-full text-xs font-mono shadow-2xl flex items-center gap-2 animate-bounce">
-          <span className="w-2 h-2 rounded-full bg-[#00F0FF]" />
-          <span>{lastTxNotice}</span>
-        </div>
-      )}
 
       {/* ============================================================
           3. MAIN VIEWPORT: LEFT TOOLBAR + SVG CANVAS + RIGHT Y-AXIS

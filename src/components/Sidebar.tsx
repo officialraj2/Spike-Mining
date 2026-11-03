@@ -9,6 +9,8 @@ interface SidebarProps {
   onOpenSwapModal?: () => void;
   isAdmin?: boolean;
   isMasterUser?: boolean;
+  isChristmasTheme?: boolean;
+  santaHatEnabled?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -18,6 +20,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSwapModal,
   isAdmin = false,
   isMasterUser = false,
+  isChristmasTheme = false,
+  santaHatEnabled = true,
 }) => {
   const navItems: { id: TabType; label: string; icon: string; count?: number; badge?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -41,6 +45,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Brand Header */}
       <div className="px-6 mb-8 flex items-center gap-3">
         <div className="relative group cursor-pointer" onClick={() => onTabChange('dashboard')}>
+          {isChristmasTheme && (santaHatEnabled !== false) && (
+            <span
+              className="absolute -top-3.5 -left-2 text-[22px] pointer-events-none select-none z-10 transform -rotate-12 animate-pulse drop-shadow-[0_2px_8px_rgba(239,68,68,0.7)]"
+              title="Merry Christmas!"
+            >
+              🎅
+            </span>
+          )}
           <img
             src={SPIKE_LOGO_URL}
             alt="SPIKE Falcon Medallion"

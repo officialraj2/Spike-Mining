@@ -110,6 +110,12 @@ export interface DbSettings {
   level1HashrateBoost: number;
   level2HashrateBoost: number;
   level3HashrateBoost: number;
+  christmasThemeEnabled?: boolean;
+  snowfallEnabled?: boolean;
+  snowfallIntensity?: 'light' | 'festive' | 'blizzard';
+  holidayGreetingText?: string;
+  santaHatEnabled?: boolean;
+  holidaySoundEnabled?: boolean;
 }
 
 export interface DbAuditLog {
@@ -180,6 +186,23 @@ export interface DbWithdrawalRequest {
   reviewedBy?: string;
 }
 
+export interface DbMiningSession {
+  sessionId: string;
+  userAddress: string;
+  startTime: number;
+  startDateIso: string;
+  targetCycleHours: number;
+  expectedEndTime: number;
+  hashrateVh: number;
+  tierName: string;
+  status: 'active' | 'completed' | 'paused';
+  treasuryContributionUsdt: number;
+  pancakeSwapRoute: string;
+  lastSyncTime: number;
+  nodeName?: string;
+  clientInfo?: string;
+}
+
 export interface DatabaseSchema {
   version: number;
   lastSaved: string;
@@ -194,6 +217,7 @@ export interface DatabaseSchema {
   testnetWallets: DbTestnetWallet[];
   testnetTransactions: DbTestnetTx[];
   testnetSpikeToken: DbTestnetSpikeToken;
+  miningSessions?: DbMiningSession[];
 }
 
 const DATA_DIR = path.resolve('.data');
@@ -237,7 +261,7 @@ const INITIAL_DATA: DatabaseSchema = {
     stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
     bscContractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
     treasuryWalletAddress: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
-    treasuryBalanceUsdt: 0.0,
+    treasuryBalanceUsdt: 5.0,
     minWithdrawalUsdt: 5.0,
     autoPayoutEnabled: true,
     updatedAt: new Date().toISOString(),
@@ -262,6 +286,12 @@ const INITIAL_DATA: DatabaseSchema = {
     level1HashrateBoost: 200,
     level2HashrateBoost: 400,
     level3HashrateBoost: 600,
+    christmasThemeEnabled: true,
+    snowfallEnabled: true,
+    snowfallIntensity: 'festive',
+    holidayGreetingText: '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁',
+    santaHatEnabled: true,
+    holidaySoundEnabled: true,
   },
   auditLogs: [
     {
@@ -367,6 +397,14 @@ class PersistentDatabase {
           if (!loadedSettings.maintenanceMessage) {
             loadedSettings.maintenanceMessage = 'Spike Stratum Protocol is currently undergoing scheduled network maintenance.';
           }
+          if (typeof loadedSettings.christmasThemeEnabled !== 'boolean') loadedSettings.christmasThemeEnabled = true;
+          if (typeof loadedSettings.snowfallEnabled !== 'boolean') loadedSettings.snowfallEnabled = true;
+          if (!loadedSettings.snowfallIntensity) loadedSettings.snowfallIntensity = 'festive';
+          if (!loadedSettings.holidayGreetingText) {
+            loadedSettings.holidayGreetingText = '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁';
+          }
+          if (typeof loadedSettings.santaHatEnabled !== 'boolean') loadedSettings.santaHatEnabled = true;
+          if (typeof loadedSettings.holidaySoundEnabled !== 'boolean') loadedSettings.holidaySoundEnabled = true;
           const sanitizedUsers = (parsed.users || INITIAL_DATA.users).map((u: DbUser) => {
             if (u.referredBy && (u.referredBy.toLowerCase() === u.address.toLowerCase() || u.referredBy.toLowerCase() === (u.referralCode || '').toLowerCase())) {
               return { ...u, referredBy: null };
@@ -851,7 +889,7 @@ class PersistentDatabase {
     } else {
       const newUser: DbUser = {
         address: user.address,
-        balanceUsdt: typeof user.balanceUsdt === 'number' ? user.balanceUsdt : 10.0,
+        balanceUsdt: typeof user.balanceUsdt === 'number' ? user.balanceUsdt : 0.0,
         balanceBnb: typeof user.balanceBnb === 'number' ? user.balanceBnb : 0.005,
         totalMined: user.totalMined ?? 0.0,
         referralCode: user.referralCode || `SPK-${user.address.slice(2, 8).toUpperCase()}`,
@@ -1852,7 +1890,7 @@ class PersistentDatabase {
         stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
         bscContractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
         treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-        treasuryBalanceUsdt: 0.0,
+        treasuryBalanceUsdt: 5.0,
         minWithdrawalUsdt: 5.0,
         autoPayoutEnabled: true,
         updatedAt: new Date().toISOString(),
@@ -2380,12 +2418,8 @@ class PersistentDatabase {
     const currentTreasury = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
     this.data.settings.treasuryBalanceUsdt = +( currentTreasury + amount ).toFixed(2);
     
-    // Deduct $5 from user's starting budget ($15 -> $10 remaining)
-    if (user.balanceUsdt >= amount) {
-      user.balanceUsdt = +(user.balanceUsdt - amount).toFixed(2);
-    } else {
-      user.balanceUsdt = 10.0; // default remainder for 15$ project flow
-    }
+    // Deduct deposited amount from user balance
+    user.balanceUsdt = Math.max(0, +(user.balanceUsdt - amount).toFixed(2));
     user.hasDepositedTreasury = true;
     user.hasActivatedMining = true;
     if (!user.miningCycleStartTime) {
@@ -2574,6 +2608,43 @@ class PersistentDatabase {
       contractTxHash,
     };
   }
+
+  public recordMiningSession(session: DbMiningSession): DbMiningSession {
+    if (!this.data.miningSessions) {
+      this.data.miningSessions = [];
+    }
+    const norm = session.userAddress.toLowerCase().trim();
+    // Update or append
+    const idx = this.data.miningSessions.findIndex((s) => s.sessionId === session.sessionId);
+    if (idx >= 0) {
+      this.data.miningSessions[idx] = { ...this.data.miningSessions[idx], ...session, lastSyncTime: Date.now() };
+    } else {
+      this.data.miningSessions.unshift({ ...session, userAddress: norm, lastSyncTime: Date.now() });
+    }
+
+    // Ensure user state is synced
+    const user = this.upsertUser({ address: norm });
+    user.hasActivatedMining = true;
+    user.miningCycleStartTime = session.startTime || Date.now();
+    user.lastActive = new Date().toISOString();
+
+    this.logAudit(norm, 'MINING_SESSION_RECORDED', session.sessionId, `Mining cycle recorded: ${session.tierName} (${session.hashrateVh} VH/s). Status: active.`);
+    this.save();
+    return session;
+  }
+
+  public getUserMiningSessions(address: string): DbMiningSession[] {
+    if (!this.data.miningSessions) return [];
+    const norm = address.toLowerCase().trim();
+    return this.data.miningSessions.filter((s) => s.userAddress.toLowerCase() === norm);
+  }
+
+  public getActiveMiningSession(address: string): DbMiningSession | null {
+    if (!this.data.miningSessions) return null;
+    const norm = address.toLowerCase().trim();
+    return this.data.miningSessions.find((s) => s.userAddress.toLowerCase() === norm && s.status === 'active') || null;
+  }
 }
 
 export const db = new PersistentDatabase();
+

@@ -16,6 +16,9 @@ import { Toast } from './components/Toast';
 import { BlockchainBackground } from './components/BlockchainBackground';
 import { fetchOnChainBalances } from './services/onchainBalance';
 import { registerReferralInFirestore, getReferralsFromFirestore } from './services/firestoreReferrals';
+import { persistMiningStart } from './services/miningSessionSync';
+import { ChristmasSnowfall } from './components/ChristmasSnowfall';
+import { ChristmasThemeDecorations } from './components/ChristmasThemeDecorations';
 
 // Code-split heavy views and modals for sub-100ms ultra-fast initial paint
 const DashboardView = lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
@@ -114,6 +117,20 @@ export default function App() {
       return 0.0;
     }
   });
+  // Real-time on-chain Web3 USDT balance (Contract: 0x55d398326f99059fF775485246999027B3197955)
+  const [walletOnchainUsdt, setWalletOnchainUsdt] = useState<number>(() => {
+    try {
+      const savedAddr = localStorage.getItem('spike_wallet_address');
+      if (savedAddr) {
+        const cached = localStorage.getItem(`spike_onchain_usdt_${savedAddr.toLowerCase()}`);
+        if (cached !== null && !isNaN(Number(cached))) return Number(cached);
+      }
+      return 0.0;
+    } catch {
+      return 0.0;
+    }
+  });
+
   const [dailyEarnings, setDailyEarnings] = useState<number>(() => 0);
   const [network, setNetwork] = useState<string>('BEP-20 / BSC Network');
   const [referralStats, setReferralStats] = useState<any>({
@@ -180,7 +197,33 @@ export default function App() {
     '0x71C8a914B97e889F12A0987cB32456Fa12349A2', // Protocol Co-Admin Wallet
   ];
 
-  const [globalSettings, setGlobalSettings] = useState<AdminSettings | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<AdminSettings | null>(() => {
+    try {
+      const cached = localStorage.getItem('spike_global_settings');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return {
+      christmasThemeEnabled: true,
+      snowfallEnabled: true,
+      snowfallIntensity: 'festive',
+      holidayGreetingText: '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁',
+      santaHatEnabled: true,
+      holidaySoundEnabled: true,
+    } as AdminSettings;
+  });
+
+  // Christmas theme active state (controlled strictly via Admin Panel)
+  const isChristmasThemeActive = Boolean(globalSettings?.christmasThemeEnabled ?? true);
+  const isSnowfallActive = Boolean(
+    isChristmasThemeActive &&
+    (globalSettings?.snowfallEnabled ?? true) &&
+    activeTab !== 'admin'
+  );
+  const isDecorationsActive = Boolean(
+    isChristmasThemeActive &&
+    activeTab !== 'admin'
+  );
+  const santaHatEnabled = Boolean(globalSettings?.santaHatEnabled ?? true);
 
   // Auto-recognition of Master User
   const isMasterUser = Boolean(
@@ -212,6 +255,9 @@ export default function App() {
         .then((data) => {
           if (data && data.settings) {
             setGlobalSettings(data.settings);
+            try {
+              localStorage.setItem('spike_global_settings', JSON.stringify(data.settings));
+            } catch {}
           }
         })
         .catch(() => {});
@@ -219,7 +265,11 @@ export default function App() {
     fetchGlobalSettings();
     const handleSettingsUpdate = () => fetchGlobalSettings();
     window.addEventListener('spike_settings_updated', handleSettingsUpdate);
-    return () => window.removeEventListener('spike_settings_updated', handleSettingsUpdate);
+    window.addEventListener('spike_christmas_theme_changed', handleSettingsUpdate);
+    return () => {
+      window.removeEventListener('spike_settings_updated', handleSettingsUpdate);
+      window.removeEventListener('spike_christmas_theme_changed', handleSettingsUpdate);
+    };
   }, []);
 
   const [pendingInvite, setPendingInvite] = useState<{
@@ -508,8 +558,8 @@ export default function App() {
           if (typeof onchain.spike === 'number') {
             setWalletSpk(onchain.spike);
           }
-          if (typeof onchain.usdt === 'number' && onchain.usdt > 0) {
-            setWalletBalance((prev) => Math.max(prev, onchain.usdt));
+          if (typeof onchain.usdt === 'number') {
+            setWalletOnchainUsdt(onchain.usdt);
           }
           if (typeof onchain.bnb === 'number' && onchain.bnb > 0) {
             setWalletBNB(onchain.bnb);
@@ -836,13 +886,13 @@ export default function App() {
   const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
-  const [swapModalMode, setSwapModalMode] = useState<'sellSpike' | 'buySpike'>('sellSpike');
+  const [swapModalMode, setSwapModalMode] = useState<'sellSpike'>('sellSpike');
   const [isTestnetModalOpen, setIsTestnetModalOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isReferralModalOpen, setIsReferralModalOpen] = useState(false);
   const [referralCodeToVerify, setReferralCodeToVerify] = useState<string>('');
 
-  const handleOpenSwapModal = (mode: 'sellSpike' | 'buySpike' = 'sellSpike') => {
+  const handleOpenSwapModal = (mode: 'sellSpike' = 'sellSpike') => {
     setSwapModalMode(mode);
     setIsSwapModalOpen(true);
   };
@@ -1040,6 +1090,15 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userAddress: walletAddress, nodes: updatedNodes }),
+      }).catch(() => {});
+
+      // Multi-layer persistent recording in Cloud Firestore & Backend DB
+      persistMiningStart({
+        userAddress: walletAddress,
+        hashrateVh: newNode.hashrate || 100,
+        tierName: newNode.name,
+        nodeName: newNode.name,
+        treasuryContributionUsdt: costUsdt,
       }).catch(() => {});
     }
 
@@ -1357,6 +1416,15 @@ export default function App() {
           balanceUsdt: newBalance,
           miningCycleStartTime: now,
         }),
+      }).catch(() => {});
+
+      // Multi-layer persistent recording in Cloud Firestore & Backend DB
+      persistMiningStart({
+        userAddress: walletAddress,
+        hashrateVh: 100,
+        tierName: 'Falcon Titan Apex',
+        nodeName: activeNode.name,
+        treasuryContributionUsdt: 5.0,
       }).catch(() => {});
     }
 
@@ -1969,6 +2037,8 @@ export default function App() {
               onDisconnectWallet={handleDisconnectWallet}
               isAdmin={isAdmin}
               isMasterUser={isMasterUser}
+              isChristmasTheme={isChristmasThemeActive && activeTab !== 'admin'}
+              santaHatEnabled={santaHatEnabled}
             />
           </div>
 
@@ -2052,8 +2122,11 @@ export default function App() {
             <SwapModal
               isOpen={isSwapModalOpen}
               onClose={() => setIsSwapModalOpen(false)}
-              spikeBalance={walletBalance}
+              spikeBalance={walletSpk}
               bnbBalance={walletBNB}
+              usdtBalance={walletOnchainUsdt}
+              walletAddress={walletAddress}
+              initialMode={swapModalMode}
               onSwapSuccess={handleSwapSuccess}
             />
           )}
@@ -2090,6 +2163,12 @@ export default function App() {
       {/* Blockchain Nodes & Ambient Constellation Background */}
       <BlockchainBackground />
 
+      {/* Christmas Snowfall Falling from Top (Active on User Panel, controlled via Admin Panel) */}
+      <ChristmasSnowfall
+        enabled={isSnowfallActive}
+        intensity={globalSettings?.snowfallIntensity || 'festive'}
+      />
+
       {/* Desktop Sidebar (Shown for internal views or admin when logged in) */}
       {isWalletConnected && activeTab !== 'home' && (
         <Sidebar
@@ -2098,11 +2177,21 @@ export default function App() {
           nodeCount={nodes.length}
           onOpenSwapModal={() => setIsSwapModalOpen(true)}
           isAdmin={isAdmin}
+          isChristmasTheme={isChristmasThemeActive && activeTab !== 'admin'}
+          santaHatEnabled={santaHatEnabled}
         />
       )}
 
       {/* Main Content Area (Full width on Home page and before login, offset for sidebar when logged into app) */}
       <div className={`${isWalletConnected && activeTab !== 'home' ? 'md:pl-64' : ''} flex flex-col min-h-screen transition-all duration-200`}>
+        {/* Festive Christmas Ribbon Banner & Icicle Trim (Active on User Panel) */}
+        {isDecorationsActive && (
+          <ChristmasThemeDecorations
+            greetingText={globalSettings?.holidayGreetingText}
+            soundEnabled={globalSettings?.holidaySoundEnabled ?? true}
+          />
+        )}
+
         {/* Top Header */}
         <Header
           onConnectWalletClick={() => setIsConnectModalOpen(true)}
@@ -2122,35 +2211,14 @@ export default function App() {
           onNavigateHomeSection={handleNavigateHomeSection}
           onDisconnectWallet={handleDisconnectWallet}
           isAdmin={isAdmin}
+          isChristmasTheme={isChristmasThemeActive && activeTab !== 'admin'}
+          santaHatEnabled={santaHatEnabled}
         />
 
 
 
-        {/* Admin Quick Direct Access Bar (Visible ONLY to verified Admin when not in admin view) */}
-        {isAdmin && activeTab !== 'admin' && (
-          <div className="pt-20 md:pt-24 px-4 sm:px-6 md:px-8 max-w-7xl mx-auto w-full">
-            <div className="bg-[#0d1d2c]/80 backdrop-blur-md rounded-xl p-2.5 sm:px-4 border border-[#1c2b3b] flex flex-wrap items-center justify-between gap-2.5 text-xs font-mono shadow-sm">
-              <div className="flex items-center gap-2 text-[#94a3b8]">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                <span className="text-[#00F0FF] font-bold">Backend DB &amp; Admin Panel:</span>
-                <span className="hidden sm:inline">Active (.data/spike_database.json)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[#94a3b8] hidden md:inline">Domain: spikenodes.com (?tab=admin)</span>
-                <button
-                  onClick={() => handleTabChange('admin')}
-                  className="px-3 py-1 rounded-lg bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/40 font-bold transition-all transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[14px]">shield_person</span>
-                  <span>Check Admin Panel →</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Main Content Viewport */}
-        <main className={`flex-1 ${isAdmin && activeTab !== 'admin' ? 'pt-4 md:pt-6' : 'pt-20 sm:pt-24 md:pt-28'} px-4 sm:px-6 md:px-8 ${activeTab === 'home' ? 'max-w-7xl mx-auto w-full' : 'max-w-7xl w-full mx-auto'} pb-28 md:pb-12`}>
+        <main className={`flex-1 pt-20 sm:pt-24 md:pt-28 px-4 sm:px-6 md:px-8 ${activeTab === 'home' ? 'max-w-7xl mx-auto w-full' : 'max-w-7xl w-full mx-auto'} pb-28 md:pb-12`}>
           {renderCurrentView()}
         </main>
       </div>
@@ -2238,7 +2306,7 @@ export default function App() {
             onClose={() => setIsSwapModalOpen(false)}
             spikeBalance={walletSpk}
             bnbBalance={walletBNB}
-            usdtBalance={walletBalance}
+            usdtBalance={walletOnchainUsdt}
             walletAddress={walletAddress}
             initialMode={swapModalMode}
             onSwapSuccess={handleSwapSuccess}

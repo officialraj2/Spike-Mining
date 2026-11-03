@@ -28,8 +28,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const [connectingStatus, setConnectingStatus] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [customAddress, setCustomAddress] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
 
   // Check if current session/wallet is authorized Root / Master creator wallet
@@ -54,7 +52,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     {
       id: 'metamask',
       name: 'MetaMask',
-      description: isInsideIframe ? 'Connect Extension or Paste 0x Address' : 'Connect via browser extension or mobile app',
+      description: 'Connect via browser extension or mobile app',
       icon: '🦊',
       color: 'border-orange-500/30',
     },
@@ -164,18 +162,16 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           setConnectingProvider(null);
           setConnectingStatus(null);
           setErrorMessage('SafePal connection was cancelled or rejected by user.');
-          setShowCustomInput(true);
           return;
         }
       } else {
         setConnectingProvider(null);
         setConnectingStatus(null);
         if (isInsideIframe) {
-          setErrorMessage('SafePal Wallet: Browser sandbox me extension detect nahi hui. Aap apna SafePal BEP-20 address niche paste karke turant connect kar sakte hain!');
+          setErrorMessage('SafePal Wallet: Browser sandbox me extension detect nahi hui. Kripya app ko full browser tab me open karein.');
         } else {
-          setErrorMessage('SafePal Wallet is browser me detect nahi hui. Kripya SafePal App ya Extension check karein, ya apna address manually paste karein.');
+          setErrorMessage('SafePal Wallet is browser me detect nahi hui. Kripya SafePal App ya Extension check karein.');
         }
-        setShowCustomInput(true);
         return;
       }
     }
@@ -212,7 +208,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           } else {
             setErrorMessage(errObj?.message || 'Wallet extension connection failed.');
           }
-          setShowCustomInput(true);
           return;
         }
       } else {
@@ -221,14 +216,13 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         setConnectingStatus(null);
         if (isInsideIframe) {
           setErrorMessage(
-            'Browser Security (iFrame Sandbox): Chrome/Brave extensions are restricted from injecting into embedded preview iframes. Aap apna real wallet address (0x...) niche paste karke turant connect kar sakte hain, ya app ko Full Tab me open karein!'
+            'Browser Security (iFrame Sandbox): Chrome/Brave extensions are restricted from injecting into embedded preview iframes. Kripya app ko Full Tab me open karein!'
           );
         } else {
           setErrorMessage(
-            'Wallet extension is browser me detect nahi hui. Kripya wallet extension install karein ya apna address manually enter karein.'
+            'Wallet extension is browser me detect nahi hui. Kripya wallet extension install ya enable karein.'
           );
         }
-        setShowCustomInput(true);
         return;
       }
     }
@@ -241,20 +235,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
       setShowProviderPicker(false);
       onClose();
     }, 350);
-  };
-
-  const handlePasteClipboard = async () => {
-    try {
-      if (navigator.clipboard?.readText) {
-        const text = await navigator.clipboard.readText();
-        if (text && text.trim().startsWith('0x')) {
-          setCustomAddress(text.trim());
-          setErrorMessage(null);
-        }
-      }
-    } catch {
-      // ignore
-    }
   };
 
   const handleConnectFreshWallet = () => {
@@ -272,18 +252,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
 
   const handleConnectDemoLeader = () => {
     onConnect('Demo Leader', '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
-    setShowProviderPicker(false);
-    onClose();
-  };
-
-  const handleConnectCustom = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = customAddress.trim();
-    if (!trimmed.startsWith('0x') || trimmed.length < 10) {
-      setErrorMessage('Please enter a valid BSC (BEP-20) address starting with 0x');
-      return;
-    }
-    onConnect('MetaMask', trimmed);
     setShowProviderPicker(false);
     onClose();
   };
@@ -376,7 +344,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                 className="w-full py-2.5 px-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-white hover:text-[#00F0FF] font-headline font-semibold text-xs flex items-center justify-center gap-2 transition-all"
               >
                 <span className="material-symbols-outlined text-[17px]">swap_horiz</span>
-                <span>Connect Different Web3 Provider / Custom Address</span>
+                <span>Connect Different Web3 Provider</span>
               </button>
             </div>
 
@@ -511,69 +479,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                   )}
                 </button>
               ))}
-            </div>
-
-            {/* Custom Address Input Toggle */}
-            <div className="pt-2">
-              {!showCustomInput ? (
-                <div className="flex items-center justify-center">
-                  <button
-                    onClick={() => {
-                      setShowCustomInput(true);
-                      setErrorMessage(null);
-                    }}
-                    className="text-xs text-[#00F0FF] hover:underline font-mono flex items-center gap-1.5 py-1 px-3 rounded-lg hover:bg-[#122130] transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-[15px]">edit_note</span>
-                    <span>Enter / Paste Any BEP-20 Address (MetaMask, SafePal, Trust Wallet)</span>
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleConnectCustom} className="space-y-2.5 p-3.5 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
-                  <div className="flex items-center justify-between text-[11px] text-[#94a3b8] font-mono">
-                    <span className="font-semibold text-white">Enter / Paste MetaMask (BEP-20) Address:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCustomInput(false);
-                        setErrorMessage(null);
-                      }}
-                      className="text-red-400 hover:underline"
-                    >
-                      Close
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={customAddress}
-                      onChange={(e) => {
-                        setCustomAddress(e.target.value);
-                        setErrorMessage(null);
-                      }}
-                      placeholder="0x... (e.g. 0x71C8a914B97e889F12A0987cB32456Fa12349A2)"
-                      className="w-full pl-3 pr-20 py-2.5 rounded-lg bg-[#122130] border border-[#1c2b3b] text-white text-xs font-mono focus:border-[#00F0FF] focus:outline-none"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={handlePasteClipboard}
-                      className="absolute right-1.5 top-1.5 px-2 py-1 rounded bg-[#1c2b3b] hover:bg-[#25394e] text-[11px] font-mono text-[#00F0FF] flex items-center gap-1 transition-colors border border-[#2d4257]"
-                      title="Paste from clipboard"
-                    >
-                      <span className="material-symbols-outlined text-[13px]">content_paste</span>
-                      <span>Paste</span>
-                    </button>
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#00F0FF] to-[#0284c7] text-[#0A0F1D] font-black text-xs font-headline hover:brightness-110 shadow-md transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">login</span>
-                    <span>Connect My MetaMask Wallet</span>
-                  </button>
-                </form>
-              )}
             </div>
 
             <div className="pt-2 text-center">

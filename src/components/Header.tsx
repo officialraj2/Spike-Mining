@@ -21,6 +21,8 @@ interface HeaderProps {
   onDisconnectWallet?: () => void;
   isAdmin?: boolean;
   isMasterUser?: boolean;
+  isChristmasTheme?: boolean;
+  santaHatEnabled?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,6 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
   onDisconnectWallet,
   isAdmin = false,
   isMasterUser = false,
+  isChristmasTheme = false,
+  santaHatEnabled = true,
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
@@ -91,6 +95,14 @@ export const Header: React.FC<HeaderProps> = ({
             title={isWalletConnected ? "SPIKE Miner Dashboard" : "SPIKE Mining Protocol"}
           >
             <div className="relative">
+              {isChristmasTheme && (santaHatEnabled !== false) && (
+                <span
+                  className="absolute -top-3.5 -left-2 text-[20px] md:text-[24px] pointer-events-none select-none z-10 transform -rotate-12 animate-pulse drop-shadow-[0_2px_8px_rgba(239,68,68,0.7)]"
+                  title="Merry Christmas!"
+                >
+                  🎅
+                </span>
+              )}
               <img
                 src={SPIKE_LOGO_URL}
                 alt="SPIKE Logo"

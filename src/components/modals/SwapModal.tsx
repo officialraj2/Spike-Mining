@@ -9,7 +9,7 @@ interface SwapModalProps {
   bnbBalance: number;
   usdtBalance?: number;
   walletAddress?: string;
-  initialMode?: 'sellSpike' | 'buySpike' | 'bnbToSpike';
+  initialMode?: 'sellSpike';
   onSwapSuccess: (fromToken: string, toToken: string, fromAmount: number, toAmount: number) => void;
 }
 
@@ -28,7 +28,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   onClose,
   spikeBalance,
   bnbBalance,
-  usdtBalance = 850.0,
+  usdtBalance = 0.0,
   walletAddress = '',
   initialMode = 'sellSpike',
   onSwapSuccess,
@@ -41,10 +41,31 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   const [isSwapping, setIsSwapping] = useState<boolean>(false);
   const [swapTxSuccess, setSwapTxSuccess] = useState<string | null>(null);
 
-  // Live on-chain BSC balances (fetched directly from smart contracts)
-  const [liveSpikeBalance, setLiveSpikeBalance] = useState<number>(spikeBalance);
-  const [liveUsdtBalance, setLiveUsdtBalance] = useState<number>(usdtBalance);
-  const [liveBnbBalance, setLiveBnbBalance] = useState<number>(bnbBalance);
+  // Live on-chain BSC balances (fetched directly from smart contracts / Web3 wallet)
+  const [liveSpikeBalance, setLiveSpikeBalance] = useState<number>(() => {
+    if (walletAddress) {
+      const cached = localStorage.getItem(`spike_onchain_spk_${walletAddress.toLowerCase()}`);
+      if (cached !== null && !isNaN(Number(cached))) return Number(cached);
+    }
+    return spikeBalance || 0;
+  });
+
+  const [liveUsdtBalance, setLiveUsdtBalance] = useState<number>(() => {
+    if (walletAddress) {
+      const cached = localStorage.getItem(`spike_onchain_usdt_${walletAddress.toLowerCase()}`);
+      if (cached !== null && !isNaN(Number(cached))) return Number(cached);
+    }
+    return usdtBalance || 0;
+  });
+
+  const [liveBnbBalance, setLiveBnbBalance] = useState<number>(() => {
+    if (walletAddress) {
+      const cached = localStorage.getItem(`spike_onchain_bnb_${walletAddress.toLowerCase()}`);
+      if (cached !== null && !isNaN(Number(cached))) return Number(cached);
+    }
+    return bnbBalance || 0;
+  });
+
   const [isLoadingOnchain, setIsLoadingOnchain] = useState<boolean>(false);
   const [copiedContract, setCopiedContract] = useState<boolean>(false);
 
@@ -54,17 +75,76 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     setTimeout(() => setCopiedContract(false), 2000);
   };
 
-  // Fetch real on-chain balances from BSC smart contract on modal open
+  // Fetch real on-chain balances from BSC smart contract & connected Web3 wallet (MetaMask/TrustWallet)
   const refreshOnChainBalances = useCallback(async () => {
-    if (!walletAddress || !walletAddress.startsWith('0x')) return;
+    if (!walletAddress || !walletAddress.startsWith('0x')) {
+      setLiveUsdtBalance(0);
+      return;
+    }
     setIsLoadingOnchain(true);
     try {
-      const data = await fetchOnChainBalances(walletAddress);
-      setLiveSpikeBalance(data.spike);
-      if (typeof data.usdt === 'number' && data.usdt > 0) {
-        setLiveUsdtBalance(data.usdt);
+      // 1. Direct Web3 wallet (window.ethereum) query for instant real-time on-chain balance
+      const win = typeof window !== 'undefined' ? (window as any) : null;
+      let queriedUsdt: number | null = null;
+      let queriedSpk: number | null = null;
+      let queriedBnb: number | null = null;
+
+      if (win?.ethereum) {
+        try {
+          const cleanAddr = walletAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+          const dataPayload = '0x70a08231' + cleanAddr; // balanceOf(address)
+          const [rawUsdt, rawSpk, rawBnb] = await Promise.all([
+            win.ethereum.request({
+              method: 'eth_call',
+              params: [{ to: USDT_CONTRACT_ADDRESS, data: dataPayload }, 'latest'],
+            }).catch(() => null),
+            win.ethereum.request({
+              method: 'eth_call',
+              params: [{ to: SPIKE_CONTRACT_ADDRESS, data: dataPayload }, 'latest'],
+            }).catch(() => null),
+            win.ethereum.request({
+              method: 'eth_getBalance',
+              params: [walletAddress, 'latest'],
+            }).catch(() => null),
+          ]);
+
+          if (rawUsdt && rawUsdt !== '0x') {
+            const bi = BigInt(rawUsdt);
+            queriedUsdt = +(Number(bi) / 1e18).toFixed(4);
+          }
+          if (rawSpk && rawSpk !== '0x') {
+            const bi = BigInt(rawSpk);
+            queriedSpk = +(Number(bi) / 1e18).toFixed(4);
+          }
+          if (rawBnb && rawBnb !== '0x') {
+            const bi = BigInt(rawBnb);
+            queriedBnb = +(Number(bi) / 1e18).toFixed(4);
+          }
+        } catch (ethErr) {
+          console.warn('[SwapModal] window.ethereum direct fetch error:', ethErr);
+        }
       }
-      if (typeof data.bnb === 'number' && data.bnb > 0) {
+
+      // 2. Fetch via on-chain BSC service (backend RPC proxy / public RPC fallback)
+      const data = await fetchOnChainBalances(walletAddress);
+
+      if (queriedUsdt !== null) {
+        setLiveUsdtBalance(queriedUsdt);
+        localStorage.setItem(`spike_onchain_usdt_${walletAddress.toLowerCase()}`, String(queriedUsdt));
+      } else if (typeof data.usdt === 'number') {
+        setLiveUsdtBalance(data.usdt);
+        localStorage.setItem(`spike_onchain_usdt_${walletAddress.toLowerCase()}`, String(data.usdt));
+      }
+
+      if (queriedSpk !== null) {
+        setLiveSpikeBalance(queriedSpk);
+      } else if (typeof data.spike === 'number') {
+        setLiveSpikeBalance(data.spike);
+      }
+
+      if (queriedBnb !== null) {
+        setLiveBnbBalance(queriedBnb);
+      } else if (typeof data.bnb === 'number') {
         setLiveBnbBalance(data.bnb);
       }
     } catch (e) {
@@ -118,7 +198,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
       const max10 = +(currentSpk * 0.10).toFixed(4);
       setFromAmount(max10 > 0 ? max10.toString() : '0.1');
     }
-  }, [isOpen, initialMode, spikeBalance, liveSpikeBalance]);
+  }, [isOpen, spikeBalance, liveSpikeBalance]);
 
   // Close on Escape Key
   useEffect(() => {
@@ -178,30 +258,18 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   const exchangeRate = fromToken.rateToUsd / toToken.rateToUsd;
   const toAmount = numericFrom * exchangeRate;
 
-  const isSellSpike = fromTokenSymbol === 'SPIKE' && toTokenSymbol === 'USDT';
-  const isBuySpike = fromTokenSymbol === 'USDT' && toTokenSymbol === 'SPIKE';
-  const isBnbToSpike = fromTokenSymbol === 'BNB' && toTokenSymbol === 'SPIKE';
+  const isSellSpike = true;
 
   // Strict 10% Sell Limit policy: user can only sell up to 10% of their SPIKE balance (with float tolerance)
   const activeSpkBal = liveSpikeBalance > 0 ? liveSpikeBalance : spikeBalance;
-  const maxSellableSpk = isSellSpike ? +(activeSpkBal * 0.10).toFixed(4) : fromToken.balance;
-  const isExceeding10Percent = isSellSpike && activeSpkBal > 0 && numericFrom > (maxSellableSpk + 0.001);
+  const maxSellableSpk = +(activeSpkBal * 0.10).toFixed(4);
+  const isExceeding10Percent = activeSpkBal > 0 && numericFrom > (maxSellableSpk + 0.001);
 
-  const setPresetMode = (mode: 'sellSpike' | 'buySpike' | 'bnbToSpike') => {
-    if (mode === 'sellSpike') {
-      setFromTokenSymbol('SPIKE');
-      setToTokenSymbol('USDT');
-      const max10 = +(spikeBalance * 0.10).toFixed(4);
-      setFromAmount(max10 > 0 ? max10.toString() : '0.1');
-    } else if (mode === 'buySpike') {
-      setFromTokenSymbol('USDT');
-      setToTokenSymbol('SPIKE');
-      setFromAmount('50');
-    } else if (mode === 'bnbToSpike') {
-      setFromTokenSymbol('BNB');
-      setToTokenSymbol('SPIKE');
-      setFromAmount('0.1');
-    }
+  const setPresetMode = (_mode: 'sellSpike' = 'sellSpike') => {
+    setFromTokenSymbol('SPIKE');
+    setToTokenSymbol('USDT');
+    const max10 = +(spikeBalance * 0.10).toFixed(4);
+    setFromAmount(max10 > 0 ? max10.toString() : '0.1');
   };
 
   const handleFlipTokens = () => {
@@ -293,14 +361,17 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         const cleanSpender = PANCAKE_ROUTER_ADDRESS.toLowerCase().replace(/^0x/, '').padStart(64, '0');
         const cleanOwner = userWallet.toLowerCase().replace(/^0x/, '').padStart(64, '0');
 
-        // Check allowance of SPIKE token for PancakeSwap V3 Smart Router
-        setSwapStatusStep('Checking PancakeSwap V3 Allowance...');
+        const tokenInContract = fromTokenSymbol === 'SPIKE' ? SPIKE_CONTRACT_ADDRESS : USDT_CONTRACT_ADDRESS;
+        const tokenOutContract = toTokenSymbol === 'SPIKE' ? SPIKE_CONTRACT_ADDRESS : USDT_CONTRACT_ADDRESS;
+
+        // Check allowance of source token for PancakeSwap V3 Smart Router
+        setSwapStatusStep(`Checking PancakeSwap V3 Allowance for ${fromTokenSymbol}...`);
         let currentAllowance = 0n;
         try {
           const allowData = `0xdd62ed3e${cleanOwner}${cleanSpender}`;
           const allowHex = await win.ethereum.request({
             method: 'eth_call',
-            params: [{ to: SPIKE_CONTRACT_ADDRESS, data: allowData }, 'latest'],
+            params: [{ to: tokenInContract, data: allowData }, 'latest'],
           });
           if (allowHex && allowHex !== '0x') {
             currentAllowance = BigInt(allowHex);
@@ -309,25 +380,25 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
         // Prompt token approval in wallet if needed
         if (currentAllowance < amountInBig) {
-          setSwapStatusStep('Please Approve SPIKE for PancakeSwap V3 Router in Wallet...');
+          setSwapStatusStep(`Please Approve ${fromTokenSymbol} for PancakeSwap V3 Router in Wallet...`);
           const approveData = `0x095ea7b3${cleanSpender}ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff`;
           await win.ethereum.request({
             method: 'eth_sendTransaction',
             params: [{
               from: userWallet,
-              to: SPIKE_CONTRACT_ADDRESS,
+              to: tokenInContract,
               data: approveData,
             }],
           });
-          setSwapStatusStep('Allowance Approved! Calling PancakeSwap V3 Router...');
+          setSwapStatusStep(`Allowance Approved! Calling PancakeSwap V3 Router...`);
         }
 
         // Call PancakeSwap V3 Router exactInputSingle with fee tier 500 (0.05%)
         setSwapStatusStep('Confirm PancakeSwap Sell in Your Web3 Wallet...');
         const routerCallData = encodePancakeSwapV3SellData(
-          SPIKE_CONTRACT_ADDRESS,
-          USDT_CONTRACT_ADDRESS,
-          500, // PancakeSwap V3 Pool 0xdB75...2F3c Fee Tier
+          tokenInContract,
+          tokenOutContract,
+          500, // PancakeSwap V3 Pool 0xdB75...2F3c Fee Tier (0.05%)
           userWallet,
           amountInBig,
           amountOutMinBig
@@ -353,39 +424,44 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
     // 2. ULTRA-FAST SETTLEMENT VIA PROTOCOL & PANCAKESWAP ROUTER BACKEND ENGINE
     try {
+      const apiFrom = fromTokenSymbol === 'SPIKE' ? 'SPK' : fromTokenSymbol;
+      const apiTo = toTokenSymbol === 'SPIKE' ? 'SPK' : toTokenSymbol;
+
       const res = await fetch('/api/testnet/swap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           address: addr,
-          fromToken: 'SPK',
-          toToken: 'USDT',
+          fromToken: apiFrom,
+          toToken: apiTo,
           amountIn: numericFrom,
         }),
       });
 
       const data = await res.json();
       const finalHash = onChainTxHash || (data.success && data.tx ? data.tx.txHash : `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`);
-      const outReceived = (data.success && data.tx) ? data.tx.usdtAmount : toAmount;
+      const outReceived = (data.success && data.tx)
+        ? (toTokenSymbol === 'SPIKE' ? (data.tx.spkAmount || data.tx.amount) : (data.tx.usdtAmount || data.tx.amount))
+        : toAmount;
 
       setSwapTxSuccess(finalHash);
       setConfirmedDetails({
         txHash: finalHash,
         receivedAmount: outReceived,
         spentAmount: numericFrom,
-        toToken: 'USDT',
-        fromToken: 'SPIKE',
+        toToken: toTokenSymbol,
+        fromToken: fromTokenSymbol,
         walletAddress: addr,
         mode: settlementMode === 'onchain' ? 'On-Chain Web3 (PancakeSwap V3)' : 'Instant Protocol Reserve',
       });
-      onSwapSuccess('SPIKE', 'USDT', numericFrom, outReceived);
+      onSwapSuccess(fromTokenSymbol, toTokenSymbol, numericFrom, outReceived);
 
       // Trigger global trade & balance events for live graph and dashboard sync
       try {
         window.dispatchEvent(new CustomEvent('spike_trade_executed', {
           detail: {
-            fromToken: 'SPIKE',
-            toToken: 'USDT',
+            fromToken: fromTokenSymbol,
+            toToken: toTokenSymbol,
             fromAmount: numericFrom,
             toAmount: outReceived,
             walletAddress: addr,
@@ -393,6 +469,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         }));
         window.dispatchEvent(new CustomEvent('spike_balance_updated', {
           detail: {
+            address: addr,
             balanceSpk: Math.max(0, (liveSpikeBalance || spikeBalance) - numericFrom),
             balanceUsdt: (liveUsdtBalance || usdtBalance) + outReceived,
           },
@@ -407,12 +484,12 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         txHash: fallbackHash,
         receivedAmount: toAmount,
         spentAmount: numericFrom,
-        toToken: 'USDT',
-        fromToken: 'SPIKE',
+        toToken: toTokenSymbol,
+        fromToken: fromTokenSymbol,
         walletAddress: addr,
         mode: settlementMode === 'onchain' ? 'On-Chain Web3 (PancakeSwap V3)' : 'Instant Protocol Reserve',
       });
-      onSwapSuccess('SPIKE', 'USDT', numericFrom, toAmount);
+      onSwapSuccess(fromTokenSymbol, toTokenSymbol, numericFrom, toAmount);
       refreshOnChainBalances();
     } finally {
       setIsSwapping(false);
@@ -497,6 +574,26 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             SCROLLABLE CONTENT BODY (Fits any screen height safely)
            ============================================================ */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
+          {/* Dedicated Sell SPIKE Protocol Header Banner */}
+          <div className="p-3 rounded-2xl bg-gradient-to-r from-[#D4AF37]/15 via-[#f59e0b]/10 to-[#00F0FF]/10 border border-[#D4AF37]/35 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#f59e0b] text-[#0A0F1D] flex items-center justify-center font-bold shadow-[0_0_12px_rgba(212,175,55,0.4)]">
+                <span className="material-symbols-outlined text-[18px]">currency_exchange</span>
+              </div>
+              <div>
+                <span className="text-xs sm:text-sm font-headline font-bold text-white tracking-wide block">
+                  Sell SPIKE ➔ Receive USDT
+                </span>
+                <span className="text-[10px] text-[#94a3b8] font-mono">
+                  PancakeSwap V3 Pool (0xdB75...2F3c) · 10% Daily Protection
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37]">
+              10% Max Daily
+            </span>
+          </div>
+
           {/* Settlement Mode Switcher: Instant Protocol Settlement vs On-Chain Web3 */}
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-[#061423] border border-[#1c2b3b]">
@@ -776,65 +873,34 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     ≈ ${(numericFrom * fromToken.rateToUsd).toFixed(2)} USD
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {isSellSpike ? (
-                      <>
-                        <button
-                          onClick={() => handlePercentage(0.25)}
-                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                          title="Sell 2.5% of SPIKE Balance"
-                        >
-                          2.5%
-                        </button>
-                        <button
-                          onClick={() => handlePercentage(0.5)}
-                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                          title="Sell 5% of SPIKE Balance"
-                        >
-                          5.0%
-                        </button>
-                        <button
-                          onClick={() => handlePercentage(0.75)}
-                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                          title="Sell 7.5% of SPIKE Balance"
-                        >
-                          7.5%
-                        </button>
-                        <button
-                          onClick={() => handlePercentage(1.0)}
-                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-[10px] text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-mono transition-colors"
-                          title="Sell Maximum Allowable 10% of SPIKE Balance"
-                        >
-                          10% (MAX)
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handlePercentage(0.25)}
-                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                        >
-                          25%
-                        </button>
-                        <button
-                          onClick={() => handlePercentage(0.5)}
-                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                        >
-                          50%
-                        </button>
-                        <button
-                          onClick={() => handlePercentage(0.75)}
-                          className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
-                        >
-                          75%
-                        </button>
-                        <button
-                          onClick={() => handlePercentage(1.0)}
-                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-[10px] text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-mono transition-colors"
-                        >
-                          MAX
-                        </button>
-                      </>
-                    )}
+                    <button
+                      onClick={() => handlePercentage(0.25)}
+                      className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                      title="Sell 2.5% of SPIKE Balance"
+                    >
+                      2.5%
+                    </button>
+                    <button
+                      onClick={() => handlePercentage(0.5)}
+                      className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                      title="Sell 5% of SPIKE Balance"
+                    >
+                      5.0%
+                    </button>
+                    <button
+                      onClick={() => handlePercentage(0.75)}
+                      className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                      title="Sell 7.5% of SPIKE Balance"
+                    >
+                      7.5%
+                    </button>
+                    <button
+                      onClick={() => handlePercentage(1.0)}
+                      className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-[10px] text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-mono transition-colors"
+                      title="Sell Maximum Allowable 10% of SPIKE Balance"
+                    >
+                      10% (MAX)
+                    </button>
                   </div>
                 </div>
               </div>
@@ -864,15 +930,22 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   )}
                 </span>
                 <span className="font-semibold flex items-center gap-1.5">
-                  <span>Balance:</span>
-                  <span className="text-white font-bold">
-                    {Number(toToken.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {toToken.symbol}
+                  <span className="text-[#94a3b8] flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    <span>Web3 Wallet USDT:</span>
+                  </span>
+                  <span className="text-white font-bold tabular-nums">
+                    {walletAddress
+                      ? (isLoadingOnchain
+                          ? 'Checking BSC...'
+                          : `${Number(toToken.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} USDT`)
+                      : '0.00 USDT'}
                   </span>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); refreshOnChainBalances(); }}
                     disabled={isLoadingOnchain}
-                    title="Refresh on-chain balance"
+                    title="Refresh on-chain Web3 wallet USDT balance from BSC"
                     className="text-[#00F0FF] hover:text-white p-0.5 rounded transition-transform active:rotate-180"
                   >
                     <span className={`material-symbols-outlined text-[13px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>

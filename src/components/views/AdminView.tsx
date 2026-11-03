@@ -7,6 +7,7 @@ import {
   MiningNode,
   RewardTransaction,
 } from '../../types';
+import { playChristmasJingle } from '../ChristmasThemeDecorations';
 
 // Safe JSON parser helper to prevent "Unexpected end of JSON input" errors
 async function safeJsonParse(res: Response): Promise<any> {
@@ -65,7 +66,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   );
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'master' | 'overview' | 'withdrawals' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
+    'master' | 'overview' | 'withdrawals' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database' | 'christmas'
   >(isMasterUser || (currentWallet && currentWallet.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase()) ? 'master' : 'overview');
 
   // Withdrawal Requests State
@@ -588,6 +589,46 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
+  // Handle Dedicated Christmas Holiday Settings Update & Instant Live Broadcast
+  const handleUpdateChristmasSettings = async (updates: Partial<AdminSettings>) => {
+    const nextSettings: AdminSettings = {
+      ...(settings as AdminSettings),
+      ...settingsForm,
+      ...updates,
+    };
+    setSettingsForm((prev) => ({ ...prev, ...updates }));
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...nextSettings,
+          adminUser: currentWallet || 'Admin Dashboard (Christmas Console)',
+        }),
+      });
+      if (res.ok) {
+        const data = await safeJsonParse(res);
+        const finalObj = data?.settings || nextSettings;
+        setSettings(finalObj);
+        setSettingsForm(finalObj);
+        try {
+          localStorage.setItem('spike_global_settings', JSON.stringify(finalObj));
+          window.dispatchEvent(new CustomEvent('spike_settings_updated', { detail: finalObj }));
+          window.dispatchEvent(new CustomEvent('spike_christmas_theme_changed', { detail: finalObj }));
+        } catch {}
+        onNotify?.(
+          'Christmas Settings Live!',
+          updates.christmasThemeEnabled !== undefined
+            ? `Christmas Theme is now ${updates.christmasThemeEnabled ? 'ENABLED (Snowfall & holiday vibes active for users)' : 'DISABLED (Standard theme)'}`
+            : 'Christmas visual & snowfall parameters applied successfully across user panel!',
+          'success'
+        );
+      }
+    } catch {
+      onNotify?.('Error', 'Failed to update Christmas settings in backend', 'error');
+    }
+  };
+
   // Handle Master User Project-Wide Settings Save
   const handleSaveMasterSettings = async () => {
     setIsSavingMasterSettings(true);
@@ -823,6 +864,28 @@ export const AdminView: React.FC<AdminViewProps> = ({
       onNotify?.('Firebase Notice', 'Sync process initiated', 'info');
     } finally {
       setSyncingFirebase(false);
+    }
+  };
+
+  const [isSendingTestAlert, setIsSendingTestAlert] = useState(false);
+  const handleSendTestAlert = async () => {
+    setIsSendingTestAlert(true);
+    try {
+      const res = await fetch('/api/alerts/send-test', { method: 'POST' });
+      const data = await res.json();
+      if (data && data.success) {
+        onNotify?.(
+          'Alert Sent!',
+          'Database early-warning alert successfully triggered to officialraj2@gmail.com!',
+          'success'
+        );
+      } else {
+        onNotify?.('Alert Notice', data?.error || 'Alert triggered', 'info');
+      }
+    } catch {
+      onNotify?.('Alert Error', 'Network error triggering alert', 'error');
+    } finally {
+      setIsSendingTestAlert(false);
     }
   };
 
@@ -1185,6 +1248,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
           { id: 'nodes', label: 'Fleet & Rig Controller', icon: 'developer_board', count: nodes.length },
           { id: 'transactions', label: 'Ledger & Transactions', icon: 'receipt_long', count: transactions.length },
           { id: 'settings', label: 'System Settings & Yield', icon: 'tune' },
+          {
+            id: 'christmas',
+            label: '🎄 Christmas & Snowfall',
+            icon: 'ac_unit',
+            badge: (settingsForm.christmasThemeEnabled ?? settings?.christmasThemeEnabled ?? true) ? 'LIVE' : 'OFF',
+          },
           { id: 'database', label: 'Database Health & Audit Logs', icon: 'database', count: auditLogs.length },
         ].map((tab) => {
           const isActive = activeSubTab === tab.id;
@@ -2001,6 +2070,56 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
           {/* Right Column: Database Health & Live System Specs */}
           <div className="space-y-6">
+            {/* Real-Time Database Early-Warning & Email Alert Interceptor */}
+            <div className="bg-gradient-to-b from-[#0a232f] via-[#091b26] to-[#06141e] rounded-2xl p-6 border-2 border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.2)] space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-emerald-400">shield</span>
+                  <span>Database Health & Pre-Failure Alert System</span>
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Active 24/7
+                </span>
+              </div>
+
+              <p className="text-xs text-[#94a3b8]">
+                Real-time monitoring active. Agar database me koi bhi issue ya write delay aati hai, to system crash hone se pehle turant administrator ko early alert notification dispatch ho jati hai.
+              </p>
+
+              <div className="space-y-2.5 text-xs font-mono">
+                <div className="p-3 rounded-xl bg-[#0a1520] border border-emerald-500/30 flex items-center justify-between">
+                  <span className="text-[#94a3b8] flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-emerald-400">mark_email_read</span>
+                    Primary Alert Recipient:
+                  </span>
+                  <span className="text-[#00F0FF] font-bold select-all bg-[#00F0FF]/10 px-2 py-0.5 rounded border border-[#00F0FF]/30">
+                    officialraj2@gmail.com
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#0a1520] border border-[#1c2b3b] flex items-center justify-between">
+                  <span className="text-[#94a3b8]">Mining Persistence:</span>
+                  <span className="text-emerald-400 font-bold">Cloud Firestore + Local ACID Sync</span>
+                </div>
+
+                <div className="p-3 rounded-xl bg-[#0a1520] border border-[#1c2b3b] flex items-center justify-between">
+                  <span className="text-[#94a3b8]">Pre-Failure Interception:</span>
+                  <span className="text-emerald-400 font-bold">Zero Data Loss Protocol Active</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSendTestAlert}
+                disabled={isSendingTestAlert}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-[#0A0F1D] font-headline font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.35)] active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">outgoing_mail</span>
+                <span>{isSendingTestAlert ? 'Dispatching Alert...' : 'Send Test Alert to officialraj2@gmail.com'}</span>
+              </button>
+            </div>
+
             <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-4">
               <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
                 <span className="material-symbols-outlined text-emerald-400">database</span>
@@ -4220,6 +4339,333 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================
+          TAB CONTENT: CHRISTMAS & SNOWFALL THEME CONTROLLER
+         ============================================================ */}
+      {activeSubTab === 'christmas' && (
+        <div className="space-y-6">
+          {/* Christmas Hero Header Card */}
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-[#990000]/25 via-[#0d1d2c] to-[#103b22]/30 border-2 border-[#D4AF37]/50 shadow-2xl relative overflow-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-black bg-[#D4AF37] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.5)] flex items-center gap-1.5">
+                    <span className="text-[16px]">🎄</span>
+                    CHRISTMAS FESTIVE SUITE · ADMIN EXCLUSIVE CONTROL
+                  </span>
+                  {(settingsForm.christmasThemeEnabled ?? settings?.christmasThemeEnabled ?? true) ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      LIVE ON USER PANEL
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#1c2b3b] text-[#94a3b8] border border-[#1c2b3b] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-gray-500" />
+                      THEME PAUSED
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black font-headline text-white tracking-tight flex items-center gap-2">
+                  <span>Christmas Holiday Theme & Snowfall Engine</span>
+                  <span className="text-2xl animate-bounce">🎅</span>
+                </h2>
+                <p className="text-xs sm:text-sm text-[#94a3b8] max-w-2xl leading-relaxed">
+                  Yha se aap poore <strong className="text-white">User Panel</strong> ke liye Christmas vibes, falling snow particles, Santa hats aur holiday banner control kar sakte hain. Ye sabhi effects sirf user views par active hote hain jabki admin panel clean rehta hai.
+                </p>
+              </div>
+
+              {/* Master Theme Toggle Button */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => playChristmasJingle()}
+                  className="px-4 py-2.5 rounded-xl bg-black/40 hover:bg-black/60 text-[#ffe088] border border-[#D4AF37]/50 font-mono text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  title="Test holiday audio chime"
+                >
+                  <span className="material-symbols-outlined text-[18px]">music_note</span>
+                  <span>Test Sleigh Bells</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleUpdateChristmasSettings({
+                      christmasThemeEnabled: !(settingsForm.christmasThemeEnabled ?? settings?.christmasThemeEnabled ?? true),
+                    })
+                  }
+                  className={`px-5 py-2.5 rounded-xl text-xs font-headline font-black transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer ${
+                    (settingsForm.christmasThemeEnabled ?? settings?.christmasThemeEnabled ?? true)
+                      ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/30'
+                      : 'bg-emerald-500 hover:bg-emerald-600 text-[#0A0F1D] shadow-emerald-500/30'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[18px]">
+                    {(settingsForm.christmasThemeEnabled ?? settings?.christmasThemeEnabled ?? true) ? 'power_settings_new' : 'check_circle'}
+                  </span>
+                  <span>
+                    {(settingsForm.christmasThemeEnabled ?? settings?.christmasThemeEnabled ?? true)
+                      ? 'Turn OFF Christmas Theme'
+                      : 'Turn ON Christmas Theme'}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Configuration Matrix Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Card 1: Falling Snowfall Physics Engine */}
+            <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-5">
+              <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 text-[#00F0FF] flex items-center justify-center border border-[#00F0FF]/30">
+                    <span className="material-symbols-outlined text-[24px]">ac_unit</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold font-headline text-white">Snowfall Particle Engine</h3>
+                    <p className="text-[11px] text-[#94a3b8]">HTML5 Canvas 60fps hardware-accelerated snowfall</p>
+                  </div>
+                </div>
+
+                {/* Snowfall Toggle */}
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settingsForm.snowfallEnabled ?? settings?.snowfallEnabled ?? true}
+                    onChange={(e) =>
+                      handleUpdateChristmasSettings({ snowfallEnabled: e.target.checked })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-[#1c2b3b] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00F0FF]"></div>
+                </label>
+              </div>
+
+              {/* Intensity Presets */}
+              <div className="space-y-3">
+                <label className="block text-xs font-mono text-[#94a3b8]">
+                  Snowfall Intensity (Flake Density & Drift Speed):
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[
+                    { id: 'light', label: 'Light Snow', icon: 'cloud', count: '45 Flakes' },
+                    { id: 'festive', label: 'Festive Flurries', icon: 'ac_unit', count: '95 Flakes (Best)' },
+                    { id: 'blizzard', label: 'Winter Blizzard', icon: 'weather_snowy', count: '175 Flakes' },
+                  ].map((preset) => {
+                    const isSelected =
+                      (settingsForm.snowfallIntensity || settings?.snowfallIntensity || 'festive') === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() =>
+                          handleUpdateChristmasSettings({
+                            snowfallIntensity: preset.id as 'light' | 'festive' | 'blizzard',
+                          })
+                        }
+                        className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#00F0FF]/15 border-[#00F0FF] text-white shadow-[0_0_15px_rgba(0,240,255,0.2)]'
+                            : 'bg-[#122130] border-[#1c2b3b] text-[#94a3b8] hover:text-white hover:border-[#273647]'
+                        }`}
+                      >
+                        <div className="text-xs font-bold font-headline">{preset.label}</div>
+                        <div className="text-[10px] font-mono mt-1 text-[#00F0FF]">{preset.count}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Snowfall Performance Info */}
+              <div className="p-3.5 rounded-xl bg-[#122130] border border-[#1c2b3b] text-xs font-mono text-[#94a3b8] space-y-1.5">
+                <div className="flex items-center justify-between text-white">
+                  <span>Engine Status:</span>
+                  <span className="text-emerald-400 font-bold">Hardware Accelerated (Canvas2D)</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Layer Depth:</span>
+                  <span className="text-white">3 Layers (Background, Midground, 6-point Crystal Stars)</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Pointer Interference:</span>
+                  <span className="text-[#00F0FF]">None (pointer-events: none)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Visual Accents & Santa Hat */}
+            <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-5">
+              <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center border border-red-500/30">
+                    <span className="text-xl">🎅</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold font-headline text-white">Logo Santa Hat & Visuals</h3>
+                    <p className="text-[11px] text-[#94a3b8]">Festive headgear & sparkling trim on SPIKE branding</p>
+                  </div>
+                </div>
+
+                {/* Santa Hat Toggle */}
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settingsForm.santaHatEnabled ?? settings?.santaHatEnabled ?? true}
+                    onChange={(e) =>
+                      handleUpdateChristmasSettings({ santaHatEnabled: e.target.checked })
+                    }
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-[#1c2b3b] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                </label>
+              </div>
+
+              {/* Preview of Santa Hat on Logo */}
+              <div className="p-4 rounded-xl bg-[#122130] border border-[#1c2b3b] flex items-center gap-4">
+                <div className="relative">
+                  {(settingsForm.santaHatEnabled ?? settings?.santaHatEnabled ?? true) && (
+                    <span className="absolute -top-3.5 -left-2 text-[24px] pointer-events-none select-none z-10 transform -rotate-12 animate-pulse drop-shadow-[0_2px_8px_rgba(239,68,68,0.7)]">
+                      🎅
+                    </span>
+                  )}
+                  <img
+                    src="https://raw.githubusercontent.com/spikenetwork/assets/main/spike-logo.png"
+                    alt="Logo Preview"
+                    className="w-12 h-12 rounded-xl object-contain bg-[#0A0F1D] p-1 border border-[#1c2b3b]"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white font-headline">SPIKE Brand Logo Preview</div>
+                  <div className="text-[11px] text-[#94a3b8] mt-0.5">
+                    {(settingsForm.santaHatEnabled ?? settings?.santaHatEnabled ?? true)
+                      ? 'Santa Hat active on desktop header & mobile drawer'
+                      : 'Standard logo display active'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Audio Chime Settings */}
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#122130] border border-[#1c2b3b]">
+                <div>
+                  <div className="text-xs font-bold text-white font-headline">Holiday Sleigh Bells Chime</div>
+                  <div className="text-[10px] text-[#94a3b8]">Web Audio API synthesized bell jingle button for users</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settingsForm.holidaySoundEnabled ?? settings?.holidaySoundEnabled ?? true}
+                  onChange={(e) =>
+                    handleUpdateChristmasSettings({ holidaySoundEnabled: e.target.checked })
+                  }
+                  className="w-5 h-5 rounded accent-emerald-500 cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Holiday Greeting Banner Settings */}
+          <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
+              <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#D4AF37]">campaign</span>
+                <span>Holiday Greeting Ribbon Banner</span>
+              </h3>
+              <span className="text-xs font-mono text-[#D4AF37]">Displayed at top of User viewport</span>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-mono text-[#94a3b8]">
+                Custom Greeting Text (Supports Emojis & Promo Text):
+              </label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <input
+                  type="text"
+                  value={
+                    settingsForm.holidayGreetingText !== undefined
+                      ? settingsForm.holidayGreetingText
+                      : (settings?.holidayGreetingText || '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁')
+                  }
+                  onChange={(e) =>
+                    setSettingsForm((prev) => ({ ...prev, holidayGreetingText: e.target.value }))
+                  }
+                  placeholder="Enter festive greeting..."
+                  className="flex-1 bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-xs font-mono text-white placeholder-[#94a3b8]/50 focus:border-[#D4AF37] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleUpdateChristmasSettings({
+                      holidayGreetingText:
+                        settingsForm.holidayGreetingText ||
+                        '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁',
+                    })
+                  }
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-headline font-black text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:opacity-95 transition-all cursor-pointer whitespace-nowrap"
+                >
+                  Update Banner Text
+                </button>
+              </div>
+            </div>
+
+            {/* Live Banner Preview */}
+            <div className="mt-4 space-y-2">
+              <div className="text-[11px] font-mono text-[#94a3b8]">User Live Banner Preview:</div>
+              <div className="rounded-xl overflow-hidden border border-[#D4AF37]/50 shadow-md">
+                <div className="bg-gradient-to-r from-[#990000] via-[#103b22] to-[#0d2a45] px-4 py-2 flex items-center justify-between text-xs text-white">
+                  <div className="flex items-center gap-2 truncate">
+                    <span>🎅</span>
+                    <span className="font-extrabold truncate">
+                      {settingsForm.holidayGreetingText ||
+                        settings?.holidayGreetingText ||
+                        '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁'}
+                    </span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-full bg-[#D4AF37]/25 text-[#ffe088] border border-[#D4AF37]/50 text-[10px] font-mono font-bold shrink-0">
+                    ⭐ HOLIDAY SPECIAL
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Apply & Reset Row */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-[#122130]/80 border border-[#1c2b3b]">
+            <div className="text-xs text-[#94a3b8]">
+              💡 <span className="text-white font-semibold">Instant Persistence:</span> Settings are synced to Cloud Firestore database and instantly applied across all connected devices and browsers.
+            </div>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() =>
+                  handleUpdateChristmasSettings({
+                    christmasThemeEnabled: true,
+                    snowfallEnabled: true,
+                    snowfallIntensity: 'festive',
+                    holidayGreetingText:
+                      '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁',
+                    santaHatEnabled: true,
+                    holidaySoundEnabled: true,
+                  })
+                }
+                className="px-4 py-2 rounded-xl bg-[#1c2b3b] hover:bg-[#273647] text-white text-xs font-mono transition-colors cursor-pointer"
+              >
+                Reset to Festive Defaults
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveSettings()}
+                className="px-5 py-2 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] text-xs font-bold font-headline transition-all shadow-[0_0_15px_rgba(0,240,255,0.3)] cursor-pointer"
+              >
+                Save All System Settings
+              </button>
             </div>
           </div>
         </div>

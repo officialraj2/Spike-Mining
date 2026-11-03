@@ -63,19 +63,6 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          {onOpenDepositModal && (
-            <button
-              onClick={onOpenDepositModal}
-              className="bg-gradient-to-r from-[#D4AF37]/20 to-[#00F0FF]/15 hover:from-[#D4AF37]/30 hover:to-[#00F0FF]/25 text-[#D4AF37] border border-[#D4AF37]/60 hover:border-[#D4AF37] font-headline font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
-              title="Deposit 5 USDT to Official Protocol Treasury Vault (Step 1)"
-            >
-              <span className="material-symbols-outlined text-[17px]">account_balance</span>
-              <span>Deposit 5 USDT (Treasury)</span>
-              <span className="px-1.5 py-0.2 rounded text-[9px] bg-emerald-400/25 text-emerald-400 border border-emerald-400/40 font-mono font-bold">
-                Step 1: $5
-              </span>
-            </button>
-          )}
           <button
             onClick={onOpenDeployModal}
             className="bg-[#00F0FF] text-[#0A0F1D] hover:bg-[#7df4ff] font-headline font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shadow-[0_0_18px_rgba(0,240,255,0.3)] tracking-wide active:scale-95"
@@ -107,8 +94,6 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
               </span>
             </div>
             <div className="text-xs text-[#94a3b8] font-mono mt-0.5 flex flex-wrap items-center gap-3">
-              <span>Target: <strong className="text-white">1 SPK in {hashrateInfo?.targetDays || 60} Days</strong></span>
-              <span>·</span>
               <span>Directs: <strong className="text-[#00F0FF]">{hashrateInfo?.directCount ?? 0} Direct Referrals</strong></span>
               <span>·</span>
               <span className="text-emerald-400 font-semibold">{hashrateInfo?.requirementText || '0 referrals'}</span>
