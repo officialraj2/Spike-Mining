@@ -136,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <span className="hidden sm:inline">{isMasterUser ? 'Master Admin' : 'Admin Panel'}</span>
               <span className="sm:hidden">{isMasterUser ? 'Master' : 'Admin'}</span>
-              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
+              <span className="px-2 py-0.5 rounded text-xs font-headline font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
                 {isMasterUser ? 'ROOT' : 'ADMIN'}
               </span>
             </button>
@@ -207,7 +207,7 @@ export const Header: React.FC<HeaderProps> = ({
                 { id: 'dashboard' as TabType, label: 'Dashboard', icon: 'dashboard' },
                 { id: 'mining-nodes' as TabType, label: 'Mining Nodes', icon: 'dns' },
                 { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups' },
-                { id: 'swap' as TabType, label: 'DEX Swap', icon: 'swap_horiz', badge: 'AMM' },
+                { id: 'swap' as TabType, label: 'DEX Swap', icon: 'swap_horiz' },
               ] as { id: TabType; label: string; icon: string; badge?: string; hot?: boolean }[]).map((item) => {
                 const isActive = activeTab === item.id;
                 return (
@@ -233,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="material-symbols-outlined text-[16px]">{item.icon}</span>
                     <span>{item.label}</span>
                     {item.badge && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
+                      <span className="text-xs px-2 py-0.5 rounded font-headline font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
                         {item.badge}
                       </span>
                     )}
@@ -272,7 +272,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="font-mono text-white font-bold text-xs">
                     {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                   </span>
-                  <span className="font-mono text-[10px] text-emerald-400 tabular-nums font-semibold flex items-center gap-1">
+                  <span className="font-body text-xs text-emerald-400 tabular-nums font-semibold flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
                     <span>BSC (BEP-20)</span>
                   </span>
@@ -288,9 +288,9 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)} />
                   <div className="absolute right-0 mt-2 w-64 bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl shadow-2xl p-3 z-20 space-y-2">
                     <div className="p-2.5 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]/60 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] text-[#94a3b8] font-mono uppercase tracking-wider">
+                      <div className="flex items-center justify-between text-xs text-slate-400 font-body uppercase tracking-wider font-semibold">
                         <span>Connected Account</span>
-                        <span className="flex items-center gap-1 text-emerald-400 font-mono text-[9px]">
+                        <span className="flex items-center gap-1 text-emerald-400 font-body text-xs font-semibold">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           <span>Live Synced</span>
                         </span>
@@ -517,8 +517,8 @@ export const Header: React.FC<HeaderProps> = ({
                   {([
                     { id: 'dashboard' as TabType, label: 'Dashboard', icon: 'dashboard' },
                     { id: 'mining-nodes' as TabType, label: 'Mining Nodes', icon: 'dns' },
-                    { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups', badge: 'REWARDS' },
-                    { id: 'swap' as TabType, label: 'Swap (DEX)', icon: 'swap_horiz', badge: 'AMM' },
+                    { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups' },
+                    { id: 'swap' as TabType, label: 'Swap (DEX)', icon: 'swap_horiz' },
                     ...(isAdmin ? [{ id: 'admin' as TabType, label: 'Admin Panel & DB', icon: 'shield_person', badge: 'ROOT' }] : []),
                   ] as { id: TabType; label: string; icon: string; badge?: string; hot?: boolean }[]).map((item) => {
                     const isActive = activeTab === item.id;

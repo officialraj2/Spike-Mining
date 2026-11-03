@@ -713,11 +713,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#00F0FF]/5 rounded-full blur-xl group-hover:bg-[#00F0FF]/15 transition-all"></div>
           <div className="flex items-center justify-between mb-3">
             <div>
-              <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em] block">
+              <span className="text-slate-400 font-body text-xs font-semibold uppercase tracking-wider block">
                 Hashrate Tier
               </span>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className={`inline-flex items-center gap-1 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full ${
+                <span className={`inline-flex items-center gap-1 text-xs font-bold font-headline px-2.5 py-0.5 rounded-full ${
                   hashrateInfo?.isCustomOverride
                     ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
                     : 'bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30'
@@ -737,14 +737,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="text-3xl lg:text-[38px] leading-tight font-extrabold font-headline text-white mb-1 tabular-nums tracking-tight flex items-baseline gap-2">
               <span>{hashrateInfo?.hashrate ?? 100}</span>
               <span className="text-lg lg:text-xl text-[#00F0FF] font-semibold tracking-normal">VH/s</span>
-              <span className="text-xs text-[#94a3b8] font-mono font-normal">
+              <span className="text-xs text-slate-400 font-body font-normal">
                 ({totalHashrate > 0 ? totalHashrate.toFixed(2) : '1.25'} TH/s cluster)
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-[#94a3b8] font-mono pt-1.5 border-t border-[#1c2b3b]/60">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-body pt-2 border-t border-[#1c2b3b]/60">
               <span>Total Team: <strong className="text-white font-bold">{Math.max(referralStats?.totalPartners ?? 0, hashrateInfo?.totalTeamCount ?? 0)}</strong></span>
               {hashrateInfo?.nextTier && (
-                <span className="text-[#D4AF37] truncate">
+                <span className="text-[#D4AF37] truncate font-medium">
                   Next: {hashrateInfo.nextTier.level} ({hashrateInfo.nextTier.neededDirects} needed)
                 </span>
               )}
@@ -756,7 +756,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
           <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#D4AF37]/5 rounded-full blur-xl group-hover:bg-[#D4AF37]/15 transition-all"></div>
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">
+            <span className="text-slate-400 font-body text-xs font-semibold uppercase tracking-wider">
               Active Nodes
             </span>
             <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">
@@ -768,9 +768,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-1 tabular-nums tracking-tight">
               {activeNodeCount}{' '}
-              <span className="text-lg lg:text-xl text-[#94a3b8] font-semibold tracking-normal">/ {nodes.length} online</span>
+              <span className="text-lg lg:text-xl text-slate-400 font-semibold tracking-normal font-body">/ {nodes.length} online</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-[#D4AF37] font-medium">
+            <div className="flex items-center gap-2 text-xs text-[#D4AF37] font-semibold font-body">
               <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse"></span>
               <span>{operationalEfficiency}% Operational Efficiency</span>
             </div>
@@ -783,7 +783,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           
           <div>
             <div className="flex items-center justify-between mb-4">
-              <span className="text-[#94a3b8] font-mono text-[11px] font-semibold uppercase tracking-[0.14em]">
+              <span className="text-slate-400 font-body text-xs font-semibold uppercase tracking-wider">
                 SPIKE Balance
               </span>
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37]/20 to-[#f59e0b]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.25)] shrink-0">
@@ -801,27 +801,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span>{(testnetWallet?.testnetSpk ?? 0.0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <span className="text-lg lg:text-xl text-[#D4AF37] font-semibold tracking-normal font-headline">SPK</span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs font-mono mb-2">
-                <span className="text-emerald-400 font-bold">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-body mb-2">
+                <span className="text-emerald-400 font-bold font-mono">
                   ≈ ${(((testnetWallet?.testnetSpk ?? 0.0)) * (spikeTokenInfo?.currentPrice || 1.12)).toFixed(2)} USDT
                 </span>
                 <span className="text-[#475569]">•</span>
-                <span className="text-[#94a3b8] text-[11px]">
+                <span className="text-slate-400 font-medium">
                   1 SPK = ${(spikeTokenInfo?.currentPrice || 1.12).toFixed(4)}
                 </span>
               </div>
-              <div className="flex items-center gap-2.5 mt-1.5">
+              <div className="flex items-center gap-2.5 mt-2">
                 <button
                   onClick={() => {
                     if (onOpenSwapModal) {
                       onOpenSwapModal('sellSpike');
                     }
                   }}
-                  className="text-xs text-[#D4AF37] hover:underline font-headline font-semibold flex items-center gap-1 transition-all group/btn cursor-pointer"
+                  className="text-xs text-[#D4AF37] hover:underline font-headline font-bold flex items-center gap-1 transition-all group/btn cursor-pointer"
                   title="Open PancakeSwap Sell Route: Sell up to 10% of your SPIKE balance for USDT"
                 >
                   <span>Swap Now (10% Sell Limit)</span>
-                  <span className="material-symbols-outlined text-[14px] group-hover/btn:translate-x-0.5 transition-transform">
+                  <span className="material-symbols-outlined text-[15px] group-hover/btn:translate-x-0.5 transition-transform">
                     arrow_forward
                   </span>
                 </button>
@@ -1046,13 +1046,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   verified_user
                 </span>
                 <div>
-                  <div className="text-xs font-bold font-headline text-white group-hover:text-[#00F0FF] transition-colors tracking-wide">
+                  <div className="text-xs sm:text-sm font-bold font-headline text-white group-hover:text-[#00F0FF] transition-colors tracking-wide">
                     Audited Contract
                   </div>
-                  <div className="text-[11px] text-[#94a3b8] font-mono">CertiK Secure Level 2</div>
+                  <div className="text-xs text-slate-400 font-body">CertiK Secure Level 2</div>
                 </div>
               </div>
-              <span className="material-symbols-outlined text-[#94a3b8] text-sm group-hover:text-[#00F0FF] group-hover:translate-x-0.5 transition-all">
+              <span className="material-symbols-outlined text-slate-400 text-sm group-hover:text-[#00F0FF] group-hover:translate-x-0.5 transition-all">
                 open_in_new
               </span>
             </div>

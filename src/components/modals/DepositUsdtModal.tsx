@@ -32,6 +32,13 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
     amount: number;
     blockNumber?: number;
   } | null>(null);
+  const [copiedTreasury, setCopiedTreasury] = useState(false);
+
+  const handleCopyTreasury = () => {
+    navigator.clipboard?.writeText(protocolWallet);
+    setCopiedTreasury(true);
+    setTimeout(() => setCopiedTreasury(false), 2000);
+  };
 
   // Load protocol destination configuration from backend (kept in backend)
   useEffect(() => {
@@ -359,33 +366,38 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
         }}
       />
 
-      <div className="relative w-full max-w-lg bg-[#0a1626] border border-[#1c2b3b] rounded-3xl shadow-[0_0_50px_rgba(0,240,255,0.25)] overflow-hidden z-10 flex flex-col">
+      <div className="relative w-full max-w-lg bg-gradient-to-b from-[#0a1829] via-[#071322] to-[#040c17] border border-[#D4AF37]/35 rounded-3xl shadow-[0_0_60px_rgba(212,175,55,0.25)] overflow-hidden z-10 flex flex-col">
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-[#1c2b3b] flex items-center justify-between bg-gradient-to-r from-[#0d1d2c] via-[#0a1626] to-[#0d1d2c]">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#D4AF37]/30 to-[#00F0FF]/30 border border-[#D4AF37]/60 flex items-center justify-center text-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.3)]">
+        <div className="p-5 sm:p-6 border-b border-[#1c2b3b]/80 flex items-center justify-between bg-gradient-to-r from-[#0e2137] via-[#091726] to-[#0e2137]">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#D4AF37] via-[#f59e0b] to-[#00F0FF] text-[#0A0F1D] flex items-center justify-center font-bold shadow-[0_0_20px_rgba(212,175,55,0.45)]">
               <span className="material-symbols-outlined text-[24px]">account_balance</span>
             </div>
             <div>
-              <h2 className="text-lg font-bold font-headline text-white tracking-wide flex items-center gap-2">
-                <span>Deposit to Protocol Treasury</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
-                  Step 1: 5 USDT
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-lg sm:text-xl font-bold font-headline text-white tracking-wide">
+                  Deposit to Protocol Treasury
+                </h2>
+                <span className="px-3 py-0.5 rounded-full text-xs font-bold font-headline bg-gradient-to-r from-[#D4AF37]/25 to-[#f59e0b]/25 text-[#D4AF37] border border-[#D4AF37]/50 shadow-sm">
+                  5.00 USDT
                 </span>
-              </h2>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 font-body mt-0.5">
+                Official Golden Hawk Mining Rig Activation Vault
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={isVerifying || isSendingWeb3}
-            className="p-2 rounded-xl text-[#94a3b8] hover:text-white hover:bg-[#122130] transition-colors"
+            className="p-2 rounded-xl text-[#94a3b8] hover:text-white hover:bg-[#122130] transition-colors cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <span className="material-symbols-outlined text-[22px]">close</span>
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-5 sm:p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <div className="p-5 sm:p-6 space-y-4 max-h-[75vh] overflow-y-auto">
           {/* SUCCESS SCREEN */}
           {successData ? (
             <div className="p-6 rounded-2xl bg-[#072418] border border-emerald-500/50 space-y-4 text-center animate-in zoom-in-95 duration-200">
@@ -393,209 +405,206 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                 <span className="material-symbols-outlined text-[36px]">check_circle</span>
               </div>
               <div>
-                <h3 className="text-xl font-bold font-headline text-emerald-400">
+                <h3 className="text-xl sm:text-2xl font-bold font-headline text-emerald-400">
                   +$5.00 USDT Deposited to Treasury!
                 </h3>
-                <p className="text-xs text-emerald-200/80 font-mono mt-1">
-                  Step 1 Completed. Funds deposited to Official Protocol Treasury Vault.
+                <p className="text-xs sm:text-sm text-emerald-200/90 font-body mt-1">
+                  Activation Completed. Funds securely credited to the Official Protocol Treasury Vault.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#041710] border border-emerald-500/30 text-left space-y-2 text-xs font-mono">
-                <div className="flex justify-between items-center text-[#94a3b8]">
+              <div className="p-4 rounded-xl bg-[#041710] border border-emerald-500/30 text-left space-y-2.5 text-xs sm:text-sm font-body">
+                <div className="flex justify-between items-center text-slate-300">
                   <span>Your Remaining Wallet Balance:</span>
-                  <span className="text-[#00F0FF] font-bold text-sm">
+                  <span className="text-[#00F0FF] font-bold font-headline text-base">
                     {successData.newBalance.toFixed(2)} USDT
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-[#94a3b8]">
+                <div className="flex justify-between items-center text-slate-300">
                   <span>Mining Protocol Status:</span>
-                  <span className="text-emerald-400 font-bold flex items-center gap-1.5">
+                  <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span>Mining Rig Activated (24h Cycle Started)</span>
+                    <span>Golden Hawk Mining Active (24h Rewards Ready)</span>
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-[#94a3b8]">
+                <div className="flex justify-between items-center text-slate-300">
                   <span>Consensus Verification:</span>
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1 font-mono">
-                    <span className="material-symbols-outlined text-[14px]">verified</span>
+                  <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">verified</span>
                     <span>On-Chain Verified (BNB Smart Chain)</span>
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-[#94a3b8]">
+                <div className="flex justify-between items-center text-slate-300">
                   <span>Treasury Destination:</span>
-                  <span className="text-white font-mono flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="text-white font-medium flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
                     <span>Official Protocol Treasury Vault</span>
                   </span>
                 </div>
+                {successData.txHash && (
+                  <div className="flex justify-between items-center text-slate-300 pt-1.5 border-t border-emerald-500/20">
+                    <span>Transaction Hash:</span>
+                    <a
+                      href={`https://bscscan.com/tx/${successData.txHash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#00F0FF] hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <span>{successData.txHash.slice(0, 10)}...{successData.txHash.slice(-6)}</span>
+                      <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+                    </a>
+                  </div>
+                )}
               </div>
 
               <button
+                type="button"
                 onClick={onClose}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00F0FF] hover:opacity-90 text-[#051424] font-headline font-bold text-sm shadow-[0_0_20px_rgba(52,211,153,0.4)] transition-all hover:scale-[1.01]"
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00F0FF] hover:opacity-90 text-[#051424] font-headline font-bold text-sm sm:text-base shadow-[0_0_20px_rgba(52,211,153,0.4)] transition-all hover:scale-[1.01] cursor-pointer"
               >
                 Go to Live Mining Engine (24h Claim Ready)
               </button>
             </div>
           ) : (
             <>
-              {/* Project Flow Banner */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#D4AF37]/15 via-[#0c1d2e] to-[#00F0FF]/15 border border-[#D4AF37]/40 flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <div className="text-[11px] font-mono uppercase text-[#D4AF37] font-bold tracking-wider">
-                    Step 1 Deposit Amount
-                  </div>
-                  <div className="text-2xl font-black font-headline text-white flex items-baseline gap-1.5">
-                    <span>5.00</span>
-                    <span className="text-sm font-bold text-[#00F0FF]">USDT</span>
-                  </div>
-                </div>
-                <div className="text-right space-y-0.5">
-                  <div className="text-[11px] font-mono text-amber-300 font-bold uppercase tracking-wider">
-                    Destination
-                  </div>
-                  <div className="text-sm font-bold font-headline text-white flex items-center gap-1 justify-end">
-                    <span>Official Treasury Vault</span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  </div>
-                  <div className="text-[10px] text-[#94a3b8] font-mono">
-                    Total Project Cost: 15$ USDT (5$ + 10$)
-                  </div>
-                </div>
-              </div>
+              {/* Premium Luxury Treasury Allocation Card */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#0c233c] via-[#08182b] to-[#050f1d] border border-[#D4AF37]/40 shadow-inner space-y-3.5 relative overflow-hidden">
+                <div className="absolute -right-8 -top-8 w-28 h-28 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="absolute -left-8 -bottom-8 w-28 h-28 bg-[#00F0FF]/10 rounded-full blur-2xl pointer-events-none" />
 
-              {/* Protocol Treasury Vault (Managed via Backend Routing) */}
-              <div className="p-4 rounded-2xl bg-[#071727] border border-[#1c2b3b] space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-[#94a3b8] font-mono uppercase font-bold flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[15px] text-[#D4AF37]">shield</span>
-                    <span>Protocol Treasury Destination</span>
+                <div className="flex items-center justify-between relative z-10">
+                  <span className="text-[#D4AF37] flex items-center gap-2 uppercase font-bold tracking-wider text-xs font-headline">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#D4AF37] animate-pulse" />
+                    <span>Treasury Fund Allocation</span>
                   </span>
-                  <span className="text-emerald-400 font-mono text-[11px] font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Backend Routed
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold font-body bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+                    <span className="material-symbols-outlined text-[15px]">verified</span>
+                    <span>BEP-20 Verified Protocol</span>
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-[#040e1a] border border-[#1c2b3b]/70 flex items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <div className="text-xs text-white font-medium flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[14px] text-emerald-400">verified_user</span>
-                      <span>Company Official Protocol Vault</span>
-                    </div>
-                    <div className="text-[10px] text-[#94a3b8] font-mono">
-                      Decentralized BEP-20 transfer routes to protocol treasury to initiate mining.
-                    </div>
+
+                <div className="pt-1 relative z-10">
+                  <div className="text-4xl sm:text-5xl font-extrabold font-headline text-white tracking-tight flex items-baseline gap-2.5">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-[#D4AF37]">
+                      5.00
+                    </span>
+                    <span className="text-xl font-bold font-headline text-[#00F0FF]">USDT</span>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 shrink-0 font-bold">
-                    NON-CLAIMABLE
-                  </span>
+                  <p className="text-xs sm:text-sm text-slate-200 font-body mt-2 leading-relaxed">
+                    Direct protocol treasury liquidity required to activate your high-yield Golden Hawk mining rig and lock daily reward consensus.
+                  </p>
                 </div>
               </div>
 
               {/* Real-Time Auto-Verification Live Radar */}
               {(isSendingWeb3 || isVerifying) && (
-                <div className="p-3.5 rounded-xl bg-[#041926] border border-[#00F0FF]/40 space-y-2.5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between text-xs font-headline font-bold text-[#00F0FF]">
+                <div className="p-4 rounded-2xl bg-[#041926] border border-[#00F0FF]/40 space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between text-xs sm:text-sm font-headline font-bold text-[#00F0FF]">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full bg-[#00F0FF] animate-ping" />
                       <span>Live Blockchain Verification in Progress</span>
                     </div>
-                    <span className="text-[10px] font-mono text-emerald-400 animate-pulse">Syncing...</span>
+                    <span className="text-xs font-body font-semibold text-emerald-400 animate-pulse">Syncing...</span>
                   </div>
 
-                  <div className="space-y-1.5 text-[11px] font-mono">
-                    <div className="flex items-center gap-2 text-white">
-                      <span className="material-symbols-outlined text-emerald-400 text-[14px]">check_circle</span>
+                  <div className="space-y-2 text-xs sm:text-sm font-body text-slate-200">
+                    <div className="flex items-center gap-2.5 text-white font-medium">
+                      <span className="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
                       <span>1. Wallet Authorization</span>
                     </div>
-                    <div className="flex items-center gap-2 text-white">
+                    <div className="flex items-center gap-2.5 text-white font-medium">
                       {verificationStage >= 2 ? (
-                        <span className="material-symbols-outlined text-emerald-400 text-[14px]">check_circle</span>
+                        <span className="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
                       ) : (
-                        <div className="w-3.5 h-3.5 border-2 border-[#00F0FF] border-t-transparent rounded-full animate-spin shrink-0" />
+                        <div className="w-4 h-4 border-2 border-[#00F0FF] border-t-transparent rounded-full animate-spin shrink-0" />
                       )}
                       <span>2. Broadcasting to BNB Smart Chain</span>
                     </div>
-                    <div className="flex items-center gap-2 text-white">
+                    <div className="flex items-center gap-2.5 text-white font-medium">
                       {verificationStage >= 3 ? (
-                        <span className="material-symbols-outlined text-emerald-400 text-[14px]">check_circle</span>
+                        <span className="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
                       ) : (
-                        <div className={`w-3.5 h-3.5 ${verificationStage === 2 ? 'border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin' : 'border border-gray-600 rounded-full'} shrink-0`} />
+                        <div className={`w-4 h-4 ${verificationStage === 2 ? 'border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin' : 'border border-gray-600 rounded-full'} shrink-0`} />
                       )}
                       <span>3. Node Consensus &amp; Receipt Verification</span>
                     </div>
-                    <div className="flex items-center gap-2 text-white">
+                    <div className="flex items-center gap-2.5 text-white font-medium">
                       {verificationStage >= 4 ? (
-                        <span className="material-symbols-outlined text-emerald-400 text-[14px]">check_circle</span>
+                        <span className="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
                       ) : (
-                        <div className="w-3.5 h-3.5 border border-gray-600 rounded-full shrink-0" />
+                        <div className="w-4 h-4 border border-gray-600 rounded-full shrink-0" />
                       )}
-                      <span>4. Depositing $5.00 USDT into Protocol Treasury</span>
+                      <span>4. Crediting $5.00 USDT into Protocol Treasury</span>
                     </div>
                   </div>
 
-                  <div className="text-[10px] text-[#00F0FF] font-mono text-center pt-1 animate-pulse">
+                  <div className="text-xs sm:text-sm text-[#00F0FF] font-body font-medium text-center pt-1 animate-pulse">
                     {verificationMessage || 'Querying BSC RPC validator nodes for block confirmation...'}
                   </div>
                 </div>
               )}
 
-              {/* ACTION OPTION 1: Automatic 1-Click Send via Connected Wallet */}
-              <div className="space-y-2">
-                <div className="text-xs font-headline font-bold text-white flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">bolt</span>
-                    <span>Option 1: Direct Transfer via Connected Wallet</span>
+              {/* PRIMARY ACTION: 1-Click Send via Connected Wallet */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between text-xs sm:text-sm font-headline font-bold text-white px-1">
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-[#D4AF37]">bolt</span>
+                    <span>Option 1: Instant Transfer via Connected Wallet</span>
                   </span>
-                  <span className="text-[10px] font-mono text-[#94a3b8]">Auto-Signed</span>
+                  <span className="text-xs font-body font-medium text-emerald-400 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Auto-Sign &amp; Verify</span>
+                  </span>
                 </div>
+
                 <button
+                  type="button"
                   onClick={handleSendViaWeb3}
                   disabled={isSendingWeb3 || isVerifying}
-                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF] via-[#38e8f8] to-[#D4AF37] hover:brightness-110 text-[#0A0F1D] font-headline font-extrabold text-sm shadow-[0_0_25px_rgba(0,240,255,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+                  className="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-[#D4AF37] via-[#f59e0b] to-[#00F0FF] hover:brightness-110 text-[#0A0F1D] font-headline font-extrabold text-sm sm:text-base shadow-[0_0_35px_rgba(212,175,55,0.4)] transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
                 >
                   {isSendingWeb3 ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
                       <span>Verifying on Blockchain...</span>
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-[20px]">account_balance_wallet</span>
-                      <span>Send 5 USDT to Treasury (Step 1)</span>
+                      <span className="material-symbols-outlined text-[22px] font-bold">account_balance_wallet</span>
+                      <span>Deposit 5.00 USDT to Treasury</span>
                     </>
                   )}
                 </button>
-                <p className="text-[10px] text-[#94a3b8] font-mono text-center">
-                  Prompts your connected Web3 wallet (MetaMask/Trust Wallet) &bull; Automatically verifies hash upon submission
-                </p>
+                <div className="flex items-center justify-between px-1.5 text-xs text-slate-300 font-body">
+                  <span>Supported: MetaMask &bull; TrustWallet &bull; Web3</span>
+                  <span className="text-emerald-400 font-semibold">Zero Protocol Fee</span>
+                </div>
               </div>
 
               {/* DIVIDER */}
-              <div className="relative flex items-center justify-center my-3">
-                <div className="border-t border-[#1c2b3b] w-full" />
-                <span className="bg-[#0a1626] px-3 text-[10px] font-mono text-[#94a3b8] uppercase tracking-widest shrink-0">
-                  OR AUTO-VERIFY TRANSACTION HASH
+              <div className="relative flex items-center justify-center my-2">
+                <div className="border-t border-[#1c2b3b]/90 w-full" />
+                <span className="bg-[#071322] px-4 text-xs font-headline font-semibold text-slate-400 uppercase tracking-wider shrink-0">
+                  Or Manual Hash Auto-Verification
                 </span>
               </div>
 
-              {/* ACTION OPTION 2: Enter Transaction Hash with Instant Auto-Detect */}
-              <div className="p-4 rounded-2xl bg-[#0d1d2c]/60 border border-[#1c2b3b] space-y-3">
+              {/* SECONDARY ACTION: Auto-Verify Transaction Hash */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#071729]/80 border border-[#1c2b3b] space-y-3.5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-headline font-semibold text-white flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[16px] text-emerald-400">verified</span>
-                    <span>Option 2: Auto-Verify Transaction Hash (TxID)</span>
+                  <span className="text-xs sm:text-sm font-headline font-bold text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-emerald-400">verified</span>
+                    <span>Option 2: Verify On-Chain Transaction Hash (TxID)</span>
                   </span>
-                  <span className="px-2 py-0.5 rounded text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-body font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     <span>Auto-Detects 66-Char Hash</span>
                   </span>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-mono text-[#94a3b8]">
+                    <label className="text-xs sm:text-sm font-body text-slate-300 font-medium">
                       Enter BEP-20 Transaction Hash:
                     </label>
                     <button
@@ -610,9 +619,9 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                           // Clipboard permission denied or unavailable
                         }
                       }}
-                      className="text-[10px] font-mono text-[#00F0FF] hover:underline flex items-center gap-0.5 cursor-pointer"
+                      className="text-xs font-body font-semibold text-[#00F0FF] hover:underline flex items-center gap-1 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[13px]">content_paste</span>
+                      <span className="material-symbols-outlined text-[15px]">content_paste</span>
                       <span>Paste from Clipboard</span>
                     </button>
                   </div>
@@ -621,30 +630,31 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                     value={txHashInput}
                     onChange={(e) => setTxHashInput(e.target.value)}
                     placeholder="0x4a8b... (Pasting auto-triggers on-chain verification)"
-                    className="w-full bg-[#051424] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder:text-gray-600 outline-none transition-colors"
+                    className="w-full bg-[#040e1a] border border-[#1c2b3b] focus:border-[#D4AF37] rounded-xl px-4 py-3 text-xs sm:text-sm font-body text-white placeholder:text-gray-500 outline-none transition-colors"
                   />
                   {txHashInput.trim().length === 66 && (
-                    <p className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 animate-in fade-in">
-                      <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                    <p className="text-xs text-emerald-400 font-body flex items-center gap-1.5 animate-in fade-in">
+                      <span className="material-symbols-outlined text-[15px]">check_circle</span>
                       <span>Valid 66-character BEP-20 TxID detected &bull; Auto-verifying...</span>
                     </p>
                   )}
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => handleVerifyHash()}
                   disabled={isVerifying || isSendingWeb3 || !txHashInput.trim()}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#00F0FF]/50 text-[#00F0FF] hover:text-white font-headline font-bold text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                  className="w-full py-3 px-4 rounded-xl bg-[#102235] hover:bg-[#162d46] border border-[#D4AF37]/50 text-[#D4AF37] hover:text-white font-headline font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 cursor-pointer"
                 >
                   {isVerifying ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-[#00F0FF] border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
                       <span>Auto-Verifying on Blockchain &amp; Crediting $5 to Treasury...</span>
                     </>
                   ) : (
                     <>
-                      <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                      <span>Auto-Verify Hash &amp; Credit $5 to Protocol Treasury</span>
+                      <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                      <span>Verify Hash &amp; Credit $5 to Protocol Treasury</span>
                     </>
                   )}
                 </button>
@@ -652,8 +662,8 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
 
               {/* Error Message */}
               {errorMsg && (
-                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono flex items-start gap-2 animate-in fade-in">
-                  <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span>
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs sm:text-sm font-body flex items-start gap-2.5 animate-in fade-in">
+                  <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">error</span>
                   <span className="break-words">{errorMsg}</span>
                 </div>
               )}
@@ -662,9 +672,14 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
         </div>
 
         {/* Footer info */}
-        <div className="p-4 bg-[#051424] border-t border-[#1c2b3b] text-center text-[10px] text-[#94a3b8] font-mono flex items-center justify-between">
-          <span>Connected: {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Not Connected'}</span>
-          <span>Mining Balance: <strong className="text-[#00F0FF]">{walletBalance.toFixed(2)} USDT</strong></span>
+        <div className="p-4 bg-[#040e1a] border-t border-[#1c2b3b] text-xs text-slate-300 font-body flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>Connected: <strong className="text-white font-semibold">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Not Connected'}</strong></span>
+          </span>
+          <span className="text-slate-300">
+            Network: <strong className="text-white font-semibold">BNB Smart Chain (BEP-20)</strong>
+          </span>
         </div>
       </div>
     </div>

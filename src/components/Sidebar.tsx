@@ -26,8 +26,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems: { id: TabType; label: string; icon: string; count?: number; badge?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'mining-nodes', label: 'Mining Nodes', icon: 'dns', count: nodeCount },
-    { id: 'referrals', label: 'Referral system', icon: 'groups', badge: 'REWARDS' },
-    { id: 'swap', label: 'Swap (DEX)', icon: 'swap_horiz', badge: 'AMM' },
+    { id: 'referrals', label: 'Referral system', icon: 'groups' },
+    { id: 'swap', label: 'Swap (DEX)', icon: 'swap_horiz' },
     ...(isAdmin
       ? [
           {
@@ -64,7 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="text-2xl font-extrabold tracking-[0.14em] text-[#D4AF37] font-headline drop-shadow-[0_2px_10px_rgba(212,175,55,0.25)]">
             SPIKE
           </span>
-          <span className="text-[10px] tracking-[0.22em] uppercase text-[#94a3b8] font-mono -mt-0.5 font-medium">
+          <span className="text-xs tracking-wider uppercase text-slate-400 font-body -mt-0.5 font-semibold">
             Mining Protocol
           </span>
         </div>
@@ -104,13 +104,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-headline tracking-wide">{item.label}</span>
               </div>
               {item.badge && (
-                <span className="text-[9px] px-2 py-0.5 rounded-full font-mono font-extrabold bg-gradient-to-r from-[#D4AF37] to-[#00F0FF] text-[#0A0F1D] shadow-[0_0_12px_rgba(212,175,55,0.4)] animate-pulse tracking-tight whitespace-nowrap">
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-headline font-extrabold bg-gradient-to-r from-[#D4AF37] to-[#00F0FF] text-[#0A0F1D] shadow-[0_0_12px_rgba(212,175,55,0.4)] animate-pulse tracking-tight whitespace-nowrap">
                   {item.badge}
                 </span>
               )}
               {item.count !== undefined && !item.badge && (
                 <span
-                  className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold tabular-nums ${
+                  className={`text-xs px-2.5 py-0.5 rounded-full font-headline font-bold tabular-nums ${
                     isActive ? 'bg-[#00F0FF]/20 text-[#00F0FF]' : 'bg-[#1c2b3b] text-[#94a3b8]'
                   }`}
                 >
@@ -124,23 +124,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* BSC Network Telemetry Footer */}
       <div className="px-4 mt-auto">
-        <div className="p-3.5 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]/60 flex flex-col gap-2">
+        <div className="p-3.5 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]/60 flex flex-col gap-2 font-body">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-[0.16em] text-[#94a3b8] font-mono font-medium">
+            <span className="text-xs uppercase tracking-wider text-slate-400 font-body font-semibold">
               BSC Validator
             </span>
-            <span className="flex items-center gap-1.5 text-[11px] text-[#7df4ff] font-medium">
+            <span className="flex items-center gap-1.5 text-xs text-[#7df4ff] font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse"></span>
               Synchronized
             </span>
           </div>
           <div className="text-xs text-[#d4e4fa] font-mono flex items-center justify-between">
-            <span className="text-[#94a3b8]/70">Block:</span>
+            <span className="text-slate-400">Block:</span>
             <span className="text-[#00F0FF] font-semibold tabular-nums">#38,419,204</span>
           </div>
-          <div className="text-[10px] text-[#94a3b8]/60 flex items-center justify-between pt-1 border-t border-[#1c2b3b]/40">
+          <div className="text-xs text-slate-400 flex items-center justify-between pt-1.5 border-t border-[#1c2b3b]/40">
             <span>CertiK Security:</span>
-            <span className="text-[#D4AF37] font-semibold tracking-wide">Level 2 Verified</span>
+            <span className="text-[#D4AF37] font-semibold tracking-wide font-headline">Level 2 Verified</span>
           </div>
         </div>
       </div>

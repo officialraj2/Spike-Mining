@@ -742,16 +742,16 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 )}
 
                 {/* Active Hashrate Floating Badge directly on the Mining Ring */}
-                <div className={`absolute bottom-2.5 left-1/2 -translate-x-1/2 z-30 bg-[#061424]/90 backdrop-blur-md border px-3 py-1 rounded-full flex items-center gap-1.5 whitespace-nowrap ${
+                <div className={`absolute bottom-2.5 left-1/2 -translate-x-1/2 z-30 bg-[#061424]/90 backdrop-blur-md border px-3.5 py-1.5 rounded-full flex items-center gap-2 whitespace-nowrap shadow-lg ${
                   is24hComplete
                     ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse'
                     : 'border-[#00F0FF]/50 shadow-[0_0_15px_rgba(0,240,255,0.4)]'
                 }`}>
                   <span className={`w-2 h-2 rounded-full animate-pulse ${is24hComplete ? 'bg-amber-400' : 'bg-[#00F0FF]'}`}></span>
-                  <span className={`text-[11px] font-mono font-extrabold tabular-nums tracking-wide ${is24hComplete ? 'text-amber-300' : 'text-[#00F0FF]'}`}>
+                  <span className={`text-xs font-headline font-extrabold tabular-nums tracking-wide ${is24hComplete ? 'text-amber-300' : 'text-[#00F0FF]'}`}>
                     {is24hComplete ? '24H STOPPED' : `${activeHashrate} ${activeUnit}`}
                   </span>
-                  <span className="text-[9px] font-mono text-[#D4AF37] uppercase font-bold">
+                  <span className="text-xs font-headline text-[#D4AF37] uppercase font-bold">
                     {is24hComplete ? 'CLAIM TO RESUME' : activeLevel}
                   </span>
                 </div>
@@ -912,37 +912,29 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         <div className="lg:col-span-6 space-y-5">
           {/* Main Hash Power & Live Rate Card */}
           <div className="bg-[#051424] rounded-2xl p-5 md:p-6 border border-[#1c2b3b] shadow-inner space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+                  <span className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
                     Active Hashrate Tier
                   </span>
-                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
-                    hashrateInfo?.isCustomOverride
-                      ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
-                      : 'bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30'
-                  }`}>
-                    {hashrateInfo?.level || 'Fresh user'}
-                    {hashrateInfo?.isCustomOverride ? ' (Admin Lock)' : ''}
-                  </span>
                 </div>
-                <div className="text-3xl sm:text-4xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight flex items-baseline gap-2">
+                <div className="text-3xl sm:text-4xl font-extrabold font-headline text-white mt-1.5 tabular-nums tracking-tight flex items-baseline gap-2">
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-[#7df4ff] to-[#00F0FF]">
                     {hashrateInfo?.hashrate ?? 100}
                   </span>
                   <span className="text-base sm:text-lg text-[#00F0FF] font-semibold">VH/s</span>
-                  <span className="text-xs text-[#94a3b8] font-mono font-normal">
+                  <span className="text-xs text-slate-400 font-body font-normal">
                     ({effectiveHashrate > 0 ? effectiveHashrate.toFixed(1) : '12.5'} TH/s cluster)
                   </span>
                 </div>
-                <div className="text-[11px] font-mono text-[#D4AF37] mt-1 flex items-center gap-2">
+                <div className="text-xs font-body text-[#D4AF37] font-semibold mt-1 flex items-center gap-2">
                   <span>{hashrateInfo?.directCount ?? 0} Direct Referrals</span>
                 </div>
               </div>
 
               {/* Live Hash Equalizer Visualizer (Active only during active 24h mining) */}
-              <div className="flex items-end gap-1 h-10 px-3 py-1 rounded-lg bg-[#0c1d2e] border border-[#1c2b3b]">
+              <div className="flex items-end gap-1.5 h-10 px-3.5 py-1.5 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
                 {[40, 70, 95, 60, 85, 100, 75, 90, 65, 80].map((h, i) => (
                   <div
                     key={i}
@@ -968,7 +960,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             </div>
 
             {/* Accrued Mining Loot Box (Selected Element Redesign) */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#081525] via-[#091829] to-[#050f1b] border border-[#1d354d] p-5 shadow-[0_8px_32px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(0,240,255,0.15)] transition-all space-y-4">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#081525] via-[#091829] to-[#050f1b] border border-[#1d354d] p-5 sm:p-6 shadow-[0_8px_32px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(0,240,255,0.15)] transition-all space-y-4">
               {/* Subtle Ambient Energy Highlight */}
               <div className="absolute top-0 right-0 w-64 h-24 bg-gradient-to-bl from-[#00F0FF]/10 via-[#D4AF37]/5 to-transparent blur-2xl pointer-events-none" />
 
@@ -977,10 +969,10 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 {/* Left 7 Cols: Yield Output */}
                 <div className="md:col-span-7 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+                    <span className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
                       Available Mined Reward
                     </span>
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
+                    <span className="text-xs font-headline font-bold px-2.5 py-0.5 rounded-full bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
                       Tier: {activeLevel}
                     </span>
                   </div>
@@ -990,7 +982,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                       +{currentMinedSpk.toFixed(5)}
                     </span>
                     <span className="text-lg font-bold font-headline text-[#D4AF37]">SPK</span>
-                    <span className="text-xs font-mono text-emerald-400 font-semibold">
+                    <span className="text-xs font-body text-emerald-400 font-bold">
                       (≈ ${currentMinedUsdt.toFixed(4)} USDT)
                     </span>
                   </div>
@@ -1002,9 +994,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                     <div className="w-full flex flex-col items-stretch md:items-end gap-1.5">
                       <button
                         onClick={onOpenDepositModal}
-                        className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-102 cursor-pointer active:scale-95"
+                        className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-102 cursor-pointer active:scale-95"
                       >
-                        <span className="material-symbols-outlined text-[16px]">payments</span>
+                        <span className="material-symbols-outlined text-[18px]">payments</span>
                         <span>Deposit 5 USDT to Start 24h Mining</span>
                       </button>
                     </div>
@@ -1018,12 +1010,12 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                         <span className="material-symbols-outlined text-[16px] text-amber-400 animate-spin" style={{ animationDuration: '4s' }}>
                           hourglass_top
                         </span>
-                        <span className="font-mono">
-                          Mining Active · Stops in <strong className="text-white font-bold">{formatCountdown(secondsRemaining)}</strong>
+                        <span className="font-body">
+                          Mining Active · Stops in <strong className="text-white font-bold font-mono">{formatCountdown(secondsRemaining)}</strong>
                         </span>
                       </button>
 
-                      <div className="text-[10px] font-mono text-[#94a3b8] text-center md:text-right">
+                      <div className="text-xs font-body text-slate-400 text-center md:text-right">
                         Auto-stops at 24h · Claim rewards to restart mining
                       </div>
 
@@ -1034,10 +1026,10 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                             setSecondsRemaining(0);
                             setCycleStartTime(Date.now() - 86400000);
                           }}
-                          className="inline-flex items-center gap-1 text-[10px] text-[#00F0FF]/80 hover:text-[#00F0FF] hover:underline font-mono cursor-pointer transition-colors self-center md:self-end pt-0.5"
+                          className="inline-flex items-center gap-1 text-xs text-[#00F0FF]/90 hover:text-[#00F0FF] hover:underline font-body cursor-pointer transition-colors self-center md:self-end pt-0.5"
                           title="Root Wallet Testing: Fast-forward 24h countdown to test 24h cycle halt & claim"
                         >
-                          <span className="material-symbols-outlined text-[12px]">bolt</span>
+                          <span className="material-symbols-outlined text-[14px]">bolt</span>
                           <span>⚡ Fast-Forward 24h (Test Stop &amp; Claim)</span>
                         </button>
                       )}
@@ -1047,7 +1039,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                       <button
                         onClick={() => setShowApprovalModal(true)}
                         disabled={isAutoBuying}
-                        className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:brightness-110 text-[#0A0F1D] font-headline font-extrabold text-xs transition-all flex items-center justify-center gap-2 shadow-[0_0_35px_rgba(212,175,55,0.85),0_0_55px_rgba(0,240,255,0.35)] border-2 border-[#ffe088] cursor-pointer active:scale-95 hover:scale-102 animate-pulse"
+                        className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:brightness-110 text-[#0A0F1D] font-headline font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_35px_rgba(212,175,55,0.85),0_0_55px_rgba(0,240,255,0.35)] border-2 border-[#ffe088] cursor-pointer active:scale-95 hover:scale-102 animate-pulse"
                       >
                         {isAutoBuying ? (
                           <>
@@ -1066,8 +1058,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                         )}
                       </button>
 
-                      <div className="text-[10px] font-mono text-emerald-400 font-semibold text-center md:text-right flex items-center justify-center md:justify-end gap-1">
-                        <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                      <div className="text-xs font-body text-emerald-400 font-semibold text-center md:text-right flex items-center justify-center md:justify-end gap-1">
+                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
                         <span>Claim via Nodescan Engine &amp; Smart Contract</span>
                       </div>
 
@@ -1084,10 +1076,10 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                               }
                             } catch {}
                           }}
-                          className="inline-flex items-center gap-1 text-[10px] text-amber-400/80 hover:text-amber-300 hover:underline font-mono cursor-pointer transition-colors self-center md:self-end pt-0.5"
+                          className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-300 hover:underline font-body cursor-pointer transition-colors self-center md:self-end pt-0.5"
                           title="Root Wallet Testing: Re-arm fresh 24h countdown without claiming"
                         >
-                          <span className="material-symbols-outlined text-[12px]">replay</span>
+                          <span className="material-symbols-outlined text-[14px]">replay</span>
                           <span>Re-arm 24h Timer (Root Test)</span>
                         </button>
                       )}
@@ -1098,14 +1090,14 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
               {/* Progress Bar & Real-time Stratum Telemetry */}
               <div className="pt-3 border-t border-[#182a3d] space-y-2">
-                <div className="flex items-center justify-between text-[11px] font-mono text-[#94a3b8]">
+                <div className="flex items-center justify-between text-xs font-body text-[#94a3b8]">
                   <div className="flex items-center gap-2">
-                    <span className="text-[#00F0FF] font-bold">24-Hour Cycle Progress:</span>
-                    <span className="text-white font-bold">{cycleProgressPct.toFixed(1)}%</span>
+                    <span className="text-[#00F0FF] font-semibold">24-Hour Cycle Progress:</span>
+                    <span className="text-white font-bold font-mono">{cycleProgressPct.toFixed(1)}%</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-400">Target 24h Cap:</span>
-                    <span className="text-[#D4AF37] font-bold">{dailySpkYield} SPK</span>
+                    <span className="text-slate-400 font-medium">Target 24h Cap:</span>
+                    <span className="text-[#D4AF37] font-bold font-headline">{dailySpkYield} SPK</span>
                   </div>
                 </div>
 
@@ -1126,7 +1118,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
                 {/* Real-time Claim Status Notification */}
                 {autoBuyNotice && lastAutoBuyTx && (
-                  <div className="mt-2.5 p-3 rounded-xl bg-emerald-950/70 border border-emerald-500/50 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-emerald-300 shadow-md">
+                  <div className="mt-2.5 p-3 rounded-xl bg-emerald-950/70 border border-emerald-500/50 flex flex-wrap items-center justify-between gap-2 text-xs font-body text-emerald-300 shadow-md">
                     <div className="flex items-center gap-2">
                       <span className="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
                       <span>{autoBuyNotice}</span>
@@ -1135,10 +1127,10 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                       href={`https://bscscan.com/tx/${lastAutoBuyTx.txHash}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[#00F0FF] hover:underline flex items-center gap-1 font-bold text-[11px]"
+                      className="text-[#00F0FF] hover:underline flex items-center gap-1 font-bold text-xs font-mono"
                     >
                       <span>BSCScan: {lastAutoBuyTx.txHash?.substring(0, 10)}...</span>
-                      <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                     </a>
                   </div>
                 )}
@@ -1146,45 +1138,45 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             </div>
 
             {/* 3 Telemetry Metrics */}
-            <div className="grid grid-cols-3 gap-3 text-center text-xs">
-              <div className="p-2.5 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
-                <div className="text-[10px] text-[#94a3b8] font-mono uppercase">ASIC Temp</div>
-                <div className="text-sm font-bold font-mono text-emerald-400 mt-0.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
+              <div className="p-3 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
+                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">ASIC Temp</div>
+                <div className="text-sm font-bold font-headline text-emerald-400 mt-1">
                   {isTurbo ? '71°C' : '64°C'}
                 </div>
-                <div className="text-[9px] text-[#94a3b8]">Optimal Gold Zone</div>
+                <div className="text-xs text-slate-400 font-body mt-0.5">Optimal Gold Zone</div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
-                <div className="text-[10px] text-[#94a3b8] font-mono uppercase">Share Acceptance</div>
-                <div className="text-sm font-bold font-mono text-[#00F0FF] mt-0.5">99.98%</div>
-                <div className="text-[9px] text-[#94a3b8]">{sharesCount.toLocaleString()} shares</div>
+              <div className="p-3 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
+                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Share Acceptance</div>
+                <div className="text-sm font-bold font-headline text-[#00F0FF] mt-1">99.98%</div>
+                <div className="text-xs text-slate-400 font-body mt-0.5">{sharesCount.toLocaleString()} shares</div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
-                <div className="text-[10px] text-[#94a3b8] font-mono uppercase">Stratum Latency</div>
-                <div className="text-sm font-bold font-mono text-[#D4AF37] mt-0.5">18ms</div>
-                <div className="text-[9px] text-[#94a3b8]">BNB Smart Chain</div>
+              <div className="p-3 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
+                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Stratum Latency</div>
+                <div className="text-sm font-bold font-headline text-[#D4AF37] mt-1">18ms</div>
+                <div className="text-xs text-slate-400 font-body mt-0.5">BNB Smart Chain</div>
               </div>
             </div>
           </div>
 
           {/* Quick Action Footer */}
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#94a3b8] pt-1">
-            <div className="flex items-center gap-1.5 font-mono text-[11px]">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#94a3b8] pt-1 font-body">
+            <div className="flex items-center gap-1.5 font-body text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>Algorithm: SHA-256 (Stratum+SSL)</span>
               <span>·</span>
-              <span className="text-[#00F0FF]">Zero Slashing Guarantee</span>
+              <span className="text-[#00F0FF] font-semibold">Zero Slashing Guarantee</span>
             </div>
 
             {onDeployMoreNodes && (
               <button
                 onClick={onDeployMoreNodes}
-                className="text-[#00F0FF] hover:underline font-headline font-bold flex items-center gap-1"
+                className="text-[#00F0FF] hover:underline font-headline font-bold flex items-center gap-1 cursor-pointer"
               >
                 <span>Deploy Additional ASIC Nodes ($15)</span>
-                <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
               </button>
             )}
           </div>
@@ -1205,7 +1197,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 </div>
                 <div>
                   <h3 className="font-headline font-bold text-base text-white">Claim Mined SPIKE</h3>
-                  <p className="text-[11px] text-[#00F0FF] font-mono">Nodescan V3 Routing Engine</p>
+                  <p className="text-xs text-[#00F0FF] font-body font-medium">Nodescan V3 Routing Engine</p>
                 </div>
               </div>
               <button
@@ -1216,30 +1208,30 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               </button>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-[#061423] border border-[#1c2b3b] space-y-2.5 font-mono text-xs">
+            <div className="p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] space-y-2.5 font-body text-xs">
               <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Routing Action:</span>
-                <span className="text-emerald-400 font-bold">claimTokensForNodescan</span>
+                <span className="text-emerald-400 font-bold font-mono">claimTokensForNodescan</span>
               </div>
               <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Tokens to Receive:</span>
-                <span className="text-emerald-400 font-extrabold text-sm">
+                <span className="text-emerald-400 font-extrabold text-sm font-headline">
                   +{(is24hComplete ? dailySpkYield : (currentMinedSpk > 0 ? currentMinedSpk : dailySpkYield)).toFixed(5)} SPK
                 </span>
               </div>
               <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Liquidity Value:</span>
-                <span className="text-[#D4AF37] font-bold">
+                <span className="text-[#D4AF37] font-bold font-headline">
                   ≈ ${(((is24hComplete ? dailySpkYield : (currentMinedSpk > 0 ? currentMinedSpk : dailySpkYield))) * 1.12).toFixed(4)} USDT
                 </span>
               </div>
               <div className="flex items-center justify-between text-[#94a3b8]">
                 <span>Beneficiary Wallet:</span>
-                <span className="text-white truncate max-w-[170px]">
+                <span className="text-white truncate max-w-[170px] font-mono">
                   {walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2'}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-[#94a3b8] pt-1 border-t border-[#1c2b3b]/60">
+              <div className="flex items-center justify-between text-[#94a3b8] pt-1.5 border-t border-[#1c2b3b]/60">
                 <span>Network Gas:</span>
                 <span className="text-emerald-400 font-semibold">Sponsored · 0.00015 BNB ($0.09)</span>
               </div>
@@ -1248,7 +1240,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             <div className="flex items-center gap-3 pt-1">
               <button
                 onClick={() => setShowApprovalModal(false)}
-                className="flex-1 py-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#94a3b8] hover:text-white font-headline text-xs font-semibold cursor-pointer transition-colors"
+                className="flex-1 py-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#94a3b8] hover:text-white font-headline text-xs sm:text-sm font-semibold cursor-pointer transition-colors"
               >
                 Cancel
               </button>
@@ -1258,9 +1250,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   handleClaim();
                 }}
                 disabled={isAutoBuying}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] text-[#0A0F1D] font-headline font-extrabold text-xs shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:brightness-110 flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:scale-102"
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] text-[#0A0F1D] font-headline font-extrabold text-xs sm:text-sm shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:brightness-110 flex items-center justify-center gap-1.5 cursor-pointer transition-all hover:scale-102"
               >
-                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                <span className="material-symbols-outlined text-[18px]">check_circle</span>
                 <span>Confirm &amp; Claim SPK</span>
               </button>
             </div>
@@ -1284,7 +1276,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 </div>
                 <div>
                   <h3 className="text-lg font-headline font-bold text-white">24h Mined Yield Claimed!</h3>
-                  <p className="text-xs text-emerald-400 font-mono flex items-center gap-1">
+                  <p className="text-xs text-emerald-400 font-body font-medium flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     <span>Auto-Bought via PancakeSwap Router &amp; Minted to Wallet</span>
                   </p>
@@ -1299,13 +1291,13 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             </div>
 
             {/* Summary Details */}
-            <div className="my-5 space-y-3 font-mono text-xs">
+            <div className="my-5 space-y-3 font-body text-xs">
               <div className="p-4 rounded-2xl bg-[#071322] border border-emerald-500/40 text-center space-y-1">
-                <span className="text-[11px] text-[#94a3b8] uppercase tracking-wider block">SPIKE Tokens Credited to Balance</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wider block font-medium">SPIKE Tokens Credited to Balance</span>
                 <span className="text-3xl font-extrabold font-headline text-emerald-400 tabular-nums">
                   +{Number(lastAutoBuyTx.spkAmount).toFixed(5)} SPK
                 </span>
-                <span className="text-xs text-[#D4AF37] block font-semibold">
+                <span className="text-xs text-[#D4AF37] block font-semibold font-headline">
                   ≈ ${Number(lastAutoBuyTx.usdtAmount).toFixed(4)} USDT Swapped on PancakeSwap V2
                 </span>
               </div>
@@ -1314,7 +1306,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 <div className="flex items-center justify-between text-[#94a3b8]">
                   <span>PancakeSwap Pool (Pair):</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-[#D4AF37] font-bold">0xdB75...2F3c</span>
+                    <span className="text-[#D4AF37] font-bold font-mono">0xdB75...2F3c</span>
                     <button
                       onClick={() => {
                         if (navigator.clipboard) {

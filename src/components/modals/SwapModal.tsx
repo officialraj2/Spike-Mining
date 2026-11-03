@@ -532,11 +532,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             <div>
               <h3 id="swap-modal-title" className="text-base sm:text-lg font-extrabold font-headline text-white flex items-center gap-2">
                 <span>SPIKE DEX Swap</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono font-bold">
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-body font-bold">
                   BEP-20
                 </span>
               </h3>
-              <p className="text-[11px] text-[#94a3b8] font-mono">Instant Decentralized Settlement</p>
+              <p className="text-xs text-slate-300 font-body mt-0.5">Instant Decentralized Settlement</p>
             </div>
           </div>
 
@@ -544,10 +544,10 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className={`p-2.5 rounded-xl border transition-all ${
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
                 showSettings
                   ? 'bg-[#1c2b3b] border-[#00F0FF] text-[#00F0FF]'
-                  : 'bg-[#122130] border-[#1c2b3b] text-[#94a3b8] hover:text-white'
+                  : 'bg-[#122130] border-[#1c2b3b] text-slate-400 hover:text-white'
               }`}
               title="Slippage & Protocol Settings"
               aria-label="Settings"
@@ -558,14 +558,14 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             {/* High-Affordance All-Screen Close Button */}
             <button
               onClick={onClose}
-              className="group flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1a2b3d] hover:bg-red-500/20 text-[#cbd5e1] hover:text-red-400 border border-[#2d4257] hover:border-red-500/40 shadow-md transition-all active:scale-95"
+              className="group flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1a2b3d] hover:bg-red-500/20 text-[#cbd5e1] hover:text-red-400 border border-[#2d4257] hover:border-red-500/40 shadow-md transition-all active:scale-95 cursor-pointer"
               aria-label="Close Swap Modal"
               title="Close (Esc)"
             >
               <span className="material-symbols-outlined text-[20px] group-hover:rotate-90 transition-transform duration-200">
                 close
               </span>
-              <span className="hidden sm:inline font-mono text-xs font-semibold">Close</span>
+              <span className="hidden sm:inline font-body text-xs font-semibold">Close</span>
             </button>
           </div>
         </div>
@@ -575,70 +575,70 @@ export const SwapModal: React.FC<SwapModalProps> = ({
            ============================================================ */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
           {/* Dedicated Sell SPIKE Protocol Header Banner */}
-          <div className="p-3 rounded-2xl bg-gradient-to-r from-[#D4AF37]/15 via-[#f59e0b]/10 to-[#00F0FF]/10 border border-[#D4AF37]/35 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#f59e0b] text-[#0A0F1D] flex items-center justify-center font-bold shadow-[0_0_12px_rgba(212,175,55,0.4)]">
-                <span className="material-symbols-outlined text-[18px]">currency_exchange</span>
+          <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-[#D4AF37]/15 via-[#f59e0b]/10 to-[#00F0FF]/10 border border-[#D4AF37]/35 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#f59e0b] text-[#0A0F1D] flex items-center justify-center font-bold shadow-[0_0_12px_rgba(212,175,55,0.4)] shrink-0">
+                <span className="material-symbols-outlined text-[20px]">currency_exchange</span>
               </div>
               <div>
-                <span className="text-xs sm:text-sm font-headline font-bold text-white tracking-wide block">
+                <span className="text-sm font-headline font-bold text-white tracking-wide block">
                   Sell SPIKE ➔ Receive USDT
                 </span>
-                <span className="text-[10px] text-[#94a3b8] font-mono">
+                <span className="text-xs text-slate-300 font-body">
                   PancakeSwap V3 Pool (0xdB75...2F3c) · 10% Daily Protection
                 </span>
               </div>
             </div>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37]">
+            <span className="text-xs px-2.5 py-1 rounded-full font-headline font-bold bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] whitespace-nowrap">
               10% Max Daily
             </span>
           </div>
 
           {/* Settlement Mode Switcher: Instant Protocol Settlement vs On-Chain Web3 */}
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-[#061423] border border-[#1c2b3b]">
+            <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-[#061423] border border-[#1c2b3b]">
               <button
                 type="button"
                 onClick={() => setSettlementMode('instant')}
-                className={`py-2 px-2.5 sm:px-3 text-xs font-headline font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2.5 px-3 text-xs sm:text-sm font-headline font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   settlementMode === 'instant'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-[#0A0F1D] shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                    : 'text-[#94a3b8] hover:text-white bg-[#0a1829]/50'
+                    : 'text-slate-400 hover:text-white bg-[#0a1829]/50'
                 }`}
               >
-                <span className="material-symbols-outlined text-[16px] font-bold">bolt</span>
+                <span className="material-symbols-outlined text-[18px] font-bold">bolt</span>
                 <span className="truncate">Instant Protocol (100% Fast)</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSettlementMode('onchain')}
-                className={`py-2 px-2.5 sm:px-3 text-xs font-headline font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2.5 px-3 text-xs sm:text-sm font-headline font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
                   settlementMode === 'onchain'
                     ? 'bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.4)]'
-                    : 'text-[#94a3b8] hover:text-white bg-[#0a1829]/50'
+                    : 'text-slate-400 hover:text-white bg-[#0a1829]/50'
                 }`}
               >
-                <span className="material-symbols-outlined text-[16px] font-bold">account_balance_wallet</span>
+                <span className="material-symbols-outlined text-[18px] font-bold">account_balance_wallet</span>
                 <span className="truncate">Web3 Wallet (Pancake V3)</span>
               </button>
             </div>
 
             {/* Mode Guidance & Liquidity Helper Banner */}
             {settlementMode === 'instant' ? (
-              <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/35 text-[11px] font-mono text-emerald-300 flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-400 text-[18px] shrink-0">verified</span>
+              <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/35 text-xs font-body text-emerald-300 flex items-center gap-2.5 leading-relaxed">
+                <span className="material-symbols-outlined text-emerald-400 text-[20px] shrink-0">verified</span>
                 <span>
                   <strong>Guaranteed Fill:</strong> Sells directly against the platform treasury reserve at guaranteed <strong>$1.12 / SPK</strong>. Zero gas fees, zero revert errors, instant USDT settlement.
                 </span>
               </div>
             ) : (
-              <div className="p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/35 text-[11px] font-mono text-amber-300 flex items-start gap-2">
-                <span className="material-symbols-outlined text-amber-400 text-[18px] shrink-0 mt-0.5">info</span>
+              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/35 text-xs font-body text-amber-300 flex items-start gap-2.5 leading-relaxed">
+                <span className="material-symbols-outlined text-amber-400 text-[20px] shrink-0 mt-0.5">info</span>
                 <div className="space-y-0.5">
-                  <div>
-                    <strong>PancakeSwap V3 Router:</strong> Submits via your connected wallet (MetaMask / TrustWallet).
+                  <div className="font-semibold text-white">
+                    PancakeSwap V3 Router: Submits via your connected wallet (MetaMask / TrustWallet).
                   </div>
-                  <div className="text-[10px] text-[#cbd5e1]">
+                  <div className="text-xs text-slate-300 font-body">
                     Current on-chain pool (0xdB75...2F3c) has ~36.05 USDT liquidity. Router slippage check is adapted so transaction will not revert.
                   </div>
                 </div>
@@ -647,24 +647,24 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           </div>
 
           {/* Official BEP-20 Contract & On-Chain Sync Bar */}
-          <div className="p-2.5 rounded-xl bg-[#061423] border border-[#1c2b3b] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <div className="flex items-center gap-1.5">
-                <span className="relative flex h-2 w-2">
+          <div className="p-3 rounded-xl bg-[#061423] border border-[#1c2b3b] flex flex-wrap items-center justify-between gap-2.5 text-xs font-body">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </span>
-                <span className="text-[#94a3b8]">SPIKE:</span>
-                <span className="text-[#00F0FF] font-bold" title={SPIKE_CONTRACT_ADDRESS}>
+                <span className="text-slate-400 font-medium">SPIKE:</span>
+                <span className="text-[#00F0FF] font-mono font-bold" title={SPIKE_CONTRACT_ADDRESS}>
                   0xc213...9267
                 </span>
                 <button
                   type="button"
                   onClick={copyContract}
-                  className="px-1.5 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] text-[#cbd5e1] hover:text-white border border-[#1c2b3b] text-[10px] flex items-center gap-1 transition-all"
+                  className="px-2 py-1 rounded bg-[#122130] hover:bg-[#1c2b3b] text-slate-200 hover:text-white border border-[#1c2b3b] text-xs flex items-center gap-1 transition-all cursor-pointer"
                   title="Copy SPIKE Smart Contract Address"
                 >
-                  <span className="material-symbols-outlined text-[12px]">
+                  <span className="material-symbols-outlined text-[13px]">
                     {copiedContract ? 'check' : 'content_copy'}
                   </span>
                   <span>{copiedContract ? 'Copied' : 'Copy'}</span>
@@ -672,20 +672,20 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               </div>
 
               {/* Official PancakeSwap Liquidity Pool Contract */}
-              <div className="flex items-center gap-1.5 border-l border-[#1c2b3b] pl-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse" />
-                <span className="text-[#94a3b8]">Pool:</span>
-                <span className="text-[#D4AF37] font-bold" title="0xdB75fAB72e56492CFE870344D115C57047992F3c">
+              <div className="flex items-center gap-2 border-l border-[#1c2b3b] pl-3">
+                <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
+                <span className="text-slate-400 font-medium">Pool:</span>
+                <span className="text-[#D4AF37] font-mono font-bold" title="0xdB75fAB72e56492CFE870344D115C57047992F3c">
                   0xdB75...2F3c
                 </span>
                 <a
                   href="https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c"
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[#94a3b8] hover:text-[#D4AF37] flex items-center gap-0.5 text-[10px] transition-colors"
+                  className="text-slate-400 hover:text-[#D4AF37] flex items-center gap-0.5 text-xs transition-colors"
                   title="View PancakeSwap Liquidity Pool on BscScan"
                 >
-                  <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+                  <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                 </a>
               </div>
             </div>
@@ -694,10 +694,10 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               type="button"
               onClick={refreshOnChainBalances}
               disabled={isLoadingOnchain}
-              className="flex items-center gap-1 text-[#00F0FF] hover:text-white px-2 py-0.5 rounded bg-[#00F0FF]/10 hover:bg-[#00F0FF]/20 border border-[#00F0FF]/30 transition-all text-[10px]"
+              className="flex items-center gap-1.5 text-[#00F0FF] hover:text-white px-2.5 py-1 rounded bg-[#00F0FF]/10 hover:bg-[#00F0FF]/20 border border-[#00F0FF]/30 transition-all text-xs font-semibold cursor-pointer"
               title="Refresh live on-chain balances from BSC smart contract"
             >
-              <span className={`material-symbols-outlined text-[13px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>
+              <span className={`material-symbols-outlined text-[15px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>
                 sync
               </span>
               <span>{isLoadingOnchain ? 'Fetching BSC...' : 'Sync Wallet Balances'}</span>
@@ -751,28 +751,28 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               </div>
 
               {confirmedDetails && (
-                <div className="space-y-1.5 font-mono text-[11px]">
+                <div className="space-y-1.5 font-body text-xs">
                   <div className="flex items-center justify-between text-[#cbd5e1]">
-                    <span>PancakeSwap Route:</span>
-                    <span className="text-white font-bold">
+                    <span className="text-slate-400">PancakeSwap Route:</span>
+                    <span className="text-white font-bold font-mono">
                       {confirmedDetails.fromToken} ➔ PancakeSwap Pool (0xdB75...2F3c) ➔ {confirmedDetails.toToken}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[#cbd5e1]">Credited to Wallet:</span>
-                    <span className="text-emerald-400 font-extrabold text-sm">
+                    <span className="text-slate-400">Credited to Wallet:</span>
+                    <span className="text-emerald-400 font-extrabold text-sm font-headline">
                       +{Number(confirmedDetails.receivedAmount).toFixed(2)} {confirmedDetails.toToken}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-[#94a3b8]">
                     <span>Recipient Wallet:</span>
-                    <span className="text-[#00F0FF] truncate max-w-[180px]">
+                    <span className="text-[#00F0FF] font-mono font-medium truncate max-w-[180px]">
                       {confirmedDetails.walletAddress}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-[#64748b] text-[10px] pt-1 border-t border-emerald-500/20">
+                  <div className="flex items-center justify-between text-[#64748b] text-xs pt-1 border-t border-emerald-500/20 font-body">
                     <span>Tx Hash:</span>
-                    <span className="truncate max-w-[200px]">{confirmedDetails.txHash}</span>
+                    <span className="truncate max-w-[200px] font-mono">{confirmedDetails.txHash}</span>
                   </div>
                 </div>
               )}
@@ -785,18 +785,18 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           <div className="space-y-2">
             {/* FROM TOKEN CARD */}
             <div className="p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] hover:border-[#D4AF37]/40 transition-all">
-              <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-2 font-mono">
+              <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-2 font-body">
                 <span className="font-medium text-[#cbd5e1] flex items-center gap-1.5">
                   <span>You Pay</span>
                   {fromToken.contractAddress && (
-                    <span className="px-1.5 py-0.5 text-[9px] rounded font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="px-2 py-0.5 text-xs rounded font-body font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                       BEP-20 Live
                     </span>
                   )}
                 </span>
                 <span className="font-semibold flex items-center gap-1.5">
-                  <span>Available:</span>
-                  <span className="text-white font-bold">
+                  <span className="text-slate-400">Available:</span>
+                  <span className="text-white font-bold font-mono">
                     {Number(fromToken.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {fromToken.symbol}
                   </span>
                   <button
@@ -806,7 +806,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     title="Refresh on-chain balance"
                     className="text-[#00F0FF] hover:text-white p-0.5 rounded transition-transform active:rotate-180"
                   >
-                    <span className={`material-symbols-outlined text-[13px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>
+                    <span className={`material-symbols-outlined text-[15px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>
                   </button>
                 </span>
               </div>
@@ -847,13 +847,13 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               {/* Quick Percentage Chips */}
               <div className="flex flex-col gap-2 pt-2.5 mt-2 border-t border-[#1c2b3b]/60">
                 {isSellSpike && (
-                  <div className={`p-2 rounded-xl text-xs font-mono flex items-center justify-between ${
+                  <div className={`p-2.5 rounded-xl text-xs font-body flex items-center justify-between ${
                     isExceeding10Percent
                       ? 'bg-red-950/40 border border-red-500/50 text-red-400'
                       : 'bg-[#D4AF37]/10 border border-[#D4AF37]/35 text-[#D4AF37]'
                   }`}>
-                    <div className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[15px]">
+                    <div className="flex items-center gap-1.5 font-medium">
+                      <span className="material-symbols-outlined text-[16px]">
                         {isExceeding10Percent ? 'warning' : 'security'}
                       </span>
                       <span>
@@ -862,41 +862,41 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                           : `10% Sell Limit Policy: Max ${maxSellableSpk.toFixed(2)} SPK allowed`}
                       </span>
                     </div>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37]">
+                    <span className="text-xs px-2 py-0.5 rounded font-bold font-headline bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37]">
                       10% Max
                     </span>
                   </div>
                 )}
 
                 <div className="flex items-center justify-between">
-                  <div className="text-[11px] text-[#94a3b8] font-mono">
+                  <div className="text-xs text-[#94a3b8] font-body font-medium">
                     ≈ ${(numericFrom * fromToken.rateToUsd).toFixed(2)} USD
                   </div>
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handlePercentage(0.25)}
-                      className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                      className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-xs text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-body font-semibold transition-colors cursor-pointer"
                       title="Sell 2.5% of SPIKE Balance"
                     >
                       2.5%
                     </button>
                     <button
                       onClick={() => handlePercentage(0.5)}
-                      className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                      className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-xs text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-body font-semibold transition-colors cursor-pointer"
                       title="Sell 5% of SPIKE Balance"
                     >
                       5.0%
                     </button>
                     <button
                       onClick={() => handlePercentage(0.75)}
-                      className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[10px] text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-mono transition-colors"
+                      className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-xs text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-body font-semibold transition-colors cursor-pointer"
                       title="Sell 7.5% of SPIKE Balance"
                     >
                       7.5%
                     </button>
                     <button
                       onClick={() => handlePercentage(1.0)}
-                      className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-[10px] text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-mono transition-colors"
+                      className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-xs text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-headline transition-colors cursor-pointer"
                       title="Sell Maximum Allowable 10% of SPIKE Balance"
                     >
                       10% (MAX)
@@ -920,21 +920,21 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
             {/* TO TOKEN CARD */}
             <div className="p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] hover:border-[#00F0FF]/40 transition-all">
-              <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-2 font-mono">
+              <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-2 font-body">
                 <span className="font-medium text-[#cbd5e1] flex items-center gap-1.5">
                   <span>You Receive (Estimated)</span>
                   {toToken.contractAddress && (
-                    <span className="px-1.5 py-0.5 text-[9px] rounded font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="px-2 py-0.5 text-xs rounded font-body font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                       BEP-20 Live
                     </span>
                   )}
                 </span>
                 <span className="font-semibold flex items-center gap-1.5">
-                  <span className="text-[#94a3b8] flex items-center gap-1">
+                  <span className="text-slate-400 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     <span>Web3 Wallet USDT:</span>
                   </span>
-                  <span className="text-white font-bold tabular-nums">
+                  <span className="text-white font-bold font-mono tabular-nums">
                     {walletAddress
                       ? (isLoadingOnchain
                           ? 'Checking BSC...'
@@ -948,7 +948,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                     title="Refresh on-chain Web3 wallet USDT balance from BSC"
                     className="text-[#00F0FF] hover:text-white p-0.5 rounded transition-transform active:rotate-180"
                   >
-                    <span className={`material-symbols-outlined text-[13px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>
+                    <span className={`material-symbols-outlined text-[15px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>
                   </button>
                 </span>
               </div>
@@ -979,35 +979,38 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 </div>
               </div>
 
-              <div className="text-[11px] text-[#94a3b8] font-mono mt-2 pt-2 border-t border-[#1c2b3b]/60 flex items-center justify-between">
-                <span>≈ ${(toAmount * toToken.rateToUsd).toFixed(2)} USD</span>
-                <span className="text-emerald-400 font-semibold">Zero Protocol Slippage Loss</span>
+              <div className="text-xs text-[#94a3b8] font-body mt-2.5 pt-2.5 border-t border-[#1c2b3b]/60 flex items-center justify-between flex-wrap gap-2">
+                <span className="font-medium">≈ ${(toAmount * toToken.rateToUsd).toFixed(2)} USD</span>
+                <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">verified</span>
+                  Zero Protocol Slippage Loss
+                </span>
               </div>
             </div>
 
             {/* Clear Destination Box: Explicitly explains where USDT goes */}
-            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/40 to-[#071d2b] border border-emerald-500/40 text-xs flex items-start gap-3 shadow-inner">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 to-[#071d2b] border border-emerald-500/40 text-xs flex items-start gap-3 shadow-inner">
               <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-500/30">
                 <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                  <span className="font-headline font-bold text-white flex items-center gap-1.5">
+                  <span className="font-headline font-bold text-white flex items-center gap-1.5 text-xs sm:text-sm">
                     <span>Payout Destination:</span>
                     <span className="text-emerald-400">Direct to Your Personal Wallet</span>
                   </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className="text-xs font-headline font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     100% Self-Custodial
                   </span>
                 </div>
-                <p className="text-[11px] text-[#cbd5e1] font-mono leading-relaxed">
+                <p className="text-xs text-[#cbd5e1] font-body leading-relaxed">
                   {toTokenSymbol === 'USDT' ? (
                     <>
-                      Swapped USDT is routed directly into your personal connected Web3 wallet (<span className="text-[#00F0FF] font-bold">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected Wallet'}</span>) with zero custodial intermediaries.
+                      Swapped USDT is routed directly into your personal connected Web3 wallet (<span className="text-[#00F0FF] font-mono font-bold">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected Wallet'}</span>) with zero custodial intermediaries.
                     </>
                   ) : (
                     <>
-                      Purchased tokens ({toTokenSymbol}) are transferred directly into your personal connected Web3 wallet (<span className="text-[#00F0FF] font-bold">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected Wallet'}</span>).
+                      Purchased tokens ({toTokenSymbol}) are transferred directly into your personal connected Web3 wallet (<span className="text-[#00F0FF] font-mono font-bold">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected Wallet'}</span>).
                     </>
                   )}
                 </p>
@@ -1016,30 +1019,30 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           </div>
 
           {/* TELEMETRY & ROUTE ACCORDION */}
-          <div className="p-3.5 rounded-2xl bg-[#061423] border border-[#1c2b3b] space-y-2 text-xs text-[#94a3b8]">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px]">Payout Wallet</span>
-              <span className="font-mono text-emerald-400 text-[11px] font-semibold truncate max-w-[220px]">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] space-y-2.5 text-xs text-[#94a3b8] font-body">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-slate-400 font-medium">Payout Wallet</span>
+              <span className="font-mono text-emerald-400 text-xs font-semibold truncate max-w-[240px]">
                 {walletAddress ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)} (Your Personal Wallet)` : 'Connected Personal Wallet'}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px]">Exchange Rate</span>
-              <span className="font-mono text-white text-[11px] font-semibold">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-slate-400 font-medium">Exchange Rate</span>
+              <span className="font-mono text-white text-xs font-semibold">
                 1 {fromToken.symbol} ≈ {exchangeRate.toFixed(4)} {toToken.symbol}
               </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px]">Network Gas Fee</span>
-              <span className="font-mono text-emerald-400 text-[11px] font-semibold">~$0.04 (BNB Chain)</span>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-slate-400 font-medium">Network Gas Fee</span>
+              <span className="font-mono text-emerald-400 text-xs font-semibold">~$0.04 (BNB Chain)</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px]">Price Impact</span>
-              <span className="font-mono text-[#00F0FF] text-[11px] font-semibold">&lt; 0.01%</span>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-slate-400 font-medium">Price Impact</span>
+              <span className="font-mono text-[#00F0FF] text-xs font-semibold">&lt; 0.01%</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[11px]">Liquidity Route</span>
-              <span className="font-mono text-white text-[11px]">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-slate-400 font-medium">Liquidity Route</span>
+              <span className="font-mono text-white text-xs truncate max-w-[240px]">
                 {fromToken.symbol} ➔ PancakeSwap Pool (0xdB75...2F3c) ➔ {toToken.symbol}
               </span>
             </div>
@@ -1054,7 +1057,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             {/* Secondary Close Button for Effortless Mobile Thumb Reach */}
             <button
               onClick={onClose}
-              className="py-3.5 px-5 rounded-2xl font-headline font-bold text-xs sm:text-sm bg-[#122130] hover:bg-[#1c2b3b] text-[#cbd5e1] hover:text-white border border-[#2d4257] transition-all shrink-0 active:scale-95"
+              className="py-3.5 px-5 rounded-2xl font-headline font-bold text-xs sm:text-sm bg-[#122130] hover:bg-[#1c2b3b] text-[#cbd5e1] hover:text-white border border-[#2d4257] transition-all shrink-0 active:scale-95 cursor-pointer"
             >
               Cancel
             </button>
@@ -1099,12 +1102,12 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           </div>
 
           {/* Smart Contract Route Indicator */}
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] font-mono text-[#94a3b8]">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-body text-[#94a3b8]">
             <span className="flex items-center gap-1.5 text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>PancakeSwap V3 Router: 0x13f4...8Dd4 • Pool: 0xdB75...2F3c</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="font-mono text-xs">PancakeSwap V3 Router: 0x13f4...8Dd4 • Pool: 0xdB75...2F3c</span>
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-xs font-body">
               <a
                 href="https://pancakeswap.finance/swap?inputCurrency=0xc213905ac995bCC943c077b7918c8134094A9267&outputCurrency=0x55d398326f99059fF775485246999027B3197955"
                 target="_blank"
@@ -1112,17 +1115,17 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 className="text-[#D4AF37] hover:underline inline-flex items-center gap-1 font-semibold"
               >
                 <span>Open on PancakeSwap.finance</span>
-                <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                <span className="material-symbols-outlined text-[13px]">open_in_new</span>
               </a>
               <span className="text-[#334155]">•</span>
               <a
                 href="https://bscscan.com/address/0x13f4EA83D0bd40E75C8222255bc855a974568Dd4"
                 target="_blank"
                 rel="noreferrer"
-                className="text-[#00F0FF] hover:underline inline-flex items-center gap-1"
+                className="text-[#00F0FF] hover:underline inline-flex items-center gap-1 font-mono"
               >
                 <span>BscScan</span>
-                <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                <span className="material-symbols-outlined text-[13px]">open_in_new</span>
               </a>
             </div>
           </div>

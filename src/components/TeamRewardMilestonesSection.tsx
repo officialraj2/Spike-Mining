@@ -135,58 +135,58 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
         <div className="bg-[#0a1828] rounded-2xl p-4 md:p-5 border border-[#00F0FF]/30 shadow-inner mb-6 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">groups</span>
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                <span className="text-xs sm:text-sm font-headline font-bold uppercase tracking-wider text-white">
                   Total Team Calculation (Direct + Downline Team)
                 </span>
-                <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="px-2.5 py-0.5 rounded text-xs font-headline font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                   ENTIRE TEAM CALCULATED
                 </span>
               </div>
-              <p className="text-xs text-[#94a3b8] font-sans">
+              <p className="text-xs sm:text-sm text-slate-300 font-body">
                 Real-time partner network tracking across all unilevel generations.
               </p>
             </div>
 
             {/* Live Count Pill Cards */}
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <div className="px-3.5 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
-                <div className="text-[10px] text-[#94a3b8] font-mono uppercase">Direct Partners</div>
-                <div className="text-base font-extrabold font-mono text-white">{directPartners}</div>
+              <div className="px-4 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
+                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Direct Partners</div>
+                <div className="text-base sm:text-lg font-extrabold font-headline text-white">{directPartners}</div>
               </div>
 
               <span className="text-[#00F0FF] font-bold text-lg">+</span>
 
-              <div className="px-3.5 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
-                <div className="text-[10px] text-[#94a3b8] font-mono uppercase">Downline Partners</div>
-                <div className="text-base font-extrabold font-mono text-white">{downlinePartners}</div>
+              <div className="px-4 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
+                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Downline Partners</div>
+                <div className="text-base sm:text-lg font-extrabold font-headline text-white">{downlinePartners}</div>
               </div>
 
               <span className="text-[#00F0FF] font-bold text-lg">=</span>
 
               <div className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#D4AF37]/20 border border-[#00F0FF]/50 text-center shadow-[0_0_15px_rgba(0,240,255,0.25)]">
-                <div className="text-[10px] text-[#00F0FF] font-mono font-bold uppercase tracking-wider">
+                <div className="text-xs text-[#00F0FF] font-headline font-bold uppercase tracking-wider">
                   Total Team Partners
                 </div>
-                <div className="text-xl font-black font-mono text-white tracking-tight">
-                  {totalTeamPartners} <span className="text-xs text-[#00F0FF] font-normal">Partners</span>
+                <div className="text-xl sm:text-2xl font-black font-headline text-white tracking-tight">
+                  {totalTeamPartners} <span className="text-xs text-[#00F0FF] font-medium font-body">Partners</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Real Referral Network Live Sync Bar */}
-          <div className="mt-3.5 pt-3 border-t border-[#1c2b3b]/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="mt-3.5 pt-3 border-t border-[#1c2b3b]/70 flex flex-wrap items-center justify-between gap-2 text-xs font-body">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[11px] font-mono text-[#94a3b8]">
+              <span className="text-xs text-slate-400">
                 Real Network Referrals: <strong className="text-white">{totalTeamPartners} Real Partners Active</strong>
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-lg bg-[#051424] text-[#00F0FF] border border-[#00F0FF]/30 text-[10px] font-mono font-bold flex items-center gap-1.5 shadow-sm">
-                <span className="material-symbols-outlined text-[12px] text-emerald-400">verified</span>
+              <span className="px-3 py-1 rounded-lg bg-[#051424] text-[#00F0FF] border border-[#00F0FF]/30 text-xs font-body font-semibold flex items-center gap-1.5 shadow-sm">
+                <span className="material-symbols-outlined text-[14px] text-emerald-400">verified</span>
                 <span>Milestones Unlock on Real Referrals</span>
               </span>
             </div>
@@ -207,15 +207,15 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                     <span className="material-symbols-outlined text-[18px]">verified</span>
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold font-headline text-white tracking-wide">
+                    <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
                       Core Career Milestones
                     </h3>
-                    <p className="text-[11px] font-mono text-[#00F0FF]">
+                    <p className="text-xs text-[#00F0FF] font-body">
                       Level 1 – Level 5 (Community Growth)
                     </p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
+                <span className="px-2.5 py-1 rounded-full text-xs font-headline font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
                   5 Levels
                 </span>
               </div>
@@ -224,7 +224,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className="bg-[#071626]/80 border-b border-[#1c2b3b] text-xs text-[#94a3b8] font-headline uppercase tracking-wider">
+                    <tr className="bg-[#071626]/80 border-b border-[#1c2b3b] text-xs text-slate-400 font-headline uppercase tracking-wider">
                       <th className="py-2.5 px-4 font-bold">Level / Partners</th>
                       <th className="py-2.5 px-4 font-bold text-center">Reward</th>
                       <th className="py-2.5 px-4 font-bold text-right">Status / Action</th>
@@ -252,7 +252,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                           }`}
                         >
                           {/* Column 1: Team Partners */}
-                          <td className="py-3 px-4 font-mono font-semibold text-white">
+                          <td className="py-3.5 px-4 font-semibold text-white">
                             <div className="flex items-center gap-2">
                               <span className={`w-2 h-2 rounded-full ${isReached ? 'bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]' : 'bg-[#1c2b3b]'}`} />
                               <span className="text-xs sm:text-sm font-headline font-bold">
@@ -260,12 +260,12 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                               </span>
                             </div>
                             {!isReached && (
-                              <div className="mt-1 pl-4 max-w-[190px]">
-                                <div className="flex justify-between text-[9px] text-[#94a3b8] mb-0.5 font-mono">
+                              <div className="mt-1 pl-4 max-w-[200px]">
+                                <div className="flex justify-between text-xs text-slate-400 mb-0.5 font-body">
                                   <span>{currentLevelCount} / {tier.partnersRequired.toLocaleString()}</span>
                                   <span>{progressPct}%</span>
                                 </div>
-                                <div className="w-full h-1 bg-[#0a0f1d] rounded-full overflow-hidden border border-[#1c2b3b]">
+                                <div className="w-full h-1.5 bg-[#0a0f1d] rounded-full overflow-hidden border border-[#1c2b3b]">
                                   <div
                                     className="h-full bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] rounded-full transition-all duration-500"
                                     style={{ width: `${progressPct}%` }}
@@ -276,31 +276,31 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                           </td>
 
                           {/* Column 2: Reward */}
-                          <td className="py-3 px-4 font-mono text-center">
-                            <span className="text-sm sm:text-base font-black text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.35)]">
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="text-sm sm:text-base font-black font-headline text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.35)]">
                               {tier.rewardFormatted}
                             </span>
-                            <span className="text-[10px] text-[#94a3b8] ml-1 font-mono">USDT</span>
+                            <span className="text-xs text-slate-400 ml-1 font-headline font-semibold">USDT</span>
                           </td>
 
                           {/* Column 3: Status / Action */}
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-3.5 px-4 text-right">
                             {isClaimed ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-headline font-bold text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-headline font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                                <span className="material-symbols-outlined text-[15px]">check_circle</span>
                                 <span>Claimed</span>
                               </span>
                             ) : isReached ? (
                               <button
                                 onClick={() => handleClaim(tier)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-headline font-extrabold text-[11px] bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] text-[#0A0F1D] shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-headline font-extrabold text-xs bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] text-[#0A0F1D] shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
                               >
-                                <span className="material-symbols-outlined text-[14px]">payments</span>
+                                <span className="material-symbols-outlined text-[15px]">payments</span>
                                 <span>{isJustClaimed ? 'Claimed!' : 'Claim'}</span>
                               </button>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px] text-[#94a3b8] bg-[#0a0f1d] border border-[#1c2b3b]">
-                                <span className="material-symbols-outlined text-[12px]">lock</span>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-body text-xs text-slate-400 bg-[#0a0f1d] border border-[#1c2b3b]">
+                                <span className="material-symbols-outlined text-[13px]">lock</span>
                                 <span>{Math.max(0, tier.partnersRequired - currentLevelCount)} left</span>
                               </span>
                             )}
@@ -312,7 +312,6 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                 </table>
               </div>
             </div>
-
           </div>
 
           {/* BOX 2: APEX LEADERSHIP MILESTONES (LEVELS 6 - 9) */}
@@ -325,15 +324,15 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                     <span className="material-symbols-outlined text-[18px]">military_tech</span>
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold font-headline text-white tracking-wide">
+                    <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
                       Apex Leadership Milestones
                     </h3>
-                    <p className="text-[11px] font-mono text-[#D4AF37]">
+                    <p className="text-xs text-[#D4AF37] font-body">
                       Level 6 – Level 9 (High-Volume Fleet)
                     </p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
+                <span className="px-2.5 py-1 rounded-full text-xs font-headline font-bold bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
                   4 Levels
                 </span>
               </div>
@@ -342,7 +341,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm border-collapse">
                   <thead>
-                    <tr className="bg-[#141208]/80 border-b border-[#1c2b3b] text-xs text-[#94a3b8] font-headline uppercase tracking-wider">
+                    <tr className="bg-[#141208]/80 border-b border-[#1c2b3b] text-xs text-slate-400 font-headline uppercase tracking-wider">
                       <th className="py-2.5 px-4 font-bold">Level / Partners</th>
                       <th className="py-2.5 px-4 font-bold text-center">Reward</th>
                       <th className="py-2.5 px-4 font-bold text-right">Status / Action</th>
@@ -370,7 +369,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                           }`}
                         >
                           {/* Column 1: Team Partners */}
-                          <td className="py-3 px-4 font-mono font-semibold text-white">
+                          <td className="py-3.5 px-4 font-semibold text-white">
                             <div className="flex items-center gap-2">
                               <span className={`w-2 h-2 rounded-full ${isReached ? 'bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]' : 'bg-[#1c2b3b]'}`} />
                               <span className="text-xs sm:text-sm font-headline font-bold">
@@ -378,12 +377,12 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                               </span>
                             </div>
                             {!isReached && (
-                              <div className="mt-1 pl-4 max-w-[190px]">
-                                <div className="flex justify-between text-[9px] text-[#94a3b8] mb-0.5 font-mono">
+                              <div className="mt-1 pl-4 max-w-[200px]">
+                                <div className="flex justify-between text-xs text-slate-400 mb-0.5 font-body">
                                   <span>{currentLevelCount} / {tier.partnersRequired.toLocaleString()}</span>
                                   <span>{progressPct}%</span>
                                 </div>
-                                <div className="w-full h-1 bg-[#0a0f1d] rounded-full overflow-hidden border border-[#1c2b3b]">
+                                <div className="w-full h-1.5 bg-[#0a0f1d] rounded-full overflow-hidden border border-[#1c2b3b]">
                                   <div
                                     className="h-full bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] rounded-full transition-all duration-500"
                                     style={{ width: `${progressPct}%` }}
@@ -394,31 +393,31 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                           </td>
 
                           {/* Column 2: Reward */}
-                          <td className="py-3 px-4 font-mono text-center">
-                            <span className="text-sm sm:text-base font-black text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.35)]">
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="text-sm sm:text-base font-black font-headline text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.35)]">
                               {tier.rewardFormatted}
                             </span>
-                            <span className="text-[10px] text-[#94a3b8] ml-1 font-mono">USDT</span>
+                            <span className="text-xs text-slate-400 ml-1 font-headline font-semibold">USDT</span>
                           </td>
 
                           {/* Column 3: Status / Action */}
-                          <td className="py-3 px-4 text-right">
+                          <td className="py-3.5 px-4 text-right">
                             {isClaimed ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-headline font-bold text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-headline font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                                <span className="material-symbols-outlined text-[15px]">check_circle</span>
                                 <span>Claimed</span>
                               </span>
                             ) : isReached ? (
                               <button
                                 onClick={() => handleClaim(tier)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-headline font-extrabold text-[11px] bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-headline font-extrabold text-xs bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
                               >
-                                <span className="material-symbols-outlined text-[14px]">payments</span>
+                                <span className="material-symbols-outlined text-[15px]">payments</span>
                                 <span>{isJustClaimed ? 'Claimed!' : 'Claim'}</span>
                               </button>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px] text-[#94a3b8] bg-[#0a0f1d] border border-[#1c2b3b]">
-                                <span className="material-symbols-outlined text-[12px]">lock</span>
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-body text-xs text-slate-400 bg-[#0a0f1d] border border-[#1c2b3b]">
+                                <span className="material-symbols-outlined text-[13px]">lock</span>
                                 <span>{Math.max(0, tier.partnersRequired - currentLevelCount)} left</span>
                               </span>
                             )}
@@ -435,13 +434,13 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
         </div>
 
         {/* Milestone Footer Trust Banner */}
-        <div className="mt-4 pt-3 border-t border-[#1c2b3b] flex flex-wrap items-center justify-between gap-3 text-xs text-[#94a3b8] font-mono relative z-10">
+        <div className="mt-4 pt-3 border-t border-[#1c2b3b] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 font-body relative z-10">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#00F0FF] text-[16px]">verified</span>
+            <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">verified</span>
             <span>Non-custodial BEP-20 smart contract payouts settled in liquid USDT</span>
           </div>
-          <div className="flex items-center gap-2 text-[#D4AF37]">
-            <span className="material-symbols-outlined text-[16px]">military_tech</span>
+          <div className="flex items-center gap-2 text-[#D4AF37] font-semibold">
+            <span className="material-symbols-outlined text-[18px]">military_tech</span>
             <span>Cumulative Rewards: Up to $738,115 USDT Total Career Bonus</span>
           </div>
         </div>

@@ -406,10 +406,10 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </button>
         ) : (
           <div className="flex items-center gap-2.5 bg-[#122130] px-4 py-2.5 rounded-xl border border-[#00F0FF]/30 self-start md:self-auto shrink-0 shadow-sm">
-            <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">military_tech</span>
+            <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">military_tech</span>
             <div className="flex flex-col text-left">
-              <span className="text-[10px] font-mono text-[#94a3b8] uppercase">Next Milestone Target</span>
-              <span className="text-xs font-mono font-bold text-white">
+              <span className="text-xs font-body font-semibold text-slate-400 uppercase tracking-wider">Next Milestone Target</span>
+              <span className="text-xs sm:text-sm font-headline font-bold text-white">
                 {nextLocked
                   ? `${nextLocked.rewardFormatted} at ${nextLocked.label} (${totalTeamPartners} / ${nextLocked.partnersRequired})`
                   : 'All Career Milestones Unlocked!'}
@@ -423,33 +423,33 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       <div className="bg-[#122130] rounded-xl p-5 md:p-6 border border-[#1c2b3b]/60 shadow-md space-y-4">
         {/* Short Referral Link & Code Inputs */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm md:text-base font-bold font-headline text-white tracking-wide flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">share_location</span>
+                <span className="text-base sm:text-lg font-bold font-headline text-white tracking-wide flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#00F0FF] text-[22px]">share_location</span>
                   <span>Your Referral Link</span>
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono flex items-center gap-1 text-emerald-400 font-semibold">
-                  <span className="material-symbols-outlined text-[14px]">verified</span>
-                  <span>100% Live & SSL Verified</span>
+                <span className="text-xs font-body flex items-center gap-1.5 text-emerald-400 font-semibold">
+                  <span className="material-symbols-outlined text-[15px]">verified</span>
+                  <span>100% Live &amp; SSL Verified</span>
                 </span>
               </div>
             </div>
             
-            <div className="mt-2 flex items-center gap-2 bg-[#0a0f1d] border border-[#1c2b3b] rounded-xl p-2.5">
-              <span className="material-symbols-outlined text-[#00F0FF] text-[18px] ml-1">link</span>
+            <div className="mt-2.5 flex items-center gap-2 bg-[#0a0f1d] border border-[#1c2b3b] rounded-xl p-2.5">
+              <span className="material-symbols-outlined text-[#00F0FF] text-[20px] ml-1">link</span>
               <input
                 type="text"
                 readOnly
                 value={activeLinkToCopy}
-                className="bg-transparent text-white font-mono text-xs sm:text-sm truncate flex-1 tracking-tight border-none outline-none select-all"
+                className="bg-transparent text-white font-mono text-xs sm:text-sm truncate flex-1 tracking-tight border-none outline-none select-all min-w-0"
               />
               <button
                 onClick={handleCopy}
-                className="px-3 sm:px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95 cursor-pointer"
+                className="px-3.5 sm:px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px]">
                   {copied ? 'check' : 'content_copy'}
@@ -482,7 +482,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                       setShowShareMenu(!showShareMenu);
                     }
                   }}
-                  className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors"
+                  className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors cursor-pointer"
                   title="Share production link"
                 >
                   <span className="material-symbols-outlined text-[18px]">share</span>
@@ -532,13 +532,11 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 )}
               </div>
             </div>
-
-
           </div>
 
-          <div className="md:w-64 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-between">
+          <div className="md:w-64 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-between shrink-0">
             <div>
-              <div className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-[0.12em]">Referral Code</div>
+              <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Referral Code</div>
               <div className="text-base font-bold font-mono text-[#D4AF37] mt-0.5 tracking-wider">{refCode}</div>
             </div>
             <button
@@ -547,7 +545,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 setCopiedCode(true);
                 setTimeout(() => setCopiedCode(false), 2000);
               }}
-              className="px-3 py-1.5 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1 font-mono font-bold cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1.5 font-headline font-bold cursor-pointer"
               title="Copy Code"
             >
               <span className="material-symbols-outlined text-[16px]">{copiedCode ? 'check' : 'content_copy'}</span>
@@ -563,15 +561,15 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               <span className="material-symbols-outlined text-[18px]">{activeSponsor ? 'verified_user' : 'handshake'}</span>
             </div>
             <div>
-              <div className="text-[10px] font-mono uppercase text-[#94a3b8] tracking-wider">Sponsor Status</div>
+              <div className="text-xs font-body font-semibold uppercase text-slate-400 tracking-wider">Sponsor Status</div>
               {activeSponsor ? (
-                <div className="text-xs font-mono font-bold text-white flex items-center gap-1.5 mt-0.5">
+                <div className="text-xs sm:text-sm font-body font-bold text-white flex items-center gap-1.5 mt-0.5">
                   <span className="text-emerald-400 font-semibold">Active Sponsor:</span>
-                  <span className="text-[#00F0FF]">{activeSponsor.slice(0, 6)}...{activeSponsor.slice(-4)}</span>
-                  <span className="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 text-[10px] rounded font-mono">Bound</span>
+                  <span className="text-[#00F0FF] font-mono">{activeSponsor.slice(0, 6)}...{activeSponsor.slice(-4)}</span>
+                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded font-headline font-semibold">Bound</span>
                 </div>
               ) : (
-                <div className="text-xs text-[#94a3b8] mt-0.5">
+                <div className="text-xs font-body text-slate-400 mt-0.5">
                   Not linked to a sponsor yet. Enter your inviter's wallet or code below.
                 </div>
               )}
@@ -683,7 +681,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 relative overflow-hidden">
           <div className="flex items-center justify-between">
-            <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+            <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
               Total Team Partners
             </div>
             <button
@@ -691,28 +689,28 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 setIsSyncingStats(true);
                 refreshLiveStats().finally(() => setTimeout(() => setIsSyncingStats(false), 500));
               }}
-              className="text-[10px] font-mono text-[#00F0FF] hover:text-white flex items-center gap-1 transition-colors px-1.5 py-0.5 rounded bg-[#0a0f1d] border border-[#1c2b3b]"
+              className="text-xs font-body font-semibold text-[#00F0FF] hover:text-white flex items-center gap-1.5 transition-colors px-2 py-0.5 rounded-lg bg-[#0a0f1d] border border-[#1c2b3b] cursor-pointer"
               title="Click to sync latest referral team count"
             >
-              <span className={`material-symbols-outlined text-[13px] ${isSyncingStats ? 'animate-spin' : ''}`}>sync</span>
+              <span className={`material-symbols-outlined text-[14px] ${isSyncingStats ? 'animate-spin' : ''}`}>sync</span>
               <span className="hidden xs:inline">Live Sync</span>
             </button>
           </div>
-          <div className="text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
+          <div className="text-3xl font-extrabold font-headline text-white mt-1.5 tabular-nums tracking-tight">
             {totalTeamPartners}
           </div>
-          <div className="text-xs text-[#7df4ff] font-mono mt-1 font-medium flex items-center gap-1.5">
+          <div className="text-xs text-[#7df4ff] font-body mt-1 font-medium flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span>{totalTeamPartners} Active Partners in Network</span>
           </div>
         </div>
 
         <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
-          <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Direct Partners</div>
-          <div className="text-3xl font-extrabold font-headline text-[#00F0FF] mt-1 tabular-nums tracking-tight">
+          <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Direct Partners</div>
+          <div className="text-3xl font-extrabold font-headline text-[#00F0FF] mt-1.5 tabular-nums tracking-tight">
             {directPartners}
           </div>
-          <div className="text-xs text-[#94a3b8] font-mono mt-1">
+          <div className="text-xs text-slate-400 font-body mt-1">
             {downlinePartners > 0 ? `+${downlinePartners} Downline partners` : 'Direct team contributors'}
           </div>
         </div>
@@ -720,10 +718,10 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
         <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
-              <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">
+              <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
                 Available Reward Balance
               </div>
-              <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${
+              <span className={`text-xs font-headline font-bold px-2 py-0.5 rounded border uppercase ${
                 availableToWithdraw > 0
                   ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                   : approvedAmount > 0
@@ -733,33 +731,33 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 {availableToWithdraw > 0 ? 'Withdrawable' : approvedAmount > 0 ? 'Cleared & Paid' : '0.00 Balance'}
               </span>
             </div>
-            <div className="text-3xl font-extrabold font-headline mt-1 tabular-nums tracking-tight flex items-baseline gap-1.5">
+            <div className="text-3xl font-extrabold font-headline mt-1.5 tabular-nums tracking-tight flex items-baseline gap-1.5">
               <span className={availableToWithdraw > 0 ? 'text-[#D4AF37]' : 'text-slate-300'}>
                 {availableToWithdraw.toFixed(2)}
               </span>
               <span className="text-sm text-white font-semibold font-headline">USDT</span>
             </div>
-            <div className="text-xs font-mono mt-2 font-medium flex flex-col gap-1 text-[#94a3b8] pt-1.5 border-t border-[#1c2b3b]/50">
+            <div className="text-xs font-body mt-2.5 font-medium flex flex-col gap-1.5 text-slate-400 pt-2 border-t border-[#1c2b3b]/50">
               <div className="flex items-center justify-between">
                 <span>Lifetime Milestones:</span>
-                <span className="text-white font-semibold">+{totalEarnedUsdt.toFixed(2)} USDT</span>
+                <span className="text-white font-semibold font-mono">+{totalEarnedUsdt.toFixed(2)} USDT</span>
               </div>
               {approvedAmount > 0 && (
                 <div className="flex items-center justify-between text-emerald-400">
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
                     <span>Admin Cleared &amp; Paid:</span>
                   </span>
-                  <span className="font-semibold">-${approvedAmount.toFixed(2)} USDT</span>
+                  <span className="font-semibold font-mono">-${approvedAmount.toFixed(2)} USDT</span>
                 </div>
               )}
               {pendingAmount > 0 && (
                 <div className="flex items-center justify-between text-amber-400 animate-pulse">
                   <span className="flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[13px]">hourglass_top</span>
+                    <span className="material-symbols-outlined text-[14px]">hourglass_top</span>
                     <span>Under Admin Review:</span>
                   </span>
-                  <span className="font-semibold">${pendingAmount.toFixed(2)} USDT Pending</span>
+                  <span className="font-semibold font-mono">${pendingAmount.toFixed(2)} USDT Pending</span>
                 </div>
               )}
             </div>
@@ -782,7 +780,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                   : 'bg-[#1c2b3b]/60 text-[#64748b] border border-[#1c2b3b] cursor-not-allowed opacity-80'
               }`}
             >
-              <span className="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+              <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
               <span>
                 {availableToWithdraw > 0
                   ? `Withdraw Rewards (${availableToWithdraw.toFixed(2)} USDT)`
@@ -842,7 +840,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                       {ref.refereeAddress ? `${ref.refereeAddress.slice(0, 6)}...${ref.refereeAddress.slice(-4)}` : '0xUnknown'}
                     </td>
                     <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                      <span className="px-2.5 py-0.5 rounded text-xs font-headline font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                         Team Partner
                       </span>
                     </td>
@@ -882,7 +880,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                   <h3 className="text-lg sm:text-xl font-black font-headline text-white tracking-tight">
                     Withdraw Milestone Rewards
                   </h3>
-                  <p className="text-xs text-[#94a3b8] font-mono">
+                  <p className="text-xs text-[#94a3b8] font-body">
                     Team Career Milestones · BEP-20 Network
                   </p>
                 </div>
@@ -903,10 +901,10 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             {/* Balance Overview Card */}
             <div className="p-4 rounded-xl bg-gradient-to-r from-[#0d1d2c] via-[#091828] to-[#0d1d2c] border border-[#1c2b3b] space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono text-[#94a3b8] uppercase tracking-wider">
+                <span className="text-xs font-body font-semibold text-slate-400 uppercase tracking-wider">
                   Available Rewards to Withdraw
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
+                <span className="px-2.5 py-0.5 rounded text-xs font-headline font-bold bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
                   READY
                 </span>
               </div>
@@ -914,13 +912,13 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 <span className="text-2xl sm:text-3xl font-extrabold font-headline text-[#D4AF37] tabular-nums">
                   {availableToWithdraw.toFixed(2)}
                 </span>
-                <span className="text-sm font-bold text-white font-mono">USDT</span>
-                <span className="text-[11px] text-[#94a3b8] font-mono ml-auto">
+                <span className="text-sm font-bold text-white font-headline">USDT</span>
+                <span className="text-xs text-slate-400 font-body ml-auto">
                   Total Claimed: ${totalEarnedUsdt.toFixed(2)}
                 </span>
               </div>
               {pendingAmount > 0 && (
-                <div className="text-[11px] font-mono text-amber-300/90 bg-amber-500/10 px-2.5 py-1 rounded border border-amber-500/20 flex items-center gap-1.5">
+                <div className="text-xs font-body text-amber-300/90 bg-amber-500/10 px-2.5 py-1.5 rounded-lg border border-amber-500/20 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
                   <span>You have <strong>${pendingAmount.toFixed(2)} USDT</strong> currently pending Admin approval.</span>
                 </div>
@@ -931,13 +929,13 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             <form onSubmit={handleExecuteWithdrawalRequest} className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-mono font-bold text-[#c6c6cc]">
+                  <label className="text-xs font-body font-bold text-[#c6c6cc]">
                     Withdrawal Amount (USDT)
                   </label>
                   <button
                     type="button"
                     onClick={() => setWithdrawAmount(String(availableToWithdraw))}
-                    className="text-[11px] font-mono font-bold text-[#00F0FF] hover:underline cursor-pointer"
+                    className="text-xs font-headline font-bold text-[#00F0FF] hover:underline cursor-pointer"
                   >
                     MAX ({availableToWithdraw.toFixed(2)})
                   </button>
@@ -953,21 +951,21 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                     onChange={(e) => setWithdrawAmount(e.target.value)}
                     className="w-full bg-[#05111e] border border-[#1c2b3b] focus:border-[#D4AF37] rounded-xl px-4 py-3 text-white font-mono text-sm outline-none transition-colors"
                   />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-xs text-[#94a3b8]">
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-headline font-bold text-xs text-[#94a3b8]">
                     USDT
                   </span>
                 </div>
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-mono font-bold text-[#c6c6cc] flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[14px] text-[#00F0FF]">account_balance_wallet</span>
+                <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                  <label className="text-xs font-body font-bold text-[#c6c6cc] flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">account_balance_wallet</span>
                     <span>Destination BSC (BEP-20) Wallet Address</span>
                   </label>
-                  <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1 font-semibold">
-                    <span className="material-symbols-outlined text-[13px]">lock</span>
-                    Locked & Non-Editable
+                  <span className="text-xs font-body text-emerald-400 flex items-center gap-1 font-semibold">
+                    <span className="material-symbols-outlined text-[14px]">lock</span>
+                    Locked &amp; Non-Editable
                   </span>
                 </div>
                 <div className="relative">
@@ -979,42 +977,42 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                     placeholder="No wallet connected..."
                     className="w-full bg-[#030914] border border-[#1a2c3d] rounded-xl px-4 py-3 text-[#00F0FF] font-mono text-xs sm:text-sm outline-none cursor-not-allowed select-all pr-28 transition-colors shadow-inner opacity-90"
                   />
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-bold pointer-events-none select-none">
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-headline font-bold pointer-events-none select-none">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     <span>Connected</span>
                   </div>
                 </div>
-                <p className="mt-1.5 text-[11px] font-mono text-[#64748b] flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px] text-[#00F0FF]">shield</span>
+                <p className="mt-1.5 text-xs font-body text-slate-400 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px] text-[#00F0FF]">shield</span>
                   <span>Locked directly to your active Web3 wallet extension to prevent tampering.</span>
                 </p>
               </div>
 
               {/* Protocol Specs Badge */}
-              <div className="p-3 rounded-xl bg-[#071322] border border-[#1c2b3b] text-xs font-mono space-y-1 text-[#94a3b8]">
+              <div className="p-3.5 rounded-xl bg-[#071322] border border-[#1c2b3b] text-xs font-body space-y-1.5 text-slate-300">
                 <div className="flex justify-between">
-                  <span>Network:</span>
+                  <span className="text-slate-400">Network:</span>
                   <span className="text-white font-semibold">Binance Smart Chain (BEP-20)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Protocol Fee:</span>
+                  <span className="text-slate-400">Protocol Fee:</span>
                   <span className="text-emerald-400 font-bold">0.00 USDT (0%)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Approval Method:</span>
+                  <span className="text-slate-400">Approval Method:</span>
                   <span className="text-[#00F0FF] font-semibold">Review By Nodescan</span>
                 </div>
               </div>
 
               {withdrawMessage && (
                 <div
-                  className={`p-3 rounded-xl text-xs font-mono flex items-start gap-2 border ${
+                  className={`p-3.5 rounded-xl text-xs font-body flex items-start gap-2 border ${
                     withdrawMessage.type === 'success'
                       ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                       : 'bg-red-500/10 text-red-300 border-red-500/30'
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[16px] shrink-0 mt-0.5">
+                  <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">
                     {withdrawMessage.type === 'success' ? 'check_circle' : 'error'}
                   </span>
                   <span>{withdrawMessage.text}</span>
@@ -1024,7 +1022,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               <button
                 type="submit"
                 disabled={isSubmittingWithdraw || availableToWithdraw <= 0}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#7df4ff] text-[#0A0F1D] font-headline font-black text-xs sm:text-sm uppercase tracking-wider shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmittingWithdraw ? (
                   <>
@@ -1046,13 +1044,13 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 <span className="text-xs font-headline font-bold text-white uppercase tracking-wider">
                   Your Withdrawal Requests
                 </span>
-                <span className="text-[10px] font-mono text-[#94a3b8]">
+                <span className="text-xs font-body text-slate-400">
                   {activeWithdrawals.length} Total
                 </span>
               </div>
 
               {activeWithdrawals.length === 0 ? (
-                <div className="py-4 text-center text-xs font-mono text-[#94a3b8] bg-[#071322] rounded-xl border border-[#1c2b3b]">
+                <div className="py-4 text-center text-xs font-body text-slate-400 bg-[#071322] rounded-xl border border-[#1c2b3b]">
                   No withdrawal requests made yet.
                 </div>
               ) : (
@@ -1060,15 +1058,15 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                   {activeWithdrawals.map((w, idx) => (
                     <div
                       key={`${w.id || 'wdr'}-${idx}`}
-                      className="p-2.5 rounded-xl bg-[#071322] border border-[#1c2b3b] flex items-center justify-between gap-3 text-xs"
+                      className="p-3 rounded-xl bg-[#071322] border border-[#1c2b3b] flex items-center justify-between gap-3 text-xs"
                     >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-headline font-bold text-white">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-headline font-bold text-white text-xs sm:text-sm">
                             {w.amount.toFixed(2)} USDT
                           </span>
                           <span
-                            className={`px-2 py-0.2 rounded text-[9px] font-mono font-bold uppercase ${
+                            className={`px-2 py-0.5 rounded text-xs font-headline font-bold uppercase ${
                               w.status === 'approved'
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                                 : w.status === 'pending'
@@ -1079,16 +1077,16 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                             {w.status === 'approved' ? '✓ DONE / APPROVED' : w.status === 'pending' ? '⏳ PENDING REVIEW' : '✕ REJECTED'}
                           </span>
                         </div>
-                        <div className="text-[10px] font-mono text-[#94a3b8] mt-0.5">
+                        <div className="text-xs font-mono text-slate-400 mt-1 truncate">
                           To: {w.destinationAddress ? `${w.destinationAddress.slice(0, 8)}...${w.destinationAddress.slice(-6)}` : 'Wallet'}
                         </div>
                         {w.txHash && (
-                          <div className="text-[10px] font-mono text-emerald-400 truncate max-w-xs mt-0.5">
+                          <div className="text-xs font-mono text-emerald-400 truncate max-w-xs mt-0.5">
                             Tx: {w.txHash.slice(0, 16)}...
                           </div>
                         )}
                       </div>
-                      <div className="text-right shrink-0 text-[10px] font-mono text-[#94a3b8]">
+                      <div className="text-right shrink-0 text-xs font-body text-slate-400">
                         {new Date(w.requestedAt).toLocaleDateString()}
                       </div>
                     </div>
