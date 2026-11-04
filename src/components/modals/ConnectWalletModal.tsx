@@ -201,12 +201,17 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           setConnectingProvider(null);
           setConnectingStatus(null);
           const errObj = err as { code?: number; message?: string };
-          if (errObj?.code === 4001 || errObj?.message?.includes('User rejected')) {
+          const msg = String(errObj?.message || err || '');
+          if (errObj?.code === 4001 || msg.includes('User rejected')) {
             setErrorMessage('Wallet connection was cancelled or rejected by user.');
-          } else if (errObj?.message === 'WALLET_TIMEOUT') {
+          } else if (msg.includes('WALLET_TIMEOUT')) {
             setErrorMessage('Wallet did not respond within 45s. Please unlock your extension and try again.');
+          } else if (msg.includes('Failed to connect to MetaMask') || isInsideIframe) {
+            setErrorMessage(
+              'MetaMask is restricted inside embedded browser preview iframes. Click "Open in Full Browser Tab" to connect your live extension, or click "Continue in Web3 Sandbox Mode" below.'
+            );
           } else {
-            setErrorMessage(errObj?.message || 'Wallet extension connection failed.');
+            setErrorMessage(msg || 'Wallet extension connection failed.');
           }
           return;
         }
@@ -406,19 +411,27 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                     <p className="text-[11px] font-mono leading-relaxed text-amber-100/90 mt-0.5">{errorMessage}</p>
                   </div>
                 </div>
-                {isInsideIframe && (
                   <div className="pt-1 flex flex-wrap items-center gap-2">
-                    <a
-                      href={typeof window !== 'undefined' ? window.location.href : '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-mono text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                    {isInsideIframe && (
+                      <a
+                        href={typeof window !== 'undefined' ? window.location.href : '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-mono text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                      >
+                        <span>Open in Full Browser Tab (Native Extension)</span>
+                        <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleConnectFreshWallet}
+                      className="px-3 py-1.5 rounded-lg bg-[#00F0FF]/20 hover:bg-[#00F0FF]/30 text-[#00F0FF] border border-[#00F0FF]/40 font-mono text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
                     >
-                      <span>Open in Full Browser Tab (Native Extension)</span>
-                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-                    </a>
+                      <span className="material-symbols-outlined text-[13px]">play_arrow</span>
+                      <span>Continue in Web3 Sandbox Mode</span>
+                    </button>
                   </div>
-                )}
               </div>
             )}
 

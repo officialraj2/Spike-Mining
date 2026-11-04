@@ -972,9 +972,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                     <span className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
                       Available Mined Reward
                     </span>
-                    <span className="text-xs font-headline font-bold px-2.5 py-0.5 rounded-full bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
-                      Tier: {activeLevel}
-                    </span>
                   </div>
 
                   <div className="flex flex-wrap items-baseline gap-2.5">

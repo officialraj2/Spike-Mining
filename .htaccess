@@ -1,0 +1,60 @@
+# ==============================================================================
+# SPIKE Nodes (spikenodes.com) — Hostinger Git Auto-Deployment Root Configuration
+# ==============================================================================
+# Directs all incoming traffic seamlessly to pre-compiled production build in /dist
+
+DirectoryIndex dist/index.html index.php index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Force HTTPS
+  RewriteCond %{HTTPS} off
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # 2. Prevent rewrite loop if URL already starts with /dist/
+  RewriteRule ^dist/ - [L]
+
+  # 3. If file exists inside dist/, serve it directly (e.g. /assets/xxx.js -> dist/assets/xxx.js)
+  RewriteCond %{REQUEST_URI} !^/dist/
+  RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
+  RewriteRule ^(.*)$ dist/$1 [L,QSA]
+
+  # 4. If directory exists inside dist/, rewrite to it
+  RewriteCond %{REQUEST_URI} !^/dist/
+  RewriteCond %{REQUEST_URI} !^/?$
+  RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -d
+  RewriteRule ^(.*)$ dist/$1/ [L,QSA]
+
+  # 5. SPA Fallback: All page routes (/mining, /dashboard, /, etc.) route to dist/index.html
+  RewriteCond %{DOCUMENT_ROOT}/dist/index.html -f
+  RewriteRule ^.*$ dist/index.html [L,QSA]
+</IfModule>
+
+# MIME type enforcement for Vite ESM chunks & modern Web3 assets
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType application/json .json
+  AddType image/svg+xml .svg
+  AddType font/woff2 .woff2
+  AddType font/woff .woff
+</IfModule>
+
+# Security and caching headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Access-Control-Allow-Origin "*"
+
+  # Cache Vite hashed assets for maximum speed
+  <FilesMatch "\.(ico|jpg|jpeg|png|gif|js|mjs|css|webp|woff|woff2|svg)$">
+    Header set Cache-Control "max-age=31536000, public, immutable"
+  </FilesMatch>
+
+  # HTML files should always check for updates
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>

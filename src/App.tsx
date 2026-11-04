@@ -1451,7 +1451,10 @@ export default function App() {
       const win = window as any;
       if (win.ethereum && typeof win.ethereum.request === 'function' && (provider.toLowerCase().includes('meta') || provider.toLowerCase().includes('trust') || provider.toLowerCase().includes('web3'))) {
         try {
-          const accounts = await win.ethereum.request({ method: 'eth_requestAccounts' });
+          const accounts = await win.ethereum.request({ method: 'eth_requestAccounts' }).catch((e: unknown) => {
+            console.warn('[App] Real Web3 connection popup note:', (e as { message?: string })?.message || e);
+            return null;
+          });
           if (Array.isArray(accounts) && accounts.length > 0) {
             finalAddress = accounts[0];
           }

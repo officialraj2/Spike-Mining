@@ -71,6 +71,17 @@
             console.warn('[Handled Firestore Quota]: Daily quota reached; running smoothly in persistent local database mode.');
             return;
           }
+
+          if (
+            fullText.indexOf('Failed to connect to MetaMask') !== -1 ||
+            fullText.indexOf('chrome-extension://') !== -1 ||
+            fullText.indexOf('inpage.js') !== -1 ||
+            fullText.indexOf('MetaMask') !== -1 ||
+            fullText.indexOf('User rejected') !== -1
+          ) {
+            console.warn('[Handled Web3 Extension Notice]:', fullText);
+            return;
+          }
           return origError.apply(console, arguments);
         };
       })();

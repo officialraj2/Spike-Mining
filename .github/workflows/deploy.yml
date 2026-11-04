@@ -1,7 +1,10 @@
-name: Deploy to Hostinger
+name: Build and Verify
 
 on:
   push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
 
@@ -16,14 +19,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci || npm install
 
       - name: Build Project
         run: npm run build
 
-      - name: Deploy to Hostinger via FTP
+      - name: Deploy to Hostinger via FTP (Optional)
+        if: ${{ env.FTP_SERVER != '' }}
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
