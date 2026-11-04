@@ -1,4 +1,4 @@
-export type TabType = 'home' | 'dashboard' | 'mining-nodes' | 'referrals' | 'admin' | 'swap';
+export type TabType = 'home' | 'dashboard' | 'mining-nodes' | 'referrals' | 'withdraw-history' | 'roadmap' | 'admin' | 'swap';
 
 export interface AdminMetrics {
   totalUsers: number;

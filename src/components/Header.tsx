@@ -194,8 +194,10 @@ export const Header: React.FC<HeaderProps> = ({
               {([
                 { id: 'dashboard' as TabType, label: 'Dashboard', icon: 'dashboard' },
                 { id: 'mining-nodes' as TabType, label: 'Mining Nodes', icon: 'dns' },
-                { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups' },
+                { id: 'referrals' as TabType, label: 'Referrals', icon: 'groups' },
+                { id: 'withdraw-history' as TabType, label: 'Withdraw History', icon: 'receipt_long' },
                 { id: 'swap' as TabType, label: 'DEX Swap', icon: 'swap_horiz' },
+                { id: 'roadmap' as TabType, label: 'Roadmap', icon: 'alt_route' },
               ] as { id: TabType; label: string; icon: string; badge?: string; hot?: boolean }[]).map((item) => {
                 const isActive = activeTab === item.id;
                 return (
@@ -506,7 +508,9 @@ export const Header: React.FC<HeaderProps> = ({
                     { id: 'dashboard' as TabType, label: 'Dashboard', icon: 'dashboard' },
                     { id: 'mining-nodes' as TabType, label: 'Mining Nodes', icon: 'dns' },
                     { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups' },
+                    { id: 'withdraw-history' as TabType, label: 'Withdraw History', icon: 'receipt_long' },
                     { id: 'swap' as TabType, label: 'Swap (DEX)', icon: 'swap_horiz' },
+                    { id: 'roadmap' as TabType, label: 'Roadmap', icon: 'alt_route' },
                     ...(isAdmin ? [{ id: 'admin' as TabType, label: 'Admin Panel & DB', icon: 'shield_person', badge: 'ROOT' }] : []),
                   ] as { id: TabType; label: string; icon: string; badge?: string; hot?: boolean }[]).map((item) => {
                     const isActive = activeTab === item.id;

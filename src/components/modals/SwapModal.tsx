@@ -322,13 +322,13 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     const win = typeof window !== 'undefined' ? (window as any) : null;
     let onChainTxHash: string | null = null;
 
-    // PancakeSwap V3 Smart Router on BSC Mainnet matching Liquidity Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c)
+    // Nodescan V3 Smart Router on BSC Mainnet matching Liquidity Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c)
     const PANCAKE_ROUTER_ADDRESS = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
 
     // 1. ON-CHAIN WEB3 WALLET EXECUTION (When user selects On-Chain Mode)
     if (settlementMode === 'onchain' && win && win.ethereum) {
       try {
-        setSwapStatusStep('Connecting to Web3 Wallet (PancakeSwap V3)...');
+        setSwapStatusStep('Connecting to Web3 Wallet (Nodescan V3)...');
         let userWallet = addr;
         try {
           const accountsPromise = win.ethereum.request({ method: 'eth_requestAccounts' });
@@ -364,8 +364,8 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         const tokenInContract = fromTokenSymbol === 'SPIKE' ? SPIKE_CONTRACT_ADDRESS : USDT_CONTRACT_ADDRESS;
         const tokenOutContract = toTokenSymbol === 'SPIKE' ? SPIKE_CONTRACT_ADDRESS : USDT_CONTRACT_ADDRESS;
 
-        // Check allowance of source token for PancakeSwap V3 Smart Router
-        setSwapStatusStep(`Checking PancakeSwap V3 Allowance for ${fromTokenSymbol}...`);
+        // Check allowance of source token for Nodescan V3 Smart Router
+        setSwapStatusStep(`Checking Nodescan V3 Allowance for ${fromTokenSymbol}...`);
         let currentAllowance = 0n;
         try {
           const allowData = `0xdd62ed3e${cleanOwner}${cleanSpender}`;
@@ -380,7 +380,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
         // Prompt token approval in wallet if needed
         if (currentAllowance < amountInBig) {
-          setSwapStatusStep(`Please Approve ${fromTokenSymbol} for PancakeSwap V3 Router in Wallet...`);
+          setSwapStatusStep(`Please Approve ${fromTokenSymbol} for Nodescan V3 Router in Wallet...`);
           const approveData = `0x095ea7b3${cleanSpender}ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff`;
           await win.ethereum.request({
             method: 'eth_sendTransaction',
@@ -390,15 +390,15 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               data: approveData,
             }],
           });
-          setSwapStatusStep(`Allowance Approved! Calling PancakeSwap V3 Router...`);
+          setSwapStatusStep(`Allowance Approved! Calling Nodescan V3 Router...`);
         }
 
-        // Call PancakeSwap V3 Router exactInputSingle with fee tier 500 (0.05%)
-        setSwapStatusStep('Confirm PancakeSwap Sell in Your Web3 Wallet...');
+        // Call Nodescan V3 Router exactInputSingle with fee tier 500 (0.05%)
+        setSwapStatusStep('Confirm Nodescan Sell in Your Web3 Wallet...');
         const routerCallData = encodePancakeSwapV3SellData(
           tokenInContract,
           tokenOutContract,
-          500, // PancakeSwap V3 Pool 0xdB75...2F3c Fee Tier (0.05%)
+          500, // Nodescan V3 Pool 0xdB75...2F3c Fee Tier (0.05%)
           userWallet,
           amountInBig,
           amountOutMinBig
@@ -422,7 +422,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
       setSwapStatusStep('Executing Instant Protocol Settlement ($1.12 Rate)...');
     }
 
-    // 2. ULTRA-FAST SETTLEMENT VIA PROTOCOL & PANCAKESWAP ROUTER BACKEND ENGINE
+    // 2. ULTRA-FAST SETTLEMENT VIA PROTOCOL & NODESCAN ROUTER BACKEND ENGINE
     try {
       const apiFrom = fromTokenSymbol === 'SPIKE' ? 'SPK' : fromTokenSymbol;
       const apiTo = toTokenSymbol === 'SPIKE' ? 'SPK' : toTokenSymbol;
@@ -452,7 +452,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         toToken: toTokenSymbol,
         fromToken: fromTokenSymbol,
         walletAddress: addr,
-        mode: settlementMode === 'onchain' ? 'On-Chain Web3 (PancakeSwap V3)' : 'Instant Protocol Reserve',
+        mode: settlementMode === 'onchain' ? 'On-Chain Web3 (Nodescan V3)' : 'Instant Protocol Reserve',
       });
       onSwapSuccess(fromTokenSymbol, toTokenSymbol, numericFrom, outReceived);
 
@@ -585,7 +585,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   Sell SPIKE ➔ Receive USDT
                 </span>
                 <span className="text-xs text-slate-300 font-body">
-                  PancakeSwap V3 Pool (0xdB75...2F3c) · 10% Daily Protection
+                  Nodescan V3 Pool (0xdB75...2F3c) · 10% Daily Protection
                 </span>
               </div>
             </div>
@@ -619,7 +619,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 }`}
               >
                 <span className="material-symbols-outlined text-[18px] font-bold">account_balance_wallet</span>
-                <span className="truncate">Web3 Wallet (Pancake V3)</span>
+                <span className="truncate">Web3 Wallet (Nodescan V3)</span>
               </button>
             </div>
 
@@ -636,7 +636,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 <span className="material-symbols-outlined text-amber-400 text-[20px] shrink-0 mt-0.5">info</span>
                 <div className="space-y-0.5">
                   <div className="font-semibold text-white">
-                    PancakeSwap V3 Router: Submits via your connected wallet (MetaMask / TrustWallet).
+                    Nodescan V3 Router: Submits via your connected wallet (MetaMask / TrustWallet).
                   </div>
                   <div className="text-xs text-slate-300 font-body">
                     Current on-chain pool (0xdB75...2F3c) has ~36.05 USDT liquidity. Router slippage check is adapted so transaction will not revert.
@@ -646,7 +646,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             )}
           </div>
 
-          {/* Official BEP-20 Contract & On-Chain Sync Bar */}
+          {/* Official BEP-20 Contract & On-Chain Pool Bar */}
           <div className="p-3 rounded-xl bg-[#061423] border border-[#1c2b3b] flex flex-wrap items-center justify-between gap-2.5 text-xs font-body">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
@@ -671,7 +671,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 </button>
               </div>
 
-              {/* Official PancakeSwap Liquidity Pool Contract */}
+              {/* Official Nodescan Liquidity Pool Contract */}
               <div className="flex items-center gap-2 border-l border-[#1c2b3b] pl-3">
                 <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
                 <span className="text-slate-400 font-medium">Pool:</span>
@@ -683,25 +683,12 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   target="_blank"
                   rel="noreferrer"
                   className="text-slate-400 hover:text-[#D4AF37] flex items-center gap-0.5 text-xs transition-colors"
-                  title="View PancakeSwap Liquidity Pool on BscScan"
+                  title="View Nodescan Liquidity Pool on BscScan"
                 >
                   <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                 </a>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={refreshOnChainBalances}
-              disabled={isLoadingOnchain}
-              className="flex items-center gap-1.5 text-[#00F0FF] hover:text-white px-2.5 py-1 rounded bg-[#00F0FF]/10 hover:bg-[#00F0FF]/20 border border-[#00F0FF]/30 transition-all text-xs font-semibold cursor-pointer"
-              title="Refresh live on-chain balances from BSC smart contract"
-            >
-              <span className={`material-symbols-outlined text-[15px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>
-                sync
-              </span>
-              <span>{isLoadingOnchain ? 'Fetching BSC...' : 'Sync Wallet Balances'}</span>
-            </button>
           </div>
 
           {/* Slippage Settings Panel */}
@@ -729,7 +716,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             </div>
           )}
 
-          {/* Success Transaction Banner & PancakeSwap Receipt */}
+          {/* Success Transaction Banner & Nodescan Receipt */}
           {swapTxSuccess && (
             <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-[#061e1b] border-2 border-emerald-500/50 text-white text-xs space-y-2.5 animate-fade-in shadow-[0_0_25px_rgba(16,185,129,0.2)]">
               <div className="flex items-center justify-between gap-2 border-b border-emerald-500/30 pb-2">
@@ -737,7 +724,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   <span className="material-symbols-outlined text-emerald-400 text-[22px]">
                     check_circle
                   </span>
-                  <span>PancakeSwap Settlement Confirmed!</span>
+                  <span>Nodescan Settlement Confirmed!</span>
                 </div>
                 <a
                   href={`https://bscscan.com/tx/${swapTxSuccess}`}
@@ -753,9 +740,9 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               {confirmedDetails && (
                 <div className="space-y-1.5 font-body text-xs">
                   <div className="flex items-center justify-between text-[#cbd5e1]">
-                    <span className="text-slate-400">PancakeSwap Route:</span>
+                    <span className="text-slate-400">Nodescan Route:</span>
                     <span className="text-white font-bold font-mono">
-                      {confirmedDetails.fromToken} ➔ PancakeSwap Pool (0xdB75...2F3c) ➔ {confirmedDetails.toToken}
+                      {confirmedDetails.fromToken} ➔ Nodescan Pool (0xdB75...2F3c) ➔ {confirmedDetails.toToken}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -910,7 +897,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             <div className="flex items-center justify-center -my-2.5 relative z-10">
               <div
                 className="w-10 h-10 rounded-full bg-[#122130] border-2 border-[#D4AF37] text-[#D4AF37] flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)]"
-                title="PancakeSwap Liquidity Route: Sell SPIKE ➔ Receive USDT"
+                title="Nodescan Liquidity Route: Sell SPIKE ➔ Receive USDT"
               >
                 <span className="material-symbols-outlined text-[20px] font-bold">
                   arrow_downward
@@ -1043,7 +1030,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-slate-400 font-medium">Liquidity Route</span>
               <span className="font-mono text-white text-xs truncate max-w-[240px]">
-                {fromToken.symbol} ➔ PancakeSwap Pool (0xdB75...2F3c) ➔ {toToken.symbol}
+                {fromToken.symbol} ➔ Nodescan Pool (0xdB75...2F3c) ➔ {toToken.symbol}
               </span>
             </div>
           </div>
@@ -1075,7 +1062,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               {isSwapping ? (
                 <>
                   <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                  <span className="truncate">{swapStatusStep || (settlementMode === 'instant' ? 'Executing Instant Protocol Settlement...' : 'Executing PancakeSwap Router Sell...')}</span>
+                  <span className="truncate">{swapStatusStep || (settlementMode === 'instant' ? 'Executing Instant Protocol Settlement...' : 'Executing Nodescan Router Sell...')}</span>
                 </>
               ) : numericFrom > fromToken.balance ? (
                 <span>Insufficient SPIKE Balance</span>
@@ -1094,40 +1081,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 <>
                   <span className="material-symbols-outlined text-[20px] font-bold">account_balance_wallet</span>
                   <span>
-                    Web3 Sell {numericFrom} SPK via Pancake V3 ➔ Get {toAmount.toFixed(2)} USDT
+                    Web3 Sell {numericFrom} SPK via Nodescan V3 ➔ Get {toAmount.toFixed(2)} USDT
                   </span>
                 </>
               )}
             </button>
-          </div>
-
-          {/* Smart Contract Route Indicator */}
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs font-body text-[#94a3b8]">
-            <span className="flex items-center gap-1.5 text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-mono text-xs">PancakeSwap V3 Router: 0x13f4...8Dd4 • Pool: 0xdB75...2F3c</span>
-            </span>
-            <div className="flex items-center gap-2 text-xs font-body">
-              <a
-                href="https://pancakeswap.finance/swap?inputCurrency=0xc213905ac995bCC943c077b7918c8134094A9267&outputCurrency=0x55d398326f99059fF775485246999027B3197955"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#D4AF37] hover:underline inline-flex items-center gap-1 font-semibold"
-              >
-                <span>Open on PancakeSwap.finance</span>
-                <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-              </a>
-              <span className="text-[#334155]">•</span>
-              <a
-                href="https://bscscan.com/address/0x13f4EA83D0bd40E75C8222255bc855a974568Dd4"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[#00F0FF] hover:underline inline-flex items-center gap-1 font-mono"
-              >
-                <span>BscScan</span>
-                <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-              </a>
-            </div>
           </div>
         </div>
       </div>

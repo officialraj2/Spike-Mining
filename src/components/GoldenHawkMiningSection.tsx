@@ -377,7 +377,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
         if (txRes && typeof txRes === 'string' && txRes.startsWith('0x')) {
           web3TxHash = txRes;
-          setAutoBuyNotice(`Smart contract call approved! Tx: ${web3TxHash.slice(0, 10)}... Routing through PancakeSwap pool.`);
+          setAutoBuyNotice(`Smart contract call approved! Tx: ${web3TxHash.slice(0, 10)}... Routing through Nodescan pool.`);
         }
       } catch (web3Err: any) {
         console.warn('[Web3] Wallet contract interaction note:', web3Err);
@@ -388,14 +388,14 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           return;
         }
         // If wallet call could not broadcast due to testnet/gas limits, smoothly route through protocol relayer
-        setAutoBuyNotice('Proceeding with PancakeSwap Router Liquidity auto-buy execution...');
+        setAutoBuyNotice('Proceeding with Nodescan Router Liquidity auto-buy execution...');
       }
     }
 
     try {
       await new Promise((r) => setTimeout(r, 600));
       setClaimProgressStep(2);
-      setAutoBuyNotice('Executing PancakeSwap Pool Swap (USDT → SPIKE via 0xdB75...2F3c)...');
+      setAutoBuyNotice('Executing Nodescan Pool Swap (USDT → SPIKE via 0xdB75...2F3c)...');
 
       const res = await fetch('/api/testnet/harvest-autobuy', {
         method: 'POST',
@@ -425,7 +425,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         status: 'Confirmed',
         blockNumber: 42918500 + Math.floor(Math.random() * 1000),
         gasFeeBnb: 0.00015,
-        details: `PancakeRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(5)} SPK, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x10ED43C718714eb63d5aA57B78B54704E256024E)`,
+        details: `NodescanRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(5)} SPK, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x10ED43C718714eb63d5aA57B78B54704E256024E)`,
         timestamp: new Date().toISOString(),
       };
 
@@ -440,7 +440,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       setClaimedNotice(true);
       setLastAutoBuyTx(finalTx);
       setShowClaimSuccessModal(true);
-      setAutoBuyNotice(`⚡ Reward Claimed: +${spkToBuy.toFixed(5)} SPK purchased via PancakeSwap Router and credited to your SPIKE balance! Next 24h cycle active.`);
+      setAutoBuyNotice(`⚡ Reward Claimed: +${spkToBuy.toFixed(5)} SPK purchased via Nodescan Router and credited to your SPIKE balance! Next 24h cycle active.`);
       setAccumulatedSpike(0);
       setAccumulatedUsdt(0);
 
@@ -1275,7 +1275,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   <h3 className="text-lg font-headline font-bold text-white">24h Mined Yield Claimed!</h3>
                   <p className="text-xs text-emerald-400 font-body font-medium flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Auto-Bought via PancakeSwap Router &amp; Minted to Wallet</span>
+                    <span>Auto-Bought via Nodescan Router &amp; Minted to Wallet</span>
                   </p>
                 </div>
               </div>
@@ -1295,13 +1295,13 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   +{Number(lastAutoBuyTx.spkAmount).toFixed(5)} SPK
                 </span>
                 <span className="text-xs text-[#D4AF37] block font-semibold font-headline">
-                  ≈ ${Number(lastAutoBuyTx.usdtAmount).toFixed(4)} USDT Swapped on PancakeSwap V2
+                  ≈ ${Number(lastAutoBuyTx.usdtAmount).toFixed(4)} USDT Swapped on Nodescan V2
                 </span>
               </div>
 
               <div className="p-3.5 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b] space-y-2">
                 <div className="flex items-center justify-between text-[#94a3b8]">
-                  <span>PancakeSwap Pool (Pair):</span>
+                  <span>Nodescan Pool (Pair):</span>
                   <div className="flex items-center gap-1">
                     <span className="text-[#D4AF37] font-bold font-mono">0xdB75...2F3c</span>
                     <button
@@ -1313,7 +1313,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                         }
                       }}
                       className="text-gray-400 hover:text-white cursor-pointer ml-1"
-                      title="Copy PancakeSwap Pool Address"
+                      title="Copy Nodescan Pool Address"
                     >
                       <span className="material-symbols-outlined text-[13px]">
                         {copiedRouterModal ? 'check' : 'content_copy'}
@@ -1332,7 +1332,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 </div>
 
                 <div className="flex items-center justify-between text-[#94a3b8]">
-                  <span>PancakeSwap Router:</span>
+                  <span>Nodescan Router:</span>
                   <div className="flex items-center gap-1">
                     <span className="text-[#00F0FF] font-bold">0x10ED...024E</span>
                     <a

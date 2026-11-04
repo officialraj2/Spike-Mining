@@ -23,7 +23,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'mining-nodes', label: 'Mining Nodes', icon: 'dns', count: nodeCount },
     { id: 'referrals', label: 'Referral system', icon: 'groups' },
+    { id: 'withdraw-history', label: 'Withdraw History', icon: 'receipt_long' },
     { id: 'swap', label: 'Swap (DEX)', icon: 'swap_horiz' },
+    { id: 'roadmap', label: 'Roadmap', icon: 'alt_route' },
     ...(isAdmin
       ? [
           {

@@ -2252,7 +2252,7 @@ class PersistentDatabase {
         status: 'Confirmed',
         blockNumber: 42918500 + (this.data.testnetTransactions?.length || 0),
         gasFeeBnb: 0.00015,
-        details: `Swap ${numIn} USDT -> ${amountOut} SPK on PancakeSwap Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c) via Router (${this.data.settings.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'})`,
+        details: `Swap ${numIn} USDT -> ${amountOut} SPK on Nodescan Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c) via Router (${this.data.settings.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'})`,
         timestamp: new Date().toISOString(),
       };
 
@@ -2326,7 +2326,7 @@ class PersistentDatabase {
         status: 'Confirmed',
         blockNumber: 42918500 + (this.data.testnetTransactions?.length || 0),
         gasFeeBnb: 0.00015,
-        details: `Swap ${numIn} SPK -> ${amountOut} USDT on PancakeSwap Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c) via Smart Router (${this.data.settings.pancakeRouterAddress || '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4'})`,
+        details: `Swap ${numIn} SPK -> ${amountOut} USDT on Nodescan Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c) via Smart Router (${this.data.settings.pancakeRouterAddress || '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4'})`,
         timestamp: new Date().toISOString(),
       };
 
@@ -2433,7 +2433,7 @@ class PersistentDatabase {
         logs: [
           `Deposit of $${amount.toFixed(2)} USDT verified in Protocol Treasury`,
           `Connected to BSC stratum pool: ${this.data.settings.stratumPoolUrl}`,
-          `24-Hour Mining Cycle Active · Automated PancakeSwap Buyback Enabled`,
+          `24-Hour Mining Cycle Active · Automated Nodescan Buyback Enabled`,
         ],
         costUsdt: amount,
         deployedAt: new Date().toISOString(),
@@ -2508,7 +2508,7 @@ class PersistentDatabase {
     const currentTreasury = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
     this.data.settings.treasuryBalanceUsdt = +(currentTreasury + costUsdt).toFixed(2);
 
-    // BACKEND SMART WORK: Execute PancakeSwap buy route with the $10 USDT
+    // BACKEND SMART WORK: Execute Nodescan buy route with the $10 USDT
     const amountInWithFee = costUsdt * 0.9975;
     const amountOutSpk = Number(((token.poolSpkReserve * amountInWithFee) / (token.poolUsdtReserve + amountInWithFee)).toFixed(4));
 
@@ -2525,7 +2525,7 @@ class PersistentDatabase {
     wallet.totalUsdtSpentOnAutoBuy = +(wallet.totalUsdtSpentOnAutoBuy + costUsdt).toFixed(2);
     wallet.lastAutoBuyAt = new Date().toISOString();
 
-    // Create PancakeSwap Buy Transaction Receipt
+    // Create Nodescan Buy Transaction Receipt
     const swapTxHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
     const swapTx: DbTestnetTx = {
       id: `test-tx-${Date.now()}`,
@@ -2538,7 +2538,7 @@ class PersistentDatabase {
       status: 'Confirmed',
       blockNumber: 42918600 + (this.data.testnetTransactions?.length || 0),
       gasFeeBnb: 0.00015,
-      details: `PancakeRouter.swapExactTokensForTokens(${costUsdt} USDT -> ${amountOutSpk} SPK) [Mining Backend Auto-Buy Execution]`,
+      details: `NodescanRouter.swapExactTokensForTokens(${costUsdt} USDT -> ${amountOutSpk} SPK) [Mining Backend Auto-Buy Execution]`,
       timestamp: new Date().toISOString(),
     };
     if (!this.data.testnetTransactions) this.data.testnetTransactions = [];
@@ -2560,7 +2560,7 @@ class PersistentDatabase {
       algorithm: 'SHA-256 (BSC Validator Sublayer)',
       logs: [
         `[${new Date().toLocaleTimeString()}] Smart Contract Call executed: Mining node provisioned for 10 USDT.`,
-        `[${new Date().toLocaleTimeString()}] Backend executed PancakeSwap V2 Buy Route: +${amountOutSpk.toFixed(2)} SPK purchased & credited!`,
+        `[${new Date().toLocaleTimeString()}] Backend executed Nodescan V2 Buy Route: +${amountOutSpk.toFixed(2)} SPK purchased & credited!`,
         `[${new Date().toLocaleTimeString()}] Stratum target diff accepted: 100 VH/s active engine (1 SPK / 60 Days)`,
       ],
       costUsdt,
@@ -2575,7 +2575,7 @@ class PersistentDatabase {
       amount: costUsdt,
       currency: 'USDT',
       status: 'Confirmed',
-      details: `Smart Contract Call: Mining Node Activation (${rigName}). Backend executed PancakeSwap Buy Route for +${amountOutSpk.toFixed(2)} SPK.`,
+      details: `Smart Contract Call: Mining Node Activation (${rigName}). Backend executed Nodescan Buy Route for +${amountOutSpk.toFixed(2)} SPK.`,
       blockNumber: 42918600 + Math.floor(Math.random() * 1000),
     });
 

@@ -404,7 +404,68 @@
   animation: harvestGlowPulse 2.2s ease-in-out infinite, shiningShimmer 3.5s linear infinite;
 }
 
+/* Roadmap Mindmap Visual Synapse & Node Animations */
+@keyframes flowDash {
+  0% {
+    stroke-dashoffset: 40;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes radarWave {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes coreBreathing {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 25px rgba(0, 240, 255, 0.45));
+  }
+  50% {
+    transform: scale(1.04);
+    filter: drop-shadow(0 0 45px rgba(0, 240, 255, 0.8)) drop-shadow(0 0 25px rgba(212, 175, 55, 0.5));
+  }
+}
+
+@keyframes laserSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-flow-dash {
+  animation: flowDash 1.8s linear infinite;
+}
+
+.animate-radar-wave {
+  animation: radarWave 2.4s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.animate-core-breathing {
+  animation: coreBreathing 3.6s ease-in-out infinite;
+}
+
+.animate-laser-sweep {
+  animation: laserSweep 3s ease-in-out infinite;
+}
+
 /* Safe area inset padding for modern mobile devices (iPhone home indicator, Android gesture bar) */
 .safe-area-pb {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 12px));
 }
+

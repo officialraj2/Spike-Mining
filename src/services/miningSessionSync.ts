@@ -46,7 +46,7 @@ export async function persistMiningStart(params: {
     nodeName: params.nodeName || 'Falcon Titan Node #01',
     status: 'active',
     treasuryContributionUsdt: params.treasuryContributionUsdt || 5.0,
-    pancakeSwapRoute: 'PancakeSwap V3 Pool 0xdB75...2F3c',
+    pancakeSwapRoute: 'Nodescan V3 Pool 0xdB75...2F3c',
     lastSyncTime: now,
     clientInfo: typeof navigator !== 'undefined' ? navigator.userAgent : 'Web3 DApp',
   };

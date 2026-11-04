@@ -151,17 +151,28 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const [withdrawAddress, setWithdrawAddress] = useState<string>(walletAddress || '');
   const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState(false);
   const [withdrawMessage, setWithdrawMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [activeWithdrawals, setActiveWithdrawals] = useState<WithdrawalItem[]>([]);
+  const [activeWithdrawals, setActiveWithdrawals] = useState<WithdrawalItem[]>(() => {
+    try {
+      if (walletAddress) {
+        const cached = localStorage.getItem(`spike_withdrawals_${walletAddress.toLowerCase()}`);
+        if (cached) return JSON.parse(cached);
+      }
+    } catch {}
+    return [];
+  });
 
   // Fetch user's withdrawal requests from backend & Firestore
   const fetchUserWithdrawals = React.useCallback(async () => {
     if (!walletAddress || !walletAddress.startsWith('0x')) return;
     try {
-      const res = await fetch(`/api/withdrawals?userAddress=${walletAddress}`);
+      const res = await fetch(`/api/withdrawals?userAddress=${encodeURIComponent(walletAddress)}`);
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.withdrawals)) {
           setActiveWithdrawals(data.withdrawals);
+          try {
+            localStorage.setItem(`spike_withdrawals_${walletAddress.toLowerCase()}`, JSON.stringify(data.withdrawals));
+          } catch {}
         }
       }
     } catch {}
@@ -170,18 +181,43 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   // Auto-sync on mount, on wallet change, on window focus, and on background periodic intervals
   useEffect(() => {
     refreshLiveStats();
+    fetchUserWithdrawals();
 
-    // Fast live poll every 1.8 seconds so partners joining reflect ultra-smoothly
-    const interval = setInterval(refreshLiveStats, 1800);
+    // Fast live poll every 2 seconds so partner joins and withdrawal changes reflect instantly
+    const interval = setInterval(() => {
+      refreshLiveStats();
+      fetchUserWithdrawals();
+    }, 2000);
 
     const handlePartnerEvent = () => {
       refreshLiveStats();
       fetchUserWithdrawals();
     };
+    const handleWithdrawalEvent = (e: Event) => {
+      const ce = e as CustomEvent;
+      if (ce.detail?.request) {
+        setActiveWithdrawals((prev) => {
+          const req = ce.detail.request;
+          const updated = [req, ...prev.filter((w) => w.id !== req.id)];
+          if (walletAddress) {
+            try {
+              localStorage.setItem(`spike_withdrawals_${walletAddress.toLowerCase()}`, JSON.stringify(updated));
+            } catch {}
+          }
+          return updated;
+        });
+      }
+      refreshLiveStats();
+      fetchUserWithdrawals();
+    };
     window.addEventListener('spike_partner_registered', handlePartnerEvent);
-    window.addEventListener('spike_withdrawal_updated', handlePartnerEvent);
+    window.addEventListener('spike_withdrawal_updated', handleWithdrawalEvent);
     window.addEventListener('spike_balance_updated', handlePartnerEvent);
-    window.addEventListener('focus', refreshLiveStats);
+    window.addEventListener('spike_milestone_claimed', handlePartnerEvent);
+    window.addEventListener('focus', () => {
+      refreshLiveStats();
+      fetchUserWithdrawals();
+    });
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key && (e.key.includes('spike_referral') || e.key.includes('spike_bal') || e.key.includes('spike_withdraw'))) {
@@ -204,15 +240,15 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     return () => {
       clearInterval(interval);
       window.removeEventListener('spike_partner_registered', handlePartnerEvent);
-      window.removeEventListener('spike_withdrawal_updated', handlePartnerEvent);
+      window.removeEventListener('spike_withdrawal_updated', handleWithdrawalEvent);
       window.removeEventListener('spike_balance_updated', handlePartnerEvent);
-      window.removeEventListener('focus', refreshLiveStats);
+      window.removeEventListener('spike_milestone_claimed', handlePartnerEvent);
       window.removeEventListener('storage', handleStorageChange);
       if (bc) {
         try { bc.close(); } catch {}
       }
     };
-  }, [refreshLiveStats, fetchUserWithdrawals]);
+  }, [refreshLiveStats, fetchUserWithdrawals, walletAddress]);
 
   // Track claimed milestone IDs per wallet
   const storageKey = `spike_claimed_milestones_${walletAddress || 'default'}`;
@@ -232,6 +268,20 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     } catch {
       setClaimedMilestones([]);
     }
+    try {
+      if (walletAddress) {
+        const cached = localStorage.getItem(`spike_withdrawals_${walletAddress.toLowerCase()}`);
+        if (cached) {
+          setActiveWithdrawals(JSON.parse(cached));
+        } else {
+          setActiveWithdrawals([]);
+        }
+      } else {
+        setActiveWithdrawals([]);
+      }
+    } catch {
+      setActiveWithdrawals([]);
+    }
   }, [walletAddress]);
 
   // Real-time calculated partners state from live stats
@@ -245,9 +295,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     .filter((m) => claimedMilestones.includes(m.id))
     .reduce((sum, m) => sum + m.rewardUsd, 0);
 
+  const backendMilestonesClaimed = Number(effectiveStats?.milestoneRewardsClaimed || 0);
+  const effectiveMilestoneSum = Math.max(claimedMilestoneRewardSum, backendMilestonesClaimed);
+
   const directCommissions = (effectiveStats?.referrals || []).reduce((acc: number, r: any) => acc + (r.commissionUsdt || 0), 0);
   // Total Earned strictly equals the sum of genuine claimed milestone rewards + direct referral commissions
-  const totalEarnedUsdt = +(claimedMilestoneRewardSum + directCommissions).toFixed(2);
+  const totalEarnedUsdt = +(effectiveMilestoneSum + directCommissions).toFixed(2);
   
   const referralsList = effectiveStats?.referrals || [];
   const rawSponsor = effectiveStats?.referredBy || null;
@@ -269,13 +322,17 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
   const pendingAmount = activeWithdrawals
     .filter((w) => w.status === 'pending')
-    .reduce((sum, w) => sum + w.amount, 0);
+    .reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
   const approvedAmount = activeWithdrawals
     .filter((w) => w.status === 'approved')
-    .reduce((sum, w) => sum + w.amount, 0);
+    .reduce((sum, w) => sum + (Number(w.amount) || 0), 0);
 
-  // Available rewards to withdraw: Genuine claimed rewards minus (pending + cleared payouts)
-  const availableToWithdraw = Math.max(0, +(totalEarnedUsdt - (pendingAmount + approvedAmount)).toFixed(2));
+  const totalWithdrawnAndPending = +(pendingAmount + approvedAmount).toFixed(2);
+
+  // Available rewards to withdraw: Strictly Total Earned minus All Processed & In-Review Withdrawals
+  // If user withdraws total amount, this is strictly 0.00!
+  // If user withdraws partial amount, this is strictly whatever is left!
+  const availableToWithdraw = Math.max(0, +(totalEarnedUsdt - totalWithdrawnAndPending).toFixed(2));
 
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
 
@@ -353,17 +410,53 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       });
       const data = await res.json();
       if (data && data.success) {
+        const submittedReq = data.request || {
+          id: `wdr-${Date.now()}`,
+          userAddress: walletAddress,
+          destinationAddress: dest,
+          amount: amountNum,
+          source: 'milestone_reward',
+          milestoneLabel: 'Team Milestone Career Rewards',
+          status: 'pending' as const,
+          requestedAt: new Date().toISOString(),
+        };
+
+        // Immediately update activeWithdrawals state and local storage so calculations stick immediately with 0 delay!
+        const nextList = [submittedReq, ...activeWithdrawals.filter((w) => w.id !== submittedReq.id)];
+        setActiveWithdrawals(nextList);
+        if (walletAddress) {
+          try {
+            localStorage.setItem(`spike_withdrawals_${walletAddress.toLowerCase()}`, JSON.stringify(nextList));
+          } catch {}
+        }
+
+        // Notify entire app of the withdrawal
+        window.dispatchEvent(
+          new CustomEvent('spike_withdrawal_updated', {
+            detail: {
+              userAddress: walletAddress,
+              request: submittedReq,
+              amount: amountNum,
+            },
+          })
+        );
+        try {
+          const bc = new BroadcastChannel('spike_referral_live_sync');
+          bc.postMessage({ type: 'WITHDRAWAL_REQUESTED', request: submittedReq, userAddress: walletAddress });
+          bc.close();
+        } catch {}
+
+        const newRemaining = Math.max(0, +(availableToWithdraw - amountNum).toFixed(2));
         setWithdrawMessage({
-          text: `✓ Withdrawal request for ${amountNum.toFixed(2)} USDT submitted! Sent to Admin Panel for review & approval.`,
+          text: `✓ Withdrawal of ${amountNum.toFixed(2)} USDT submitted! Remaining available balance: ${newRemaining.toFixed(2)} USDT. Sent to Admin Panel for review & approval.`,
           type: 'success',
         });
         setWithdrawAmount('');
-        fetchUserWithdrawals();
         refreshLiveStats();
         setTimeout(() => {
           setIsWithdrawModalOpen(false);
           setWithdrawMessage(null);
-        }, 3000);
+        }, 2500);
       } else {
         setWithdrawMessage({ text: data?.error || 'Failed to submit withdrawal request.', type: 'error' });
       }
@@ -715,7 +808,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex flex-col justify-between">
+        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex flex-col justify-between shadow-sm relative overflow-hidden">
           <div>
             <div className="flex items-center justify-between">
               <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
@@ -724,42 +817,71 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               <span className={`text-xs font-headline font-bold px-2 py-0.5 rounded border uppercase ${
                 availableToWithdraw > 0
                   ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  : pendingAmount > 0
+                  ? 'bg-amber-500/15 text-amber-300 border-amber-500/30 animate-pulse'
                   : approvedAmount > 0
                   ? 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/30'
                   : 'bg-[#1c2b3b] text-[#94a3b8] border-[#1c2b3b]'
               }`}>
-                {availableToWithdraw > 0 ? 'Withdrawable' : approvedAmount > 0 ? 'Cleared & Paid' : '0.00 Balance'}
+                {availableToWithdraw > 0
+                  ? 'Withdrawable'
+                  : pendingAmount > 0
+                  ? 'In Review (0.00 Left)'
+                  : approvedAmount > 0
+                  ? 'Fully Withdrawn (0.00)'
+                  : '0.00 Balance'}
               </span>
             </div>
+
             <div className="text-3xl font-extrabold font-headline mt-1.5 tabular-nums tracking-tight flex items-baseline gap-1.5">
               <span className={availableToWithdraw > 0 ? 'text-[#D4AF37]' : 'text-slate-300'}>
                 {availableToWithdraw.toFixed(2)}
               </span>
               <span className="text-sm text-white font-semibold font-headline">USDT</span>
             </div>
-            <div className="text-xs font-body mt-2.5 font-medium flex flex-col gap-1.5 text-slate-400 pt-2 border-t border-[#1c2b3b]/50">
+
+            {/* Sub-label explaining exactly what user is seeing */}
+            <p className="text-[11px] font-body mt-1 text-slate-400">
+              {availableToWithdraw > 0
+                ? totalWithdrawnAndPending > 0
+                  ? `Remaining balance after $${totalWithdrawnAndPending.toFixed(2)} USDT withdrawn`
+                  : 'Ready for withdrawal to your connected BSC wallet'
+                : pendingAmount > 0
+                ? `All $${totalEarnedUsdt.toFixed(2)} USDT in queue for admin review & payout`
+                : approvedAmount > 0
+                ? `All $${totalEarnedUsdt.toFixed(2)} USDT cleared & paid to your BSC wallet`
+                : 'Unlock team milestones below to generate rewards'}
+            </p>
+
+            <div className="text-xs font-body mt-3 font-medium flex flex-col gap-1.5 text-slate-400 pt-2.5 border-t border-[#1c2b3b]/50">
               <div className="flex items-center justify-between">
-                <span>Lifetime Milestones:</span>
+                <span>Lifetime Milestones Earned:</span>
                 <span className="text-white font-semibold font-mono">+{totalEarnedUsdt.toFixed(2)} USDT</span>
               </div>
               {approvedAmount > 0 && (
                 <div className="flex items-center justify-between text-emerald-400">
                   <span className="flex items-center gap-1">
                     <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                    <span>Admin Cleared &amp; Paid:</span>
+                    <span>Admin Cleared &amp; Sent:</span>
                   </span>
-                  <span className="font-semibold font-mono">-${approvedAmount.toFixed(2)} USDT</span>
+                  <span className="font-semibold font-mono font-bold">-${approvedAmount.toFixed(2)} USDT</span>
                 </div>
               )}
               {pendingAmount > 0 && (
                 <div className="flex items-center justify-between text-amber-400 animate-pulse">
                   <span className="flex items-center gap-1">
                     <span className="material-symbols-outlined text-[14px]">hourglass_top</span>
-                    <span>Under Admin Review:</span>
+                    <span>Under Review:</span>
                   </span>
-                  <span className="font-semibold font-mono">${pendingAmount.toFixed(2)} USDT Pending</span>
+                  <span className="font-semibold font-mono font-bold">-${pendingAmount.toFixed(2)} USDT</span>
                 </div>
               )}
+              <div className="flex items-center justify-between pt-1 border-t border-[#1c2b3b]/30">
+                <span className="text-slate-300 font-semibold">Remaining Available:</span>
+                <span className={`font-mono font-bold ${availableToWithdraw > 0 ? 'text-[#D4AF37]' : 'text-slate-400'}`}>
+                  ${availableToWithdraw.toFixed(2)} USDT
+                </span>
+              </div>
             </div>
           </div>
 
@@ -785,7 +907,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 {availableToWithdraw > 0
                   ? `Withdraw Rewards (${availableToWithdraw.toFixed(2)} USDT)`
                   : pendingAmount > 0
-                  ? `Withdrawal Pending Admin Approval ($${pendingAmount.toFixed(2)})`
+                  ? `Withdrawal In Review ($${pendingAmount.toFixed(2)} USDT)`
                   : approvedAmount > 0
                   ? 'All Rewards Cleared & Paid (0.00 USDT)'
                   : '0.00 USDT Available to Withdraw'}
@@ -937,7 +1059,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                     onClick={() => setWithdrawAmount(String(availableToWithdraw))}
                     className="text-xs font-headline font-bold text-[#00F0FF] hover:underline cursor-pointer"
                   >
-                    MAX ({availableToWithdraw.toFixed(2)})
+                    MAX ({availableToWithdraw.toFixed(2)} USDT)
                   </button>
                 </div>
                 <div className="relative">
@@ -955,6 +1077,14 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                     USDT
                   </span>
                 </div>
+                {withdrawAmount && !isNaN(parseFloat(withdrawAmount)) && (
+                  <div className="mt-2 flex items-center justify-between text-xs font-mono p-2 rounded-lg bg-[#071322] border border-[#1c2b3b]/80">
+                    <span className="text-slate-400">Remaining After Withdrawal:</span>
+                    <span className="font-bold text-[#00F0FF]">
+                      ${Math.max(0, +(availableToWithdraw - parseFloat(withdrawAmount)).toFixed(2))} USDT
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>

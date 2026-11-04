@@ -23,6 +23,8 @@ import { persistMiningStart } from './services/miningSessionSync';
 const DashboardView = lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
 const MiningNodesView = lazy(() => import('./components/views/MiningNodesView').then(m => ({ default: m.MiningNodesView })));
 const ReferralsView = lazy(() => import('./components/views/ReferralsView').then(m => ({ default: m.ReferralsView })));
+const WithdrawalHistoryView = lazy(() => import('./components/views/WithdrawalHistoryView').then(m => ({ default: m.WithdrawalHistoryView })));
+const RoadmapView = lazy(() => import('./components/views/RoadmapView').then(m => ({ default: m.RoadmapView })));
 const AdminView = lazy(() => import('./components/views/AdminView').then(m => ({ default: m.AdminView })));
 
 const ConnectWalletModal = lazy(() => import('./components/modals/ConnectWalletModal').then(m => ({ default: m.ConnectWalletModal })));
@@ -285,7 +287,7 @@ export default function App() {
         setActiveTab('admin');
       } else if (
         tabParam &&
-        ['home', 'dashboard', 'mining-nodes', 'referrals'].includes(tabParam)
+        ['home', 'dashboard', 'mining-nodes', 'referrals', 'withdraw-history', 'roadmap'].includes(tabParam)
       ) {
         setActiveTab(tabParam as TabType);
       }
@@ -1127,7 +1129,7 @@ export default function App() {
           if (data.boughtSpk) {
             addToast(
               'Smart Contract Mining Call Executed!',
-              `10.00 USDT credited to Treasury. Backend executed PancakeSwap route: +${data.boughtSpk.toFixed(2)} SPK credited!`,
+              `10.00 USDT credited to Treasury. Backend executed Nodescan route: +${data.boughtSpk.toFixed(2)} SPK credited!`,
               'success'
             );
           }
@@ -1202,7 +1204,7 @@ export default function App() {
       }
       const shortAddr = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'your connected wallet';
       addToast(
-        'PancakeSwap Sell Executed',
+        'Nodescan Sell Executed',
         `+${toAmount.toFixed(2)} USDT directly credited into your personal Web3 wallet (${shortAddr})!`,
         'success'
       );
@@ -1211,7 +1213,7 @@ export default function App() {
       setWalletBalance((prev) => Math.max(0, +(prev - fromAmount).toFixed(2)));
       addToast(
         'SPIKE Purchased',
-        `+${toAmount.toFixed(2)} SPK added via PancakeSwap!`,
+        `+${toAmount.toFixed(2)} SPK added via Nodescan!`,
         'success'
       );
     } else if (fromToken === 'SPIKE') {
@@ -1358,7 +1360,7 @@ export default function App() {
       logs: [
         'Deposit of 5.00 USDT received in Official Protocol Treasury Vault',
         'Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443',
-        '24-Hour Mining Cycle Started · Automated PancakeSwap Buyback Enabled',
+        '24-Hour Mining Cycle Started · Automated Nodescan Buyback Enabled',
       ],
       userAddress: walletAddress,
     };
@@ -1924,6 +1926,20 @@ export default function App() {
               setIsReferralModalOpen(true);
             }}
           />
+        );
+        break;
+      case 'withdraw-history':
+        currentComponent = (
+          <WithdrawalHistoryView
+            walletAddress={walletAddress}
+            onNavigateToReferrals={() => handleTabChange('referrals')}
+            onCopyText={copyToClipboard}
+          />
+        );
+        break;
+      case 'roadmap':
+        currentComponent = (
+          <RoadmapView />
         );
         break;
       case 'admin':

@@ -97,11 +97,13 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'mining-nodes', label: 'Nodes', icon: 'dns', badge: nodeCount },
     { id: 'referrals', label: 'Referrals', icon: 'groups' },
+    { id: 'withdraw-history', label: 'Withdraw', icon: 'receipt_long' },
     { id: 'swap', label: 'Swap', icon: 'swap_horiz' },
+    { id: 'roadmap', label: 'Roadmap', icon: 'alt_route' },
     ...(isAdmin ? [{ id: 'admin' as TabType, label: 'Admin', icon: 'shield_person' }] : []),
   ];
 
-  const gridColsClass = tabs.length >= 5 ? 'grid-cols-5' : 'grid-cols-4';
+  const gridColsClass = tabs.length >= 7 ? 'grid-cols-7' : tabs.length === 6 ? 'grid-cols-6' : tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4';
 
   return (
     <nav
