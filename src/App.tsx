@@ -17,8 +17,7 @@ import { BlockchainBackground } from './components/BlockchainBackground';
 import { fetchOnChainBalances } from './services/onchainBalance';
 import { registerReferralInFirestore, getReferralsFromFirestore } from './services/firestoreReferrals';
 import { persistMiningStart } from './services/miningSessionSync';
-import { ChristmasSnowfall } from './components/ChristmasSnowfall';
-import { ChristmasThemeDecorations } from './components/ChristmasThemeDecorations';
+
 
 // Code-split heavy views and modals for sub-100ms ultra-fast initial paint
 const DashboardView = lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
@@ -202,28 +201,8 @@ export default function App() {
       const cached = localStorage.getItem('spike_global_settings');
       if (cached) return JSON.parse(cached);
     } catch {}
-    return {
-      christmasThemeEnabled: true,
-      snowfallEnabled: true,
-      snowfallIntensity: 'festive',
-      holidayGreetingText: '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁',
-      santaHatEnabled: true,
-      holidaySoundEnabled: true,
-    } as AdminSettings;
+    return null;
   });
-
-  // Christmas theme active state (controlled strictly via Admin Panel)
-  const isChristmasThemeActive = Boolean(globalSettings?.christmasThemeEnabled ?? true);
-  const isSnowfallActive = Boolean(
-    isChristmasThemeActive &&
-    (globalSettings?.snowfallEnabled ?? true) &&
-    activeTab !== 'admin'
-  );
-  const isDecorationsActive = Boolean(
-    isChristmasThemeActive &&
-    activeTab !== 'admin'
-  );
-  const santaHatEnabled = Boolean(globalSettings?.santaHatEnabled ?? true);
 
   // Auto-recognition of Master User
   const isMasterUser = Boolean(
@@ -265,10 +244,8 @@ export default function App() {
     fetchGlobalSettings();
     const handleSettingsUpdate = () => fetchGlobalSettings();
     window.addEventListener('spike_settings_updated', handleSettingsUpdate);
-    window.addEventListener('spike_christmas_theme_changed', handleSettingsUpdate);
     return () => {
       window.removeEventListener('spike_settings_updated', handleSettingsUpdate);
-      window.removeEventListener('spike_christmas_theme_changed', handleSettingsUpdate);
     };
   }, []);
 
@@ -515,6 +492,8 @@ export default function App() {
       localStorage.removeItem('spike_accumulated_usdt_global');
       localStorage.removeItem('spike_balance_usdt');
       localStorage.removeItem('spike_balance_bnb');
+      localStorage.removeItem('spike_christmas_theme');
+      localStorage.removeItem('spike_holiday_theme');
     } catch {}
   }, []);
 
@@ -2040,8 +2019,6 @@ export default function App() {
               onDisconnectWallet={handleDisconnectWallet}
               isAdmin={isAdmin}
               isMasterUser={isMasterUser}
-              isChristmasTheme={isChristmasThemeActive && activeTab !== 'admin'}
-              santaHatEnabled={santaHatEnabled}
             />
           </div>
 
@@ -2166,11 +2143,7 @@ export default function App() {
       {/* Blockchain Nodes & Ambient Constellation Background */}
       <BlockchainBackground />
 
-      {/* Christmas Snowfall Falling from Top (Active on User Panel, controlled via Admin Panel) */}
-      <ChristmasSnowfall
-        enabled={isSnowfallActive}
-        intensity={globalSettings?.snowfallIntensity || 'festive'}
-      />
+
 
       {/* Desktop Sidebar (Shown for internal views or admin when logged in) */}
       {isWalletConnected && activeTab !== 'home' && (
@@ -2180,20 +2153,12 @@ export default function App() {
           nodeCount={nodes.length}
           onOpenSwapModal={() => setIsSwapModalOpen(true)}
           isAdmin={isAdmin}
-          isChristmasTheme={isChristmasThemeActive && activeTab !== 'admin'}
-          santaHatEnabled={santaHatEnabled}
         />
       )}
 
       {/* Main Content Area (Full width on Home page and before login, offset for sidebar when logged into app) */}
       <div className={`${isWalletConnected && activeTab !== 'home' ? 'md:pl-64' : ''} flex flex-col min-h-screen transition-all duration-200`}>
-        {/* Festive Christmas Ribbon Banner & Icicle Trim (Active on User Panel) */}
-        {isDecorationsActive && (
-          <ChristmasThemeDecorations
-            greetingText={globalSettings?.holidayGreetingText}
-            soundEnabled={globalSettings?.holidaySoundEnabled ?? true}
-          />
-        )}
+
 
         {/* Top Header */}
         <Header
@@ -2214,8 +2179,6 @@ export default function App() {
           onNavigateHomeSection={handleNavigateHomeSection}
           onDisconnectWallet={handleDisconnectWallet}
           isAdmin={isAdmin}
-          isChristmasTheme={isChristmasThemeActive && activeTab !== 'admin'}
-          santaHatEnabled={santaHatEnabled}
         />
 
 

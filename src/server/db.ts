@@ -110,12 +110,6 @@ export interface DbSettings {
   level1HashrateBoost: number;
   level2HashrateBoost: number;
   level3HashrateBoost: number;
-  christmasThemeEnabled?: boolean;
-  snowfallEnabled?: boolean;
-  snowfallIntensity?: 'light' | 'festive' | 'blizzard';
-  holidayGreetingText?: string;
-  santaHatEnabled?: boolean;
-  holidaySoundEnabled?: boolean;
 }
 
 export interface DbAuditLog {
@@ -286,12 +280,6 @@ const INITIAL_DATA: DatabaseSchema = {
     level1HashrateBoost: 200,
     level2HashrateBoost: 400,
     level3HashrateBoost: 600,
-    christmasThemeEnabled: true,
-    snowfallEnabled: true,
-    snowfallIntensity: 'festive',
-    holidayGreetingText: '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁',
-    santaHatEnabled: true,
-    holidaySoundEnabled: true,
   },
   auditLogs: [
     {
@@ -397,14 +385,12 @@ class PersistentDatabase {
           if (!loadedSettings.maintenanceMessage) {
             loadedSettings.maintenanceMessage = 'Spike Stratum Protocol is currently undergoing scheduled network maintenance.';
           }
-          if (typeof loadedSettings.christmasThemeEnabled !== 'boolean') loadedSettings.christmasThemeEnabled = true;
-          if (typeof loadedSettings.snowfallEnabled !== 'boolean') loadedSettings.snowfallEnabled = true;
-          if (!loadedSettings.snowfallIntensity) loadedSettings.snowfallIntensity = 'festive';
-          if (!loadedSettings.holidayGreetingText) {
-            loadedSettings.holidayGreetingText = '🎄 Merry Christmas & Happy Mining Season! 🎅 10X Turbo Hashrate & Holiday Mining Bonanza Active 🎁';
-          }
-          if (typeof loadedSettings.santaHatEnabled !== 'boolean') loadedSettings.santaHatEnabled = true;
-          if (typeof loadedSettings.holidaySoundEnabled !== 'boolean') loadedSettings.holidaySoundEnabled = true;
+          delete (loadedSettings as any).christmasThemeEnabled;
+          delete (loadedSettings as any).snowfallEnabled;
+          delete (loadedSettings as any).snowfallIntensity;
+          delete (loadedSettings as any).holidayGreetingText;
+          delete (loadedSettings as any).santaHatEnabled;
+          delete (loadedSettings as any).holidaySoundEnabled;
           const sanitizedUsers = (parsed.users || INITIAL_DATA.users).map((u: DbUser) => {
             if (u.referredBy && (u.referredBy.toLowerCase() === u.address.toLowerCase() || u.referredBy.toLowerCase() === (u.referralCode || '').toLowerCase())) {
               return { ...u, referredBy: null };
