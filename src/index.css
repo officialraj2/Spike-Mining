@@ -464,7 +464,7 @@
   animation: laserSweep 3s ease-in-out infinite;
 }
 
-/* Animated outer glow for primary dashboard metric cards */
+/* Comprehensive Suite of Animated Outer Glows for UI Boxes & Cards */
 @keyframes boxGlowCyanPulse {
   0%, 100% {
     box-shadow: 0 0 16px -2px rgba(0, 240, 255, 0.3), 0 0 32px 0px rgba(0, 240, 255, 0.15), inset 0 0 14px rgba(0, 240, 255, 0.05);
@@ -498,6 +498,50 @@
   }
 }
 
+@keyframes boxGlowEmeraldPulse {
+  0%, 100% {
+    box-shadow: 0 0 16px -2px rgba(16, 185, 129, 0.28), 0 0 32px 0px rgba(16, 185, 129, 0.14), inset 0 0 14px rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 30px 3px rgba(16, 185, 129, 0.5), 0 0 58px 8px rgba(16, 185, 129, 0.26), inset 0 0 20px rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.85);
+  }
+}
+
+@keyframes boxGlowPurplePulse {
+  0%, 100% {
+    box-shadow: 0 0 16px -2px rgba(168, 85, 247, 0.28), 0 0 32px 0px rgba(168, 85, 247, 0.14), inset 0 0 14px rgba(168, 85, 247, 0.05);
+    border-color: rgba(168, 85, 247, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 30px 4px rgba(168, 85, 247, 0.52), 0 0 58px 8px rgba(168, 85, 247, 0.26), inset 0 0 20px rgba(168, 85, 247, 0.1);
+    border-color: rgba(168, 85, 247, 0.85);
+  }
+}
+
+@keyframes boxGlowAmberPulse {
+  0%, 100% {
+    box-shadow: 0 0 16px -2px rgba(245, 158, 11, 0.28), 0 0 32px 0px rgba(245, 158, 11, 0.14), inset 0 0 14px rgba(245, 158, 11, 0.05);
+    border-color: rgba(245, 158, 11, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 30px 4px rgba(245, 158, 11, 0.5), 0 0 58px 8px rgba(245, 158, 11, 0.26), inset 0 0 20px rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.85);
+  }
+}
+
+@keyframes boxGlowBluePulse {
+  0%, 100% {
+    box-shadow: 0 0 16px -2px rgba(59, 130, 246, 0.28), 0 0 32px 0px rgba(59, 130, 246, 0.14), inset 0 0 14px rgba(59, 130, 246, 0.05);
+    border-color: rgba(59, 130, 246, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 30px 4px rgba(59, 130, 246, 0.5), 0 0 58px 8px rgba(59, 130, 246, 0.26), inset 0 0 20px rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.85);
+  }
+}
+
 .animate-box-glow-cyan {
   animation: boxGlowCyanPulse 3.4s ease-in-out infinite;
 }
@@ -508,6 +552,22 @@
 
 .animate-box-glow-hybrid {
   animation: boxGlowHybridPulse 3.8s ease-in-out infinite 1.2s;
+}
+
+.animate-box-glow-emerald {
+  animation: boxGlowEmeraldPulse 3.6s ease-in-out infinite 0.4s;
+}
+
+.animate-box-glow-purple {
+  animation: boxGlowPurplePulse 4.4s ease-in-out infinite 0.8s;
+}
+
+.animate-box-glow-amber {
+  animation: boxGlowAmberPulse 3.9s ease-in-out infinite 0.3s;
+}
+
+.animate-box-glow-blue {
+  animation: boxGlowBluePulse 3.5s ease-in-out infinite 0.5s;
 }
 
 /* Safe area inset padding for modern mobile devices (iPhone home indicator, Android gesture bar) */

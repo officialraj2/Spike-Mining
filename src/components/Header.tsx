@@ -136,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
             1. If Not Logged In OR on Home Page: Shows the 4 Home Menu items!
             2. If Logged In AND inside the App: Shows Dashboard, Mining, Staking, Referrals!
            =============================================================== */}
-        <nav className="hidden lg:flex items-center gap-1 bg-[#0d1d2c]/90 px-1.5 py-1 rounded-2xl border border-[#1c2b3b] shadow-inner shrink-0">
+        <nav className="hidden lg:flex items-center gap-1 bg-[#0d1d2c]/90 px-1.5 py-1 rounded-2xl border border-cyan-500/30 shadow-inner shrink-0 animate-box-glow-cyan">
           {!isWalletConnected ? (
             /* 4 Home Menu Items for Public Visitors */
             <>
@@ -255,7 +255,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 bg-[#122130] hover:bg-[#1c2b3b] border border-[#00F0FF]/40 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs transition-colors shadow-md group"
+                className="flex items-center gap-2 bg-[#122130] hover:bg-[#1c2b3b] border border-emerald-500/40 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs transition-colors shadow-md group animate-box-glow-emerald"
               >
                 <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <div className="flex flex-col text-left">

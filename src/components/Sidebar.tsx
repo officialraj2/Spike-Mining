@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }}
               className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-sm font-medium ${
                 isActive
-                  ? 'bg-[#1c2b3b] text-[#00F0FF] font-semibold shadow-[0_0_18px_rgba(0,240,255,0.14)] border border-[#00F0FF]/25'
+                  ? 'bg-[#1c2b3b] text-[#00F0FF] font-semibold border border-[#00F0FF]/40 animate-box-glow-cyan'
                   : 'text-[#94a3b8] hover:bg-[#122130] hover:text-[#f8fafc]'
               }`}
             >
@@ -114,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* BSC Network Telemetry Footer */}
       <div className="px-4 mt-auto">
-        <div className="p-3.5 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]/60 flex flex-col gap-2 font-body">
+        <div className="p-3.5 rounded-xl bg-[#0a0f1d] border border-[#00F0FF]/35 flex flex-col gap-2 font-body animate-box-glow-cyan">
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-wider text-slate-400 font-body font-semibold">
               BSC Validator

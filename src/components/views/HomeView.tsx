@@ -103,7 +103,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
          ========================================================= */}
       <section
         id="hero"
-        className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#0d1d2c] via-[#091728] to-[#051424] border border-[#1c2b3b] pt-8 pb-7 px-5 sm:p-10 md:p-14 shadow-2xl mt-1 sm:mt-0"
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#0d1d2c] via-[#091728] to-[#051424] border border-[#00F0FF]/40 pt-8 pb-7 px-5 sm:p-10 md:p-14 shadow-2xl mt-1 sm:mt-0 animate-box-glow-cyan"
       >
         {/* Atmospheric Glow Backdrops */}
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#00F0FF]/15 rounded-full blur-[100px] pointer-events-none" />
@@ -394,9 +394,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-6 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] flex flex-col justify-between">
+          <div className="p-6 rounded-2xl bg-[#0a0f1d] border border-purple-500/30 flex flex-col justify-between animate-box-glow-purple">
             <div>
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center mb-3 border border-red-500/20">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-3 border border-purple-500/20">
                 <span className="material-symbols-outlined text-[20px]">warning</span>
               </div>
               <h3 className="text-lg font-bold font-headline text-white mb-2">The Fragmented Web3 Landscape</h3>
@@ -409,7 +409,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
           </div>
 
-          <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0d1d2c] to-[#122130] border border-[#00F0FF]/40 shadow-[0_0_20px_rgba(0,240,255,0.1)] flex flex-col justify-between">
+          <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0d1d2c] to-[#122130] border border-[#00F0FF]/40 flex flex-col justify-between animate-box-glow-cyan">
             <div>
               <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/15 text-[#00F0FF] flex items-center justify-center mb-3 border border-[#00F0FF]/30">
                 <span className="material-symbols-outlined text-[20px]">check_circle</span>
@@ -452,9 +452,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         {/* 4 Types of Mining Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* CPU Mining */}
-          <div className="p-6 rounded-2xl bg-[#122130] border border-[#1c2b3b] flex flex-col justify-between">
+          <div className="p-6 rounded-2xl bg-[#122130] border border-blue-500/30 flex flex-col justify-between animate-box-glow-blue">
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#94a3b8]/10 text-[#94a3b8] flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-[#00F0FF]/10 text-[#00F0FF] flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-[24px]">memory</span>
               </div>
               <h3 className="text-lg font-bold font-headline text-white">CPU Mining</h3>
@@ -468,9 +468,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           {/* GPU Mining */}
-          <div className="p-6 rounded-2xl bg-[#122130] border border-[#1c2b3b] flex flex-col justify-between">
+          <div className="p-6 rounded-2xl bg-[#122130] border border-purple-500/30 flex flex-col justify-between animate-box-glow-purple">
             <div>
-              <div className="w-12 h-12 rounded-xl bg-[#94a3b8]/10 text-[#94a3b8] flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/15 text-purple-400 flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-[24px]">developer_board</span>
               </div>
               <h3 className="text-lg font-bold font-headline text-white">GPU Mining</h3>
@@ -484,7 +484,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           {/* ASIC Mining */}
-          <div className="p-6 rounded-2xl bg-[#122130] border border-[#1c2b3b] flex flex-col justify-between">
+          <div className="p-6 rounded-2xl bg-[#122130] border border-amber-500/30 flex flex-col justify-between animate-box-glow-amber">
             <div>
               <div className="w-12 h-12 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center mb-4">
                 <span className="material-symbols-outlined text-[24px]">dns</span>
@@ -500,7 +500,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           {/* Cloud Mining (SPIKE Model) */}
-          <div className="p-6 rounded-2xl bg-gradient-to-b from-[#122130] to-[#0a1928] border-2 border-[#00F0FF]/60 shadow-[0_0_20px_rgba(0,240,255,0.2)] flex flex-col justify-between relative overflow-hidden">
+          <div className="p-6 rounded-2xl bg-gradient-to-b from-[#122130] to-[#0a1928] border-2 border-[#00F0FF]/60 flex flex-col justify-between relative overflow-hidden animate-box-glow-cyan">
             <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-[#00F0FF]/20 text-[#00F0FF] text-[9px] font-mono font-bold">
               SPIKE MODEL
             </div>
@@ -534,32 +534,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-red-500/20 space-y-3">
-              <div className="flex items-center gap-2 text-red-400 font-headline font-bold text-sm">
+            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-amber-500/30 space-y-3 animate-box-glow-amber">
+              <div className="flex items-center gap-2 text-amber-400 font-headline font-bold text-sm">
                 <span className="material-symbols-outlined text-[18px]">cancel</span>
                 <span>Traditional Mining Burdens</span>
               </div>
               <ul className="space-y-2 text-xs text-[#94a3b8]">
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                   <strong>Hardware:</strong> Expensive ASIC purchase, shipping &amp; customs fees
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                   <strong>Electricity:</strong> High residential or industrial power bills
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                   <strong>Cooling:</strong> Extreme heat dissipation &amp; deafening noise
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                   <strong>Maintenance:</strong> Part replacements, firmware updates &amp; downtime
                 </li>
               </ul>
             </div>
 
-            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-emerald-500/30 space-y-3 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-emerald-500/40 space-y-3 animate-box-glow-emerald">
               <div className="flex items-center gap-2 text-emerald-400 font-headline font-bold text-sm">
                 <span className="material-symbols-outlined text-[18px]">check_circle</span>
                 <span>SPIKE Cloud Mining Platform</span>
@@ -607,12 +607,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {[
-                { step: '01', title: 'ACTIVATE', desc: 'Select hashrate allocation starting from $15' },
-                { step: '02', title: 'ASSIGN', desc: 'Computational power assigned to validator node' },
-                { step: '03', title: 'PROCESS', desc: 'ASIC cluster processes cryptographic blocks' },
-                { step: '04', title: 'DISTRIBUTE', desc: 'Proportional rewards distributed to wallet' },
+                { step: '01', title: 'ACTIVATE', desc: 'Select hashrate allocation starting from $15', glow: 'animate-box-glow-cyan' },
+                { step: '02', title: 'ASSIGN', desc: 'Computational power assigned to validator node', glow: 'animate-box-glow-purple' },
+                { step: '03', title: 'PROCESS', desc: 'ASIC cluster processes cryptographic blocks', glow: 'animate-box-glow-amber' },
+                { step: '04', title: 'DISTRIBUTE', desc: 'Proportional rewards distributed to wallet', glow: 'animate-box-glow-emerald' },
               ].map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] relative">
+                <div key={idx} className={`p-4 rounded-xl bg-[#0a0f1d] border relative ${item.glow}`}>
                   <span className="text-[10px] font-mono text-[#00F0FF] font-bold">PHASE {item.step}</span>
                   <div className="text-base font-extrabold font-headline text-white mt-1">{item.title}</div>
                   <p className="text-[11px] text-[#94a3b8] mt-1">{item.desc}</p>
@@ -647,6 +647,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               desc: 'Start with Hash Rate activation from $15. Choose your computational scale.',
               icon: 'power_settings_new',
               color: 'text-[#00F0FF]',
+              glow: 'animate-box-glow-cyan',
             },
             {
               step: '2',
@@ -654,6 +655,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               desc: "Mining begins according to the platform's defined mechanical rules.",
               icon: 'settings_suggest',
               color: 'text-[#7df4ff]',
+              glow: 'animate-box-glow-blue',
             },
             {
               step: '3',
@@ -661,6 +663,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               desc: 'SPIKE is distributed according to applicable proportional mining rules.',
               icon: 'savings',
               color: 'text-[#D4AF37]',
+              glow: 'animate-box-glow-gold',
             },
             {
               step: '4',
@@ -668,6 +671,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               desc: 'Monitor real-time blockchain telemetry, difficulty index and market activity.',
               icon: 'monitoring',
               color: 'text-[#00F0FF]',
+              glow: 'animate-box-glow-purple',
             },
             {
               step: '5',
@@ -675,11 +679,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
               desc: 'As platform develops, SPIKE connects with ecosystem utilities & staking.',
               icon: 'hub',
               color: 'text-emerald-400',
+              glow: 'animate-box-glow-emerald',
             },
           ].map((item, idx) => (
             <div
               key={idx}
-              className="p-5 rounded-2xl bg-[#122130] border border-[#1c2b3b] flex flex-col justify-between relative group hover:border-[#00F0FF]/40 transition-all"
+              className={`p-5 rounded-2xl bg-[#122130] border flex flex-col justify-between relative group hover:scale-[1.02] transition-all ${item.glow}`}
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -723,7 +728,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           {/* Token Metrics Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
+            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-amber-500/30 animate-box-glow-gold">
               <div className="text-[10px] font-mono text-[#94a3b8] uppercase">Total Supply</div>
               <div className="text-xl sm:text-2xl font-extrabold font-headline text-white mt-1 tabular-nums">
                 50,000,000
@@ -731,7 +736,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="text-[10px] font-mono text-[#00F0FF]">Strict Max Cap</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
+            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#00F0FF]/40 animate-box-glow-cyan">
               <div className="text-[10px] font-mono text-[#94a3b8] uppercase">Token Standard</div>
               <div className="text-xl sm:text-2xl font-extrabold font-headline text-[#00F0FF] mt-1">
                 BEP-20
@@ -739,7 +744,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="text-[10px] font-mono text-[#94a3b8]">Verified Contract</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
+            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-amber-500/40 animate-box-glow-amber">
               <div className="text-[10px] font-mono text-[#94a3b8] uppercase">Blockchain</div>
               <div className="text-xl sm:text-2xl font-extrabold font-headline text-[#D4AF37] mt-1">
                 BNB Chain
@@ -747,7 +752,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="text-[10px] font-mono text-[#94a3b8]">Smart Chain (BSC)</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
+            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-emerald-500/40 animate-box-glow-emerald">
               <div className="text-[10px] font-mono text-[#94a3b8] uppercase">Market Pair</div>
               <div className="text-xl sm:text-2xl font-extrabold font-headline text-white mt-1">
                 SPIKE / USDT
@@ -755,7 +760,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="text-[10px] font-mono text-emerald-400">Stable Settlement</div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b]">
+            <div className="p-4 rounded-xl bg-[#0a0f1d] border border-purple-500/40 animate-box-glow-purple">
               <div className="text-[10px] font-mono text-[#94a3b8] uppercase">Initial Reference</div>
               <div className="text-xl sm:text-2xl font-extrabold font-headline text-[#00F0FF] mt-1">
                 $1.00 USD
@@ -781,7 +786,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Step 1 */}
-            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] space-y-3 relative">
+            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-[#00F0FF]/35 space-y-3 relative animate-box-glow-cyan">
               <div className="flex items-center justify-between">
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF]">
                   PHASE 1
@@ -795,7 +800,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             {/* Step 2 */}
-            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] space-y-3 relative">
+            <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-purple-500/35 space-y-3 relative animate-box-glow-purple">
               <div className="flex items-center justify-between">
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#7df4ff]/15 text-[#7df4ff]">
                   PHASE 2
@@ -809,7 +814,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
 
             {/* Step 3 */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#122130] to-[#0a1928] border-2 border-[#D4AF37] shadow-[0_0_25px_rgba(212,175,55,0.25)] space-y-3 relative">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-[#122130] to-[#0a1928] border-2 border-[#D4AF37] space-y-3 relative animate-box-glow-gold">
               <div className="flex items-center justify-between">
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#D4AF37]/20 text-[#D4AF37]">
                   PHASE 3

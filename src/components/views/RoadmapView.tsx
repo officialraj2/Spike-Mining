@@ -624,10 +624,12 @@ export const RoadmapView: React.FC = () => {
                   key={phase.id}
                   className={`p-6 sm:p-8 rounded-3xl bg-[#071322] border-2 transition-all duration-300 relative overflow-hidden shadow-xl ${
                     isInProgress
-                      ? 'border-[#00F0FF]/60 shadow-[0_0_45px_rgba(0,240,255,0.22)]'
+                      ? 'border-[#00F0FF]/60 shadow-[0_0_45px_rgba(0,240,255,0.22)] animate-box-glow-cyan'
                       : isCompleted
-                      ? 'border-emerald-500/40 shadow-[0_0_35px_rgba(16,185,129,0.12)]'
-                      : 'border-[#1c2b3b] hover:border-slate-500'
+                      ? 'border-emerald-500/40 shadow-[0_0_35px_rgba(16,185,129,0.12)] animate-box-glow-emerald'
+                      : pIdx === 2
+                      ? 'border-[#D4AF37]/40 animate-box-glow-gold'
+                      : 'border-purple-500/40 animate-box-glow-purple'
                   }`}
                 >
                   {/* Background Watermark Number */}
@@ -751,10 +753,10 @@ export const RoadmapView: React.FC = () => {
                             onClick={() => setInspectedLeaf(leaf)}
                             className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden active:scale-95 ${
                               isLeafActive
-                                ? 'bg-gradient-to-b from-[#0d2238] to-[#071524] border-[#00F0FF]/60 hover:border-[#00F0FF] shadow-sm hover:shadow-[0_0_30px_rgba(0,240,255,0.35)] -translate-y-1'
+                                ? 'bg-gradient-to-b from-[#0d2238] to-[#071524] border-[#00F0FF]/60 hover:border-[#00F0FF] animate-box-glow-cyan -translate-y-1'
                                 : isLeafDone
-                                ? 'bg-[#091b2c] border-emerald-500/35 hover:border-emerald-500/70 hover:shadow-[0_0_25px_rgba(16,185,129,0.25)] hover:-translate-y-1'
-                                : 'bg-[#071322] border-[#1c2b3b] hover:border-slate-400 hover:-translate-y-1'
+                                ? 'bg-[#091b2c] border-emerald-500/35 hover:border-emerald-500/70 animate-box-glow-emerald hover:-translate-y-1'
+                                : 'bg-[#071322] border-purple-500/30 hover:border-slate-400 hover:-translate-y-1 animate-box-glow-purple'
                             }`}
                           >
                             {/* Animated SVG Branch Stem at top of card */}

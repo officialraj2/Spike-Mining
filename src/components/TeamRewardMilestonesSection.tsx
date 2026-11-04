@@ -132,7 +132,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
         </div>
 
         {/* Total Team Partners Calculation Box - Clean Corporate Layout */}
-        <div className="bg-[#0a1828] rounded-2xl p-4 md:p-5 border border-[#00F0FF]/30 shadow-inner mb-6 relative z-10">
+        <div className="bg-[#0a1828] rounded-2xl p-4 md:p-5 border border-cyan-500/30 shadow-inner mb-6 relative z-10 animate-box-glow-blue">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-1 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
@@ -198,7 +198,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
            ============================================================ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
           {/* BOX 1: CORE MILESTONES (LEVELS 1 - 5) */}
-          <div className="rounded-2xl border-2 border-[#00F0FF]/40 bg-[#051424] shadow-2xl overflow-hidden flex flex-col justify-between">
+          <div className="rounded-2xl border-2 border-[#00F0FF]/40 bg-[#051424] overflow-hidden flex flex-col justify-between animate-box-glow-cyan">
             <div>
               {/* Box 1 Header */}
               <div className="bg-gradient-to-r from-[#071d33] via-[#092542] to-[#071d33] px-5 py-3.5 border-b border-[#00F0FF]/30 flex items-center justify-between">
@@ -315,7 +315,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
           </div>
 
           {/* BOX 2: APEX LEADERSHIP MILESTONES (LEVELS 6 - 9) */}
-          <div className="rounded-2xl border-2 border-[#D4AF37]/40 bg-[#051424] shadow-2xl overflow-hidden flex flex-col justify-between">
+          <div className="rounded-2xl border-2 border-[#D4AF37]/40 bg-[#051424] overflow-hidden flex flex-col justify-between animate-box-glow-gold">
             <div>
               {/* Box 2 Header */}
               <div className="bg-gradient-to-r from-[#1c1806] via-[#241f08] to-[#1c1806] px-5 py-3.5 border-b border-[#D4AF37]/30 flex items-center justify-between">

@@ -839,7 +839,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Main Section: Live Performance Chart (2 cols) & Pool Metrics (1 col) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart Container (2 Cols) */}
-        <div className="lg:col-span-2 bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between shadow-md border border-[#1c2b3b]/60">
+        <div className="lg:col-span-2 bg-gradient-to-b from-[#122130] to-[#081524] rounded-2xl p-5 md:p-6 flex flex-col justify-between shadow-md border border-blue-500/30 animate-box-glow-blue">
           {/* Header Bar */}
           <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-[#1c2b3b]/80">
             <h2 className="text-lg md:text-xl font-bold font-headline text-white tracking-tight flex items-center gap-2">
@@ -1003,7 +1003,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Quick Stats / Pool Info (1 Col) */}
-        <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between shadow-md border border-[#1c2b3b]/60">
+        <div className="bg-gradient-to-b from-[#122130] to-[#091524] rounded-2xl p-5 md:p-6 flex flex-col justify-between shadow-md border border-purple-500/30 animate-box-glow-purple">
           <div>
             <h2 className="text-lg md:text-xl font-bold font-headline text-white mb-1 tracking-tight">
               Pool Metrics
@@ -1042,7 +1042,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="mt-5 pt-3">
             <div
               onClick={onOpenAuditModal}
-              className="p-3.5 rounded-xl bg-[#010f1e] hover:bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-between cursor-pointer transition-colors group"
+              className="p-3.5 rounded-xl bg-[#010f1e] hover:bg-[#0a0f1d] border border-emerald-500/35 flex items-center justify-between cursor-pointer transition-all group animate-box-glow-emerald"
             >
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-[#D4AF37] text-[24px]">

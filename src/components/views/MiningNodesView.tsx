@@ -74,7 +74,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
       </div>
 
       {/* Protocol Hashrate Tier Telemetry (Direct Referral Based) */}
-      <div className="rounded-2xl p-4 md:p-5 bg-gradient-to-r from-[#0b1d2e] via-[#081726] to-[#050f1a] border border-[#00F0FF]/30 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="rounded-2xl p-4 md:p-5 bg-gradient-to-r from-[#0b1d2e] via-[#081726] to-[#050f1a] border border-[#00F0FF]/40 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 animate-box-glow-cyan">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/30 flex items-center justify-center text-[#00F0FF] shrink-0">
             <span className="material-symbols-outlined text-[26px]">speed</span>
@@ -126,7 +126,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
 
       {/* Hardware Summary Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex items-center justify-between">
+        <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-xl p-5 border border-cyan-500/30 flex items-center justify-between animate-box-glow-cyan">
           <div>
             <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Combined Hashrate</div>
             <div className="text-2xl lg:text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
@@ -139,7 +139,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex items-center justify-between">
+        <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-xl p-5 border border-amber-500/30 flex items-center justify-between animate-box-glow-amber">
           <div>
             <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Cluster Power Draw</div>
             <div className="text-2xl lg:text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
@@ -152,7 +152,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex items-center justify-between">
+        <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-xl p-5 border border-purple-500/30 flex items-center justify-between animate-box-glow-purple">
           <div>
             <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Average Temp</div>
             <div className="text-2xl lg:text-3xl font-extrabold font-headline text-white mt-1 tabular-nums tracking-tight">
@@ -167,7 +167,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex items-center justify-between">
+        <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-xl p-5 border border-amber-500/30 flex items-center justify-between animate-box-glow-gold">
           <div>
             <div className="text-[10px] text-[#94a3b8] font-mono font-semibold uppercase tracking-[0.14em]">Tuning Profile</div>
             <div className="text-lg font-bold font-headline text-[#00F0FF] mt-1 capitalize tracking-wide flex items-center gap-2">
@@ -188,7 +188,7 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
       </div>
 
       {/* Filter and Control Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#122130] p-4 rounded-xl border border-[#1c2b3b]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#122130] p-4 rounded-xl border border-blue-500/30 animate-box-glow-blue">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-[#c6c6cc] font-headline mr-2">Filters:</span>
           {/* Status Filter */}
@@ -260,10 +260,12 @@ export const MiningNodesView: React.FC<MiningNodesViewProps> = ({
           return (
             <div
               key={`${node.id || 'node'}-${idx}`}
-              className={`bg-[#122130] rounded-xl p-5 border transition-all ${
-                isSelected
-                  ? 'border-[#00F0FF]/60 shadow-[0_0_20px_rgba(0,240,255,0.1)]'
-                  : 'border-[#1c2b3b] hover:border-[#1c2b3b]/80'
+              className={`rounded-xl p-5 border transition-all ${
+                isMining
+                  ? idx % 2 === 0
+                    ? 'bg-gradient-to-b from-[#0e2133] to-[#081524] animate-box-glow-cyan'
+                    : 'bg-gradient-to-b from-[#0c2328] to-[#07171c] animate-box-glow-emerald'
+                  : 'bg-gradient-to-b from-[#17162b] to-[#0d0d1c] animate-box-glow-purple'
               }`}
             >
               {/* Header */}

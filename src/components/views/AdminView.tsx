@@ -1098,7 +1098,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
          ============================================================ */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4">
         {/* Card 1: Registered Wallets */}
-        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] shadow-sm">
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-cyan-500/30 shadow-sm animate-box-glow-cyan">
           <div className="flex items-center justify-between text-[#94a3b8] mb-1">
             <span className="text-[10px] font-mono uppercase tracking-wider">Registered Wallets</span>
             <span className="material-symbols-outlined text-[18px] text-[#00F0FF]">group</span>
@@ -1110,7 +1110,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
 
         {/* Card 2: Active Mining Fleet */}
-        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] shadow-sm">
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-amber-500/30 shadow-sm animate-box-glow-gold">
           <div className="flex items-center justify-between text-[#94a3b8] mb-1">
             <span className="text-[10px] font-mono uppercase tracking-wider">Active Rig Fleet</span>
             <span className="material-symbols-outlined text-[18px] text-[#D4AF37]">dns</span>
@@ -1122,7 +1122,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
 
         {/* Card 3: Global Hashrate */}
-        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] shadow-sm">
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-emerald-500/30 shadow-sm animate-box-glow-emerald">
           <div className="flex items-center justify-between text-[#94a3b8] mb-1">
             <span className="text-[10px] font-mono uppercase tracking-wider">Global Hashrate</span>
             <span className="material-symbols-outlined text-[18px] text-emerald-400">speed</span>
@@ -1135,7 +1135,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
 
         {/* Card 4: Total USDT Mined */}
-        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] shadow-sm">
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-amber-500/30 shadow-sm animate-box-glow-amber">
           <div className="flex items-center justify-between text-[#94a3b8] mb-1">
             <span className="text-[10px] font-mono uppercase tracking-wider">Total USDT Mined</span>
             <span className="material-symbols-outlined text-[18px] text-amber-400">payments</span>
@@ -1147,7 +1147,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
 
         {/* Card 5: User Reserves in DB */}
-        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] shadow-sm">
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-purple-500/30 shadow-sm animate-box-glow-purple">
           <div className="flex items-center justify-between text-[#94a3b8] mb-1">
             <span className="text-[10px] font-mono uppercase tracking-wider">Wallet Reserves</span>
             <span className="material-symbols-outlined text-[18px] text-purple-400">account_balance_wallet</span>
@@ -1159,7 +1159,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
 
         {/* Card 6: Official Protocol Treasury Vault (Company Reserve) */}
-        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#D4AF37]/50 shadow-sm relative overflow-hidden group">
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#D4AF37]/50 shadow-sm relative overflow-hidden group animate-box-glow-hybrid">
           <div className="flex items-center justify-between text-[#D4AF37] mb-1">
             <span className="text-[10px] font-mono uppercase tracking-wider font-bold">Treasury Vault</span>
             <span className="material-symbols-outlined text-[18px]">account_balance</span>
@@ -1174,7 +1174,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
 
         {/* Card 7: Total Transactions */}
-        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b] shadow-sm">
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-blue-500/30 shadow-sm animate-box-glow-blue">
           <div className="flex items-center justify-between text-[#94a3b8] mb-1">
             <span className="text-[10px] font-mono uppercase tracking-wider">Ledger Records</span>
             <span className="material-symbols-outlined text-[18px] text-blue-400">receipt_long</span>

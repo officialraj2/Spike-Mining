@@ -513,7 +513,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       </div>
 
         {/* Referral Link & Code Box */}
-      <div className="bg-[#122130] rounded-xl p-5 md:p-6 border border-[#1c2b3b]/60 shadow-md space-y-4">
+      <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-2xl p-5 md:p-6 border border-cyan-500/30 shadow-md space-y-4 animate-box-glow-cyan">
         {/* Short Referral Link & Code Inputs */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -772,7 +772,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 relative overflow-hidden">
+        <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-2xl p-5 border border-blue-500/30 relative overflow-hidden animate-box-glow-blue">
           <div className="flex items-center justify-between">
             <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
               Total Team Partners
@@ -798,7 +798,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60">
+        <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-2xl p-5 border border-purple-500/30 animate-box-glow-purple">
           <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Direct Partners</div>
           <div className="text-3xl font-extrabold font-headline text-[#00F0FF] mt-1.5 tabular-nums tracking-tight">
             {directPartners}
@@ -808,7 +808,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-[#122130] rounded-xl p-5 border border-[#1c2b3b]/60 flex flex-col justify-between shadow-sm relative overflow-hidden">
+        <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-2xl p-5 border border-amber-500/40 flex flex-col justify-between shadow-sm relative overflow-hidden animate-box-glow-gold">
           <div>
             <div className="flex items-center justify-between">
               <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">

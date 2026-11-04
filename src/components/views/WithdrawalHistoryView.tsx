@@ -91,7 +91,7 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
   return (
     <div className="space-y-6 select-none animate-in fade-in duration-300">
       {/* Top Banner Header */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0d2238] via-[#0a1829] to-[#040e1b] border-2 border-[#D4AF37]/50 shadow-[0_0_50px_rgba(212,175,55,0.15)] flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0d2238] via-[#0a1829] to-[#040e1b] border-2 border-[#D4AF37]/50 shadow-[0_0_50px_rgba(212,175,55,0.15)] flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden animate-box-glow-gold">
         <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#D4AF37]/15 rounded-full blur-[80px] pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-[#00F0FF]/15 rounded-full blur-[80px] pointer-events-none" />
 
@@ -144,7 +144,7 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Approved Payouts */}
-        <div className="p-5 rounded-2xl bg-[#0d1d2c] border border-[#1c2b3b] shadow-sm relative overflow-hidden">
+        <div className="p-5 rounded-2xl bg-gradient-to-b from-[#0d1d2c] to-[#071724] border border-emerald-500/30 shadow-sm relative overflow-hidden animate-box-glow-emerald">
           <div className="flex items-center justify-between text-xs text-slate-400 font-body mb-2">
             <span>Total Withdrawn (Paid)</span>
             <span className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center">
@@ -161,7 +161,7 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
         </div>
 
         {/* Pending Payouts */}
-        <div className="p-5 rounded-2xl bg-[#0d1d2c] border border-[#1c2b3b] shadow-sm relative overflow-hidden">
+        <div className="p-5 rounded-2xl bg-gradient-to-b from-[#0d1d2c] to-[#071724] border border-amber-500/30 shadow-sm relative overflow-hidden animate-box-glow-amber">
           <div className="flex items-center justify-between text-xs text-slate-400 font-body mb-2">
             <span>Pending Review</span>
             <span className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center">
@@ -178,7 +178,7 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
         </div>
 
         {/* Total Claims Count */}
-        <div className="p-5 rounded-2xl bg-[#0d1d2c] border border-[#1c2b3b] shadow-sm relative overflow-hidden">
+        <div className="p-5 rounded-2xl bg-gradient-to-b from-[#0d1d2c] to-[#071724] border border-purple-500/30 shadow-sm relative overflow-hidden animate-box-glow-purple">
           <div className="flex items-center justify-between text-xs text-slate-400 font-body mb-2">
             <span>Total Claims</span>
             <span className="w-8 h-8 rounded-xl bg-[#00F0FF]/15 text-[#00F0FF] flex items-center justify-center">
@@ -194,7 +194,7 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
         </div>
 
         {/* Connected Receiving Wallet */}
-        <div className="p-5 rounded-2xl bg-[#0d1d2c] border border-[#1c2b3b] shadow-sm relative overflow-hidden">
+        <div className="p-5 rounded-2xl bg-gradient-to-b from-[#0d1d2c] to-[#071724] border border-cyan-500/30 shadow-sm relative overflow-hidden animate-box-glow-cyan">
           <div className="flex items-center justify-between text-xs text-slate-400 font-body mb-2">
             <span>Receiving Wallet</span>
             <span className="w-8 h-8 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center">
@@ -279,7 +279,7 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
       </div>
 
       {/* Withdrawal Records List */}
-      <div className="rounded-2xl bg-[#0d1d2c] border border-[#1c2b3b] overflow-hidden shadow-sm">
+      <div className="rounded-2xl bg-[#0d1d2c] border border-blue-500/30 overflow-hidden shadow-sm animate-box-glow-blue">
         {isLoading ? (
           <div className="p-12 flex flex-col items-center justify-center space-y-3">
             <div className="w-8 h-8 border-2 border-[#00F0FF] border-t-transparent rounded-full animate-spin" />
