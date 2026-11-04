@@ -132,6 +132,18 @@
         }
       });
     </script>
+    <script>
+      // Production Fallback: If uncompiled template is served directly on production domain
+      if (
+        window.location.hostname !== 'localhost' &&
+        window.location.hostname !== '127.0.0.1' &&
+        !window.location.hostname.includes('run.app') &&
+        window.location.port !== '3000' &&
+        !window.location.pathname.startsWith('/prod/')
+      ) {
+        window.location.replace('/prod/' + (window.location.pathname === '/' ? '' : window.location.pathname.substring(1)) + window.location.search);
+      }
+    </script>
   </head>
   <body class="bg-[#051424] text-[#d4e4fa] antialiased selection:bg-[#00F0FF]/20 selection:text-[#00F0FF] min-h-screen">
     <div id="root"></div>
