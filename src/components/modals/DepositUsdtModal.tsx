@@ -374,14 +374,9 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
               <span className="material-symbols-outlined text-[24px]">account_balance</span>
             </div>
             <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-lg sm:text-xl font-bold font-headline text-white tracking-wide">
-                  Deposit to Protocol Treasury
-                </h2>
-                <span className="px-3 py-0.5 rounded-full text-xs font-bold font-headline bg-gradient-to-r from-[#D4AF37]/25 to-[#f59e0b]/25 text-[#D4AF37] border border-[#D4AF37]/50 shadow-sm">
-                  5.00 USDT
-                </span>
-              </div>
+              <h2 className="text-lg sm:text-xl font-bold font-headline text-white tracking-wide">
+                Deposit to Protocol Treasury
+              </h2>
               <p className="text-xs sm:text-sm text-slate-300 font-body mt-0.5">
                 Official Golden Hawk Mining Rig Activation Vault
               </p>
@@ -589,47 +584,24 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                 </span>
               </div>
 
-              {/* SECONDARY ACTION: Auto-Verify Transaction Hash */}
+              {/* SECONDARY ACTION: Verify Transaction Hash */}
               <div className="p-4 sm:p-5 rounded-2xl bg-[#071729]/80 border border-[#1c2b3b] space-y-3.5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs sm:text-sm font-headline font-bold text-white flex items-center gap-2">
                     <span className="material-symbols-outlined text-[18px] text-emerald-400">verified</span>
                     <span>Option 2: Verify On-Chain Transaction Hash (TxID)</span>
                   </span>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-body font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Auto-Detects 66-Char Hash</span>
-                  </span>
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs sm:text-sm font-body text-slate-300 font-medium">
-                      Enter BEP-20 Transaction Hash:
-                    </label>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const text = await navigator.clipboard.readText();
-                          if (text && text.trim()) {
-                            setTxHashInput(text.trim());
-                          }
-                        } catch {
-                          // Clipboard permission denied or unavailable
-                        }
-                      }}
-                      className="text-xs font-body font-semibold text-[#00F0FF] hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[15px]">content_paste</span>
-                      <span>Paste from Clipboard</span>
-                    </button>
-                  </div>
+                  <label className="text-xs sm:text-sm font-body text-slate-300 font-medium block">
+                    Enter BEP-20 Transaction Hash:
+                  </label>
                   <input
                     type="text"
                     value={txHashInput}
                     onChange={(e) => setTxHashInput(e.target.value)}
-                    placeholder="0x4a8b... (Pasting auto-triggers on-chain verification)"
+                    placeholder="Enter 66-character BEP-20 transaction hash (0x...)"
                     className="w-full bg-[#040e1a] border border-[#1c2b3b] focus:border-[#D4AF37] rounded-xl px-4 py-3 text-xs sm:text-sm font-body text-white placeholder:text-gray-500 outline-none transition-colors"
                   />
                   {txHashInput.trim().length === 66 && (

@@ -709,9 +709,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* 3 Primary Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* Card 1: Protocol Hashrate Velocity (Image Spec: Direct Referral Tier) */}
-        <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
-          <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#00F0FF]/5 rounded-full blur-xl group-hover:bg-[#00F0FF]/15 transition-all"></div>
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-gradient-to-b from-[#122438] via-[#0d1c2d] to-[#081524] rounded-2xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden group hover:scale-[1.015] transition-all duration-300 border border-[#00F0FF]/40 animate-box-glow-cyan">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00F0FF] to-transparent opacity-80 pointer-events-none" />
+          <div className="absolute -right-6 -bottom-6 w-28 h-28 bg-[#00F0FF]/15 rounded-full blur-2xl group-hover:bg-[#00F0FF]/25 transition-all animate-pulse pointer-events-none" />
+          <div className="flex items-center justify-between mb-3 relative z-10">
             <div>
               <span className="text-slate-400 font-body text-xs font-semibold uppercase tracking-wider block">
                 Hashrate Tier
@@ -727,13 +728,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </span>
               </div>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 flex items-center justify-center text-[#00F0FF]">
+            <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/30 flex items-center justify-center text-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.25)]">
               <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                 speed
               </span>
             </div>
           </div>
-          <div>
+          <div className="relative z-10">
             <div className="text-3xl lg:text-[38px] leading-tight font-extrabold font-headline text-white mb-1 tabular-nums tracking-tight flex items-baseline gap-2">
               <span>{hashrateInfo?.hashrate ?? 100}</span>
               <span className="text-lg lg:text-xl text-[#00F0FF] font-semibold tracking-normal">VH/s</span>
@@ -741,7 +742,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ({totalHashrate > 0 ? totalHashrate.toFixed(2) : '1.25'} TH/s cluster)
               </span>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-400 font-body pt-2 border-t border-[#1c2b3b]/60">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-body pt-2 border-t border-[#1c2b3b]/80">
               <span>Total Team: <strong className="text-white font-bold">{Math.max(referralStats?.totalPartners ?? 0, hashrateInfo?.totalTeamCount ?? 0)}</strong></span>
               {hashrateInfo?.nextTier && (
                 <span className="text-[#D4AF37] truncate font-medium">
@@ -753,19 +754,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 2: Active Nodes */}
-        <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
-          <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#D4AF37]/5 rounded-full blur-xl group-hover:bg-[#D4AF37]/15 transition-all"></div>
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-gradient-to-b from-[#1c2419] via-[#121c27] to-[#091420] rounded-2xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden group hover:scale-[1.015] transition-all duration-300 border border-[#D4AF37]/40 animate-box-glow-gold">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-80 pointer-events-none" />
+          <div className="absolute -right-6 -bottom-6 w-28 h-28 bg-[#D4AF37]/15 rounded-full blur-2xl group-hover:bg-[#D4AF37]/25 transition-all animate-pulse pointer-events-none" />
+          <div className="flex items-center justify-between mb-4 relative z-10">
             <span className="text-slate-400 font-body text-xs font-semibold uppercase tracking-wider">
               Active Nodes
             </span>
-            <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37]">
+            <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.25)]">
               <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                 dns
               </span>
             </div>
           </div>
-          <div>
+          <div className="relative z-10">
             <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-1 tabular-nums tracking-tight">
               {activeNodeCount}{' '}
               <span className="text-lg lg:text-xl text-slate-400 font-semibold tracking-normal font-body">/ {nodes.length} online</span>
@@ -777,20 +779,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* Card 3: SPIKE Balance with Instant PancakeSwap Sell Route */}
-        <div className="bg-[#122130] rounded-xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden shadow-md group hover:bg-[#1c2b3b] transition-all border border-[#1c2b3b]/60">
-          <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#D4AF37]/5 rounded-full blur-xl group-hover:bg-[#D4AF37]/15 transition-all pointer-events-none" />
+        {/* Card 3: SPIKE Balance with Instant Nodescan Sell Route */}
+        <div className="bg-gradient-to-b from-[#192438] via-[#0e1d2e] to-[#071322] rounded-2xl p-5 md:p-6 flex flex-col justify-between relative overflow-hidden group hover:scale-[1.015] transition-all duration-300 border border-[#D4AF37]/40 animate-box-glow-hybrid">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-80 pointer-events-none" />
+          <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-gradient-to-br from-[#D4AF37]/20 to-[#00F0FF]/20 rounded-full blur-2xl group-hover:scale-110 transition-all animate-pulse pointer-events-none" />
           
-          <div>
+          <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
               <span className="text-slate-400 font-body text-xs font-semibold uppercase tracking-wider">
                 SPIKE Balance
               </span>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37]/20 to-[#f59e0b]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.25)] shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37]/20 to-[#f59e0b]/10 border border-[#D4AF37]/35 flex items-center justify-center text-[#D4AF37] shadow-[0_0_14px_rgba(212,175,55,0.3)] shrink-0">
                 <img
                   src={SPIKE_LOGO_URL}
                   alt="SPIKE Token Medallion"
-                  className="w-7 h-7 object-contain drop-shadow-[0_0_8px_rgba(212,175,55,0.5)] group-hover:scale-110 transition-transform"
+                  className="w-7 h-7 object-contain drop-shadow-[0_0_8px_rgba(212,175,55,0.6)] group-hover:scale-110 transition-transform"
                   referrerPolicy="no-referrer"
                 />
               </div>
@@ -818,7 +821,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     }
                   }}
                   className="text-xs text-[#D4AF37] hover:underline font-headline font-bold flex items-center gap-1 transition-all group/btn cursor-pointer"
-                  title="Open PancakeSwap Sell Route: Sell up to 10% of your SPIKE balance for USDT"
+                  title="Open Nodescan Sell Route: Sell up to 10% of your SPIKE balance for USDT"
                 >
                   <span>Swap Now (10% Sell Limit)</span>
                   <span className="material-symbols-outlined text-[15px] group-hover/btn:translate-x-0.5 transition-transform">
