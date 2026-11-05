@@ -583,51 +583,75 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       {/* Cyber Grid Lines */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1c2b3b15_1px,transparent_1px),linear-gradient(to_bottom,#1c2b3b15_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-      {/* Header Bar */}
-      <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-[#1c2b3b]/80">
-        <div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-headline tracking-tight flex flex-wrap items-center gap-3">
-            <span className="animate-shining-text tracking-tight">
-              SPIKE Apex Mining Engine: Live Medallion
-            </span>
-            <span className={`text-xs px-2.5 py-0.5 rounded-full font-mono font-normal shadow-sm ${
-              is24hComplete
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.35)] animate-pulse'
-                : isActivelyMining
-                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                : 'bg-[#122130] text-[#94a3b8] border border-[#1c2b3b]'
-            }`}>
-              {is24hComplete ? '● 24H CYCLE COMPLETE · AUTO-STOPPED' : isActivelyMining ? '● HASHING LIVE' : '○ STANDBY'}
-            </span>
-          </h2>
-          <p className="text-xs sm:text-sm text-[#94a3b8] mt-2 max-w-2xl">
-            Live 3D Medallion Hashrate Core: Dynamic BSC Validator Cluster &amp; Stratum Telemetry Matrix running at 10X Turbo speed.
-          </p>
-        </div>
+      {/* Header Bar Console Box */}
+      <div className="relative z-10 rounded-2xl bg-gradient-to-r from-[#091829]/95 via-[#0d2238]/90 to-[#071626]/95 border border-[#1d3852] p-4 sm:p-5 md:p-6 mb-4 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(212,175,55,0.25)] animate-box-glow-hybrid transition-all overflow-hidden">
+        {/* Ambient Corner Flare */}
+        <div className="absolute -right-16 -top-16 w-48 h-48 bg-gradient-to-bl from-[#D4AF37]/15 via-[#00F0FF]/10 to-transparent rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-gradient-to-tr from-[#00F0FF]/10 via-transparent to-transparent rounded-full blur-2xl pointer-events-none" />
 
-        {/* Active Telemetry: Dynamic Active Mining Status */}
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <div
-            className={`px-3.5 py-2 rounded-xl border flex items-center gap-2 transition-all ${
-              is24hComplete
-                ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse'
-                : isActivelyMining
-                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
-                : 'bg-[#122130] border-[#1c2b3b] text-[#94a3b8]'
-            }`}
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#12283e] via-[#0b1c2d] to-[#071320] border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.25)] shrink-0">
+              <span className="material-symbols-outlined text-[26px] sm:text-[30px] animate-pulse text-[#D4AF37]">
+                token
+              </span>
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-headline tracking-tight text-white flex items-center gap-2">
+                  <span className="animate-shining-text">SPIKE Apex Mining Engine</span>
+                </h2>
+                <span className={`text-[11px] sm:text-xs px-2.5 py-0.5 rounded-full font-mono font-medium shadow-sm ${
+                  is24hComplete
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.35)] animate-pulse'
+                    : isActivelyMining
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                    : 'bg-[#122130] text-[#94a3b8] border border-[#1c2b3b]'
+                }`}>
+                  {is24hComplete ? '● 24H CYCLE COMPLETE' : isActivelyMining ? '● HASHING LIVE' : '○ STANDBY'}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-[#94a3b8] mt-1 max-w-2xl leading-relaxed">
+                Live 3D Medallion Hashrate Core · Dynamic BSC Validator Cluster &amp; Stratum Telemetry Matrix running at 10X Turbo speed.
+              </p>
+            </div>
+          </div>
+
+          {/* Telemetry Metrics & Status Badges */}
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start lg:self-center">
+            <div
+              className={`px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border flex items-center gap-2.5 shadow-md transition-all ${
                 is24hComplete
-                  ? 'bg-amber-400 animate-ping'
+                  ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse'
                   : isActivelyMining
-                  ? 'bg-emerald-400 animate-ping'
-                  : 'bg-[#94a3b8]'
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                  : 'bg-[#0c1b2c] border-[#1c354e] text-[#94a3b8]'
               }`}
-            />
-            <span className="text-xs font-headline font-bold">
-              {is24hComplete ? '24H AUTO-STOPPED · CLAIM REQUIRED' : isActivelyMining ? 'NODE ACTIVE · HASHING' : 'IDLE · NO ACTIVE NODE'}
-            </span>
+            >
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  is24hComplete
+                    ? 'bg-amber-400 animate-ping'
+                    : isActivelyMining
+                    ? 'bg-emerald-400 animate-ping'
+                    : 'bg-[#94a3b8]'
+                }`}
+              />
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Validator Core</span>
+                <span className="text-xs font-headline font-bold">
+                  {is24hComplete ? '24H AUTO-STOPPED' : isActivelyMining ? 'NODE ACTIVE · HASHING' : 'IDLE · NO ACTIVE NODE'}
+                </span>
+              </div>
+            </div>
+
+            <div className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border border-[#1c354e] bg-[#0c1b2c] flex items-center gap-2.5 text-xs shadow-md">
+              <span className="material-symbols-outlined text-[18px] text-[#00F0FF]">hub</span>
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase text-slate-400 font-mono tracking-wider">Stratum V2</span>
+                <span className="text-xs font-headline font-bold text-white">SSL Encrypted</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
