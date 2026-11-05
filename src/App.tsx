@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { db as firestoreDb } from './firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { TabType, MiningNode, RewardTransaction, ToastMessage, HashrateLevelInfo, AdminSettings } from './types';
@@ -17,6 +17,7 @@ import { BlockchainBackground } from './components/BlockchainBackground';
 import { fetchOnChainBalances } from './services/onchainBalance';
 import { registerReferralInFirestore, getReferralsFromFirestore } from './services/firestoreReferrals';
 import { persistMiningStart, fetchActiveMiningSession } from './services/miningSessionSync';
+import { getRealActiveAccount, requestWeb3Connection, subscribeToWeb3AccountChanges } from './services/web3WalletSync';
 
 
 // Code-split heavy views and modals for sub-100ms ultra-fast initial paint
@@ -191,6 +192,13 @@ export default function App() {
       return '';
     }
   });
+
+  const walletAddressRef = useRef(walletAddress);
+  const isWalletConnectedRef = useRef(isWalletConnected);
+  useEffect(() => {
+    walletAddressRef.current = walletAddress;
+    isWalletConnectedRef.current = isWalletConnected;
+  }, [walletAddress, isWalletConnected]);
 
   // Designated Master Wallets with root auto-recognition
   const MASTER_WALLETS = [
@@ -436,37 +444,72 @@ export default function App() {
     }
   };
 
-  // Listen to Web3 provider accountsChanged event for auto-switching
+  // Real-Time Web3 Multi-Provider Synchronizer (MetaMask, Trust Wallet, SafePal, Injected)
+  // Handles account shuffling, provider switching, and clean disconnects seamlessly in real-time
   useEffect(() => {
-    try {
-      if (
-        typeof window !== 'undefined' &&
-        (window as unknown as { ethereum?: { on?: (event: string, cb: (acc: string[]) => void) => void; removeListener?: (event: string, cb: (acc: string[]) => void) => void } }).ethereum
-      ) {
-        const eth = (window as unknown as { ethereum: { on?: (event: string, cb: (acc: string[]) => void) => void; removeListener?: (event: string, cb: (acc: string[]) => void) => void } }).ethereum;
-        if (typeof eth?.on === 'function') {
-          const handleAccountsChanged = (accs: string[]) => {
-            if (accs && accs.length > 0) {
-              handleConnectWallet('MetaMask', accs[0]);
-            } else {
-              handleDisconnectWallet();
-            }
-          };
-          eth.on('accountsChanged', handleAccountsChanged);
-          return () => {
-            try {
-              if (typeof eth?.removeListener === 'function') {
-                eth.removeListener('accountsChanged', handleAccountsChanged);
-              }
-            } catch {
-              // ignore
-            }
-          };
+    // 1. Initial verification: Check if the extension's currently selected address differs from stored address
+    getRealActiveAccount().then((realAccount) => {
+      if (realAccount) {
+        const currentAddr = walletAddressRef.current;
+        if (currentAddr && currentAddr.toLowerCase() !== realAccount.toLowerCase()) {
+          console.log('[Web3Sync] Active wallet on load differs from stored address. Auto-syncing:', realAccount);
+          handleConnectWallet('Web3 Provider', realAccount, true);
         }
       }
-    } catch {
-      // ignore
-    }
+    }).catch(() => {});
+
+    // 2. Real-time event subscription for 'accountsChanged' and 'disconnect' across all injected Web3 providers
+    const unsubscribe = subscribeToWeb3AccountChanges(
+      (newAddress) => {
+        const currentAddr = walletAddressRef.current;
+        if (!currentAddr || currentAddr.toLowerCase() !== newAddress.toLowerCase()) {
+          console.log('[Web3Sync] Account switched in Web3 wallet extension:', newAddress);
+          handleConnectWallet('Web3 Provider', newAddress, true);
+          addToast(
+            'Wallet Synchronized',
+            `Active account switched to ${newAddress.slice(0, 6)}...${newAddress.slice(-4)}. Updated in real-time!`,
+            'info'
+          );
+        }
+      },
+      () => {
+        console.log('[Web3Sync] Provider disconnected or account locked');
+        if (isWalletConnectedRef.current) {
+          handleDisconnectWallet();
+        }
+      }
+    );
+
+    // 3. Ultra-light non-intrusive heartbeat poll (1200ms) to guarantee sync even if mobile/extension suppresses events
+    const heartbeat = setInterval(async () => {
+      try {
+        const activeAcc = await getRealActiveAccount();
+        const currentAddr = walletAddressRef.current;
+        if (activeAcc) {
+          // If extension switched to a new authorized account
+          if (currentAddr && currentAddr.toLowerCase() !== activeAcc.toLowerCase()) {
+            console.log('[Web3Sync Heartbeat] Detected wallet switch to:', activeAcc);
+            handleConnectWallet('Web3 Provider', activeAcc, true);
+          }
+        } else if (currentAddr && currentAddr.startsWith('0x') && isWalletConnectedRef.current) {
+          // Check if provider was explicitly disconnected or revoked
+          const win = window as any;
+          const hasInjected = Boolean(win.ethereum || win.safepalProvider || win.trustwallet);
+          if (hasInjected) {
+            // Note: only auto-disconnect if user was connected through an extension that is now giving 0 accounts
+            // We verify by checking if eth_accounts returned empty array
+            if (activeAcc === null && win.ethereum?.selectedAddress === null) {
+              handleDisconnectWallet();
+            }
+          }
+        }
+      } catch {}
+    }, 1200);
+
+    return () => {
+      unsubscribe();
+      clearInterval(heartbeat);
+    };
   }, []);
 
   // Auto-persist wallet balance across reloads and sync to server
@@ -1461,19 +1504,13 @@ export default function App() {
   const handleConnectWallet = async (provider: string, realAddress?: string, keepCurrentTab?: boolean): Promise<string> => {
     let finalAddress = realAddress;
     if (!finalAddress && typeof window !== 'undefined') {
-      const win = window as any;
-      if (win.ethereum && typeof win.ethereum.request === 'function' && (provider.toLowerCase().includes('meta') || provider.toLowerCase().includes('trust') || provider.toLowerCase().includes('web3'))) {
-        try {
-          const accounts = await win.ethereum.request({ method: 'eth_requestAccounts' }).catch((e: unknown) => {
-            console.warn('[App] Real Web3 connection popup note:', (e as { message?: string })?.message || e);
-            return null;
-          });
-          if (Array.isArray(accounts) && accounts.length > 0) {
-            finalAddress = accounts[0];
-          }
-        } catch (err) {
-          console.warn('[App] Real Web3 connection popup was closed or rejected:', err);
+      try {
+        const connectedAddr = await requestWeb3Connection(provider);
+        if (connectedAddr) {
+          finalAddress = connectedAddr;
         }
+      } catch (err) {
+        console.warn('[App] Real Web3 connection popup note:', err);
       }
     }
 
@@ -2222,6 +2259,7 @@ export default function App() {
               currentWallet={walletAddress}
               isConnected={isWalletConnected}
               onConnectWallet={handleConnectWallet}
+              onDisconnectWallet={handleDisconnectWallet}
               onBindSponsor={handleBindSponsor}
               onOpenMining={() => handleTabChange('dashboard')}
             />
@@ -2392,6 +2430,7 @@ export default function App() {
             currentWallet={walletAddress}
             isConnected={isWalletConnected}
             onConnectWallet={handleConnectWallet}
+            onDisconnectWallet={handleDisconnectWallet}
             onBindSponsor={handleBindSponsor}
             onOpenMining={() => handleTabChange('dashboard')}
             onNavigateToReferrals={() => handleTabChange('referrals')}

@@ -8,6 +8,7 @@ interface ReferralVerificationModalProps {
   currentWallet: string;
   isConnected: boolean;
   onConnectWallet: (provider: string, customAddress?: string, keepCurrentTab?: boolean) => void | Promise<string>;
+  onDisconnectWallet?: () => void;
   onBindSponsor: (codeOrAddr: string, explicitReferee?: string) => Promise<boolean>;
   onOpenMining?: () => void;
   onNavigateToReferrals?: () => void;
@@ -20,6 +21,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   currentWallet,
   isConnected,
   onConnectWallet,
+  onDisconnectWallet,
   onBindSponsor,
   onOpenMining,
   onNavigateToReferrals,
@@ -359,12 +361,23 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                         {currentWallet}
                       </span>
                     </div>
-                    <button
-                      onClick={copyJoinerAddress}
-                      className="px-2.5 py-1 rounded bg-[#1c2b3b] text-[10px] font-mono text-[#00F0FF] hover:text-white"
-                    >
-                      {isCopiedJoiner ? 'Copied' : 'Copy'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={copyJoinerAddress}
+                        className="px-2.5 py-1 rounded bg-[#1c2b3b] text-[10px] font-mono text-[#00F0FF] hover:text-white transition-colors"
+                      >
+                        {isCopiedJoiner ? 'Copied' : 'Copy'}
+                      </button>
+                      {onDisconnectWallet && (
+                        <button
+                          onClick={onDisconnectWallet}
+                          className="px-2.5 py-1 rounded bg-[#1c2b3b] hover:bg-rose-500/20 text-[10px] font-mono text-gray-400 hover:text-rose-300 transition-colors"
+                          title="Switch or connect another wallet"
+                        >
+                          Change
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="p-3 bg-[#121c2c]/70 rounded-lg border border-dashed border-[#1c2b3b] text-center space-y-1">
