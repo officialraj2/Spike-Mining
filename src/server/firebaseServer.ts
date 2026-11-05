@@ -249,7 +249,69 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
       console.warn('[Firebase Server] Transaction hydration notice:', txErr);
     }
 
-    // 5. Fetch global settings if present
+    // 5. Fetch mining sessions from Firestore
+    try {
+      const sessionsSnap = await getDocs(collection(firestore, 'mining_sessions'));
+      if (!dbInstance.data.miningSessions) dbInstance.data.miningSessions = [];
+      sessionsSnap.forEach((d) => {
+        const data = d.data() as any;
+        const sessionId = data.sessionId || d.id;
+        const userAddress = (data.userAddress || '').trim().toLowerCase();
+        if (!userAddress) return;
+
+        const exists = dbInstance.data.miningSessions.some((s: any) => s.sessionId === sessionId);
+        if (!exists) {
+          dbInstance.data.miningSessions.unshift({
+            ...data,
+            sessionId,
+            userAddress,
+          });
+        }
+
+        // If session was started within 24 hours (86,400,000 ms), ensure user and node are active
+        const elapsed = Date.now() - (data.startTime || 0);
+        if (data.startTime && elapsed < 24 * 3600 * 1000) {
+          const user = dbInstance.upsertUser({ address: userAddress });
+          user.hasActivatedMining = true;
+          user.hasDepositedTreasury = true;
+          if (!user.miningCycleStartTime) {
+            user.miningCycleStartTime = data.startTime;
+          }
+
+          // Ensure node is in fleet
+          const hasMiningNode = dbInstance.data.nodes.some(
+            (n: any) => n.userAddress.toLowerCase() === userAddress && n.status === 'mining'
+          );
+          if (!hasMiningNode) {
+            dbInstance.data.nodes.unshift({
+              id: `spk-node-${data.startTime}-${userAddress.slice(2, 6)}`,
+              userAddress,
+              name: data.nodeName || 'SPIKE ASIC Rig #1',
+              region: 'US-East (Stratum Cluster)',
+              status: 'mining',
+              hashrate: data.hashrateVh || 100,
+              temperature: 64,
+              shareAcceptance: 99.98,
+              fanSpeed: 75,
+              powerUsage: 1400,
+              uptimeDays: 1,
+              algorithm: 'SHA-256 (Stratum)',
+              logs: [
+                `24-Hour Mining Cycle Active [Level: ${data.tierName || 'Falcon Titan Apex'} · ${data.hashrateVh || 100} VH/s]`,
+                'Stratum+SSL target diff accepted: 1048576 (hash: 00000000...a4f2)',
+              ],
+              costUsdt: data.treasuryContributionUsdt || 5.0,
+              deployedAt: data.startDateIso || new Date(data.startTime).toISOString(),
+            });
+            nodesLoaded++;
+          }
+        }
+      });
+    } catch (sessionErr) {
+      console.warn('[Firebase Server] Mining sessions hydration notice:', sessionErr);
+    }
+
+    // 6. Fetch global settings if present
     try {
       const settingsDoc = await getDoc(doc(firestore, 'settings', 'global'));
       if (settingsDoc.exists()) {

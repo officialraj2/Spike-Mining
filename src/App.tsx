@@ -16,7 +16,7 @@ import { Toast } from './components/Toast';
 import { BlockchainBackground } from './components/BlockchainBackground';
 import { fetchOnChainBalances } from './services/onchainBalance';
 import { registerReferralInFirestore, getReferralsFromFirestore } from './services/firestoreReferrals';
-import { persistMiningStart } from './services/miningSessionSync';
+import { persistMiningStart, fetchActiveMiningSession } from './services/miningSessionSync';
 
 
 // Code-split heavy views and modals for sub-100ms ultra-fast initial paint
@@ -705,13 +705,15 @@ export default function App() {
             } catch {}
           }
 
-          if (data.user.miningCycleStartTime && typeof data.user.miningCycleStartTime === 'number') {
-            const localCycle = localStorage.getItem(`spike_cycle_start_${norm}`);
-            if (!localCycle || isNaN(Number(localCycle))) {
-              localStorage.setItem(`spike_cycle_start_${norm}`, String(data.user.miningCycleStartTime));
+          const serverCycleStart = data.miningStatus?.cycleStartTime || data.user.miningCycleStartTime;
+          if (serverCycleStart && typeof serverCycleStart === 'number') {
+            const elapsed = Math.floor((Date.now() - serverCycleStart) / 1000);
+            if (elapsed < 86400) {
+              localStorage.setItem(`spike_cycle_start_${norm}`, String(serverCycleStart));
+              localStorage.setItem(`spike_mining_active_${norm}`, 'true');
             }
           }
-          if (data.user.hasActivatedMining || data.user.hasDepositedTreasury) {
+          if (data.user.hasActivatedMining || data.user.hasDepositedTreasury || data.miningStatus?.is24hActive) {
             localStorage.setItem(`spike_mining_active_${norm}`, 'true');
           }
           if (typeof data.user.balanceSpk === 'number' && !isNaN(data.user.balanceSpk)) {
@@ -728,6 +730,10 @@ export default function App() {
           }
         }
         // Set nodes array and persist
+        const is24hActive = Boolean(
+          data?.miningStatus?.is24hActive ||
+          localStorage.getItem(`spike_mining_active_${norm}`) === 'true'
+        );
         if (data && Array.isArray(data.nodes) && data.nodes.length > 0) {
           setNodes(data.nodes);
           try {
@@ -739,8 +745,34 @@ export default function App() {
           const activeMining = data.nodes.filter((n: MiningNode) => n.status === 'mining');
           const calculatedYield = activeMining.reduce((acc: number, n: MiningNode) => acc + (n.hashrate * 39), 0);
           setDailyEarnings(+calculatedYield.toFixed(2));
+        } else if (is24hActive) {
+          // If user has active 24h mining, ensure node is active and NOT wiped!
+          const cycleStart = Number(localStorage.getItem(`spike_cycle_start_${norm}`)) || Date.now();
+          const fallbackNode: MiningNode = {
+            id: `spk-node-${cycleStart}-${norm.slice(2, 6)}`,
+            name: 'SPIKE ASIC Rig #1',
+            region: 'US-East (Stratum Cluster)',
+            status: 'mining',
+            hashrate: 100,
+            temperature: 64,
+            shareAcceptance: 99.98,
+            fanSpeed: 75,
+            powerUsage: 1400,
+            uptimeDays: 1,
+            algorithm: 'SHA-256 (Stratum)',
+            logs: [
+              '24-Hour Mining Cycle Active [Restored from Database]',
+              'Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443',
+            ],
+            userAddress: walletAddress,
+          };
+          setNodes([fallbackNode]);
+          setDailyEarnings(3900);
+          try {
+            localStorage.setItem(`spike_nodes_${norm}`, JSON.stringify([fallbackNode]));
+          } catch {}
         } else {
-          // If server currently has no nodes recorded for user, clear local state
+          // Only clear nodes if user has NO active 24h mining cycle
           setNodes([]);
           setDailyEarnings(0);
           try {
@@ -1544,6 +1576,53 @@ export default function App() {
         localStorage.setItem('spike_active_tab', 'dashboard');
       }
     } catch {}
+
+    // Authoritatively hydrate 24-hour mining session and rigs across disconnects/reconnects
+    fetchActiveMiningSession(finalAddress)
+      .then((session) => {
+        if (session && session.active && session.startTime) {
+          try {
+            localStorage.setItem(`spike_cycle_start_${norm}`, String(session.startTime));
+            localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+          } catch {}
+          setNodes((prevNodes) => {
+            const hasActiveMining = prevNodes.some((n) => n.status === 'mining');
+            if (hasActiveMining) return prevNodes;
+            const restoredNode: MiningNode = {
+              id: `spk-node-${session.startTime}-${norm.slice(2, 6)}`,
+              name: 'SPIKE ASIC Rig #1',
+              region: 'US-East (Stratum Cluster)',
+              status: 'mining',
+              hashrate: session.hashrateVh || 100,
+              temperature: 64,
+              shareAcceptance: 99.98,
+              fanSpeed: 75,
+              powerUsage: 1400,
+              uptimeDays: 1,
+              algorithm: 'SHA-256 (Stratum)',
+              logs: [
+                `24-Hour Mining Cycle Active [Restored from Database · ${session.source}]`,
+                'Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443',
+              ],
+              userAddress: finalAddress,
+            };
+            const updated = [restoredNode, ...prevNodes];
+            try {
+              localStorage.setItem(`spike_nodes_${norm}`, JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
+          setDailyEarnings(3900);
+          try {
+            window.dispatchEvent(
+              new CustomEvent('spike_mining_started', {
+                detail: { address: finalAddress, startTime: session.startTime },
+              })
+            );
+          } catch {}
+        }
+      })
+      .catch(() => {});
 
     // Register connected wallet as an active sponsor on backend immediately
     fetch('/api/referrals/sync-sponsor', {

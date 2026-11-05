@@ -974,35 +974,6 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 </span>
               </div>
             </div>
-
-            {/* Clear Destination Box: Explicitly explains where USDT goes */}
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/40 to-[#071d2b] border border-emerald-500/40 text-xs flex items-start gap-3 shadow-inner">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-500/30">
-                <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                  <span className="font-headline font-bold text-white flex items-center gap-1.5 text-xs sm:text-sm">
-                    <span>Payout Destination:</span>
-                    <span className="text-emerald-400">Direct to Your Personal Wallet</span>
-                  </span>
-                  <span className="text-xs font-headline font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    100% Self-Custodial
-                  </span>
-                </div>
-                <p className="text-xs text-[#cbd5e1] font-body leading-relaxed">
-                  {toTokenSymbol === 'USDT' ? (
-                    <>
-                      Swapped USDT is routed directly into your personal connected Web3 wallet (<span className="text-[#00F0FF] font-mono font-bold">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected Wallet'}</span>) with zero custodial intermediaries.
-                    </>
-                  ) : (
-                    <>
-                      Purchased tokens ({toTokenSymbol}) are transferred directly into your personal connected Web3 wallet (<span className="text-[#00F0FF] font-mono font-bold">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected Wallet'}</span>).
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
           </div>
 
           {/* TELEMETRY & ROUTE ACCORDION */}

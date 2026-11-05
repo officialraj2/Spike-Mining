@@ -311,6 +311,7 @@ const INITIAL_DATA: DatabaseSchema = {
     change24h: 0,
     buyPressure: 50,
   },
+  miningSessions: [],
 };
 
 class PersistentDatabase {
@@ -406,6 +407,7 @@ class PersistentDatabase {
             testnetWallets: Array.isArray(parsed.testnetWallets) && parsed.testnetWallets.length ? parsed.testnetWallets : INITIAL_DATA.testnetWallets,
             testnetTransactions: Array.isArray(parsed.testnetTransactions) && parsed.testnetTransactions.length ? parsed.testnetTransactions : INITIAL_DATA.testnetTransactions,
             testnetSpikeToken: parsed.testnetSpikeToken || INITIAL_DATA.testnetSpikeToken,
+            miningSessions: Array.isArray(parsed.miningSessions) ? parsed.miningSessions : [],
           };
         }
       }
@@ -987,23 +989,33 @@ class PersistentDatabase {
       const norm = userAddress.toLowerCase();
       const hashrateInfo = this.calculateUserHashrate(norm);
       const userNodes = this.data.nodes.filter((n) => n.userAddress.toLowerCase() === norm);
+      const user = this.getUser(norm);
+      const activeSession = this.getActiveMiningSession(norm);
+      const isWithin24h = (activeSession && (Date.now() - activeSession.startTime < 86400000)) ||
+                          (user && user.miningCycleStartTime && (Date.now() - user.miningCycleStartTime < 86400000));
 
       if (userNodes.length > 0) {
+        let hasActive = false;
         userNodes.forEach((n) => {
-          if (n.status === 'mining') {
+          if (n.status === 'mining' || (isWithin24h && !hasActive)) {
+            n.status = 'mining';
             n.hashrate = hashrateInfo.hashrate;
+            hasActive = true;
           }
         });
+        if (isWithin24h && !hasActive && userNodes[0]) {
+          userNodes[0].status = 'mining';
+          userNodes[0].hashrate = hashrateInfo.hashrate;
+        }
         return userNodes;
       }
 
       // Ensure that if user has deposited into treasury, activated mining, or has active session, active node is never lost
-      const user = this.getUser(norm);
-      if (user && (user.hasActivatedMining || user.hasDepositedTreasury || user.role === 'admin')) {
+      if (user && (user.hasActivatedMining || user.hasDepositedTreasury || user.role === 'admin' || isWithin24h || activeSession)) {
         const autoNode: DbMiningNode = {
           id: `spk-node-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           userAddress: norm,
-          name: 'SPIKE ASIC Rig #1',
+          name: (activeSession && activeSession.nodeName) || 'SPIKE ASIC Rig #1',
           region: 'US-East (Stratum Cluster)',
           status: 'mining',
           hashrate: hashrateInfo.hashrate,
@@ -1018,7 +1030,7 @@ class PersistentDatabase {
             'Stratum+SSL target diff accepted: 1048576 (hash: 00000000...a4f2)',
           ],
           costUsdt: 5.0,
-          deployedAt: new Date().toISOString(),
+          deployedAt: (activeSession && activeSession.startDateIso) || new Date().toISOString(),
         };
         this.data.nodes.unshift(autoNode);
         this.save();
@@ -2454,6 +2466,22 @@ class PersistentDatabase {
       blockNumber: 42950000 + Math.floor(Math.random() * 25000),
     });
 
+    this.recordMiningSession({
+      sessionId: `mine_${norm.slice(2, 8)}_${user.miningCycleStartTime || Date.now()}`,
+      userAddress: norm,
+      startTime: user.miningCycleStartTime || Date.now(),
+      startDateIso: new Date(user.miningCycleStartTime || Date.now()).toISOString(),
+      targetCycleHours: 24,
+      expectedEndTime: (user.miningCycleStartTime || Date.now()) + 24 * 3600 * 1000,
+      hashrateVh: activeNode.hashrate,
+      tierName: 'Falcon Titan Apex',
+      status: 'active',
+      treasuryContributionUsdt: amount,
+      pancakeSwapRoute: 'Nodescan V3 Pool 0xdB75...2F3c',
+      lastSyncTime: Date.now(),
+      nodeName: activeNode.name,
+    });
+
     this.logAudit(norm, 'TREASURY_DEPOSIT', officialWallet, `Deposited $${amount} USDT to Treasury. Remaining balance: $${user.balanceUsdt}`);
     this.save();
 
@@ -2611,8 +2639,35 @@ class PersistentDatabase {
     // Ensure user state is synced
     const user = this.upsertUser({ address: norm });
     user.hasActivatedMining = true;
+    user.hasDepositedTreasury = true;
     user.miningCycleStartTime = session.startTime || Date.now();
     user.lastActive = new Date().toISOString();
+
+    // Ensure active node exists in fleet
+    const userNodes = this.data.nodes.filter((n) => n.userAddress.toLowerCase() === norm);
+    if (!userNodes.some((n) => n.status === 'mining')) {
+      const autoNode: DbMiningNode = {
+        id: `spk-node-${session.startTime || Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        userAddress: norm,
+        name: session.nodeName || `SPIKE ASIC Rig #${userNodes.length + 1}`,
+        region: 'US-East (Stratum Cluster)',
+        status: 'mining',
+        hashrate: session.hashrateVh || 100,
+        temperature: 64,
+        shareAcceptance: 99.98,
+        fanSpeed: 75,
+        powerUsage: 1400,
+        uptimeDays: 1,
+        algorithm: 'SHA-256 (Stratum)',
+        logs: [
+          `24-Hour Mining Cycle Active [Level: ${session.tierName || 'Falcon Titan Apex'} · ${session.hashrateVh || 100} VH/s]`,
+          'Stratum+SSL target diff accepted: 1048576 (hash: 00000000...a4f2)',
+        ],
+        costUsdt: session.treasuryContributionUsdt || 5.0,
+        deployedAt: session.startDateIso || new Date(session.startTime || Date.now()).toISOString(),
+      };
+      this.data.nodes.unshift(autoNode);
+    }
 
     this.logAudit(norm, 'MINING_SESSION_RECORDED', session.sessionId, `Mining cycle recorded: ${session.tierName} (${session.hashrateVh} VH/s). Status: active.`);
     this.save();
@@ -2628,7 +2683,68 @@ class PersistentDatabase {
   public getActiveMiningSession(address: string): DbMiningSession | null {
     if (!this.data.miningSessions) return null;
     const norm = address.toLowerCase().trim();
-    return this.data.miningSessions.find((s) => s.userAddress.toLowerCase() === norm && s.status === 'active') || null;
+    // 1. Check active session within 24 hours (86,400,000 ms)
+    const active = this.data.miningSessions.find(
+      (s) => s.userAddress.toLowerCase() === norm && s.status === 'active' && (Date.now() - s.startTime < 24 * 3600 * 1000)
+    );
+    if (active) return active;
+
+    // 2. Fallback: check most recent session within 24h
+    const userSessions = this.data.miningSessions
+      .filter((s) => s.userAddress.toLowerCase() === norm)
+      .sort((a, b) => b.startTime - a.startTime);
+    if (userSessions[0] && (Date.now() - userSessions[0].startTime < 24 * 3600 * 1000)) {
+      userSessions[0].status = 'active';
+      return userSessions[0];
+    }
+    return null;
+  }
+
+  public getUserMiningStatus(address: string): {
+    isMining: boolean;
+    is24hActive: boolean;
+    cycleStartTime: number;
+    secondsRemaining: number;
+    hashrate: number;
+    node: DbMiningNode | null;
+    session: DbMiningSession | null;
+  } {
+    const norm = address.toLowerCase().trim();
+    const user = this.getUser(norm);
+    const hashrateInfo = this.calculateUserHashrate(norm);
+    const activeSession = this.getActiveMiningSession(norm);
+
+    let cycleStartTime = (activeSession && activeSession.startTime) || (user && user.miningCycleStartTime) || 0;
+    const now = Date.now();
+    const elapsed = cycleStartTime > 0 ? Math.floor((now - cycleStartTime) / 1000) : 0;
+    const is24hActive = cycleStartTime > 0 && elapsed < 86400;
+    const secondsRemaining = is24hActive ? Math.max(0, 86400 - elapsed) : 0;
+
+    let userNodes = this.data.nodes.filter((n) => n.userAddress.toLowerCase() === norm);
+    let activeNode = userNodes.find((n) => n.status === 'mining') || null;
+
+    if (is24hActive || (user && (user.hasActivatedMining || user.hasDepositedTreasury))) {
+      if (!activeNode) {
+        const nodes = this.getNodes(norm);
+        activeNode = nodes.find((n) => n.status === 'mining') || null;
+      }
+      if (user && !user.hasActivatedMining) {
+        user.hasActivatedMining = true;
+        this.save();
+      }
+    }
+
+    const isMining = is24hActive || Boolean(activeNode);
+
+    return {
+      isMining,
+      is24hActive,
+      cycleStartTime,
+      secondsRemaining,
+      hashrate: hashrateInfo.hashrate,
+      node: activeNode,
+      session: activeSession,
+    };
   }
 }
 

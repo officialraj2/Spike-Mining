@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SPIKE_LOGO_URL } from '../data/mockData';
 import { HashrateLevelInfo } from '../types';
-import { persistMiningStart } from '../services/miningSessionSync';
+import { persistMiningStart, fetchActiveMiningSession } from '../services/miningSessionSync';
 
 interface GoldenHawkMiningSectionProps {
   totalHashrate: number;
@@ -59,10 +59,30 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }
   });
 
+  // 24-Hour Mining Cycle Countdown (86,400 seconds)
+  const [cycleStartTime, setCycleStartTime] = useState<number>(() => {
+    try {
+      if (walletAddress) {
+        const stored = localStorage.getItem(`spike_cycle_start_${walletAddress.toLowerCase()}`);
+        if (stored && !isNaN(Number(stored))) {
+          const parsed = Number(stored);
+          const elapsed = Math.floor((Date.now() - parsed) / 1000);
+          if (elapsed < 86400) return parsed;
+        }
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  const is24hRunning = cycleStartTime > 0 && Math.floor((Date.now() - cycleStartTime) / 1000) < 86400;
+
   // Animation & loop runs when 5 USDT is deposited or mining node is active
   const isMining = Boolean(
     isNodeActive ||
     hasDeposited5Usdt ||
+    is24hRunning ||
     (activeNodesCount !== undefined && activeNodesCount > 0) ||
     totalHashrate > 0
   );
@@ -112,23 +132,12 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   const [showApprovalModal, setShowApprovalModal] = useState<boolean>(false);
   const [copiedRouterModal, setCopiedRouterModal] = useState<boolean>(false);
 
-  // 24-Hour Mining Cycle Countdown (86,400 seconds)
-  const [cycleStartTime, setCycleStartTime] = useState<number>(() => {
-    try {
-      if (walletAddress) {
-        const stored = localStorage.getItem(`spike_cycle_start_${walletAddress.toLowerCase()}`);
-        if (stored && !isNaN(Number(stored))) return Number(stored);
-      }
-      return 0;
-    } catch {
-      return 0;
-    }
-  });
-
   const [secondsRemaining, setSecondsRemaining] = useState<number>(() => {
-    if (!isMining) return 86400;
-    const elapsed = Math.floor((Date.now() - cycleStartTime) / 1000);
-    return Math.max(0, 86400 - elapsed);
+    if (cycleStartTime > 0) {
+      const elapsed = Math.floor((Date.now() - cycleStartTime) / 1000);
+      return Math.max(0, 86400 - elapsed);
+    }
+    return 86400;
   });
 
   // Listen for mining started event from 5 USDT deposit
@@ -137,9 +146,10 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       setHasDeposited5Usdt(true);
       setAccumulatedSpike(0);
       setAccumulatedUsdt(0);
-      const now = Date.now();
+      const now = (e?.detail?.startTime && typeof e.detail.startTime === 'number') ? e.detail.startTime : Date.now();
       setCycleStartTime(now);
-      setSecondsRemaining(86400);
+      const elapsed = Math.floor((Date.now() - now) / 1000);
+      setSecondsRemaining(Math.max(0, 86400 - elapsed));
       try {
         if (walletAddress) {
           localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
@@ -163,14 +173,32 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }
     const norm = walletAddress.toLowerCase();
     const stored = localStorage.getItem(`spike_cycle_start_${norm}`);
+    const isAct = localStorage.getItem(`spike_mining_active_${norm}`) === 'true';
     if (stored && !isNaN(Number(stored))) {
       const parsedStart = Number(stored);
-      setCycleStartTime(parsedStart);
       const elapsed = Math.floor((Date.now() - parsedStart) / 1000);
-      setSecondsRemaining(Math.max(0, 86400 - elapsed));
+      if (elapsed < 86400) {
+        setCycleStartTime(parsedStart);
+        setSecondsRemaining(Math.max(0, 86400 - elapsed));
+        setHasDeposited5Usdt(true);
+      }
+    } else if (isAct) {
+      setHasDeposited5Usdt(true);
     }
-    const isAct = localStorage.getItem(`spike_mining_active_${norm}`) === 'true';
-    setHasDeposited5Usdt(isAct);
+
+    // Authoritative check from database & Firestore so disconnects/reconnects never stop mining
+    fetchActiveMiningSession(walletAddress).then((session) => {
+      if (session && session.active && session.startTime) {
+        setCycleStartTime(session.startTime);
+        setSecondsRemaining(session.secondsRemaining);
+        setHasDeposited5Usdt(true);
+        try {
+          localStorage.setItem(`spike_cycle_start_${norm}`, String(session.startTime));
+          localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+        } catch {}
+      }
+    }).catch(() => {});
+
     const cachedSpk = localStorage.getItem(`spike_accumulated_spk_${norm}`);
     if (cachedSpk && !isNaN(Number(cachedSpk))) {
       setAccumulatedSpike(Number(cachedSpk));
@@ -225,9 +253,11 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   const dailySpkYield = hashrateInfo?.dailySpkYield ?? +(1 / targetDays).toFixed(5);
 
   // 24-Hour Mining Cycle Complete check (Cycle duration: 86,400 seconds = 24 hours)
-  const elapsedCycleSeconds = isMining ? Math.max(0, Math.floor((Date.now() - cycleStartTime) / 1000)) : 0;
-  const is24hComplete = isMining && (secondsRemaining === 0 || elapsedCycleSeconds >= 86400);
-  const isActivelyMining = isMining && !is24hComplete && secondsRemaining > 0;
+  const elapsedCycleSeconds = (isMining && cycleStartTime > 0)
+    ? Math.max(0, Math.floor((Date.now() - cycleStartTime) / 1000))
+    : 0;
+  const is24hComplete = (cycleStartTime > 0 && elapsedCycleSeconds >= 86400);
+  const isActivelyMining = isMining && !is24hComplete && (cycleStartTime === 0 || secondsRemaining > 0);
 
   // Effective Cluster Hashrate with fixed 10x Turbo speed (halts to 0 when 24h cycle finishes)
   const effectiveHashrate = isActivelyMining ? Math.max(totalHashrate * 10, 12.5) : 0;
@@ -574,94 +604,51 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   };
 
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#071322] via-[#0a1a2e] to-[#040e1a] border-2 border-[#D4AF37]/50 p-6 md:p-8 shadow-[0_0_40px_rgba(212,175,55,0.25)] transition-all">
-      {/* Background Energy Glows */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-[110px] pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-[#00F0FF]/15 rounded-full blur-[110px] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(ellipse_at_center,rgba(0,240,255,0.06)_0%,transparent_70%)] pointer-events-none" />
+    <div className="space-y-6 sm:space-y-8 w-full">
+      {/* ============================================================
+          SECTION 1: THE ROTATING 3D MINING MEDALLION SHOWPIECE
+          (The user requested to ONLY keep the mining logo rotation in this section)
+         ============================================================ */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#071322] via-[#0a1a2e] to-[#040e1a] border-2 border-[#D4AF37]/60 p-6 sm:p-10 shadow-[0_0_50px_rgba(212,175,55,0.3)] animate-box-glow-gold transition-all">
+        {/* Background Energy Glows */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#D4AF37]/15 rounded-full blur-[110px] pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-[#00F0FF]/15 rounded-full blur-[110px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(ellipse_at_center,rgba(0,240,255,0.06)_0%,transparent_70%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1c2b3b15_1px,transparent_1px),linear-gradient(to_bottom,#1c2b3b15_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-      {/* Cyber Grid Lines */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1c2b3b15_1px,transparent_1px),linear-gradient(to_bottom,#1c2b3b15_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-
-      {/* Header Bar Console Box */}
-      <div className="relative z-10 rounded-2xl bg-gradient-to-r from-[#091829]/95 via-[#0d2238]/90 to-[#071626]/95 border border-[#1d3852] p-4 sm:p-5 md:p-6 mb-4 shadow-[0_10px_30px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(212,175,55,0.25)] animate-box-glow-hybrid transition-all overflow-hidden">
-        {/* Ambient Corner Flare */}
-        <div className="absolute -right-16 -top-16 w-48 h-48 bg-gradient-to-bl from-[#D4AF37]/15 via-[#00F0FF]/10 to-transparent rounded-full blur-2xl pointer-events-none" />
-        <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-gradient-to-tr from-[#00F0FF]/10 via-transparent to-transparent rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-          <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-[#12283e] via-[#0b1c2d] to-[#071320] border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-[0_0_20px_rgba(212,175,55,0.25)] shrink-0">
-              <span className="material-symbols-outlined text-[26px] sm:text-[30px] animate-pulse text-[#D4AF37]">
-                token
-              </span>
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold font-headline tracking-tight text-white flex items-center gap-2">
-                  <span className="animate-shining-text">SPIKE Apex Mining Engine</span>
-                </h2>
-                <span className={`text-[11px] sm:text-xs px-2.5 py-0.5 rounded-full font-mono font-medium shadow-sm ${
-                  is24hComplete
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.35)] animate-pulse'
-                    : isActivelyMining
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                    : 'bg-[#122130] text-[#94a3b8] border border-[#1c2b3b]'
-                }`}>
-                  {is24hComplete ? '● 24H CYCLE COMPLETE' : isActivelyMining ? '● HASHING LIVE' : '○ STANDBY'}
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-[#94a3b8] mt-1 max-w-2xl leading-relaxed">
-                Live 3D Medallion Hashrate Core · Dynamic BSC Validator Cluster &amp; Stratum Telemetry Matrix running at 10X Turbo speed.
-              </p>
-            </div>
+        {/* Section Header: Centered & Prestigious */}
+        <div className="relative z-10 flex flex-col items-center justify-center text-center space-y-2 pb-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0d1f30] border border-[#D4AF37]/50 text-xs font-mono text-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.2)]">
+            <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
+            <span className="font-bold tracking-wider uppercase">Live 3D Medallion Hashrate Core</span>
+            <span className="text-[#94a3b8]/60">|</span>
+            <span className="text-[#00F0FF] font-semibold">{is24hComplete ? '24H CYCLE COMPLETE' : isActivelyMining ? 'HASHING LIVE' : 'STANDBY'}</span>
           </div>
 
-          {/* Telemetry Metrics & Status Badges */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start lg:self-center">
-            <div
-              className={`px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border flex items-center gap-2.5 shadow-md transition-all ${
-                is24hComplete
-                  ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.25)] animate-pulse'
-                  : isActivelyMining
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
-                  : 'bg-[#0c1b2c] border-[#1c354e] text-[#94a3b8]'
-              }`}
-            >
-              <span
-                className={`w-2.5 h-2.5 rounded-full ${
-                  is24hComplete
-                    ? 'bg-amber-400 animate-ping'
-                    : isActivelyMining
-                    ? 'bg-emerald-400 animate-ping'
-                    : 'bg-[#94a3b8]'
-                }`}
-              />
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">Validator Core</span>
-                <span className="text-xs font-headline font-bold">
-                  {is24hComplete ? '24H AUTO-STOPPED' : isActivelyMining ? 'NODE ACTIVE · HASHING' : 'IDLE · NO ACTIVE NODE'}
-                </span>
-              </div>
-            </div>
+          {/* Rectangle Box with Outer Glow & Animation */}
+          <div className="relative overflow-hidden px-6 sm:px-10 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-[#081829]/95 via-[#0d2238]/90 to-[#071626]/95 border-2 border-[#D4AF37]/70 shadow-[0_0_30px_rgba(212,175,55,0.4)] animate-box-glow-gold transition-all flex items-center justify-center gap-3">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(212,175,55,0.18)_0%,transparent_70%)] pointer-events-none" />
 
-            <div className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl border border-[#1c354e] bg-[#0c1b2c] flex items-center gap-2.5 text-xs shadow-md">
-              <span className="material-symbols-outlined text-[18px] text-[#00F0FF]">hub</span>
-              <div className="flex flex-col">
-                <span className="text-[10px] uppercase text-slate-400 font-mono tracking-wider">Stratum V2</span>
-                <span className="text-xs font-headline font-bold text-white">SSL Encrypted</span>
-              </div>
-            </div>
+            <span className="material-symbols-outlined text-[20px] sm:text-[24px] text-[#D4AF37] animate-pulse">
+              token
+            </span>
+
+            <h2 className="relative z-10 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold font-headline tracking-tight text-white select-none">
+              <span className="animate-shining-text">SPIKE Apex Mining Medallion</span>
+            </h2>
+
+            <span className="material-symbols-outlined text-[20px] sm:text-[24px] text-[#00F0FF] animate-pulse">
+              cyclone
+            </span>
           </div>
+          <p className="text-xs sm:text-sm text-[#94a3b8] max-w-xl leading-relaxed">
+            Multi-dimensional orbital validator matrix with 3D rotation physics running at 10X Turbo speed.
+          </p>
         </div>
-      </div>
 
-      {/* Main Interactive Stage: The Golden Baaz Swooping & Orbiting the SPIKE Gold Coin */}
-      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center py-6">
-        {/* Left Visual: 3D Medallion Coin with the Flying Baaz Swooping in from above and rotating */}
-        <div className="lg:col-span-6 flex flex-col items-center justify-center relative select-none">
-          {/* Flight Arena Container with high perspective */}
-          <div className="relative w-80 h-80 sm:w-96 sm:h-96 flex items-center justify-center">
+        {/* Center 3D Logo Rotation Stage */}
+        <div className="relative z-10 flex flex-col items-center justify-center select-none py-4 sm:py-6">
+          <div className="relative w-80 h-80 sm:w-96 sm:h-96 md:w-[420px] md:h-[420px] flex items-center justify-center">
             {/* Sonic Expanding Rings from Coin Center (Active only during ongoing 24h mining) */}
             {isActivelyMining && (
               <>
@@ -690,11 +677,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               }`}
             />
 
-            {/* ============================================================
-                THE CENTER SPIKE GOLD MEDALLION COIN
-               ============================================================ */}
+            {/* The Center SPIKE Gold Medallion Coin */}
             <div
-              className={`relative z-20 w-48 h-48 sm:w-56 sm:h-56 rounded-full transition-all duration-500 ${
+              className={`relative z-20 w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 rounded-full transition-all duration-500 ${
                 isActivelyMining
                   ? 'animate-[coin3DTilt_8s_ease-in-out_infinite]'
                   : is24hComplete
@@ -713,16 +698,13 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             >
               {/* Outer Serrated Gold Coin Rim */}
               <div className="absolute inset-0 rounded-full border-[5px] border-[#D4AF37] ring-4 ring-[#ffe088]/40 shadow-2xl bg-gradient-to-b from-[#1a2d42] to-[#040e1b] overflow-hidden flex items-center justify-center">
-                {/* Metallic Edge Shimmer */}
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,224,136,0.3)_0%,transparent_60%)] pointer-events-none" />
 
-                {/* Deep Blue Cosmic Vortex with Swirling Sonic Energy */}
                 <div
                   className={`absolute inset-2 rounded-full bg-gradient-to-tr from-[#020b17] via-[#0a2747] to-[#04162c] border-2 border-[#00F0FF]/40 overflow-hidden flex items-center justify-center ${
                     isActivelyMining ? 'animate-[vortexSwirl_16s_linear_infinite]' : ''
                   }`}
                 >
-                  {/* Swirling Blue & Gold Energy Streaks */}
                   <svg
                     viewBox="0 0 200 200"
                     className="absolute inset-0 w-full h-full opacity-60 pointer-events-none"
@@ -752,21 +734,19 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   </svg>
                 </div>
 
-                {/* Inner SPIKE Medallion Image */}
                 <img
                   src={SPIKE_LOGO_URL}
                   alt="SPIKE Gold Medallion"
-                  className="relative z-10 w-40 h-40 sm:w-48 sm:h-48 object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.7)] select-none pointer-events-none"
+                  className="relative z-10 w-40 h-40 sm:w-48 sm:h-48 md:w-56 md:h-56 object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.7)] select-none pointer-events-none"
                   referrerPolicy="no-referrer"
                 />
 
-                {/* Impact Flash Shockwave on Strike */}
                 {isStriking && (
                   <div className="absolute inset-0 bg-[#ffe088] rounded-full animate-ping opacity-80 pointer-events-none z-30" />
                 )}
 
-                {/* Active Hashrate Floating Badge directly on the Mining Ring */}
-                <div className={`absolute bottom-2.5 left-1/2 -translate-x-1/2 z-30 bg-[#061424]/90 backdrop-blur-md border px-3.5 py-1.5 rounded-full flex items-center gap-2 whitespace-nowrap shadow-lg ${
+                {/* Active Hashrate Floating Badge */}
+                <div className={`absolute bottom-3 left-1/2 -translate-x-1/2 z-30 bg-[#061424]/95 backdrop-blur-md border px-4 py-1.5 rounded-full flex items-center gap-2 whitespace-nowrap shadow-xl ${
                   is24hComplete
                     ? 'border-amber-400/60 shadow-[0_0_15px_rgba(245,158,11,0.5)] animate-pulse'
                     : 'border-[#00F0FF]/50 shadow-[0_0_15px_rgba(0,240,255,0.4)]'
@@ -782,11 +762,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               </div>
             </div>
 
-            {/* ============================================================
-                3 ROTATING COPIES OF THE OFFICIAL SPIKE LOGO MEDALLION
-                (Smooth orbital rotation during mining, docked when 24h expires)
-               ============================================================ */}
-            {/* Orbital Copy 1: Upper Right Orbit */}
+            {/* 3 Rotating Copies of Official SPIKE Logo Medallion */}
             <div
               className={`absolute inset-0 pointer-events-none transition-all duration-700 ${
                 isActivelyMining
@@ -819,7 +795,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               </div>
             </div>
 
-            {/* Orbital Copy 2: Bottom Left Counter-Rotating */}
             <div
               className={`absolute inset-0 pointer-events-none transition-all duration-700 ${
                 isActivelyMining
@@ -850,7 +825,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
               </div>
             </div>
 
-            {/* Orbital Copy 3: Bottom Right Orbit */}
             <div
               className={`absolute inset-0 pointer-events-none transition-all duration-700 ${
                 isActivelyMining
@@ -908,8 +882,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           </div>
 
           {/* Dynamic Flight HUD Indicator */}
-          <div className="mt-2 text-center space-y-1">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-xs font-mono font-bold text-[#D4AF37] shadow-sm">
+          <div className="mt-4 text-center space-y-1.5">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D4AF37]/15 border border-[#D4AF37]/40 text-xs font-mono font-bold text-[#D4AF37] shadow-sm">
               <span className="material-symbols-outlined text-[15px] animate-bounce text-[#D4AF37]">
                 auto_awesome
               </span>
@@ -931,278 +905,313 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Right Console: Live Hashing Power, Accrued Rewards & Loot Claim */}
-        <div className="lg:col-span-6 space-y-5">
-          {/* Main Hash Power & Live Rate Card */}
-          <div className="bg-[#051424] rounded-2xl p-5 md:p-6 border border-[#1c2b3b] shadow-inner space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
-                    Active Hashrate Tier
-                  </span>
-                </div>
-                <div className="text-3xl sm:text-4xl font-extrabold font-headline text-white mt-1.5 tabular-nums tracking-tight flex items-baseline gap-2">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-[#7df4ff] to-[#00F0FF]">
-                    {hashrateInfo?.hashrate ?? 100}
-                  </span>
-                  <span className="text-base sm:text-lg text-[#00F0FF] font-semibold">VH/s</span>
-                  <span className="text-xs text-slate-400 font-body font-normal">
-                    ({effectiveHashrate > 0 ? effectiveHashrate.toFixed(1) : '12.5'} TH/s cluster)
-                  </span>
-                </div>
-                <div className="text-xs font-body text-[#D4AF37] font-semibold mt-1 flex items-center gap-2">
-                  <span>{hashrateInfo?.directCount ?? 0} Direct Referrals</span>
-                </div>
-              </div>
+      {/* ============================================================
+          SECTION 2: 24-HOUR MINING LOOT & REWARD CLAIM STATION
+          (Dedicated separate section for claiming mined SPK rewards)
+         ============================================================ */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-[#081729] via-[#0b1f35] to-[#061220] border-2 border-[#00F0FF]/50 p-6 sm:p-8 shadow-[0_0_35px_rgba(0,240,255,0.22)] animate-box-glow-cyan transition-all space-y-6">
+        {/* Ambient Top Glow */}
+        <div className="absolute -top-24 -right-24 w-80 h-80 bg-[#00F0FF]/15 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-[#D4AF37]/10 rounded-full blur-[100px] pointer-events-none" />
 
-              {/* Live Hash Equalizer Visualizer (Active only during active 24h mining) */}
-              <div className="flex items-end gap-1.5 h-10 px-3.5 py-1.5 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
-                {[40, 70, 95, 60, 85, 100, 75, 90, 65, 80].map((h, i) => (
-                  <div
-                    key={i}
-                    className={`w-1 rounded-full transition-all duration-300 ${
-                      isActivelyMining
-                        ? isTurbo
-                          ? 'bg-gradient-to-t from-red-500 to-[#D4AF37]'
-                          : 'bg-gradient-to-t from-[#00F0FF] to-[#7df4ff]'
-                        : is24hComplete
-                        ? 'bg-[#D4AF37]/50'
-                        : 'bg-[#1c2b3b]'
-                    }`}
-                    style={{
-                      height: isActivelyMining
-                        ? `${Math.max(15, (h * (isTurbo ? 1.0 : 0.85)) % 100)}%`
-                        : is24hComplete
-                        ? '25%'
-                        : '20%',
-                    }}
-                  />
-                ))}
-              </div>
+        {/* Section Header */}
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1c3852]/80 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/40 text-[#00F0FF] flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.25)]">
+              <span className="material-symbols-outlined text-[22px]">paid</span>
             </div>
-
-            {/* Accrued Mining Loot Box (Selected Element Redesign) */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#081525] via-[#091829] to-[#050f1b] border border-[#1d354d] p-5 sm:p-6 shadow-[0_8px_32px_rgba(0,0,0,0.36),inset_0_1px_0_rgba(0,240,255,0.15)] transition-all space-y-4">
-              {/* Subtle Ambient Energy Highlight */}
-              <div className="absolute top-0 right-0 w-64 h-24 bg-gradient-to-bl from-[#00F0FF]/10 via-[#D4AF37]/5 to-transparent blur-2xl pointer-events-none" />
-
-              {/* Main Mined Output & Claim Action Row */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                {/* Left 7 Cols: Yield Output */}
-                <div className="md:col-span-7 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
-                      Available Mined Reward
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-baseline gap-2.5">
-                    <span className="text-3xl sm:text-4xl font-extrabold font-headline tracking-tight tabular-nums text-transparent bg-clip-text bg-gradient-to-r from-white via-[#ffe088] to-[#D4AF37]">
-                      +{currentMinedSpk.toFixed(5)}
-                    </span>
-                    <span className="text-lg font-bold font-headline text-[#D4AF37]">SPK</span>
-                    <span className="text-xs font-body text-emerald-400 font-bold">
-                      (≈ ${currentMinedUsdt.toFixed(4)} USDT)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Right 5 Cols: Primary Action Button */}
-                <div className="md:col-span-5 flex flex-col items-stretch md:items-end gap-2">
-                  {!isMining ? (
-                    <div className="w-full flex flex-col items-stretch md:items-end gap-1.5">
-                      <button
-                        onClick={onOpenDepositModal}
-                        className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-102 cursor-pointer active:scale-95"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">payments</span>
-                        <span>Deposit 5 USDT to Start 24h Mining</span>
-                      </button>
-                    </div>
-                  ) : !is24hComplete && secondsRemaining > 0 ? (
-                    <div className="w-full flex flex-col items-stretch md:items-end gap-1.5">
-                      <button
-                        disabled={true}
-                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#0c1e30] to-[#081523] border border-[#1b344c] hover:border-[#00F0FF]/40 text-[#94a3b8] font-headline font-semibold text-xs flex items-center justify-center gap-2 cursor-not-allowed select-none shadow-inner transition-all"
-                        title="24-hour mining cycle active. Mining stops automatically after 24 hours. Claiming your rewards will restart the next 24-hour cycle."
-                      >
-                        <span className="material-symbols-outlined text-[16px] text-amber-400 animate-spin" style={{ animationDuration: '4s' }}>
-                          hourglass_top
-                        </span>
-                        <span className="font-body">
-                          Mining Active · Stops in <strong className="text-white font-bold font-mono">{formatCountdown(secondsRemaining)}</strong>
-                        </span>
-                      </button>
-
-                      <div className="text-xs font-body text-slate-400 text-center md:text-right">
-                        Auto-stops at 24h · Claim rewards to restart mining
-                      </div>
-
-                      {/* Clean and elegant tester shortcut - ONLY visible to Root / Master Wallet */}
-                      {isRootWalletUser && (
-                        <button
-                          onClick={() => {
-                            setSecondsRemaining(0);
-                            setCycleStartTime(Date.now() - 86400000);
-                          }}
-                          className="inline-flex items-center gap-1 text-xs text-[#00F0FF]/90 hover:text-[#00F0FF] hover:underline font-body cursor-pointer transition-colors self-center md:self-end pt-0.5"
-                          title="Root Wallet Testing: Fast-forward 24h countdown to test 24h cycle halt & claim"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">bolt</span>
-                          <span>⚡ Fast-Forward 24h (Test Stop &amp; Claim)</span>
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="w-full flex flex-col items-stretch md:items-end gap-1.5">
-                      <button
-                        onClick={() => setShowApprovalModal(true)}
-                        disabled={isAutoBuying}
-                        className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:brightness-110 text-[#0A0F1D] font-headline font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_35px_rgba(212,175,55,0.85),0_0_55px_rgba(0,240,255,0.35)] border-2 border-[#ffe088] cursor-pointer active:scale-95 hover:scale-102 animate-pulse"
-                      >
-                        {isAutoBuying ? (
-                          <>
-                            <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                            <span className="font-extrabold uppercase tracking-wider">Routing via Nodescan...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="material-symbols-outlined text-[18px] text-[#0A0F1D] animate-bounce">
-                              stars
-                            </span>
-                            <span className="font-extrabold tracking-wider uppercase">
-                              ⚡ Claim {dailySpkYield} SPK (Claim by Nodescan)
-                            </span>
-                          </>
-                        )}
-                      </button>
-
-                      <div className="text-xs font-body text-emerald-400 font-semibold text-center md:text-right flex items-center justify-center md:justify-end gap-1">
-                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                        <span>Claim via Nodescan Engine &amp; Smart Contract</span>
-                      </div>
-
-                      {/* Root Wallet re-arm shortcut */}
-                      {isRootWalletUser && (
-                        <button
-                          onClick={() => {
-                            const now = Date.now();
-                            setCycleStartTime(now);
-                            setSecondsRemaining(86400);
-                            try {
-                              if (walletAddress) {
-                                localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(now));
-                              }
-                            } catch {}
-                          }}
-                          className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-300 hover:underline font-body cursor-pointer transition-colors self-center md:self-end pt-0.5"
-                          title="Root Wallet Testing: Re-arm fresh 24h countdown without claiming"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">replay</span>
-                          <span>Re-arm 24h Timer (Root Test)</span>
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Progress Bar & Real-time Stratum Telemetry */}
-              <div className="pt-3 border-t border-[#182a3d] space-y-2">
-                <div className="flex items-center justify-between text-xs font-body text-[#94a3b8]">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[#00F0FF] font-semibold">24-Hour Cycle Progress:</span>
-                    <span className="text-white font-bold font-mono">{cycleProgressPct.toFixed(1)}%</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-400 font-medium">Target 24h Cap:</span>
-                    <span className="text-[#D4AF37] font-bold font-headline">{dailySpkYield} SPK</span>
-                  </div>
-                </div>
-
-                <div className="w-full bg-[#0a1a2b] h-2.5 rounded-full overflow-hidden p-0.5 border border-[#1c354e]">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${
-                      is24hComplete
-                        ? 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] w-full shadow-[0_0_12px_rgba(212,175,55,0.7)] animate-pulse'
-                        : isMining
-                        ? 'bg-gradient-to-r from-emerald-400 via-[#00F0FF] to-[#D4AF37]'
-                        : 'bg-transparent w-0'
-                    }`}
-                    style={{
-                      width: !isMining ? '0%' : is24hComplete ? '100%' : `${cycleProgressPct}%`,
-                    }}
-                  />
-                </div>
-
-                {/* Real-time Claim Status Notification */}
-                {autoBuyNotice && lastAutoBuyTx && (
-                  <div className="mt-2.5 p-3 rounded-xl bg-emerald-950/70 border border-emerald-500/50 flex flex-wrap items-center justify-between gap-2 text-xs font-body text-emerald-300 shadow-md">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
-                      <span>{autoBuyNotice}</span>
-                    </div>
-                    <a
-                      href={`https://bscscan.com/tx/${lastAutoBuyTx.txHash}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[#00F0FF] hover:underline flex items-center gap-1 font-bold text-xs font-mono"
-                    >
-                      <span>BSCScan: {lastAutoBuyTx.txHash?.substring(0, 10)}...</span>
-                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 3 Telemetry Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
-              <div className="p-3 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
-                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">ASIC Temp</div>
-                <div className="text-sm font-bold font-headline text-emerald-400 mt-1">
-                  {isTurbo ? '71°C' : '64°C'}
-                </div>
-                <div className="text-xs text-slate-400 font-body mt-0.5">Optimal Gold Zone</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
-                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Share Acceptance</div>
-                <div className="text-sm font-bold font-headline text-[#00F0FF] mt-1">99.98%</div>
-                <div className="text-xs text-slate-400 font-body mt-0.5">{sharesCount.toLocaleString()} shares</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
-                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Stratum Latency</div>
-                <div className="text-sm font-bold font-headline text-[#D4AF37] mt-1">18ms</div>
-                <div className="text-xs text-slate-400 font-body mt-0.5">BNB Smart Chain</div>
-              </div>
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold font-headline text-white tracking-tight">
+                24-Hour Mining Loot &amp; Reward Claim Station
+              </h3>
+              <p className="text-xs text-[#94a3b8] font-body">
+                Auto-accruing BEP-20 SPIKE yield. Claim tokens to route directly via Nodescan V3.
+              </p>
             </div>
           </div>
 
-          {/* Quick Action Footer */}
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#94a3b8] pt-1 font-body">
-            <div className="flex items-center gap-1.5 font-body text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Algorithm: SHA-256 (Stratum+SSL)</span>
-              <span>·</span>
-              <span className="text-[#00F0FF] font-semibold">Zero Slashing Guarantee</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0a1828] border border-[#00F0FF]/30 text-xs font-mono text-[#00F0FF] self-start sm:self-center">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse" />
+            <span>Nodescan Smart Routing</span>
+          </div>
+        </div>
+
+        {/* Main Yield Numbers & Primary Action Button */}
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          {/* Yield Display */}
+          <div className="md:col-span-7 space-y-1.5">
+            <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider flex items-center gap-2">
+              <span className="material-symbols-outlined text-[15px] text-[#D4AF37]">toll</span>
+              <span>Available Mined Reward</span>
             </div>
 
-            {onDeployMoreNodes && (
-              <button
-                onClick={onDeployMoreNodes}
-                className="text-[#00F0FF] hover:underline font-headline font-bold flex items-center gap-1 cursor-pointer"
-              >
-                <span>Deploy Additional ASIC Nodes ($15)</span>
-                <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
-              </button>
+            <div className="flex flex-wrap items-baseline gap-2.5">
+              <span className="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-headline tracking-tight tabular-nums text-transparent bg-clip-text bg-gradient-to-r from-white via-[#ffe088] to-[#D4AF37]">
+                +{currentMinedSpk.toFixed(5)}
+              </span>
+              <span className="text-xl font-bold font-headline text-[#D4AF37]">SPK</span>
+              <span className="text-sm font-body text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/30">
+                ≈ ${currentMinedUsdt.toFixed(4)} USDT
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-400 font-body pt-1">
+              Yield is computed every second by Stratum Hashrate Core and locked until claimed or cycle completes.
+            </p>
+          </div>
+
+          {/* Action / Claim Button */}
+          <div className="md:col-span-5 flex flex-col items-stretch md:items-end gap-2">
+            {!isMining ? (
+              <div className="w-full flex flex-col items-stretch md:items-end gap-1.5">
+                <button
+                  onClick={onOpenDepositModal}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-102 cursor-pointer active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-[20px]">payments</span>
+                  <span>Deposit 5 USDT to Start 24h Mining</span>
+                </button>
+              </div>
+            ) : !is24hComplete && secondsRemaining > 0 ? (
+              <div className="w-full flex flex-col items-stretch md:items-end gap-1.5">
+                <button
+                  disabled={true}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-[#0c1e30] to-[#081523] border border-[#1b344c] hover:border-[#00F0FF]/40 text-[#94a3b8] font-headline font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-not-allowed select-none shadow-inner transition-all"
+                  title="24-hour mining cycle active. Mining stops automatically after 24 hours. Claiming your rewards will restart the next 24-hour cycle."
+                >
+                  <span className="material-symbols-outlined text-[18px] text-amber-400 animate-spin" style={{ animationDuration: '4s' }}>
+                    hourglass_top
+                  </span>
+                  <span className="font-body">
+                    Mining Active · Stops in <strong className="text-white font-bold font-mono">{formatCountdown(secondsRemaining)}</strong>
+                  </span>
+                </button>
+
+                <div className="text-xs font-body text-slate-400 text-center md:text-right">
+                  Auto-stops at 24h · Claim rewards to restart mining
+                </div>
+
+                {/* Clean and elegant tester shortcut - ONLY visible to Root / Master Wallet */}
+                {isRootWalletUser && (
+                  <button
+                    onClick={() => {
+                      setSecondsRemaining(0);
+                      setCycleStartTime(Date.now() - 86400000);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-[#00F0FF]/90 hover:text-[#00F0FF] hover:underline font-body cursor-pointer transition-colors self-center md:self-end pt-0.5"
+                    title="Root Wallet Testing: Fast-forward 24h countdown to test 24h cycle halt & claim"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">bolt</span>
+                    <span>⚡ Fast-Forward 24h (Test Stop &amp; Claim)</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="w-full flex flex-col items-stretch md:items-end gap-1.5">
+                <button
+                  onClick={() => setShowApprovalModal(true)}
+                  disabled={isAutoBuying}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:brightness-110 text-[#0A0F1D] font-headline font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_35px_rgba(212,175,55,0.85),0_0_55px_rgba(0,240,255,0.35)] border-2 border-[#ffe088] cursor-pointer active:scale-95 hover:scale-102 animate-pulse"
+                >
+                  {isAutoBuying ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
+                      <span className="font-extrabold uppercase tracking-wider">Routing via Nodescan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-[18px] text-[#0A0F1D] animate-bounce">
+                        stars
+                      </span>
+                      <span className="font-extrabold tracking-wider uppercase">
+                        ⚡ Claim {dailySpkYield} SPK (Claim by Nodescan)
+                      </span>
+                    </>
+                  )}
+                </button>
+
+                <div className="text-xs font-body text-emerald-400 font-semibold text-center md:text-right flex items-center justify-center md:justify-end gap-1">
+                  <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                  <span>Claim via Nodescan Engine &amp; Smart Contract</span>
+                </div>
+
+                {/* Root Wallet re-arm shortcut */}
+                {isRootWalletUser && (
+                  <button
+                    onClick={() => {
+                      const now = Date.now();
+                      setCycleStartTime(now);
+                      setSecondsRemaining(86400);
+                      try {
+                        if (walletAddress) {
+                          localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(now));
+                        }
+                      } catch {}
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-300 hover:underline font-body cursor-pointer transition-colors self-center md:self-end pt-0.5"
+                    title="Root Wallet Testing: Re-arm fresh 24h countdown without claiming"
+                  >
+                    <span className="material-symbols-outlined text-[14px]">replay</span>
+                    <span>Re-arm 24h Timer (Root Test)</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
-      </div>
+
+        {/* 24-Hour Progress Bar */}
+        <div className="relative z-10 pt-2 space-y-2">
+          <div className="flex items-center justify-between text-xs font-body text-[#94a3b8]">
+            <div className="flex items-center gap-2">
+              <span className="text-[#00F0FF] font-semibold">24-Hour Cycle Progress:</span>
+              <span className="text-white font-bold font-mono">{cycleProgressPct.toFixed(1)}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-medium">Target 24h Cap:</span>
+              <span className="text-[#D4AF37] font-bold font-headline">{dailySpkYield} SPK</span>
+            </div>
+          </div>
+
+          <div className="w-full bg-[#0a1a2b] h-3 rounded-full overflow-hidden p-0.5 border border-[#1c354e]">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${
+                is24hComplete
+                  ? 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] w-full shadow-[0_0_12px_rgba(212,175,55,0.7)] animate-pulse'
+                  : isMining
+                  ? 'bg-gradient-to-r from-emerald-400 via-[#00F0FF] to-[#D4AF37]'
+                  : 'bg-transparent w-0'
+              }`}
+              style={{
+                width: !isMining ? '0%' : is24hComplete ? '100%' : `${cycleProgressPct}%`,
+              }}
+            />
+          </div>
+
+          {/* Real-time Claim Status Notification */}
+          {autoBuyNotice && lastAutoBuyTx && (
+            <div className="mt-2.5 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 flex flex-wrap items-center justify-between gap-2 text-xs font-body text-emerald-300 shadow-md">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-emerald-400">check_circle</span>
+                <span>{autoBuyNotice}</span>
+              </div>
+              <a
+                href={`https://bscscan.com/tx/${lastAutoBuyTx.txHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[#00F0FF] hover:underline flex items-center gap-1 font-bold text-xs font-mono"
+              >
+                <span>BSCScan: {lastAutoBuyTx.txHash?.substring(0, 10)}...</span>
+                <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+              </a>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ============================================================
+          SECTION 3: HASHRATE POWER & STRATUM CLUSTER TELEMETRY
+          (Dedicated separate section for hashrate power & hardware telemetry)
+         ============================================================ */}
+      <section className="relative overflow-hidden rounded-3xl bg-[#091829]/95 border border-[#1d3852] p-6 sm:p-8 shadow-xl animate-box-glow-blue transition-all space-y-6">
+        <div className="absolute top-0 right-0 w-72 h-32 bg-gradient-to-bl from-[#00F0FF]/10 via-transparent to-transparent blur-2xl pointer-events-none" />
+
+        {/* Main Hash Power & Live Rate Card */}
+        <div className="bg-[#051424] rounded-2xl p-5 md:p-6 border border-[#1c2b3b] shadow-inner space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">
+                  Active Hashrate Tier
+                </span>
+              </div>
+              <div className="text-3xl sm:text-4xl font-extrabold font-headline text-white mt-1.5 tabular-nums tracking-tight flex items-baseline gap-2">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-[#7df4ff] to-[#00F0FF]">
+                  {hashrateInfo?.hashrate ?? 100}
+                </span>
+                <span className="text-base sm:text-lg text-[#00F0FF] font-semibold">VH/s</span>
+                <span className="text-xs text-slate-400 font-body font-normal">
+                  ({effectiveHashrate > 0 ? effectiveHashrate.toFixed(1) : '12.5'} TH/s cluster)
+                </span>
+              </div>
+              <div className="text-xs font-body text-[#D4AF37] font-semibold mt-1 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[14px]">group</span>
+                <span>{hashrateInfo?.directCount ?? 0} Direct Referrals</span>
+              </div>
+            </div>
+
+            {/* Live Hash Equalizer Visualizer */}
+            <div className="flex items-end gap-1.5 h-11 px-4 py-2 rounded-xl bg-[#0c1d2e] border border-[#1c2b3b]">
+              {[40, 70, 95, 60, 85, 100, 75, 90, 65, 80].map((h, i) => (
+                <div
+                  key={i}
+                  className={`w-1.5 rounded-full transition-all duration-300 ${
+                    isActivelyMining
+                      ? isTurbo
+                        ? 'bg-gradient-to-t from-red-500 to-[#D4AF37]'
+                        : 'bg-gradient-to-t from-[#00F0FF] to-[#7df4ff]'
+                      : is24hComplete
+                      ? 'bg-[#D4AF37]/50'
+                      : 'bg-[#1c2b3b]'
+                  }`}
+                  style={{
+                    height: isActivelyMining
+                      ? `${Math.max(15, (h * (isTurbo ? 1.0 : 0.85)) % 100)}%`
+                      : is24hComplete
+                      ? '25%'
+                      : '20%',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 3 Telemetry Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+          <div className="p-4 rounded-2xl bg-[#0c1d2e] border border-[#1c2b3b] shadow-sm">
+            <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">ASIC Temp</div>
+            <div className="text-lg font-bold font-headline text-emerald-400 mt-1">
+              {isTurbo ? '71°C' : '64°C'}
+            </div>
+            <div className="text-xs text-slate-400 font-body mt-0.5">Optimal Gold Zone</div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[#0c1d2e] border border-[#1c2b3b] shadow-sm">
+            <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Share Acceptance</div>
+            <div className="text-lg font-bold font-headline text-[#00F0FF] mt-1">99.98%</div>
+            <div className="text-xs text-slate-400 font-body mt-0.5">{sharesCount.toLocaleString()} shares</div>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-[#0c1d2e] border border-[#1c2b3b] shadow-sm">
+            <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Stratum Latency</div>
+            <div className="text-lg font-bold font-headline text-[#D4AF37] mt-1">18ms</div>
+            <div className="text-xs text-slate-400 font-body mt-0.5">BNB Smart Chain</div>
+          </div>
+        </div>
+
+        {/* Quick Action Footer */}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#94a3b8] pt-2 border-t border-[#182a3d] font-body">
+          <div className="flex items-center gap-1.5 font-body text-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Algorithm: SHA-256 (Stratum+SSL)</span>
+            <span>·</span>
+            <span className="text-[#00F0FF] font-semibold">Zero Slashing Guarantee</span>
+          </div>
+
+          {onDeployMoreNodes && (
+            <button
+              onClick={onDeployMoreNodes}
+              className="text-[#00F0FF] hover:underline font-headline font-bold flex items-center gap-1 cursor-pointer"
+            >
+              <span>Deploy Additional ASIC Nodes ($15)</span>
+              <span className="material-symbols-outlined text-[15px]">arrow_forward</span>
+            </button>
+          )}
+        </div>
+      </section>
 
       {/* Smart Contract Claim & Auto-Buy Execution Modal */}
       {showApprovalModal && (
@@ -1411,6 +1420,6 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 };

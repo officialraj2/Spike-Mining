@@ -566,6 +566,7 @@ app.get('/api/user/:address', (req: Request, res: Response) => {
   const settings = db.getSettings();
   const referralStats = db.getReferralStats(address);
   const hashrateInfo = db.calculateUserHashrate(address);
+  const miningStatus = db.getUserMiningStatus(address);
   res.json({
     user,
     nodes,
@@ -573,7 +574,14 @@ app.get('/api/user/:address', (req: Request, res: Response) => {
     settings,
     referralStats,
     hashrateInfo,
+    miningStatus,
   });
+});
+
+app.get('/api/mining/status/:address', (req: Request, res: Response) => {
+  const { address } = req.params;
+  const status = db.getUserMiningStatus(address);
+  res.json({ success: true, ...status });
 });
 
 app.post('/api/user/sync-balance', (req: Request, res: Response) => {
