@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, setLogLevel } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, setLogLevel, query, where } from 'firebase/firestore';
 import fs from 'fs';
 import path from 'path';
 
@@ -191,15 +191,22 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
         }
       }
 
-      // Check if already in memory
-      const exists = dbInstance.data.referrals.some(
+      // Check if already in memory by ID or refereeAddress
+      const existingIdx = dbInstance.data.referrals.findIndex(
         (r: any) =>
           r.id === d.id ||
-          (r.referrerAddress.toLowerCase() === refAddr.toLowerCase() &&
-            r.refereeAddress.toLowerCase() === refereeAddr.toLowerCase())
+          r.refereeAddress.toLowerCase() === refereeAddr.toLowerCase()
       );
 
-      if (!exists && refAddr.toLowerCase() !== refereeAddr.toLowerCase()) {
+      if (existingIdx >= 0) {
+        const existing = dbInstance.data.referrals[existingIdx];
+        if (existing.referrerAddress.toLowerCase() !== refAddr.toLowerCase()) {
+          existing.referrerAddress = refAddr;
+          referralsLoaded++;
+        }
+        if (data.tier) existing.tier = data.tier;
+        if (data.commissionUsdt !== undefined) existing.commissionUsdt = Number(data.commissionUsdt);
+      } else if (refAddr.toLowerCase() !== refereeAddr.toLowerCase()) {
         dbInstance.data.referrals.push({
           id: data.id || d.id,
           referrerAddress: refAddr,
@@ -207,9 +214,22 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
           tier: data.tier || 1,
           commissionUsdt: Number(data.commissionUsdt) || 0,
           volumeUsdt: Number(data.volumeUsdt) || 150.0,
-          createdAt: data.createdAt || new Date().toISOString(),
+          createdAt: data.createdAt || data.timestamp || new Date().toISOString(),
         });
         referralsLoaded++;
+      }
+
+      // Also ensure referee user has referredBy bound to the sponsor
+      const refUser = dbInstance.getUser(refereeAddr.toLowerCase());
+      if (refUser) {
+        if (!refUser.referredBy || refUser.referredBy.toLowerCase() !== refAddr.toLowerCase()) {
+          refUser.referredBy = refAddr;
+        }
+      } else {
+        dbInstance.upsertUser({
+          address: refereeAddr,
+          referredBy: refAddr,
+        });
       }
     });
 
@@ -329,6 +349,88 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
     console.error('[Firebase Server] Error loading data from Firestore:', err);
     return { success: false, usersLoaded: 0, referralsLoaded: 0, nodesLoaded: 0, transactionsLoaded: 0 };
   }
+}
+
+/**
+ * On-demand real-time sync for a specific user wallet or sponsor from Cloud Firestore into in-memory database
+ */
+export async function syncReferralsForUser(dbInstance: any, walletAddress: string): Promise<number> {
+  if (!firestore || !walletAddress) return 0;
+  const norm = walletAddress.toLowerCase().trim();
+  const hex6 = norm.startsWith('0x') ? norm.slice(2, 8) : norm.replace(/^(spike-|spk-)/i, '').slice(0, 6);
+  const code = `SPK-${hex6.toUpperCase()}`;
+
+  let updatedCount = 0;
+  try {
+    const queries = [
+      query(collection(firestore, 'referrals'), where('referrerAddress', '==', norm)),
+      query(collection(firestore, 'referrals'), where('referrerAddress', '==', code)),
+      query(collection(firestore, 'referrals'), where('referralCode', '==', code)),
+      query(collection(firestore, 'referrals'), where('refereeAddress', '==', norm)),
+    ];
+
+    const snaps = await Promise.all(queries.map((q) => getDocs(q).catch(() => null)));
+    snaps.forEach((snap) => {
+      if (!snap) return;
+      snap.forEach((d) => {
+        const data = d.data();
+        let refAddr = (data.referrerAddress || '').trim().toLowerCase();
+        const refereeAddr = (data.refereeAddress || '').trim().toLowerCase();
+        if (!refAddr || !refereeAddr || refAddr === refereeAddr) return;
+
+        // If referrerAddress is code, resolve to full user address if available
+        if (refAddr.startsWith('spk-') || refAddr.startsWith('spike-') || refAddr === hex6) {
+          const matchUser = dbInstance.data.users.find((u: any) =>
+            u.address.toLowerCase().includes(hex6)
+          );
+          if (matchUser) refAddr = matchUser.address.toLowerCase();
+        }
+
+        const existingIdx = dbInstance.data.referrals.findIndex(
+          (r: any) => r.id === d.id || r.refereeAddress.toLowerCase() === refereeAddr
+        );
+
+        if (existingIdx >= 0) {
+          const existing = dbInstance.data.referrals[existingIdx];
+          if (existing.referrerAddress.toLowerCase() !== refAddr) {
+            existing.referrerAddress = refAddr;
+            updatedCount++;
+          }
+        } else {
+          dbInstance.data.referrals.unshift({
+            id: data.id || d.id,
+            referrerAddress: refAddr,
+            refereeAddress: refereeAddr,
+            tier: data.tier || 1,
+            commissionUsdt: Number(data.commissionUsdt) || 0,
+            volumeUsdt: Number(data.volumeUsdt) || 150.0,
+            createdAt: data.createdAt || data.timestamp || new Date().toISOString(),
+          });
+          updatedCount++;
+        }
+
+        // Ensure referee user has referredBy
+        const refUser = dbInstance.getUser(refereeAddr);
+        if (refUser) {
+          if (!refUser.referredBy || refUser.referredBy.toLowerCase() !== refAddr) {
+            refUser.referredBy = refAddr;
+          }
+        } else {
+          dbInstance.upsertUser({
+            address: refereeAddr,
+            referredBy: refAddr,
+          });
+        }
+      });
+    });
+
+    if (updatedCount > 0) {
+      dbInstance.save();
+    }
+  } catch (err) {
+    console.warn('[Firebase Server] syncReferralsForUser notice:', err);
+  }
+  return updatedCount;
 }
 
 /**

@@ -341,7 +341,7 @@ export default function App() {
   // Auto-bind pending referral as soon as referee wallet is connected or restored
   useEffect(() => {
     if (!isWalletConnected || !walletAddress) return;
-    const pendingReferrer = localStorage.getItem('spike_pending_referrer');
+    const pendingReferrer = localStorage.getItem('spike_pending_referrer') || (pendingInvite ? (pendingInvite.sponsorAddr || pendingInvite.code) : null);
     if (!pendingReferrer) return;
 
     const normWallet = walletAddress.toLowerCase();
@@ -400,7 +400,7 @@ export default function App() {
           },
         }));
       });
-  }, [isWalletConnected, walletAddress]);
+  }, [isWalletConnected, walletAddress, pendingInvite]);
 
   // Update browser URL query param whenever activeTab changes
   const handleTabChange = (tab: TabType) => {

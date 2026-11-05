@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { db } from './src/server/db.ts';
-import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb, purgeNonMasterFirestoreData } from './src/server/firebaseServer.ts';
+import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, loadFirestoreDataIntoDb, purgeNonMasterFirestoreData, syncReferralsForUser } from './src/server/firebaseServer.ts';
 import { dispatchSystemAlert, getRecentAlerts, performDatabaseHealthCheck, PRIMARY_ADMIN_ALERT_EMAIL } from './src/server/databaseAlerts.ts';
 import { requireAuth } from './src/middleware/auth.ts';
 import type { AuthRequest } from './src/middleware/auth.ts';
@@ -920,8 +920,13 @@ app.post('/api/deposit/verify-hash', async (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/referrals/stats/:address', (req: Request, res: Response) => {
+app.get('/api/referrals/stats/:address', async (req: Request, res: Response) => {
   const { address } = req.params;
+  try {
+    if (address) {
+      await syncReferralsForUser(db, address);
+    }
+  } catch {}
   const stats = db.getReferralStats(address);
   res.json({ success: true, stats });
 });

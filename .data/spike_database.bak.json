@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastSaved": "2026-10-31T19:38:24.535Z",
+  "lastSaved": "2026-11-05T10:01:23.467Z",
   "users": [
     {
       "address": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
@@ -9,14 +9,14 @@
       "totalMined": 0.06666,
       "balanceSpk": 0.1,
       "referralCode": "SPK-3471E0",
-      "referredBy": null,
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "master",
       "status": "active",
       "createdAt": "2026-10-22T07:32:42.455Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "Master Creator & Protocol Root Authority",
-      "_syncedAt": "2026-10-31T17:44:54.844Z",
-      "miningCycleStartTime": 1793206285450,
+      "_syncedAt": "2026-11-05T09:42:43.620Z",
+      "miningCycleStartTime": 1762199000000,
       "hasActivatedMining": true
     },
     {
@@ -29,7 +29,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-23T08:36:35.096Z",
-      "lastActive": "2026-10-31T19:38:24.050Z",
+      "lastActive": "2026-11-05T10:01:23.308Z",
       "notes": "",
       "_syncedAt": "2026-10-23T08:36:35.421Z"
     },
@@ -43,7 +43,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-24T17:40:45.884Z",
-      "lastActive": "2026-10-31T19:38:24.051Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
       "_syncedAt": "2026-10-24T17:40:45.891Z"
     },
@@ -57,7 +57,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.592Z",
-      "lastActive": "2026-10-31T19:38:24.051Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.867Z"
     },
@@ -67,17 +67,17 @@
       "balanceBnb": 0.005,
       "totalMined": 0,
       "referralCode": "SPK-123456",
-      "referredBy": null,
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-08T17:17:04.546Z",
-      "lastActive": "2026-10-31T19:38:24.051Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.721Z"
     },
     {
       "address": "0x16ee54796d74c3bd8fbe93954b339c629c1acf0c",
-      "balanceUsdt": 10,
+      "balanceUsdt": 15,
       "balanceBnb": 0.005,
       "totalMined": 0,
       "referralCode": "SPK-16EE54",
@@ -85,9 +85,9 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-23T07:45:21.628Z",
-      "lastActive": "2026-10-31T19:38:24.051Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
-      "_syncedAt": "2026-10-23T07:45:21.631Z"
+      "_syncedAt": "2026-11-03T20:36:49.613Z"
     },
     {
       "address": "0x2222222222222222222222222222222222222222",
@@ -99,7 +99,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-24T17:41:08.592Z",
-      "lastActive": "2026-10-31T19:38:24.051Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
       "_syncedAt": "2026-10-24T17:41:08.593Z"
     },
@@ -113,7 +113,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.592Z",
-      "lastActive": "2026-10-31T19:38:24.051Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.900Z"
     },
@@ -127,7 +127,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-22T08:40:10.782Z",
-      "lastActive": "2026-10-31T19:38:24.051Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
       "_syncedAt": "2026-10-22T08:52:49.715Z"
     },
@@ -141,7 +141,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.592Z",
-      "lastActive": "2026-10-31T19:38:24.051Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.925Z"
     },
@@ -155,7 +155,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-24T17:41:13.157Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "",
       "_syncedAt": "2026-10-24T17:41:13.157Z"
     },
@@ -165,11 +165,11 @@
       "balanceBnb": 0.005,
       "totalMined": 0,
       "referralCode": "SPK-380696",
-      "referredBy": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T08:22:38.726Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.309Z",
       "notes": "Referee Partner",
       "_syncedAt": "2026-10-17T08:13:55.779Z"
     },
@@ -183,7 +183,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T07:43:17.268Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:53.343Z"
     },
@@ -197,7 +197,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2025-02-10T12:30:00.000Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "Tier 1 Referral partner",
       "_syncedAt": "2026-10-17T08:16:48.679Z"
     },
@@ -211,7 +211,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-29T10:52:41.138Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-29T10:52:43.794Z"
     },
@@ -225,7 +225,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.592Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.975Z"
     },
@@ -235,11 +235,11 @@
       "balanceBnb": 0.005,
       "totalMined": 0,
       "referralCode": "SPK-5512D5",
-      "referredBy": "SPK-3471E0",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.592Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.998Z"
     },
@@ -253,7 +253,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-22T07:09:31.752Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-22T07:09:31.756Z"
     },
@@ -263,11 +263,11 @@
       "balanceBnb": 0.005,
       "totalMined": 0,
       "referralCode": "SPK-5DFEA4",
-      "referredBy": "SPK-3471E0",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.592Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.016Z"
     },
@@ -281,7 +281,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.592Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.033Z"
     },
@@ -295,7 +295,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T08:07:19.179Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:53.380Z"
     },
@@ -309,7 +309,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-22T15:03:47.338Z",
-      "lastActive": "2026-10-31T19:38:24.052Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-22T15:04:36.400Z"
     },
@@ -323,7 +323,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.592Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.050Z"
     },
@@ -333,11 +333,11 @@
       "balanceBnb": 0.005,
       "totalMined": 0,
       "referralCode": "SPK-84C06F",
-      "referredBy": "SPK-3471E0",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-31T16:41:15.062Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
       "notes": ""
     },
     {
@@ -350,7 +350,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.072Z"
     },
@@ -364,7 +364,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-24T17:43:28.329Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-24T17:43:28.330Z"
     },
@@ -378,7 +378,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-22T14:59:39.238Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-22T15:03:47.701Z"
     },
@@ -392,7 +392,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-08T17:26:15.340Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.741Z"
     },
@@ -406,7 +406,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2025-02-28T16:15:00.000Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:16:48.899Z"
     },
@@ -420,7 +420,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T09:43:43.924Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.817Z"
     },
@@ -434,23 +434,23 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.093Z"
     },
     {
-      "address": "0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7",
+      "address": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
       "balanceUsdt": 15,
       "balanceBnb": 0.005,
       "totalMined": 0,
       "referralCode": "SPK-DE7BFC",
-      "referredBy": "SPK-5512D5",
+      "referredBy": "0x5512d577b94b8abf9308de15d43507075c43b167",
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
       "notes": "",
-      "_syncedAt": "2026-10-17T08:13:56.120Z"
+      "_syncedAt": "2026-11-04T07:23:40.705Z"
     },
     {
       "address": "0xa0dcb94347e7b4ed957cbf51306bc1f6e8334147",
@@ -458,11 +458,11 @@
       "balanceBnb": 0.055,
       "totalMined": 0,
       "referralCode": "SPK-A0DCB9",
-      "referredBy": "SPK-3471E0",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.140Z"
     },
@@ -476,7 +476,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T07:35:13.133Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:53.325Z"
     },
@@ -490,7 +490,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.161Z"
     },
@@ -504,7 +504,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-29T08:28:45.096Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-29T08:28:45.100Z"
     },
@@ -518,7 +518,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T09:26:00.800Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:55.797Z"
     },
@@ -528,11 +528,11 @@
       "balanceBnb": 0.005,
       "totalMined": 0,
       "referralCode": "SPK-B95554",
-      "referredBy": "SPK-3471E0",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.185Z"
     },
@@ -546,7 +546,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T07:43:22.822Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:53.364Z"
     },
@@ -560,7 +560,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-09T08:22:38.725Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "Primary Referrer Wallet",
       "_syncedAt": "2026-10-17T08:13:55.760Z"
     },
@@ -574,7 +574,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.311Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.208Z"
     },
@@ -588,7 +588,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.287Z"
     },
@@ -602,7 +602,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.305Z"
     },
@@ -616,7 +616,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.325Z"
     },
@@ -630,7 +630,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:13:56.344Z"
     },
@@ -644,7 +644,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:14:46.428Z"
     },
@@ -658,7 +658,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:14:47.052Z"
     },
@@ -672,12 +672,198 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-10-31T19:38:24.053Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
       "notes": "",
       "_syncedAt": "2026-10-17T08:16:48.548Z"
+    },
+    {
+      "address": "0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894",
+      "balanceUsdt": 15,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-C5D529",
+      "referredBy": "0x2c40d21557d46400f9e96b644d5344a691a24097",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-04T07:27:25.369Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
+      "notes": "",
+      "_syncedAt": "2026-11-05T09:52:16.236Z"
+    },
+    {
+      "address": "0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-EA7DD7",
+      "referredBy": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T08:37:09.245Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
+      "hasDepositedTreasury": true,
+      "hasActivatedMining": true,
+      "miningCycleStartTime": 1793867829245,
+      "lastMiningStart": "2026-11-05T08:37:09.245Z",
+      "activeSessionId": "mine_ea7dd7_1793867829245",
+      "_syncedAt": "2026-11-05T09:31:52.095Z"
+    },
+    {
+      "address": "0x494d54718c42df9676f2dcd5b94c3b5e9ebdd38f",
+      "balanceUsdt": 10,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-494D54",
+      "referredBy": "0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T08:58:01.562Z",
+      "lastActive": "2026-11-05T10:01:23.310Z",
+      "hasDepositedTreasury": true,
+      "hasActivatedMining": true,
+      "miningCycleStartTime": 1793869081562,
+      "lastMiningStart": "2026-11-05T08:58:01.562Z",
+      "activeSessionId": "mine_494d54_1793869081562",
+      "_syncedAt": "2026-11-05T09:31:52.592Z"
+    },
+    {
+      "address": "0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-E1370F",
+      "referredBy": "0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T09:52:16.236Z",
+      "lastActive": "2026-11-05T10:01:23.312Z",
+      "notes": "",
+      "_syncedAt": "2026-11-05T09:52:16.238Z"
+    },
+    {
+      "address": "0x38d83fd910264b49285206452d6a257765e8bd5b",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-38D83F",
+      "referredBy": "0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T10:01:23.415Z",
+      "lastActive": "2026-11-05T10:01:23.415Z",
+      "notes": ""
+    },
+    {
+      "address": "0x5325d03ceca1876d66493129ecc15720ae6e623d",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-5325D0",
+      "referredBy": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T10:01:23.415Z",
+      "lastActive": "2026-11-05T10:01:23.415Z",
+      "notes": ""
+    },
+    {
+      "address": "0x59f69f64e2077cb5efdf4382d552731292c65b37",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-59F69F",
+      "referredBy": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T10:01:23.415Z",
+      "lastActive": "2026-11-05T10:01:23.415Z",
+      "notes": ""
+    },
+    {
+      "address": "0x80804d7d3791d02001d929c71fe2e1e5fa2e7729",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-80804D",
+      "referredBy": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T10:01:23.415Z",
+      "lastActive": "2026-11-05T10:01:23.415Z",
+      "notes": ""
+    },
+    {
+      "address": "0xa9a77d794568d1c00e902b239b6875a4c19a2f1e",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-A9A77D",
+      "referredBy": "0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T10:01:23.415Z",
+      "lastActive": "2026-11-05T10:01:23.415Z",
+      "notes": ""
+    },
+    {
+      "address": "0xb3cb0652aca76fa12498bd4ba9630cd5a4f20339",
+      "balanceUsdt": 0,
+      "balanceBnb": 0.005,
+      "totalMined": 0,
+      "referralCode": "SPK-B3CB06",
+      "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "role": "user",
+      "status": "active",
+      "createdAt": "2026-11-05T10:01:23.415Z",
+      "lastActive": "2026-11-05T10:01:23.415Z",
+      "notes": ""
     }
   ],
   "nodes": [
+    {
+      "id": "spk-node-494d54",
+      "userAddress": "0x494d54718c42df9676f2dcd5b94c3b5e9ebdd38f",
+      "name": "SPIKE ASIC Rig #1",
+      "region": "US-East (Stratum Cluster)",
+      "status": "mining",
+      "hashrate": 100,
+      "temperature": 64,
+      "shareAcceptance": 99.98,
+      "fanSpeed": 75,
+      "powerUsage": 1400,
+      "uptimeDays": 1,
+      "algorithm": "SHA-256 (Stratum)",
+      "logs": [
+        "24-Hour Mining Cycle Active [Level: Falcon Titan Apex · 100 VH/s]",
+        "Stratum+SSL target diff accepted: 1048576 (hash: 00000000...a4f2)",
+        "Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443"
+      ],
+      "costUsdt": 5,
+      "deployedAt": "2026-11-05T08:58:01.562Z",
+      "_syncedAt": "2026-11-05T09:31:52.657Z"
+    },
+    {
+      "id": "spk-node-ea7dd7",
+      "userAddress": "0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "name": "SPIKE ASIC Rig #1",
+      "region": "US-East (Stratum Cluster)",
+      "status": "mining",
+      "hashrate": 100,
+      "temperature": 64,
+      "shareAcceptance": 99.98,
+      "fanSpeed": 75,
+      "powerUsage": 1400,
+      "uptimeDays": 1,
+      "algorithm": "SHA-256 (Stratum)",
+      "logs": [
+        "24-Hour Mining Cycle Active [Level: Falcon Titan Apex · 100 VH/s]",
+        "Stratum+SSL target diff accepted: 1048576 (hash: 00000000...a4f2)",
+        "Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443"
+      ],
+      "costUsdt": 5,
+      "deployedAt": "2026-11-05T08:37:09.245Z",
+      "_syncedAt": "2026-11-05T09:31:52.473Z"
+    },
     {
       "shareAcceptance": 99.94,
       "fanSpeed": 74,
@@ -1078,15 +1264,37 @@
       "timestamp": "2025-02-18 12:45:00",
       "userAddress": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
       "type": "referral_bonus"
+    },
+    {
+      "_syncedAt": "2026-11-04T06:59:44.652Z",
+      "type": "milestone_reward",
+      "txHash": "0x715a...cadf",
+      "details": "Team Career Milestone (Level 1: 10 Team Partners) Earned",
+      "userAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "amount": 15,
+      "timestamp": "2026-11-04 06:59:44",
+      "status": "Confirmed",
+      "currency": "USDT",
+      "id": "tx-1793775584652-280",
+      "blockNumber": 42932538
     }
   ],
   "referrals": [
     {
+      "referrerAddress": "0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894",
+      "refereeAddress": "0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "id": "ref-1793872336236-583",
+      "createdAt": "2026-11-05T09:52:16.236Z"
+    },
+    {
       "id": "ref-1791534455847-35",
-      "referrerAddress": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "refereeAddress": "0x1111111111111111111111111111111111111111",
       "tier": 1,
-      "commissionUsdt": 15,
+      "commissionUsdt": 0,
       "volumeUsdt": 150,
       "createdAt": "2026-10-09T08:27:35.847Z"
     },
@@ -1155,7 +1363,7 @@
     },
     {
       "id": "ref-1792659169343-255",
-      "referrerAddress": "0x2c40d21557d46400f9e96b644d5344a691a24097",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "refereeAddress": "0x16ee54796d74c3bd8fbe93954b339c629c1acf0c",
       "tier": 1,
       "commissionUsdt": 0,
@@ -1323,6 +1531,105 @@
       "commissionUsdt": 0,
       "volumeUsdt": 150,
       "createdAt": "2026-10-18T16:15:09.052Z"
+    },
+    {
+      "id": "ref_0xa9a77d794568d1c00e902b239b6875a4c19a2f1e",
+      "referrerAddress": "0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
+      "refereeAddress": "0xa9a77d794568d1c00e902b239b6875a4c19a2f1e",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-03T19:15:01.045Z"
+    },
+    {
+      "id": "ref_0xb3cb0652aca76fa12498bd4ba9630cd5a4f20339",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0xb3cb0652aca76fa12498bd4ba9630cd5a4f20339",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-03T19:15:01.045Z"
+    },
+    {
+      "id": "ref_0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-03T19:15:01.045Z"
+    },
+    {
+      "id": "ref_testreferee1234567890",
+      "referrerAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "refereeAddress": "0x1234567890123456789012345678901234567890",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-03T19:15:01.046Z"
+    },
+    {
+      "id": "ref_0x38d83fd910264b49285206452d6a257765e8bd5b",
+      "referrerAddress": "0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "refereeAddress": "0x38d83fd910264b49285206452d6a257765e8bd5b",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-05T09:14:51.514Z"
+    },
+    {
+      "id": "ref_0x494d54718c42df9676f2dcd5b94c3b5e9ebdd38f",
+      "referrerAddress": "0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "refereeAddress": "0x494d54718c42df9676f2dcd5b94c3b5e9ebdd38f",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-05T09:14:51.514Z"
+    },
+    {
+      "id": "ref_0x5325d03ceca1876d66493129ecc15720ae6e623d",
+      "referrerAddress": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
+      "refereeAddress": "0x5325d03ceca1876d66493129ecc15720ae6e623d",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-05T09:14:51.514Z"
+    },
+    {
+      "id": "ref_0x80804d7d3791d02001d929c71fe2e1e5fa2e7729",
+      "referrerAddress": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
+      "refereeAddress": "0x80804d7d3791d02001d929c71fe2e1e5fa2e7729",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-05T09:14:51.514Z"
+    },
+    {
+      "id": "ref_0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894",
+      "referrerAddress": "0x2c40d21557d46400f9e96b644d5344a691a24097",
+      "refereeAddress": "0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-05T09:14:51.514Z"
+    },
+    {
+      "id": "ref_0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "referrerAddress": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
+      "refereeAddress": "0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-05T09:14:51.514Z"
+    },
+    {
+      "id": "ref_0x59f69f64e2077cb5efdf4382d552731292c65b37",
+      "referrerAddress": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
+      "refereeAddress": "0x59f69f64e2077cb5efdf4382d552731292c65b37",
+      "tier": 1,
+      "commissionUsdt": 0,
+      "volumeUsdt": 150,
+      "createdAt": "2026-11-05T09:54:04.254Z"
     }
   ],
   "announcements": [],
@@ -1368,6 +1675,78 @@
     "_syncedAt": "2026-10-25T08:32:33.791Z"
   },
   "auditLogs": [
+    {
+      "id": "audit-1793872883415-699",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xb3cb0652aca76fa12498bd4ba9630cd5a4f20339",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-05T10:01:23.415Z"
+    },
+    {
+      "id": "audit-1793872883415-657",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xa9a77d794568d1c00e902b239b6875a4c19a2f1e",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-05T10:01:23.415Z"
+    },
+    {
+      "id": "audit-1793872883415-655",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x80804d7d3791d02001d929c71fe2e1e5fa2e7729",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-05T10:01:23.415Z"
+    },
+    {
+      "id": "audit-1793872883415-747",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x59f69f64e2077cb5efdf4382d552731292c65b37",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-05T10:01:23.415Z"
+    },
+    {
+      "id": "audit-1793872883415-71",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x5325d03ceca1876d66493129ecc15720ae6e623d",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-05T10:01:23.415Z"
+    },
+    {
+      "id": "audit-1793872883415-921",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x38d83fd910264b49285206452d6a257765e8bd5b",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-05T10:01:23.415Z"
+    },
+    {
+      "id": "audit-1793872336236-570",
+      "adminUser": "SYSTEM",
+      "action": "REFERRAL_REGISTER",
+      "target": "0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894->0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
+      "details": "Linked partner 0xe1370f971602eb6a28bb7247e5bb74ed72cebdda to sponsor 0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894 (Code: SPK-C5D529)",
+      "timestamp": "2026-11-05T09:52:16.236Z"
+    },
+    {
+      "id": "audit-1793872336236-736",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-05T09:52:16.236Z"
+    },
+    {
+      "id": "audit-1793870091398-529",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-05T09:14:51.398Z"
+    },
     {
       "id": "audit-1793464875062-964",
       "adminUser": "SYSTEM",
@@ -1858,7 +2237,17 @@
     }
   ],
   "withdrawalRequests": [],
-  "testnetWallets": [],
+  "testnetWallets": [
+    {
+      "address": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "testnetUsdt": 1000,
+      "testnetSpk": 0,
+      "autoBuyEnabled": true,
+      "slippageTolerance": 0.5,
+      "totalHarvestAutoBoughtSpk": 0,
+      "totalUsdtSpentOnAutoBuy": 0
+    }
+  ],
   "testnetTransactions": [],
   "testnetSpikeToken": {
     "name": "Spike Mining Protocol",
@@ -1876,5 +2265,45 @@
     "low24h": 1,
     "change24h": 0,
     "buyPressure": 50
-  }
+  },
+  "miningSessions": [
+    {
+      "_syncedAt": "2026-11-03T19:11:30.797Z",
+      "startTime": 1762199000000,
+      "tierName": "Falcon Titan Apex",
+      "hashrateVh": 100,
+      "userAddress": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "sessionId": "mine_test_01"
+    },
+    {
+      "sessionId": "mine_494d54_1793869081562",
+      "userAddress": "0x494d54718c42df9676f2dcd5b94c3b5e9ebdd38f",
+      "startTime": 1793869081562,
+      "startDateIso": "2026-11-05T08:58:01.562Z",
+      "targetCycleHours": 24,
+      "expectedEndTime": 1793955481562,
+      "hashrateVh": 100,
+      "tierName": "Falcon Titan Apex",
+      "status": "active",
+      "treasuryContributionUsdt": 5,
+      "pancakeSwapRoute": "Nodescan V3 Pool 0xdB75...2F3c",
+      "lastSyncTime": 1793871112592,
+      "nodeName": "SPIKE ASIC Rig #1"
+    },
+    {
+      "sessionId": "mine_ea7dd7_1793867829245",
+      "userAddress": "0xea7dd72144afd6dd7dfaac5729b8a069c14e46b3",
+      "startTime": 1793867829245,
+      "startDateIso": "2026-11-05T08:37:09.245Z",
+      "targetCycleHours": 24,
+      "expectedEndTime": 1793954229245,
+      "hashrateVh": 100,
+      "tierName": "Falcon Titan Apex",
+      "status": "active",
+      "treasuryContributionUsdt": 5,
+      "pancakeSwapRoute": "Nodescan V3 Pool 0xdB75...2F3c",
+      "lastSyncTime": 1793871112095,
+      "nodeName": "SPIKE ASIC Rig #1"
+    }
+  ]
 }

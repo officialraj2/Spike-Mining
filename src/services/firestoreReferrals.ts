@@ -96,10 +96,36 @@ export async function registerReferralInFirestore(
     }
 
     const normReferee = refereeAddress.toLowerCase().trim();
-    const { address: normReferrer, code: sponsorCode } = normalizeSponsor(referrerCodeOrAddr);
+    let { address: normReferrer, code: sponsorCode } = normalizeSponsor(referrerCodeOrAddr);
 
     if (normReferrer.toLowerCase() === normReferee) {
       return { success: false, error: 'Self-referral is not allowed' };
+    }
+
+    // If normReferrer is an SPK code or slice rather than a full 0x BSC address, attempt resolving to real 0x address in Firestore
+    if (!normReferrer.startsWith('0x') || normReferrer.length < 42) {
+      try {
+        const uSnap = await getDocs(
+          query(collection(db, 'users'), where('referralCode', '==', sponsorCode.toUpperCase()))
+        );
+        if (!uSnap.empty) {
+          const uDoc = uSnap.docs[0].data();
+          if (uDoc?.address && uDoc.address.startsWith('0x')) {
+            normReferrer = uDoc.address.toLowerCase();
+          }
+        } else {
+          // Check slice in address
+          const hex6 = sponsorCode.replace(/^(spike-|spk-)/i, '').toLowerCase();
+          const allUsers = await getDocs(collection(db, 'users'));
+          allUsers.forEach((d) => {
+            const uData = d.data();
+            const addr = (uData.address || d.id || '').toLowerCase();
+            if (addr.startsWith(`0x${hex6}`) || addr.includes(hex6)) {
+              normReferrer = addr;
+            }
+          });
+        }
+      } catch {}
     }
 
     // Create a deterministic document ID for this referee
@@ -117,6 +143,16 @@ export async function registerReferralInFirestore(
     };
 
     await setDoc(docRef, data, { merge: true });
+
+    // Also update referee's user record in Firestore so referredBy is persistently bonded
+    try {
+      const refereeUserDoc = doc(db, 'users', normReferee);
+      await setDoc(refereeUserDoc, {
+        address: normReferee,
+        referredBy: normReferrer.slice(0, 64),
+        lastActive: now,
+      }, { merge: true });
+    } catch {}
 
     // Cache locally for instant UI responsiveness
     try {
@@ -177,7 +213,8 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
   try {
     if (!walletAddress) return { directPartners: 0, referrals: [] };
     const norm = walletAddress.toLowerCase().trim();
-    const code = `SPK-${norm.slice(2, 8).toUpperCase()}`;
+    const hex6 = norm.startsWith('0x') ? norm.slice(2, 8) : norm.replace(/^(spike-|spk-)/i, '').slice(0, 6);
+    const code = `SPK-${hex6.toUpperCase()}`;
 
     const referralsMap = new Map<string, ResolvedReferralItem>();
 
@@ -200,11 +237,19 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
     }
 
     // 2. Query Cloud Firestore for any real-time registered referrals
-    // We check both the wallet address and the referral code so nothing is missed
+    // We check wallet address variations, referral code, and users collection
     const queriesToRun = [
       query(collection(db, 'referrals'), where('referrerAddress', '==', norm)),
+      query(collection(db, 'referrals'), where('referrerAddress', '==', walletAddress)),
       query(collection(db, 'referrals'), where('referrerAddress', '==', code)),
+      query(collection(db, 'referrals'), where('referrerAddress', '==', code.toLowerCase())),
       query(collection(db, 'referrals'), where('referralCode', '==', code)),
+      query(collection(db, 'referrals'), where('referralCode', '==', code.toLowerCase())),
+      query(collection(db, 'referrals'), where('referralCode', '==', hex6.toUpperCase())),
+      query(collection(db, 'referrals'), where('referralCode', '==', hex6.toLowerCase())),
+      query(collection(db, 'users'), where('referredBy', '==', norm)),
+      query(collection(db, 'users'), where('referredBy', '==', walletAddress)),
+      query(collection(db, 'users'), where('referredBy', '==', code)),
     ];
 
     if (isMaster) {
@@ -220,20 +265,22 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
         try {
           const snapshot = await getDocs(q);
           snapshot.forEach((d) => {
-            const data = d.data() as FirestoreReferralRecord;
-            if (data && data.refereeAddress) {
-              const refAddr = data.refereeAddress.toLowerCase();
-              const time = data.timestamp || new Date().toISOString();
-              referralsMap.set(refAddr, {
-                id: d.id,
-                refereeAddress: data.refereeAddress,
-                address: data.refereeAddress,
-                tier: data.tier || 1,
-                joinedAt: time,
-                createdAt: time,
-                volumeUsdt: 150,
-                commissionUsdt: 0,
-              });
+            const data = d.data() as any;
+            const refAddr = (data.refereeAddress || data.address || d.id || '').toLowerCase().trim();
+            if (refAddr && refAddr !== norm && refAddr !== code.toLowerCase()) {
+              const time = data.timestamp || data.createdAt || data.joinedAt || new Date().toISOString();
+              if (!referralsMap.has(refAddr)) {
+                referralsMap.set(refAddr, {
+                  id: d.id,
+                  refereeAddress: data.refereeAddress || data.address || refAddr,
+                  address: data.refereeAddress || data.address || refAddr,
+                  tier: data.tier || 1,
+                  joinedAt: time,
+                  createdAt: time,
+                  volumeUsdt: Number(data.volumeUsdt) || 150,
+                  commissionUsdt: Number(data.commissionUsdt) || 0,
+                });
+              }
             }
           });
         } catch (e) {

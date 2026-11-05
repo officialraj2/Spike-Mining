@@ -104,45 +104,78 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   // Real-time synchronization callback with backend stratum database & Cloud Firestore fallback
   const refreshLiveStats = React.useCallback(async () => {
     if (!walletAddress || !walletAddress.startsWith('0x')) return;
+    let baseStats: any = null;
     try {
       const res = await fetch(`/api/referrals/stats/${walletAddress}`);
       const contentType = res.headers.get('content-type') || '';
       if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
         if (data && data.stats) {
-          setLocalStats(data.stats);
-          try {
-            localStorage.setItem(`spike_referral_stats_${walletAddress.toLowerCase()}`, JSON.stringify(data.stats));
-          } catch {}
-          return;
+          baseStats = data.stats;
         }
       }
     } catch {}
 
-    // Fallback: Query Cloud Firestore directly so team stats are loaded even on static hosting
+    // Resilient Firestore query: ensure all direct partners from Firestore are seamlessly accounted for
     try {
       const fsData = await getReferralsFromFirestore(walletAddress);
       if (fsData && fsData.directPartners > 0) {
-        setLocalStats((prev) => ({
-          directPartners: Math.max(prev?.directPartners || 0, fsData.directPartners),
-          downlinePartners: prev?.downlinePartners || 0,
-          totalPartners: Math.max(prev?.totalPartners || 0, fsData.directPartners),
-          totalCommissions: prev?.totalCommissions || 0,
-          referrals: fsData.referrals.map((r, i) => ({
-            id: r.id || `fs_${i}`,
-            refereeAddress: r.refereeAddress || (r as any).address,
-            referrerAddress: walletAddress,
-            address: r.refereeAddress || (r as any).address,
-            tier: r.tier || 1,
-            joinedAt: r.joinedAt || r.createdAt || new Date().toISOString(),
-            createdAt: r.createdAt || r.joinedAt || new Date().toISOString(),
-            activeMiners: 1,
-            volumeUsdt: r.volumeUsdt || 150,
-            commissionUsdt: r.commissionUsdt || 0,
-          })),
-        }));
+        if (!baseStats) {
+          baseStats = {
+            address: walletAddress,
+            directPartners: fsData.directPartners,
+            downlinePartners: 0,
+            totalPartners: fsData.directPartners,
+            totalCommissions: 0,
+            referrals: fsData.referrals.map((r, i) => ({
+              id: r.id || `fs_${i}`,
+              refereeAddress: r.refereeAddress || (r as any).address,
+              referrerAddress: walletAddress,
+              address: r.refereeAddress || (r as any).address,
+              tier: r.tier || 1,
+              joinedAt: r.joinedAt || r.createdAt || new Date().toISOString(),
+              createdAt: r.createdAt || r.joinedAt || new Date().toISOString(),
+              activeMiners: 1,
+              volumeUsdt: r.volumeUsdt || 150,
+              commissionUsdt: r.commissionUsdt || 0,
+            })),
+          };
+        } else {
+          const directCount = Math.max(baseStats.directPartners || 0, fsData.directPartners);
+          const totalCount = Math.max(baseStats.totalPartners || 0, directCount + (baseStats.downlinePartners || 0));
+          const existingRefs = baseStats.referrals || [];
+          const refMap = new Map();
+          existingRefs.forEach((r: any) => refMap.set((r.refereeAddress || r.address || '').toLowerCase(), r));
+          fsData.referrals.forEach((r: any) => {
+            const a = (r.refereeAddress || r.address || '').toLowerCase();
+            if (!refMap.has(a)) {
+              refMap.set(a, {
+                id: r.id,
+                refereeAddress: r.refereeAddress || r.address,
+                referrerAddress: walletAddress,
+                address: r.refereeAddress || r.address,
+                tier: r.tier || 1,
+                joinedAt: r.joinedAt || r.createdAt || new Date().toISOString(),
+                createdAt: r.createdAt || r.joinedAt || new Date().toISOString(),
+                activeMiners: 1,
+                volumeUsdt: r.volumeUsdt || 150,
+                commissionUsdt: r.commissionUsdt || 0,
+              });
+            }
+          });
+          baseStats.directPartners = directCount;
+          baseStats.totalPartners = totalCount;
+          baseStats.referrals = Array.from(refMap.values());
+        }
       }
     } catch {}
+
+    if (baseStats) {
+      setLocalStats(baseStats);
+      try {
+        localStorage.setItem(`spike_referral_stats_${walletAddress.toLowerCase()}`, JSON.stringify(baseStats));
+      } catch {}
+    }
   }, [walletAddress]);
 
   // Withdrawal Modal State & User Request Management

@@ -865,13 +865,29 @@ class PersistentDatabase {
     const idx = this.data.users.findIndex((u) => u.address.toLowerCase() === norm);
     if (idx >= 0) {
       const existing = this.data.users[idx];
+      const newReferredBy = user.referredBy !== undefined ? user.referredBy : existing.referredBy;
       this.data.users[idx] = {
         ...existing,
         ...user,
-        // Permanent Referral Bond: once referredBy is set, it can NEVER be washed out, wiped, or set to null
-        referredBy: existing.referredBy || user.referredBy || null,
+        referredBy: newReferredBy || null,
         lastActive: new Date().toISOString(),
       };
+
+      // Auto-migrate any referrals that were saved with SPK-code or placeholder address for this user
+      if (norm.startsWith('0x') && norm.length === 42) {
+        const slice6 = norm.slice(2, 8);
+        this.data.referrals.forEach((r) => {
+          const rAddr = (r.referrerAddress || '').toLowerCase();
+          if (
+            rAddr === `spk-${slice6}` ||
+            rAddr === slice6 ||
+            rAddr === `0x${slice6}0000000000000000000000000000000000`
+          ) {
+            r.referrerAddress = norm;
+          }
+        });
+      }
+
       this.save();
       return this.data.users[idx];
     } else {
@@ -1548,25 +1564,21 @@ class PersistentDatabase {
       return { success: false, message: 'Cannot refer your own wallet address' };
     }
 
-    // Check if referral link already established
-    const existing = this.data.referrals.find(
-      (r) =>
-        r.referrerAddress.toLowerCase() === referrer!.address.toLowerCase() &&
-        r.refereeAddress.toLowerCase() === normReferee &&
-        r.tier === 1
+    // Check if referral link already established for this referee
+    const existingRef = this.data.referrals.find(
+      (r) => r.refereeAddress.toLowerCase() === normReferee && r.tier === 1
     );
 
-    if (existing) {
-      if (!referee.referredBy) {
-        referee.referredBy = referrer.address;
-        this.save();
-      }
+    if (existingRef) {
+      existingRef.referrerAddress = referrer.address;
+      referee.referredBy = referrer.address;
+      this.save();
       return {
         success: true,
         referrer,
         referee,
-        referral: existing,
-        message: 'Referral connection already verified and active',
+        referral: existingRef,
+        message: 'Referral connection successfully verified and counted toward milestones!',
       };
     }
 
