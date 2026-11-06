@@ -15,7 +15,7 @@ import { HomeView } from './components/views/HomeView';
 import { Toast } from './components/Toast';
 import { BlockchainBackground } from './components/BlockchainBackground';
 import { fetchOnChainBalances } from './services/onchainBalance';
-import { registerReferralInFirestore, getReferralsFromFirestore } from './services/firestoreReferrals';
+import { registerReferralInFirestore, getReferralsFromFirestore, isUserAlreadyBonded } from './services/firestoreReferrals';
 import { persistMiningStart, fetchActiveMiningSession } from './services/miningSessionSync';
 import { getRealActiveAccount, requestWeb3Connection, subscribeToWeb3AccountChanges } from './services/web3WalletSync';
 
@@ -321,6 +321,34 @@ export default function App() {
         }
       }
 
+      // CHECK: Is the user ALREADY bonded to a sponsor?
+      const savedUser = (localStorage.getItem('spike_wallet_address') || '').toLowerCase().trim();
+      let isAlreadyBonded = false;
+      if (savedUser) {
+        const cachedRef = localStorage.getItem(`spike_referred_by_${savedUser}`);
+        const isBondedFlag = localStorage.getItem(`spike_is_bonded_${savedUser}`);
+        const bondedSponsor = localStorage.getItem(`spike_bonded_sponsor_${savedUser}`);
+        if (cachedRef || isBondedFlag === 'true' || bondedSponsor) {
+          isAlreadyBonded = true;
+        }
+      }
+
+      if (isAlreadyBonded) {
+        // User already bonded! Directly route to Dashboard and NEVER show referral verification popup
+        setIsReferralModalOpen(false);
+        setActiveTab('dashboard');
+        try {
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('ref');
+          cleanUrl.searchParams.delete('code');
+          cleanUrl.searchParams.delete('referrer');
+          cleanUrl.searchParams.delete('sponsor');
+          cleanUrl.searchParams.delete('r');
+          window.history.replaceState({}, document.title, cleanUrl.toString());
+        } catch {}
+        return;
+      }
+
       if (sponsorAddr) {
         localStorage.setItem('spike_pending_sponsor_addr', sponsorAddr);
       }
@@ -346,13 +374,60 @@ export default function App() {
     }
   }, []);
 
+  // Reactive Bonded Check: If active connected wallet is already bonded, prevent/close referral verification popup and route directly to Dashboard
+  useEffect(() => {
+    if (!walletAddress) return;
+    const norm = walletAddress.toLowerCase().trim();
+    isUserAlreadyBonded(norm).then(({ isBonded }) => {
+      if (isBonded) {
+        setIsReferralModalOpen(false);
+        // Clear pending invite from localStorage so it never pops up verification
+        localStorage.removeItem('spike_pending_referrer');
+        localStorage.removeItem('spike_pending_sponsor_addr');
+        localStorage.removeItem('spike_pending_sponsor_code');
+        setPendingInvite(null);
+
+        // If URL has referral params or path, clean them and switch directly to dashboard
+        try {
+          const currentUrl = new URL(window.location.href);
+          const hadRefParams = currentUrl.searchParams.has('ref') ||
+            currentUrl.searchParams.has('code') ||
+            currentUrl.searchParams.has('referrer') ||
+            currentUrl.searchParams.has('sponsor') ||
+            currentUrl.searchParams.has('r') ||
+            window.location.pathname.includes('/ref/') ||
+            window.location.pathname.includes('/r/');
+          if (hadRefParams) {
+            currentUrl.searchParams.delete('ref');
+            currentUrl.searchParams.delete('code');
+            currentUrl.searchParams.delete('referrer');
+            currentUrl.searchParams.delete('sponsor');
+            currentUrl.searchParams.delete('r');
+            window.history.replaceState({}, document.title, currentUrl.pathname + (currentUrl.search ? currentUrl.search : ''));
+            setActiveTab('dashboard');
+          }
+        } catch {}
+      }
+    });
+  }, [walletAddress]);
+
   // Auto-bind pending referral as soon as referee wallet is connected or restored
   useEffect(() => {
     if (!isWalletConnected || !walletAddress) return;
+    const normWallet = walletAddress.toLowerCase().trim();
+    const isBondedFlag = localStorage.getItem(`spike_is_bonded_${normWallet}`);
+    if (isBondedFlag === 'true') {
+      localStorage.removeItem('spike_pending_referrer');
+      localStorage.removeItem('spike_pending_sponsor_addr');
+      localStorage.removeItem('spike_pending_sponsor_code');
+      setPendingInvite(null);
+      setIsReferralModalOpen(false);
+      return;
+    }
+
     const pendingReferrer = localStorage.getItem('spike_pending_referrer') || (pendingInvite ? (pendingInvite.sponsorAddr || pendingInvite.code) : null);
     if (!pendingReferrer) return;
 
-    const normWallet = walletAddress.toLowerCase();
     const normPending = pendingReferrer.toLowerCase();
     const isSelf = normPending === normWallet || normPending.includes(normWallet.slice(2, 8));
 
@@ -1819,6 +1894,15 @@ export default function App() {
             .catch(() => {});
         }
 
+        const normRef = referee.toLowerCase();
+        localStorage.setItem(`spike_referred_by_${normRef}`, clean);
+        localStorage.setItem(`spike_is_bonded_${normRef}`, 'true');
+        localStorage.setItem(`spike_bonded_sponsor_${normRef}`, clean);
+        localStorage.removeItem('spike_pending_referrer');
+        localStorage.removeItem('spike_pending_sponsor_addr');
+        localStorage.removeItem('spike_pending_sponsor_code');
+        setPendingInvite(null);
+
         window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
         try {
           const bc = new BroadcastChannel('spike_referral_live_sync');
@@ -1837,6 +1921,15 @@ export default function App() {
         referrerAddress: clean,
         refereeAddress: referee,
       };
+      const normRef = referee.toLowerCase();
+      localStorage.setItem(`spike_referred_by_${normRef}`, clean);
+      localStorage.setItem(`spike_is_bonded_${normRef}`, 'true');
+      localStorage.setItem(`spike_bonded_sponsor_${normRef}`, clean);
+      localStorage.removeItem('spike_pending_referrer');
+      localStorage.removeItem('spike_pending_sponsor_addr');
+      localStorage.removeItem('spike_pending_sponsor_code');
+      setPendingInvite(null);
+
       window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: fallbackData }));
 
       // If connected as sponsor, increment partner count

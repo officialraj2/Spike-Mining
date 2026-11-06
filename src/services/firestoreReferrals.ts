@@ -1,4 +1,4 @@
-import { doc, setDoc, getDocs, collection, query, where } from 'firebase/firestore';
+import { doc, setDoc, getDocs, getDoc, collection, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export interface FirestoreReferralRecord {
@@ -57,6 +57,78 @@ export function normalizeSponsor(input: string): { address: string; code: string
   // Format as clean SPK-XXXXXX code
   const cleanCode = s.toUpperCase().startsWith('SPK-') ? s.toUpperCase() : `SPK-${s.toUpperCase()}`;
   return { address: cleanCode.slice(0, 64), code: cleanCode.slice(0, 32) };
+}
+
+/**
+ * Check if a user (by wallet address) is already bonded to a sponsor.
+ * Checks localStorage, Firestore 'users' doc, Firestore 'referrals' doc, and backend.
+ */
+export async function isUserAlreadyBonded(walletAddress: string): Promise<{ isBonded: boolean; sponsor?: string }> {
+  if (!walletAddress) return { isBonded: false };
+  const norm = walletAddress.toLowerCase().trim();
+
+  // 1. Instant check in localStorage
+  try {
+    const cachedRef = localStorage.getItem(`spike_referred_by_${norm}`);
+    const isBondedFlag = localStorage.getItem(`spike_is_bonded_${norm}`);
+    const bondedSponsor = localStorage.getItem(`spike_bonded_sponsor_${norm}`);
+    if (cachedRef || isBondedFlag === 'true' || bondedSponsor) {
+      return { isBonded: true, sponsor: cachedRef || bondedSponsor || undefined };
+    }
+  } catch {}
+
+  // 2. Check Firestore 'users' collection
+  try {
+    const uSnap = await getDoc(doc(db, 'users', norm));
+    if (uSnap.exists()) {
+      const uData = uSnap.data();
+      if (uData?.referredBy && uData.referredBy.toLowerCase() !== norm) {
+        try {
+          localStorage.setItem(`spike_referred_by_${norm}`, uData.referredBy);
+          localStorage.setItem(`spike_is_bonded_${norm}`, 'true');
+        } catch {}
+        return { isBonded: true, sponsor: uData.referredBy };
+      }
+    }
+  } catch {}
+
+  // 3. Check Firestore 'referrals' collection (document ref_{norm})
+  try {
+    const cleanId = `ref_${norm.replace(/[^a-zA-Z0-9]/g, '')}`;
+    const refSnap = await getDoc(doc(db, 'referrals', cleanId));
+    if (refSnap.exists()) {
+      const rData = refSnap.data();
+      if (rData?.referrerAddress && rData.referrerAddress.toLowerCase() !== norm) {
+        try {
+          localStorage.setItem(`spike_referred_by_${norm}`, rData.referrerAddress);
+          localStorage.setItem(`spike_is_bonded_${norm}`, 'true');
+        } catch {}
+        return { isBonded: true, sponsor: rData.referrerAddress };
+      }
+    }
+  } catch {}
+
+  // 4. Check backend API
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 2000);
+    const res = await fetch(`/api/referrals/check-bonded?address=${encodeURIComponent(norm)}`, {
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.isBonded) {
+        try {
+          if (data.sponsor) localStorage.setItem(`spike_referred_by_${norm}`, data.sponsor);
+          localStorage.setItem(`spike_is_bonded_${norm}`, 'true');
+        } catch {}
+        return { isBonded: true, sponsor: data.sponsor };
+      }
+    }
+  } catch {}
+
+  return { isBonded: false };
 }
 
 /**
@@ -136,6 +208,8 @@ export async function registerReferralInFirestore(
     // Cache locally for instant UI responsiveness
     try {
       localStorage.setItem(`spike_referred_by_${normReferee}`, normReferrer);
+      localStorage.setItem(`spike_is_bonded_${normReferee}`, 'true');
+      localStorage.setItem(`spike_bonded_sponsor_${normReferee}`, normReferrer);
     } catch {}
 
     // Also update sponsor's local cached count if on the same browser

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { normalizeSponsor } from '../../services/firestoreReferrals';
+import { normalizeSponsor, isUserAlreadyBonded } from '../../services/firestoreReferrals';
 
 interface ReferralVerificationModalProps {
   isOpen: boolean;
@@ -121,6 +121,25 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
      currentWallet.toLowerCase().includes(activeCode.replace(/^SPK-/i, '').toLowerCase()))
   );
 
+  // Auto-close immediately if connected wallet is already bonded under a sponsor
+  useEffect(() => {
+    if (!isOpen || !currentWallet) return;
+    const norm = currentWallet.toLowerCase().trim();
+    const cachedRef = localStorage.getItem(`spike_referred_by_${norm}`);
+    const isBondedFlag = localStorage.getItem(`spike_is_bonded_${norm}`);
+    const bondedSponsor = localStorage.getItem(`spike_bonded_sponsor_${norm}`);
+    if (cachedRef || isBondedFlag === 'true' || bondedSponsor) {
+      onClose();
+      return;
+    }
+    // Deep verification via Firestore and backend API
+    isUserAlreadyBonded(norm).then(({ isBonded }) => {
+      if (isBonded) {
+        onClose();
+      }
+    });
+  }, [isOpen, currentWallet, onClose]);
+
   const handleExecuteBinding = async () => {
     if (currentWallet && sponsorAddress && currentWallet.toLowerCase() === sponsorAddress.toLowerCase()) {
       setBindError('Self-referral is not permitted. Please connect a distinct joiner wallet.');
@@ -138,6 +157,12 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
       const ok = await onBindSponsor(sponsorAddress || activeCode, refereeToBind);
       if (ok) {
         setIsSuccess(true);
+        try {
+          const normRef = refereeToBind.toLowerCase();
+          localStorage.setItem(`spike_referred_by_${normRef}`, sponsorAddress || activeCode);
+          localStorage.setItem(`spike_is_bonded_${normRef}`, 'true');
+          localStorage.setItem(`spike_bonded_sponsor_${normRef}`, sponsorAddress || activeCode);
+        } catch {}
       } else {
         setBindError('Unable to link sponsor. You may already be linked to a team.');
       }

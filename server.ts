@@ -970,6 +970,23 @@ app.post('/api/referrals/sync-sponsor', (req: Request, res: Response) => {
   res.json({ success: true, user, referralCode: user.referralCode });
 });
 
+app.get('/api/referrals/check-bonded', (req: Request, res: Response) => {
+  try {
+    const address = ((req.query.address as string) || '').toLowerCase().trim();
+    if (!address) {
+      res.json({ isBonded: false });
+      return;
+    }
+    const user = db.getUser(address);
+    const existingRef = db.getReferrals().find((r) => r.refereeAddress.toLowerCase() === address);
+    const isBonded = Boolean((user?.referredBy && user.referredBy.toLowerCase() !== address) || existingRef);
+    const sponsor = user?.referredBy || existingRef?.referrerAddress || null;
+    res.json({ isBonded, sponsor });
+  } catch {
+    res.json({ isBonded: false });
+  }
+});
+
 app.post('/api/referrals/register', (req: Request, res: Response) => {
   try {
     const { referrerCodeOrAddr, refereeAddress } = req.body || {};

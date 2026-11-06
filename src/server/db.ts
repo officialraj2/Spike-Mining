@@ -1531,7 +1531,7 @@ class PersistentDatabase {
   public registerReferral(
     referrerCodeOrAddr: string,
     refereeAddress: string
-  ): { success: boolean; referrer?: DbUser; referee?: DbUser; referral?: DbReferral; message?: string } {
+  ): { success: boolean; referrer?: DbUser; referee?: DbUser; referral?: DbReferral; message?: string; alreadyBonded?: boolean } {
     if (!referrerCodeOrAddr || !refereeAddress) {
       return { success: false, message: 'Both referrer code/address and referee address are required' };
     }
@@ -1574,16 +1574,14 @@ class PersistentDatabase {
       (r) => r.refereeAddress.toLowerCase() === normReferee && r.tier === 1
     );
 
-    if (existingRef) {
-      existingRef.referrerAddress = referrer.address;
-      referee.referredBy = referrer.address;
-      this.save();
+    if (existingRef || (referee.referredBy && referee.referredBy.toLowerCase() !== normReferee)) {
       return {
         success: true,
+        alreadyBonded: true,
         referrer,
         referee,
         referral: existingRef,
-        message: 'Referral connection successfully verified and counted toward milestones!',
+        message: 'Partner is already bonded under verified sponsor.',
       };
     }
 
