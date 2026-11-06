@@ -1314,6 +1314,11 @@ class PersistentDatabase {
     });
 
     const allDirects = Array.from(directsMap.values());
+    allDirects.sort((a, b) => {
+      const timeA = new Date(a.createdAt || 0).getTime();
+      const timeB = new Date(b.createdAt || 0).getTime();
+      return timeB - timeA; // Newest joining at the top (datewise descending)
+    });
     const totalCommissions = allDirects.reduce((acc, r) => acc + (r.commissionUsdt || 0), 0);
     const hashrateInfo = this.calculateUserHashrate(norm);
     const teamStats = this.getUserTeamStats(norm);

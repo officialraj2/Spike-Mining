@@ -335,7 +335,11 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   // Total Earned strictly equals the sum of genuine claimed milestone rewards + direct referral commissions
   const totalEarnedUsdt = +(effectiveMilestoneSum + directCommissions).toFixed(2);
   
-  const referralsList = effectiveStats?.referrals || [];
+  const referralsList = [...(effectiveStats?.referrals || [])].sort((a: any, b: any) => {
+    const timeA = new Date(a.createdAt || a.joinedAt || a.timestamp || 0).getTime();
+    const timeB = new Date(b.createdAt || b.joinedAt || b.timestamp || 0).getTime();
+    return timeB - timeA; // Newest joining strictly at the top (upper)
+  });
   const rawSponsor = effectiveStats?.referredBy || null;
   const isSelfSponsor = Boolean(
     rawSponsor &&
@@ -989,27 +993,57 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1c2b3b]/40">
-                {referralsList.map((ref, i) => (
-                  <tr key={ref.id || i} className="hover:bg-[#1c2b3b]/30">
-                    <td className="py-3 px-3 font-mono text-[#00F0FF]">
-                      {ref.refereeAddress ? `${ref.refereeAddress.slice(0, 6)}...${ref.refereeAddress.slice(-4)}` : '0xUnknown'}
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className="px-2.5 py-0.5 rounded text-xs font-headline font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                        Team Partner
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 text-white font-mono">
-                      {ref.volumeUsdt ? `$${ref.volumeUsdt.toFixed(0)} Volume` : 'Active Partner'}
-                    </td>
-                    <td className="py-3 px-3 text-[#00F0FF] font-bold font-mono">
-                      +1 Partner Target
-                    </td>
-                    <td className="py-3 px-3 text-[#c6c6cc] text-right">
-                      {ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : 'Recent'}
-                    </td>
-                  </tr>
-                ))}
+                {referralsList.map((ref, i) => {
+                  const rawDate = ref.createdAt || (ref as any).joinedAt || (ref as any).timestamp;
+                  let dateStr = 'Recent';
+                  let timeStr = '';
+                  if (rawDate) {
+                    const d = new Date(rawDate);
+                    if (!isNaN(d.getTime())) {
+                      dateStr = d.toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      });
+                      timeStr = d.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true,
+                      });
+                    }
+                  }
+                  const refAddr = ref.refereeAddress || (ref as any).address || '0xUnknown';
+
+                  return (
+                    <tr key={ref.id || i} className="hover:bg-[#1c2b3b]/30 transition-colors">
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-1.5 font-mono text-[#00F0FF] text-xs font-semibold">
+                          <span>{refAddr.length >= 10 ? `${refAddr.slice(0, 6)}...${refAddr.slice(-4)}` : refAddr}</span>
+                          {i === 0 && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold font-headline bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30 tracking-wider">
+                              NEW
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        <span className="px-2.5 py-0.5 rounded text-xs font-headline font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          Team Partner
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-white font-mono">
+                        {ref.volumeUsdt ? `$${Number(ref.volumeUsdt).toFixed(0)} Volume` : 'Active Rig'}
+                      </td>
+                      <td className="py-3 px-3 text-[#00F0FF] font-bold font-mono">
+                        +1 Partner Target
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="font-mono text-white text-xs font-semibold tracking-wide">{dateStr}</div>
+                        {timeStr && <div className="text-[10px] text-[#94a3b8] font-mono mt-0.5">{timeStr}</div>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

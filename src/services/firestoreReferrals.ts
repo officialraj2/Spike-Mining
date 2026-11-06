@@ -269,6 +269,11 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
     );
 
     const referrals = Array.from(referralsMap.values());
+    referrals.sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.joinedAt || 0).getTime();
+      const timeB = new Date(b.createdAt || b.joinedAt || 0).getTime();
+      return timeB - timeA; // Newest joining at the top (datewise descending)
+    });
 
     return {
       directPartners: referrals.length,
