@@ -13,28 +13,7 @@ export interface FirestoreReferralRecord {
 export const MASTER_WALLET = '0x3471e07c4d2f7e11c155760a7b386e616b5c3715'.toLowerCase();
 export const MASTER_REFERRAL_CODE = 'SPK-3471E0';
 
-export const BASELINE_MASTER_DIRECTS = [
-  { refereeAddress: '0xaaaa111122223333444455556666777788889999', timestamp: '2026-10-17T07:35:13.134Z' },
-  { refereeAddress: '0xbbbb222233334444555566667777888899990000', timestamp: '2026-10-17T07:43:22.822Z' },
-  { refereeAddress: '0x2222222222222222222222222222222222222222', timestamp: '2026-10-22T05:45:21.314Z' },
-  { refereeAddress: '0x5555555555555555555555555555555555555555', timestamp: '2026-10-22T07:09:31.752Z' },
-  { refereeAddress: '0x16ee54796d74c3bd8fbe93954b339c629c1acf0c', timestamp: '2026-10-22T15:31:43.566Z' },
-  { refereeAddress: '0x03dF2Ff70a21E058d67c2F4bfaB0AD4a22750F37', timestamp: '2026-10-23T08:36:35.182Z' },
-  { refereeAddress: '0x1111111111111111111111111111111111111111', timestamp: '2026-10-24T17:40:45.885Z' },
-  { refereeAddress: '0x3333333333333333333333333333333333333333', timestamp: '2026-10-24T17:41:13.157Z' },
-  { refereeAddress: '0x8888888888888888888888888888888888888888', timestamp: '2026-10-24T17:43:28.329Z' },
-  { refereeAddress: '0xaF88C8E3c4ae2B58Ade49C00ac8F1bc8968A48C4', timestamp: '2026-10-29T08:28:45.097Z' },
-  { refereeAddress: '0x5512d577b94b8abf9308de15d43507075c43b167', timestamp: '2026-10-14T09:27:16.813Z' },
-  { refereeAddress: '0xa0dcb94347e7b4ed957cbf51306bc1f6e8334147', timestamp: '2026-10-14T09:37:01.167Z' },
-  { refereeAddress: '0x5dfea4b8aaeff82770710afa22332be6e0817b42', timestamp: '2026-10-14T09:37:06.785Z' },
-  { refereeAddress: '0xb955549766b1127bf5b8b834610d1427f47171a4', timestamp: '2026-10-15T18:03:20.955Z' },
-  { refereeAddress: '0x2c69b9fe8f052309dd9094e62d97d16127f51f52', timestamp: '2026-10-16T08:55:33.040Z' },
-  { refereeAddress: '0x38069663d6408dff184bafc65e247e37ae84a1c2', timestamp: '2026-10-16T10:15:05.139Z' },
-  { refereeAddress: '0xc8ae035c7bd0d6a043d7389f5defd3daee0e9006', timestamp: '2026-10-16T10:17:18.496Z' },
-  { refereeAddress: '0x6884C3A256e5826e841595a846626B89f717e834', timestamp: '2026-10-17T08:07:11.421Z' },
-  { refereeAddress: '0x84c06fe76adf7c7ab16b1f4af84655b1f50147b9', timestamp: '2026-10-18T16:15:09.052Z' },
-  { refereeAddress: '0x3856175386ce7cc62ba595310392bd1e42a019f9', timestamp: '2026-10-17T07:43:17.268Z' },
-];
+export const BASELINE_MASTER_DIRECTS: Array<{ refereeAddress: string; timestamp: string }> = [];
 
 /**
  * Robust normalizer: parses Ethereum address or referral code from URLs,

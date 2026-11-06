@@ -475,17 +475,24 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
       }
     }
 
-    // Delete non-master referrals
+    // Delete all referral bindings so Root wallet has a clean 0-partner slate for fresh testing
     const refSnap = await getDocs(collection(firestore, 'referrals'));
     for (const d of refSnap.docs) {
-      const data = d.data();
-      const referrerAddr = (data.referrerAddress || '').toLowerCase().trim();
-      const refereeAddr = (data.refereeAddress || '').toLowerCase().trim();
-      if (!masterLower.includes(referrerAddr) && !masterLower.includes(refereeAddr)) {
-        await deleteDoc(d.ref).catch(() => {});
-        deletedReferrals++;
-      }
+      await deleteDoc(d.ref).catch(() => {});
+      deletedReferrals++;
     }
+
+    // Delete non-master mining sessions
+    try {
+      const sessionSnap = await getDocs(collection(firestore, 'miningSessions'));
+      for (const d of sessionSnap.docs) {
+        const data = d.data();
+        const userAddr = (data.userAddress || '').toLowerCase().trim();
+        if (!masterLower.includes(userAddr)) {
+          await deleteDoc(d.ref).catch(() => {});
+        }
+      }
+    } catch {}
 
     // Delete non-master transactions
     const txSnap = await getDocs(collection(firestore, 'transactions'));
