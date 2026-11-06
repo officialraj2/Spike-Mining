@@ -3,6 +3,7 @@ import { TEAM_MILESTONE_TIERS } from '../../data/mockData';
 import { TeamRewardMilestonesSection } from '../TeamRewardMilestonesSection';
 import { HashrateLevelInfo } from '../../types';
 import { getReferralsFromFirestore } from '../../services/firestoreReferrals';
+import { submitWithdrawalRequest, getUserWithdrawals } from '../../services/firestoreWithdrawals';
 
 export interface WithdrawalItem {
   id: string;
@@ -194,19 +195,13 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     return [];
   });
 
-  // Fetch user's withdrawal requests from backend & Firestore
+  // Fetch user's withdrawal requests from Cloud Firestore, API & local cache
   const fetchUserWithdrawals = React.useCallback(async () => {
     if (!walletAddress || !walletAddress.startsWith('0x')) return;
     try {
-      const res = await fetch(`/api/withdrawals?userAddress=${encodeURIComponent(walletAddress)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.withdrawals)) {
-          setActiveWithdrawals(data.withdrawals);
-          try {
-            localStorage.setItem(`spike_withdrawals_${walletAddress.toLowerCase()}`, JSON.stringify(data.withdrawals));
-          } catch {}
-        }
+      const records = await getUserWithdrawals(walletAddress);
+      if (Array.isArray(records)) {
+        setActiveWithdrawals(records as any);
       }
     } catch {}
   }, [walletAddress]);
@@ -434,58 +429,24 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     setIsSubmittingWithdraw(true);
     setWithdrawMessage(null);
     try {
-      const res = await fetch('/api/withdrawals/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userAddress: walletAddress,
-          destinationAddress: dest,
-          amount: amountNum,
-          source: 'milestone_reward',
-          milestoneLabel: 'Team Milestone Career Rewards',
-        }),
+      const result = await submitWithdrawalRequest({
+        userAddress: walletAddress,
+        destinationAddress: dest,
+        amount: amountNum,
+        source: 'milestone_reward',
+        milestoneLabel: 'Team Milestone Career Rewards',
       });
-      const data = await res.json();
-      if (data && data.success) {
-        const submittedReq = data.request || {
-          id: `wdr-${Date.now()}`,
-          userAddress: walletAddress,
-          destinationAddress: dest,
-          amount: amountNum,
-          source: 'milestone_reward',
-          milestoneLabel: 'Team Milestone Career Rewards',
-          status: 'pending' as const,
-          requestedAt: new Date().toISOString(),
-        };
 
-        // Immediately update activeWithdrawals state and local storage so calculations stick immediately with 0 delay!
+      if (result && result.success && result.request) {
+        const submittedReq = result.request as any;
+
+        // Immediately update activeWithdrawals state so calculations stick immediately with 0 delay!
         const nextList = [submittedReq, ...activeWithdrawals.filter((w) => w.id !== submittedReq.id)];
         setActiveWithdrawals(nextList);
-        if (walletAddress) {
-          try {
-            localStorage.setItem(`spike_withdrawals_${walletAddress.toLowerCase()}`, JSON.stringify(nextList));
-          } catch {}
-        }
-
-        // Notify entire app of the withdrawal
-        window.dispatchEvent(
-          new CustomEvent('spike_withdrawal_updated', {
-            detail: {
-              userAddress: walletAddress,
-              request: submittedReq,
-              amount: amountNum,
-            },
-          })
-        );
-        try {
-          const bc = new BroadcastChannel('spike_referral_live_sync');
-          bc.postMessage({ type: 'WITHDRAWAL_REQUESTED', request: submittedReq, userAddress: walletAddress });
-          bc.close();
-        } catch {}
 
         const newRemaining = Math.max(0, +(availableToWithdraw - amountNum).toFixed(2));
         setWithdrawMessage({
-          text: `✓ Withdrawal of ${amountNum.toFixed(2)} USDT submitted! Remaining available balance: ${newRemaining.toFixed(2)} USDT. Sent to Admin Panel for review & approval.`,
+          text: `✓ Withdrawal of ${amountNum.toFixed(2)} USDT submitted! Remaining available balance: ${newRemaining.toFixed(2)} USDT. Sent to Nodescan review for approval.`,
           type: 'success',
         });
         setWithdrawAmount('');
@@ -495,10 +456,10 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           setWithdrawMessage(null);
         }, 2500);
       } else {
-        setWithdrawMessage({ text: data?.error || 'Failed to submit withdrawal request.', type: 'error' });
+        setWithdrawMessage({ text: result?.error || 'Failed to submit withdrawal request.', type: 'error' });
       }
-    } catch {
-      setWithdrawMessage({ text: 'Network error submitting request. Please try again.', type: 'error' });
+    } catch (err: any) {
+      setWithdrawMessage({ text: err?.message || 'Error submitting request. Please try again.', type: 'error' });
     } finally {
       setIsSubmittingWithdraw(false);
     }
@@ -1283,8 +1244,27 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                           </div>
                         )}
                       </div>
-                      <div className="text-right shrink-0 text-xs font-body text-slate-400">
-                        {new Date(w.requestedAt).toLocaleDateString()}
+                      <div className="text-right shrink-0 text-[11px] font-mono text-slate-400">
+                        <div>
+                          {(() => {
+                            const raw = (w as any).createdAt || w.requestedAt;
+                            if (!raw) return 'Recent';
+                            const d = new Date(raw);
+                            return !isNaN(d.getTime())
+                              ? d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : 'Recent';
+                          })()}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {(() => {
+                            const raw = (w as any).createdAt || w.requestedAt;
+                            if (!raw) return '';
+                            const d = new Date(raw);
+                            return !isNaN(d.getTime())
+                              ? d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                              : '';
+                          })()}
+                        </div>
                       </div>
                     </div>
                   ))}

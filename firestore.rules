@@ -78,6 +78,15 @@ service cloud.firestore {
         data.tier is number;
     }
 
+    function isValidWithdrawal(data) {
+      return data.keys().hasAll(['id', 'userAddress', 'destinationAddress', 'amount', 'status']) &&
+        data.id is string && data.id.size() <= 64 &&
+        data.userAddress is string && data.userAddress.size() <= 64 &&
+        data.destinationAddress is string && data.destinationAddress.size() <= 64 &&
+        data.amount is number &&
+        (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected');
+    }
+
     // Admins Collection
     match /admins/{adminId} {
       allow read: if true;
@@ -109,6 +118,13 @@ service cloud.firestore {
     match /referrals/{refId} {
       allow read: if true;
       allow create, update: if isValidId(refId) && isValidReferral(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Withdrawals Collection
+    match /withdrawals/{withdrawalId} {
+      allow read: if true;
+      allow create, update: if isValidId(withdrawalId) && (isAdmin() || isValidWithdrawal(incoming()));
       allow delete: if isAdmin();
     }
 

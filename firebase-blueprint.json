@@ -261,6 +261,55 @@
         }
       },
       "required": ["id", "referrerAddress", "refereeAddress", "tier"]
+    },
+    "WithdrawalRecord": {
+      "title": "WithdrawalRecord",
+      "description": "User withdrawal request and payout transaction record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "userAddress": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "destinationAddress": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "amount": {
+          "type": "number"
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "milestoneLabel": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "approved", "rejected"]
+        },
+        "txHash": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "adminNote": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "userAddress", "destinationAddress", "amount", "status"]
     }
   },
   "firestore": {
@@ -279,6 +328,10 @@
     "/referrals/{refId}": {
       "schema": "ReferralRecord",
       "description": "Referral networks and commission links"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "WithdrawalRecord",
+      "description": "User milestone and referral reward withdrawal requests"
     },
     "/settings/{settingId}": {
       "schema": "SystemSettings",

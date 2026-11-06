@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getUserWithdrawals } from '../../services/firestoreWithdrawals';
 
 interface WithdrawalRecord {
   id: string;
@@ -25,8 +26,15 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
   onNavigateToReferrals,
   onCopyText,
 }) => {
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRecord[]>(() => {
+    if (!walletAddress) return [];
+    try {
+      const cached = localStorage.getItem(`spike_withdrawals_${walletAddress.toLowerCase()}`);
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [filter, setFilter] = useState<'all' | 'approved' | 'pending' | 'rejected'>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -36,15 +44,9 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
     try {
-      const res = await fetch(`/api/withdrawals?userAddress=${encodeURIComponent(walletAddress)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.withdrawals)) {
-          setWithdrawals(data.withdrawals);
-        }
-      }
+      const records = await getUserWithdrawals(walletAddress);
+      setWithdrawals(records as WithdrawalRecord[]);
     } catch (err) {
       console.warn('[WithdrawalHistory] Failed to load records:', err);
     } finally {
@@ -59,8 +61,16 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
       fetchWithdrawals();
     };
     window.addEventListener('spike_withdrawal_updated', handleWithdrawalEvent);
+    window.addEventListener('focus', handleWithdrawalEvent);
+
+    const interval = setInterval(() => {
+      fetchWithdrawals();
+    }, 3000);
+
     return () => {
       window.removeEventListener('spike_withdrawal_updated', handleWithdrawalEvent);
+      window.removeEventListener('focus', handleWithdrawalEvent);
+      clearInterval(interval);
     };
   }, [fetchWithdrawals]);
 
@@ -390,9 +400,15 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
 
                       {/* Date */}
                       <td className="py-3.5 px-4 text-slate-400 font-mono text-[11px]">
-                        <div>{new Date(item.createdAt).toLocaleDateString()}</div>
+                        <div>
+                          {item.createdAt && !isNaN(new Date(item.createdAt).getTime())
+                            ? new Date(item.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : 'Recent'}
+                        </div>
                         <div className="text-slate-500 text-[10px]">
-                          {new Date(item.createdAt).toLocaleTimeString()}
+                          {item.createdAt && !isNaN(new Date(item.createdAt).getTime())
+                            ? new Date(item.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+                            : ''}
                         </div>
                       </td>
 
