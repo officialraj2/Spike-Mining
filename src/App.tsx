@@ -1754,34 +1754,11 @@ export default function App() {
       clean = decodeURIComponent(matchQuery[1]);
     }
 
-    const isSelfReferral = clean.toLowerCase() === referee.toLowerCase() ||
-      (walletAddress && (
-        clean.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
-        clean.toLowerCase() === walletAddress.toLowerCase()
-      ));
+    const isSelfReferral = clean.toLowerCase() === referee.toLowerCase();
 
     if (isSelfReferral) {
-      // User is verifying / testing their own referral link!
-      try {
-        const simRes = await fetch('/api/referrals/simulate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ referrerAddress: referee }),
-        });
-        const simData = await simRes.json();
-        if (simData && simData.success) {
-          if (simData.stats) setReferralStats(simData.stats);
-          window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: simData }));
-          addToast(
-            'Referral Link Verified!',
-            `Self-link verified! Added +1 Partner to your team network. Total: ${simData.stats?.directPartners || 1} Directs.`,
-            'success'
-          );
-          return true;
-        }
-      } catch {}
-      addToast('Referral Link Verified', 'Sponsor link belongs to your connected wallet.', 'info');
-      return true;
+      addToast('Self-Referral Restricted', 'A sponsor cannot join under their own wallet. Please connect a distinct joiner wallet.', 'warning');
+      return false;
     }
     // Always register in Firestore directly so referrals persist across devices on static hosting
     registerReferralInFirestore(clean, referee).catch(() => {});
@@ -1878,6 +1855,8 @@ export default function App() {
   const handleDisconnectWallet = () => {
     setIsWalletConnected(false);
     setWalletAddress('');
+    walletAddressRef.current = '';
+    isWalletConnectedRef.current = false;
     setNodes([]);
     setRewards([]);
     setWalletBalance(0);
@@ -1895,6 +1874,7 @@ export default function App() {
       localStorage.removeItem('spike_wallet_address');
       localStorage.removeItem('spike_balance_usdt');
       localStorage.removeItem('spike_balance_bnb');
+      sessionStorage.removeItem('spike_admin_authenticated');
       localStorage.setItem('spike_active_tab', 'home');
     } catch {}
     addToast('Logged Out', 'Disconnected from BEP-20 provider. Switched to public Home overview.', 'info');
@@ -2256,8 +2236,23 @@ export default function App() {
               isOpen={isReferralModalOpen}
               onClose={() => setIsReferralModalOpen(false)}
               referralCodeOrAddr={referralCodeToVerify || ''}
-              currentWallet={walletAddress}
-              isConnected={isWalletConnected}
+              currentWallet={
+                (walletAddress && referralCodeToVerify && (
+                  walletAddress.toLowerCase() === referralCodeToVerify.toLowerCase() ||
+                  referralCodeToVerify.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
+                  walletAddress.toLowerCase().includes(referralCodeToVerify.replace(/^SPK-/i, '').toLowerCase())
+                ))
+                  ? ''
+                  : walletAddress
+              }
+              isConnected={
+                isWalletConnected &&
+                !(walletAddress && referralCodeToVerify && (
+                  walletAddress.toLowerCase() === referralCodeToVerify.toLowerCase() ||
+                  referralCodeToVerify.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
+                  walletAddress.toLowerCase().includes(referralCodeToVerify.replace(/^SPK-/i, '').toLowerCase())
+                ))
+              }
               onConnectWallet={handleConnectWallet}
               onDisconnectWallet={handleDisconnectWallet}
               onBindSponsor={handleBindSponsor}
@@ -2427,8 +2422,23 @@ export default function App() {
             isOpen={isReferralModalOpen}
             onClose={() => setIsReferralModalOpen(false)}
             referralCodeOrAddr={referralCodeToVerify || ''}
-            currentWallet={walletAddress}
-            isConnected={isWalletConnected}
+            currentWallet={
+              (walletAddress && referralCodeToVerify && (
+                walletAddress.toLowerCase() === referralCodeToVerify.toLowerCase() ||
+                referralCodeToVerify.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
+                walletAddress.toLowerCase().includes(referralCodeToVerify.replace(/^SPK-/i, '').toLowerCase())
+              ))
+                ? ''
+                : walletAddress
+            }
+            isConnected={
+              isWalletConnected &&
+              !(walletAddress && referralCodeToVerify && (
+                walletAddress.toLowerCase() === referralCodeToVerify.toLowerCase() ||
+                referralCodeToVerify.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
+                walletAddress.toLowerCase().includes(referralCodeToVerify.replace(/^SPK-/i, '').toLowerCase())
+              ))
+            }
             onConnectWallet={handleConnectWallet}
             onDisconnectWallet={handleDisconnectWallet}
             onBindSponsor={handleBindSponsor}

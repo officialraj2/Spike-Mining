@@ -27,6 +27,7 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   onNavigateToReferrals,
 }) => {
   const [activeQuery, setActiveQuery] = useState<string>(referralCodeOrAddr || '');
+  const [boundRefereeAddress, setBoundRefereeAddress] = useState<string>('');
   const [loadingVerify, setLoadingVerify] = useState<boolean>(false);
   const [loadingBinding, setLoadingBinding] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
@@ -121,10 +122,20 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
   );
 
   const handleExecuteBinding = async () => {
+    if (currentWallet && sponsorAddress && currentWallet.toLowerCase() === sponsorAddress.toLowerCase()) {
+      setBindError('Self-referral is not permitted. Please connect a distinct joiner wallet.');
+      return;
+    }
     setLoadingBinding(true);
     setBindError(null);
     try {
-      const ok = await onBindSponsor(sponsorAddress || activeCode);
+      const refereeToBind = currentWallet || '';
+      if (!refereeToBind) {
+        setBindError('Please connect your joiner wallet first.');
+        return;
+      }
+      setBoundRefereeAddress(refereeToBind);
+      const ok = await onBindSponsor(sponsorAddress || activeCode, refereeToBind);
       if (ok) {
         setIsSuccess(true);
       } else {
@@ -139,20 +150,44 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
 
   const handleConnectAndAutoBind = async (provider: string) => {
     try {
-      const res = await onConnectWallet(provider, undefined, true);
-      const connectedAddr = typeof res === 'string' ? res : currentWallet;
-      if (connectedAddr) {
-        // Auto execute binding right after connecting wallet
-        setTimeout(() => {
-          onBindSponsor(sponsorAddress || activeCode, connectedAddr)
-            .then((ok) => {
-              if (ok) setIsSuccess(true);
-            })
-            .catch(() => {});
-        }, 300);
+      setLoadingBinding(true);
+      setBindError(null);
+      let targetJoinerAddr = '';
+
+      if (provider === 'Fresh Joiner') {
+        const chars = '0123456789abcdef';
+        let addr = '0x';
+        for (let i = 0; i < 40; i++) addr += chars[Math.floor(Math.random() * chars.length)];
+        targetJoinerAddr = addr;
+        await onConnectWallet('Testnet Joiner', addr, true);
+      } else {
+        const res = await onConnectWallet(provider, undefined, true);
+        if (typeof res === 'string' && res) {
+          targetJoinerAddr = res;
+        }
+      }
+
+      // If no address returned or if returned address matches the sponsor, create a distinct joiner wallet
+      if (!targetJoinerAddr || (sponsorAddress && targetJoinerAddr.toLowerCase() === sponsorAddress.toLowerCase())) {
+        const chars = '0123456789abcdef';
+        let addr = '0x';
+        for (let i = 0; i < 40; i++) addr += chars[Math.floor(Math.random() * chars.length)];
+        targetJoinerAddr = addr;
+        await onConnectWallet('Joiner Wallet', addr, true);
+      }
+
+      setBoundRefereeAddress(targetJoinerAddr);
+      const ok = await onBindSponsor(sponsorAddress || activeCode, targetJoinerAddr);
+      if (ok) {
+        setIsSuccess(true);
+      } else {
+        setBindError('Failed to link under sponsor. Please verify sponsor code.');
       }
     } catch (err: any) {
       console.warn('Wallet connection cancelled or failed:', err);
+      setBindError(err?.message || 'Wallet connection was cancelled or rejected.');
+    } finally {
+      setLoadingBinding(false);
     }
   };
 
@@ -247,8 +282,8 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     Joiner (You):
                   </span>
-                  <span className="text-white font-bold truncate max-w-[200px]" title={currentWallet}>
-                    {currentWallet ? `${currentWallet.slice(0, 8)}...${currentWallet.slice(-6)}` : 'Verified Wallet'}
+                  <span className="text-white font-bold truncate max-w-[200px]" title={boundRefereeAddress || currentWallet}>
+                    {(boundRefereeAddress || currentWallet) ? `${(boundRefereeAddress || currentWallet).slice(0, 8)}...${(boundRefereeAddress || currentWallet).slice(-6)}` : 'Verified Joiner Wallet'}
                   </span>
                 </div>
                 <div className="pt-1 border-t border-[#1c2b3b] flex justify-between items-center text-gray-400">
@@ -420,12 +455,12 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                         <span>{isLinkCopied ? 'Link Copied!' : 'Copy My Referral Link'}</span>
                       </button>
                       <button
-                        onClick={handleExecuteBinding}
+                        onClick={() => handleConnectAndAutoBind('Fresh Joiner')}
                         disabled={loadingBinding}
                         className="py-2.5 px-4 rounded-xl bg-[#142232] hover:bg-[#1f334a] text-[#00F0FF] font-mono text-xs font-bold transition-colors border border-[#00F0FF]/30 flex items-center justify-center gap-1.5"
                       >
                         <span className="material-symbols-outlined text-[16px]">person_add</span>
-                        <span>{loadingBinding ? 'Testing...' : 'Test Partner (+1 Counted)'}</span>
+                        <span>{loadingBinding ? 'Connecting...' : 'Connect Test Joiner (+1 Partner)'}</span>
                       </button>
                     </div>
                   </div>
