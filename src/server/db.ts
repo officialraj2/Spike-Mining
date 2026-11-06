@@ -2433,8 +2433,7 @@ class PersistentDatabase {
     const currentTreasury = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
     this.data.settings.treasuryBalanceUsdt = +( currentTreasury + amount ).toFixed(2);
     
-    // Deduct deposited amount from user balance
-    user.balanceUsdt = Math.max(0, +(user.balanceUsdt - amount).toFixed(2));
+    // Funds are deposited directly from user's external Web3 wallet into Treasury
     user.hasDepositedTreasury = true;
     user.hasActivatedMining = true;
     if (!user.miningCycleStartTime) {
@@ -2536,13 +2535,7 @@ class PersistentDatabase {
     const wallet = this.getTestnetWallet(norm);
     const token = this.getTestnetSpikeToken();
 
-    // Check user has the $10 USDT
-    if (user.balanceUsdt < costUsdt && wallet.testnetUsdt < costUsdt) {
-      return { success: false, error: `Insufficient balance: $${costUsdt} USDT required for Smart Contract Mining Activation.` };
-    }
-
-    // Deduct 10 USDT from user
-    user.balanceUsdt = Math.max(0, +(user.balanceUsdt - costUsdt).toFixed(2));
+    // Node activation is executed via Web3 wallet funds
     user.hasActivatedMining = true;
     if (!user.miningCycleStartTime) {
       user.miningCycleStartTime = Date.now();

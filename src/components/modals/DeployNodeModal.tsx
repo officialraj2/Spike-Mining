@@ -52,7 +52,7 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
 
     // Strict Web3 Wallet 10 USDT balance check
     if (walletBalance < 10) {
-      setTxErrorMessage('Insufficient USDT balance. Minimum 10.00 USDT is required in your Web3 wallet to deploy this node.');
+      setTxErrorMessage('Insufficient Web3 balance: 10.00 BEP-20 USDT is required in your connected Web3 wallet.');
       return;
     }
 
@@ -65,14 +65,12 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
     const win = typeof window !== 'undefined' ? (window as any) : null;
     if (win && win.ethereum && typeof win.ethereum.request === 'function' && walletAddress) {
       try {
-        // Attempt authentic BEP-20 transfer call
-        // ERC-20 transfer(address,uint256) function signature is 0xa9059cbb
         const cleanTreasury = treasuryWallet.toLowerCase().replace('0x', '').padStart(64, '0');
-        // 10 USDT (18 decimals): 10 * 10^18 = 0x8ac7230489e80000
+        // 10 USDT (18 decimals): 10 * 10^18
         const hexAmount = (10000000000000000000n).toString(16).padStart(64, '0');
         const calldata = `0xa9059cbb${cleanTreasury}${hexAmount}`;
 
-        const txPromise = win.ethereum.request({
+        const res = await win.ethereum.request({
           method: 'eth_sendTransaction',
           params: [
             {
@@ -84,15 +82,23 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
           ],
         });
 
-        // Allow up to 3.5s for provider popup or proceed gracefully
-        const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 3500));
-        const res = await Promise.race([txPromise, timeoutPromise]);
         if (res && typeof res === 'string' && res.startsWith('0x')) {
           generatedTxHash = res;
+        } else {
+          throw new Error('Transaction was rejected or returned no hash.');
         }
       } catch (err: any) {
-        // If rejected by user or cancelled, log info and proceed with realistic verified on-chain simulation
-        console.info('[Web3 Smart Call] Provider interaction note:', err?.message || err);
+        setIsDeploying(false);
+        setSmartCallStep('idle');
+        const errString = typeof err === 'string' ? err : err?.message || JSON.stringify(err);
+        if (err?.code === 4001 || errString.includes('User rejected') || errString.includes('denied') || errString.includes('cancelled')) {
+          setTxErrorMessage('Transaction was cancelled in your Web3 wallet.');
+        } else if (errString.includes('insufficient funds') || errString.includes('exceeds balance') || errString.includes('transfer amount exceeds')) {
+          setTxErrorMessage('Insufficient Web3 balance: Your connected wallet needs at least 10 BEP-20 USDT and small BNB for gas.');
+        } else {
+          setTxErrorMessage(err?.message || 'Web3 transaction failed. Please ensure 10 USDT is in your Web3 wallet.');
+        }
+        return;
       }
     }
 
@@ -100,7 +106,7 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
     setSmartCallStep('broadcasting');
     await new Promise((r) => setTimeout(r, 650));
 
-    // If no real hash was returned from injected wallet, generate a cryptographically valid 64-hex BSC transaction hash
+    // If no injected provider was detected (e.g. read-only or manual simulation), generate valid hash
     if (!generatedTxHash) {
       const chars = '0123456789abcdef';
       let h = '0x';
@@ -277,7 +283,7 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
                 </div>
                 {/* CSS Selector 1 Target: Wallet Balance with Real-time Status Badge */}
                 <div className="flex justify-between border-b border-[#1c2b3b]/50 pb-1">
-                  <span className="text-[#94a3b8]">Wallet Bal:</span>
+                  <span className="text-[#94a3b8]">Web3 Wallet:</span>
                   <span className={`font-mono font-bold flex items-center gap-1.5 ${hasEnoughBalance ? 'text-emerald-400' : 'text-amber-400'}`}>
                     <span>{walletBalance.toFixed(2)} USDT</span>
                     {hasEnoughBalance ? (
@@ -358,25 +364,13 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
               </div>
             )}
 
-            {/* Insufficient Balance Notice with 1-Click Faucet */}
+            {/* Insufficient Balance Notice */}
             {!hasEnoughBalance && (
               <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2 text-amber-300 font-mono">
                   <span className="material-symbols-outlined text-[18px] text-amber-400 shrink-0">account_balance_wallet</span>
-                  <span>Balance: {walletBalance.toFixed(2)} USDT (Need 10 USDT)</span>
+                  <span>Web3 Wallet: {walletBalance.toFixed(2)} USDT (Need 10 USDT in Web3 wallet)</span>
                 </div>
-                {onClaimFaucet && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClaimFaucet(50);
-                      setTxErrorMessage(null);
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-amber-400 text-[#0A0F1D] text-[11px] font-bold shrink-0 hover:bg-amber-300 transition-colors shadow-sm cursor-pointer"
-                  >
-                    +50 Faucet
-                  </button>
-                )}
               </div>
             )}
           </div>

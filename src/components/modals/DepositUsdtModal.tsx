@@ -410,12 +410,6 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
 
               <div className="p-4 rounded-xl bg-[#041710] border border-emerald-500/30 text-left space-y-2.5 text-xs sm:text-sm font-body">
                 <div className="flex justify-between items-center text-slate-300">
-                  <span>Your Remaining Wallet Balance:</span>
-                  <span className="text-[#00F0FF] font-bold font-headline text-base">
-                    {successData.newBalance.toFixed(2)} USDT
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-slate-300">
                   <span>Mining Protocol Status:</span>
                   <span className="text-emerald-400 font-semibold flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />

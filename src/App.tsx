@@ -1112,17 +1112,15 @@ export default function App() {
   };
 
   const handleDeployNode = (newNode: MiningNode, costUsdt: number = 10, realTxHash?: string) => {
-    if (walletBalance < costUsdt) {
+    if (walletOnchainUsdt < costUsdt && walletBalance < costUsdt) {
       addToast(
-        'Insufficient Balance',
-        `Required ${costUsdt} USDT for node activation. Your balance: ${walletBalance.toFixed(2)} USDT. Please deposit or use faucet to add funds!`,
+        'Insufficient Web3 Balance',
+        `Required ${costUsdt} USDT in your connected Web3 wallet (BEP-20) for node activation.`,
         'warning'
       );
       return;
     }
 
-    const updatedBalance = Math.max(0, +(walletBalance - costUsdt).toFixed(2));
-    setWalletBalance(updatedBalance);
     const updatedNodes = [newNode, ...nodes];
     setNodes(updatedNodes);
 
@@ -1130,15 +1128,16 @@ export default function App() {
       if (walletAddress) {
         localStorage.setItem(`spike_nodes_${walletAddress.toLowerCase()}`, JSON.stringify(updatedNodes));
         localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
-        localStorage.setItem(`spike_bal_${walletAddress.toLowerCase()}`, String(updatedBalance));
       }
     } catch {}
 
-    window.dispatchEvent(
-      new CustomEvent('spike_balance_updated', {
-        detail: { address: walletAddress, balanceUsdt: updatedBalance },
-      })
-    );
+    if (walletAddress) {
+      fetchOnChainBalances(walletAddress).then((b) => {
+        setWalletOnchainUsdt(b.usdt);
+        setWalletBNB(b.bnb);
+        setWalletSpk(b.spike);
+      }).catch(() => {});
+    }
 
     if (walletAddress) {
       // Sync node to backend fleet
@@ -1407,7 +1406,13 @@ export default function App() {
   };
 
   const handleDepositSuccess = (newBalance: number, txHash: string) => {
-    setWalletBalance(newBalance);
+    if (walletAddress) {
+      fetchOnChainBalances(walletAddress).then((b) => {
+        setWalletOnchainUsdt(b.usdt);
+        setWalletBNB(b.bnb);
+        setWalletSpk(b.spike);
+      }).catch(() => {});
+    }
     const now = Date.now();
     const cleanHash = txHash.length > 14 ? `${txHash.slice(0, 8)}...${txHash.slice(-6)}` : txHash;
     const newTx: RewardTransaction = {
@@ -2173,8 +2178,8 @@ export default function App() {
               onClose={() => setIsDeployModalOpen(false)}
               onDeploy={handleDeployNode}
               existingCount={nodes.length}
-              walletBalance={walletBalance}
-              onClaimFaucet={handleTopUpUsdt}
+              walletBalance={walletOnchainUsdt}
+              walletAddress={walletAddress}
             />
           )}
           {isClaimModalOpen && (
@@ -2227,7 +2232,7 @@ export default function App() {
               isOpen={isDepositModalOpen}
               onClose={() => setIsDepositModalOpen(false)}
               walletAddress={walletAddress}
-              walletBalance={walletBalance}
+              walletBalance={walletOnchainUsdt}
               onDepositSuccess={handleDepositSuccess}
             />
           )}
@@ -2352,9 +2357,8 @@ export default function App() {
             onClose={() => setIsDeployModalOpen(false)}
             onDeploy={handleDeployNode}
             existingCount={nodes.length}
-            walletBalance={walletBalance}
+            walletBalance={walletOnchainUsdt}
             walletAddress={walletAddress}
-            onClaimFaucet={handleTopUpUsdt}
           />
         )}
 
@@ -2412,7 +2416,7 @@ export default function App() {
             isOpen={isDepositModalOpen}
             onClose={() => setIsDepositModalOpen(false)}
             walletAddress={walletAddress}
-            walletBalance={walletBalance}
+            walletBalance={walletOnchainUsdt}
             onDepositSuccess={handleDepositSuccess}
           />
         )}
