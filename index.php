@@ -4,8 +4,17 @@
  * Seamlessly delivers compiled production React application.
  */
 
-$prodHtml = __DIR__ . '/prod/index.html';
 $distHtml = __DIR__ . '/dist/index.html';
+$prodHtml = __DIR__ . '/prod/index.html';
+$rootHtml = __DIR__ . '/index.html';
+
+// 1. Prefer compiled production bundle from dist/ or prod/
+if (file_exists($distHtml)) {
+    header('Content-Type: text/html; charset=UTF-8');
+    header('X-Powered-By: SPIKE-Nodes-AutoDeploy');
+    readfile($distHtml);
+    exit;
+}
 
 if (file_exists($prodHtml)) {
     header('Content-Type: text/html; charset=UTF-8');
@@ -14,10 +23,10 @@ if (file_exists($prodHtml)) {
     exit;
 }
 
-if (file_exists($distHtml)) {
+if (file_exists($rootHtml)) {
     header('Content-Type: text/html; charset=UTF-8');
     header('X-Powered-By: SPIKE-Nodes-AutoDeploy');
-    readfile($distHtml);
+    readfile($rootHtml);
     exit;
 }
 
@@ -30,7 +39,7 @@ header('Content-Type: text/html; charset=UTF-8');
 <body style="background:#051424;color:#00F0FF;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
   <div style="text-align:center;">
     <h2>SPIKE Nodes Production System Syncing...</h2>
-    <p style="color:#8ba3c7;">The application is synchronizing latest updates from GitHub. Please refresh in a moment.</p>
+    <p style="color:#8ba3c7;">The application is synchronizing latest updates. Please refresh in a moment.</p>
   </div>
 </body>
 </html>

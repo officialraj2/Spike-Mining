@@ -1,8 +1,8 @@
 # ==============================================================================
-# SPIKE Nodes (spikenodes.com) — Hostinger Git Auto-Deployment Root Configuration
+# SPIKE Nodes (spikenodes.com) — Hostinger Git & Apache Production Configuration
 # ==============================================================================
 
-DirectoryIndex index.php prod/index.html dist/index.html index.html
+DirectoryIndex index.php dist/index.html prod/index.html index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -13,20 +13,21 @@ DirectoryIndex index.php prod/index.html dist/index.html index.html
   RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-  # 2. Allow direct access to files in prod/ and public/
-  RewriteRule ^prod/ - [L]
-  RewriteRule ^public/ - [L]
-
-  # 3. If file exists inside prod/, rewrite directly (e.g. /assets/xxx.js -> /prod/assets/xxx.js)
-  RewriteCond %{DOCUMENT_ROOT}/prod%{REQUEST_URI} -f
-  RewriteRule ^(.*)$ prod/$1 [L,QSA]
-
-  # 4. If file exists directly (e.g. images, favicon), let it serve
+  # 2. Allow direct access to existing files in dist/, prod/, public/, or root
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # 5. Route root and all SPA page requests through index.php (which auto-loads prod/index.html)
+  # 3. If asset requested exists inside dist/ (e.g. /assets/xxx.js -> dist/assets/xxx.js)
+  RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
+  RewriteRule ^(.*)$ dist/$1 [L,QSA]
+
+  # 4. If asset requested exists inside prod/ (e.g. /assets/xxx.js -> prod/assets/xxx.js)
+  RewriteCond %{DOCUMENT_ROOT}/prod%{REQUEST_URI} -f
+  RewriteRule ^(.*)$ prod/$1 [L,QSA]
+
+  # 5. Route root and all SPA navigation paths through index.php (which auto-delivers dist/index.html)
   RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ index.php [L,QSA]
 </IfModule>
 
@@ -50,8 +51,8 @@ DirectoryIndex index.php prod/index.html dist/index.html index.html
     Header set Cache-Control "max-age=31536000, public, immutable"
   </FilesMatch>
 
-  # HTML files should always check for updates
-  <FilesMatch "\.(html|htm)$">
+  # HTML & PHP entrypoints should always check for updates
+  <FilesMatch "\.(html|htm|php)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
   </FilesMatch>
 </IfModule>
