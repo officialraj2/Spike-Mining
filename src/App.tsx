@@ -1618,12 +1618,11 @@ export default function App() {
     }
 
     if (!finalAddress) {
-      const chars = '0123456789abcdef';
-      let addr = '0x';
-      for (let i = 0; i < 40; i++) {
-        addr += chars[Math.floor(Math.random() * chars.length)];
+      const errMsg = 'No Web3 wallet detected. Please open inside MetaMask, Trust Wallet, or SafePal browser.';
+      if (typeof window !== 'undefined' && (window as any).spikeShowToast) {
+        (window as any).spikeShowToast(errMsg, 'error');
       }
-      finalAddress = addr;
+      throw new Error(errMsg);
     }
 
     const norm = finalAddress.toLowerCase();

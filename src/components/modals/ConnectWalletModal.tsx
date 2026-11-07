@@ -122,15 +122,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     return null;
   };
 
-  const generateFreshWallet = () => {
-    const chars = '0123456789abcdef';
-    let addr = '0x';
-    for (let i = 0; i < 40; i++) {
-      addr += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return addr;
-  };
-
   const handleSelectProvider = async (id: string) => {
     setErrorMessage(null);
     setConnectingStatus(null);
@@ -232,21 +223,12 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
       }
     }
 
-    // Fallback for WalletConnect or other providers
-    setTimeout(() => {
-      const freshAddr = generateFreshWallet();
-      onConnect(id, freshAddr);
-      setConnectingProvider(null);
-      setShowProviderPicker(false);
-      onClose();
-    }, 350);
-  };
-
-  const handleConnectFreshWallet = () => {
-    const freshAddr = generateFreshWallet();
-    onConnect('Fresh Wallet', freshAddr);
-    setShowProviderPicker(false);
-    onClose();
+    // For other providers (e.g., WalletConnect, Coinbase Wallet, etc.)
+    setConnectingProvider(null);
+    setConnectingStatus(null);
+    setErrorMessage(
+      `${id.toUpperCase()} extension or Web3 app is not detected in this browser. Please open this dApp inside your mobile wallet's in-app browser (MetaMask, Trust Wallet, or SafePal).`
+    );
   };
 
   const handleConnectMasterWallet = () => {
@@ -332,18 +314,8 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
               </div>
             </div>
 
-            {/* Quick Actions to Switch or Test Clean 0-Slate Wallet */}
+            {/* Quick Actions to Switch or Reconnect */}
             <div className="space-y-2 pt-1">
-              {effectiveIsRoot && (
-                <button
-                  onClick={handleConnectFreshWallet}
-                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#38e8f8]/20 hover:from-[#00F0FF]/30 hover:to-[#38e8f8]/30 border border-[#00F0FF]/40 text-[#00F0FF] font-headline font-bold text-xs flex items-center justify-center gap-2 transition-all transition-transform active:scale-95 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[17px]">restart_alt</span>
-                  <span>Switch to New Clean Wallet (0 Nodes / Blank Slate)</span>
-                </button>
-              )}
-
               <button
                 onClick={() => setShowProviderPicker(true)}
                 className="w-full py-2.5 px-3 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-white hover:text-[#00F0FF] font-headline font-semibold text-xs flex items-center justify-center gap-2 transition-all"
@@ -423,14 +395,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                         <span className="material-symbols-outlined text-[13px]">open_in_new</span>
                       </a>
                     )}
-                    <button
-                      type="button"
-                      onClick={handleConnectFreshWallet}
-                      className="px-3 py-1.5 rounded-lg bg-[#00F0FF]/20 hover:bg-[#00F0FF]/30 text-[#00F0FF] border border-[#00F0FF]/40 font-mono text-[11px] font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[13px]">play_arrow</span>
-                      <span>Continue in Web3 Sandbox Mode</span>
-                    </button>
                   </div>
               </div>
             )}
@@ -440,23 +404,8 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
                 <div className="p-3 rounded-xl bg-[#00F0FF]/10 border border-[#00F0FF]/30 text-xs text-[#00F0FF] flex items-start gap-2">
                   <span className="material-symbols-outlined text-[18px] shrink-0 mt-0.5">verified_user</span>
                   <span>
-                    Each BEP-20 wallet has its own <strong>independent dashboard data</strong>. New wallets start with <strong>0 active rigs</strong> and <strong>0 history</strong>.
+                    Each BEP-20 wallet has its own <strong>independent dashboard data</strong>. Real Web3 wallets from MetaMask, Trust Wallet, or SafePal will automatically load their genuine data.
                   </span>
-                </div>
-
-                {/* Fresh Wallet CTA (Starts with 0 Data) - Only visible to Root Creator */}
-                <button
-                  onClick={handleConnectFreshWallet}
-                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#38e8f8] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.4)] transition-all transition-transform hover:scale-[1.01] active:scale-95 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">add_circle</span>
-                  <span>Connect Fresh New Wallet (Root Admin Testing)</span>
-                </button>
-
-                <div className="flex items-center gap-2 my-2 text-center">
-                  <div className="h-[1px] bg-[#1c2b3b] flex-1" />
-                  <span className="text-[10px] font-mono uppercase text-[#94a3b8]">or connect web3 provider</span>
-                  <div className="h-[1px] bg-[#1c2b3b] flex-1" />
                 </div>
               </>
             )}
