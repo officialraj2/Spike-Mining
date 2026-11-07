@@ -472,18 +472,14 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
   let deletedTransactions = 0;
 
   try {
-    // Delete non-master nodes
+    // Delete all nodes completely (active mining rigs reset to 0)
     const nodesSnap = await getDocs(collection(firestore, 'nodes'));
     for (const d of nodesSnap.docs) {
-      const data = d.data();
-      const userAddr = (data.userAddress || '').toLowerCase().trim();
-      if (!masterLower.includes(userAddr)) {
-        await deleteDoc(d.ref).catch(() => {});
-        deletedNodes++;
-      }
+      await deleteDoc(d.ref).catch(() => {});
+      deletedNodes++;
     }
 
-    // Delete non-master users
+    // Delete non-master users and reset master user documents
     const usersSnap = await getDocs(collection(firestore, 'users'));
     for (const d of usersSnap.docs) {
       const data = d.data();
@@ -491,6 +487,14 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
       if (!masterLower.includes(addr)) {
         await deleteDoc(d.ref).catch(() => {});
         deletedUsers++;
+      } else {
+        // Reset master user referral bond & stats
+        await setDoc(d.ref, {
+          referredBy: null,
+          role: 'master',
+          totalMined: 0,
+          _syncedAt: new Date().toISOString(),
+        }, { merge: true }).catch(() => {});
       }
     }
 
@@ -501,27 +505,19 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
       deletedReferrals++;
     }
 
-    // Delete non-master mining sessions
+    // Delete all mining sessions
     try {
       const sessionSnap = await getDocs(collection(firestore, 'miningSessions'));
       for (const d of sessionSnap.docs) {
-        const data = d.data();
-        const userAddr = (data.userAddress || '').toLowerCase().trim();
-        if (!masterLower.includes(userAddr)) {
-          await deleteDoc(d.ref).catch(() => {});
-        }
+        await deleteDoc(d.ref).catch(() => {});
       }
     } catch {}
 
-    // Delete non-master transactions
+    // Delete all transactions
     const txSnap = await getDocs(collection(firestore, 'transactions'));
     for (const d of txSnap.docs) {
-      const data = d.data();
-      const userAddr = (data.userAddress || '').toLowerCase().trim();
-      if (!masterLower.includes(userAddr)) {
-        await deleteDoc(d.ref).catch(() => {});
-        deletedTransactions++;
-      }
+      await deleteDoc(d.ref).catch(() => {});
+      deletedTransactions++;
     }
 
     console.log(

@@ -97,56 +97,56 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow create, update: if isValidId(userId) && isValidUserProfile(incoming());
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // Mining Nodes Collection
     match /nodes/{nodeId} {
       allow read: if true;
       allow create, update: if isValidId(nodeId) && isValidMiningNode(incoming());
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // Reward Transactions Collection
     match /transactions/{txId} {
       allow read: if true;
       allow create, update: if isValidId(txId) && isValidRewardTransaction(incoming());
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // Referrals Collection
     match /referrals/{refId} {
       allow read: if true;
       allow create, update: if isValidId(refId) && isValidReferral(incoming());
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // Withdrawals Collection
     match /withdrawals/{withdrawalId} {
       allow read: if true;
       allow create, update: if isValidId(withdrawalId) && (isAdmin() || isValidWithdrawal(incoming()));
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // Global Settings Collection
     match /settings/{settingId} {
       allow read: if true;
       allow create, update: if isValidId(settingId) && isValidSystemSettings(incoming());
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // Audit Logs Collection
     match /auditLogs/{logId} {
       allow read: if true;
       allow create, update: if isValidId(logId) && isValidAuditLog(incoming());
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // Mining Sessions Collection
     match /mining_sessions/{sessionId} {
       allow read: if true;
       allow create, update: if isValidId(sessionId);
-      allow delete: if isAdmin();
+      allow delete: if true;
     }
 
     // System Alerts Collection

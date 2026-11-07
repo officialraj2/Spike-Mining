@@ -2067,22 +2067,30 @@ class PersistentDatabase {
       });
     }
 
-    // Filter nodes: keep only master nodes
-    this.data.nodes = this.data.nodes.filter((n) => masterLower.includes(n.userAddress.toLowerCase().trim()));
+    // Clear ALL nodes completely (active mining rigs reset to 0)
+    this.data.nodes = [];
 
-    // Filter referrals: keep only referrals where both referrer and referee are valid remaining users
-    const validUserAddrs = new Set(this.data.users.map((u) => u.address.toLowerCase().trim()));
-    this.data.referrals = this.data.referrals.filter(
-      (r) => validUserAddrs.has(r.referrerAddress.toLowerCase().trim()) && validUserAddrs.has(r.refereeAddress.toLowerCase().trim())
-    );
+    // Clear ALL referrals completely (all bond addresses reset to 0)
+    this.data.referrals = [];
 
-    // Filter transactions: keep only master transactions
-    this.data.transactions = this.data.transactions.filter((t) => t.userAddress && masterLower.includes(t.userAddress.toLowerCase().trim()));
+    // Clear ALL mining sessions
+    this.data.miningSessions = [];
+
+    // Clear all transactions and withdrawal requests
+    this.data.transactions = [];
+    this.data.withdrawalRequests = [];
 
     // Filter testnet wallets and txs
     this.data.testnetWallets = (this.data.testnetWallets || []).filter((w) => masterLower.includes(w.address.toLowerCase().trim()));
     this.data.testnetTransactions = (this.data.testnetTransactions || []).filter((t) => masterLower.includes(t.userAddress.toLowerCase().trim()));
-    this.data.withdrawalRequests = (this.data.withdrawalRequests || []).filter((w) => masterLower.includes(w.userAddress.toLowerCase().trim()));
+
+    // Reset master user referral state & mined stats
+    this.data.users = this.data.users.map((u) => ({
+      ...u,
+      role: 'master',
+      referredBy: null,
+      totalMined: 0.0,
+    }));
 
     this.logAudit(
       'System Admin',
