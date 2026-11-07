@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastSaved": "2026-11-07T08:25:27.034Z",
+  "lastSaved": "2026-11-07T08:54:07.707Z",
   "users": [
     {
       "address": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
@@ -13,7 +13,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-22T07:32:42.455Z",
-      "lastActive": "2026-11-07T08:24:02.546Z",
+      "lastActive": "2026-11-07T08:40:39.221Z",
       "notes": "Master Creator & Protocol Root Authority",
       "_syncedAt": "2026-11-07T08:21:04.911Z",
       "miningCycleStartTime": 1793960116537,
@@ -84,7 +84,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-06T08:05:22.708Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
       "notes": "",
       "miningCycleStartTime": 1793867829245,
       "activeSessionId": "mine_ea7dd7_1793867829245",
@@ -103,9 +103,9 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-10-17T06:47:56.593Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
       "notes": "",
-      "_syncedAt": "2026-11-07T08:22:39.120Z"
+      "_syncedAt": "2026-11-07T08:33:31.565Z"
     },
     {
       "address": "0x03dF2Ff70a21E058d67c2F4bfaB0AD4a22750F37",
@@ -116,9 +116,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.242Z",
-      "lastActive": "2026-11-07T08:24:02.243Z",
-      "notes": ""
+      "createdAt": "2026-10-23T08:36:35.096Z",
+      "lastActive": "2026-11-07T08:40:38.924Z",
+      "notes": "",
+      "_syncedAt": "2026-10-23T08:36:35.421Z"
     },
     {
       "address": "0x1111111111111111111111111111111111111111",
@@ -129,9 +130,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.244Z",
-      "lastActive": "2026-11-07T08:24:02.244Z",
-      "notes": ""
+      "createdAt": "2026-10-24T17:40:45.884Z",
+      "lastActive": "2026-11-07T08:40:38.924Z",
+      "notes": "",
+      "_syncedAt": "2026-10-24T17:40:45.891Z"
     },
     {
       "address": "0x1111222233334444555566667777888899990000",
@@ -142,9 +144,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.245Z",
-      "lastActive": "2026-11-07T08:24:02.245Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-11-07T08:40:38.924Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.867Z"
     },
     {
       "address": "0x1234567890123456789012345678901234567890",
@@ -155,9 +158,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.246Z",
-      "lastActive": "2026-11-07T08:24:02.246Z",
-      "notes": ""
+      "createdAt": "2026-10-08T17:17:04.546Z",
+      "lastActive": "2026-11-07T08:40:38.924Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.721Z"
     },
     {
       "address": "0x16ee54796d74c3bd8fbe93954b339c629c1acf0c",
@@ -168,9 +172,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.246Z",
-      "lastActive": "2026-11-07T08:24:02.246Z",
-      "notes": ""
+      "createdAt": "2026-10-23T07:45:21.628Z",
+      "lastActive": "2026-11-07T08:40:38.924Z",
+      "notes": "",
+      "_syncedAt": "2026-11-03T20:36:49.613Z"
     },
     {
       "address": "0x2222222222222222222222222222222222222222",
@@ -181,9 +186,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.246Z",
-      "lastActive": "2026-11-07T08:24:02.246Z",
-      "notes": ""
+      "createdAt": "2026-10-24T17:41:08.592Z",
+      "lastActive": "2026-11-07T08:40:38.924Z",
+      "notes": "",
+      "_syncedAt": "2026-10-24T17:41:08.593Z"
     },
     {
       "address": "0x2222333344445555666677778888999900001111",
@@ -194,9 +200,10 @@
       "referredBy": "0x1111222233334444555566667777888899990000",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.246Z",
-      "lastActive": "2026-11-07T08:24:02.246Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.900Z"
     },
     {
       "address": "0x27c4b1d8c7ace699f7be0ec247837a3e5252d4b8",
@@ -208,11 +215,13 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-07T08:24:02.246Z",
-      "lastActive": "2026-11-07T08:24:02.546Z",
+      "lastActive": "2026-11-07T08:40:39.221Z",
       "notes": "",
       "hasActivatedMining": true,
       "hasDepositedTreasury": true,
-      "miningCycleStartTime": 1793966267404
+      "miningCycleStartTime": 1793966267404,
+      "activeSessionId": "mine_27c4b1_1793966267404",
+      "lastMiningStart": "2026-11-06T11:57:47.404Z"
     },
     {
       "address": "0x2c40d21557d46400f9e96b644d5344a691a24097",
@@ -223,9 +232,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.246Z",
-      "lastActive": "2026-11-07T08:24:02.246Z",
-      "notes": ""
+      "createdAt": "2026-10-22T08:40:10.782Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "",
+      "_syncedAt": "2026-10-22T08:52:49.715Z"
     },
     {
       "address": "0x2c69b9fe8f052309dd9094e62d97d16127f51f52",
@@ -236,9 +246,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.246Z",
-      "lastActive": "2026-11-07T08:24:02.246Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.925Z"
     },
     {
       "address": "0x3333333333333333333333333333333333333333",
@@ -249,9 +260,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.246Z",
-      "lastActive": "2026-11-07T08:24:02.246Z",
-      "notes": ""
+      "createdAt": "2026-10-24T17:41:13.157Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "",
+      "_syncedAt": "2026-10-24T17:41:13.157Z"
     },
     {
       "address": "0x38069663d6408dff184bafc65e247e37ae84a1c2",
@@ -262,9 +274,10 @@
       "referredBy": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": "Referee Partner"
+      "createdAt": "2026-10-09T08:22:38.726Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "Referee Partner",
+      "_syncedAt": "2026-10-17T08:13:55.779Z"
     },
     {
       "address": "0x3856175386ce7cc62ba595310392bd1e42a019f9",
@@ -275,9 +288,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T07:43:17.268Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:53.343Z"
     },
     {
       "address": "0x38F2B78d9b8A6c0d87AeE9e6Fa2c5D551a89E239",
@@ -288,9 +302,10 @@
       "referredBy": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": "Tier 1 Referral partner"
+      "createdAt": "2025-02-10T12:30:00.000Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "Tier 1 Referral partner",
+      "_syncedAt": "2026-10-17T08:16:48.679Z"
     },
     {
       "address": "0x3a8a9e531d09aa37095c91c53ef652954daf7bf6",
@@ -302,11 +317,13 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.547Z",
+      "lastActive": "2026-11-07T08:40:39.221Z",
       "notes": "",
       "hasActivatedMining": true,
       "hasDepositedTreasury": true,
-      "miningCycleStartTime": 1793966679978
+      "miningCycleStartTime": 1793966679978,
+      "activeSessionId": "mine_3a8a9e_1793966679978",
+      "lastMiningStart": "2026-11-06T12:04:39.978Z"
     },
     {
       "address": "0x3dc3d58395e8f48d124953b8d66ca56b680f91e0",
@@ -317,9 +334,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-29T10:52:41.138Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "",
+      "_syncedAt": "2026-10-29T10:52:43.794Z"
     },
     {
       "address": "0x402cbb7470f41ecccac469a1a4e598d38e9048e1",
@@ -331,11 +349,13 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.547Z",
+      "lastActive": "2026-11-07T08:40:39.221Z",
       "notes": "",
       "hasActivatedMining": true,
       "hasDepositedTreasury": true,
-      "miningCycleStartTime": 1793962181096
+      "miningCycleStartTime": 1793962181096,
+      "activeSessionId": "mine_402cbb_1793962181096",
+      "lastMiningStart": "2026-11-06T10:49:41.096Z"
     },
     {
       "address": "0x439ae59ea572ceb6e7a51fcc1051dbdd04344a57",
@@ -346,9 +366,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.975Z"
     },
     {
       "address": "0x494d54718c42df9676f2dcd5b94c3b5e9ebdd38f",
@@ -360,8 +381,14 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "lastActive": "2026-11-07T08:40:38.925Z",
+      "notes": "",
+      "_syncedAt": "2026-11-05T09:31:52.592Z",
+      "hasActivatedMining": true,
+      "miningCycleStartTime": 1793869081562,
+      "lastMiningStart": "2026-11-05T08:58:01.562Z",
+      "hasDepositedTreasury": true,
+      "activeSessionId": "mine_494d54_1793869081562"
     },
     {
       "address": "0x496493a620d146ef925ea05fb17ed3be0c1b5595",
@@ -373,11 +400,13 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.547Z",
+      "lastActive": "2026-11-07T08:40:39.221Z",
       "notes": "",
       "hasActivatedMining": true,
       "hasDepositedTreasury": true,
-      "miningCycleStartTime": 1793965589481
+      "miningCycleStartTime": 1793965589481,
+      "lastMiningStart": "2026-11-06T11:46:29.481Z",
+      "activeSessionId": "mine_496493_1793965589481"
     },
     {
       "address": "0x5512d577b94b8abf9308de15d43507075c43b167",
@@ -388,9 +417,10 @@
       "referredBy": "spk-3471e0",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.998Z"
     },
     {
       "address": "0x5555555555555555555555555555555555555555",
@@ -401,9 +431,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-22T07:09:31.752Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-22T07:09:31.756Z"
     },
     {
       "address": "0x5dfea4b8aaeff82770710afa22332be6e0817b42",
@@ -414,9 +445,10 @@
       "referredBy": "spk-3471e0",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.016Z"
     },
     {
       "address": "0x5faebafdb9dcafbf845c9eb59ab7bb2ad4e7e712",
@@ -427,9 +459,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.033Z"
     },
     {
       "address": "0x60c67523845b6177e8cb6fdf0f07ff761c409cd8",
@@ -441,11 +474,13 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.547Z",
+      "lastActive": "2026-11-07T08:40:39.221Z",
       "notes": "",
       "hasActivatedMining": true,
       "hasDepositedTreasury": true,
-      "miningCycleStartTime": 1793964414714
+      "miningCycleStartTime": 1793964414714,
+      "activeSessionId": "mine_60c675_1793964414714",
+      "lastMiningStart": "2026-11-06T11:26:54.714Z"
     },
     {
       "address": "0x6884C3A256e5826e841595a846626B89f717e834",
@@ -456,9 +491,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T08:07:19.179Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:53.380Z"
     },
     {
       "address": "0x70057a65379cc6b77eac2f5c71df93cf5df85c2f",
@@ -469,9 +505,10 @@
       "referredBy": "0x8dc007eefff37211f5566f169ecdc72b18677229",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-22T15:03:47.338Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-22T15:04:36.400Z"
     },
     {
       "address": "0x7777888899990000111122223333444455556666",
@@ -482,9 +519,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.592Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.050Z"
     },
     {
       "address": "0x84c06fe76adf7c7ab16b1f4af84655b1f50147b9",
@@ -496,7 +534,7 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
       "notes": ""
     },
     {
@@ -508,9 +546,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.072Z"
     },
     {
       "address": "0x8888888888888888888888888888888888888888",
@@ -521,9 +560,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-24T17:43:28.329Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-24T17:43:28.330Z"
     },
     {
       "address": "0x8dc007eefff37211f5566f169ecdc72b18677229",
@@ -534,9 +574,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-22T14:59:39.238Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-22T15:03:47.701Z"
     },
     {
       "address": "0x9876543210987654321098765432109876543210",
@@ -547,9 +588,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-08T17:26:15.340Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.741Z"
     },
     {
       "address": "0x992B1048b6cF8F7d402E8eE755497B1A0a42Ce08",
@@ -560,9 +602,10 @@
       "referredBy": "0x71C8a914B97e889F12A0987cB32456Fa12349A2",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2025-02-28T16:15:00.000Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:16:48.899Z"
     },
     {
       "address": "0x997e00a582b65cac1c4f9a90af6ae9a857b637aa",
@@ -573,9 +616,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-09T09:43:43.924Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.817Z"
     },
     {
       "address": "0x9999888877776666555544443333222211110000",
@@ -586,9 +630,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.093Z"
     },
     {
       "address": "0xa0dcb94347e7b4ed957cbf51306bc1f6e8334147",
@@ -599,9 +644,10 @@
       "referredBy": "spk-3471e0",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.140Z"
     },
     {
       "address": "0xaaaa111122223333444455556666777788889999",
@@ -612,9 +658,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T07:35:13.133Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:53.325Z"
     },
     {
       "address": "0xaaaaabbbbbcccccdddddeeeeefffff0000011111",
@@ -625,9 +672,10 @@
       "referredBy": "0x1111222233334444555566667777888899990000",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.926Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.161Z"
     },
     {
       "address": "0xaF88C8E3c4ae2B58Ade49C00ac8F1bc8968A48C4",
@@ -638,9 +686,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-29T08:28:45.096Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-29T08:28:45.100Z"
     },
     {
       "address": "0xb88469f37902d2bd14faeb164c7efd72775647c5",
@@ -651,9 +700,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-09T09:26:00.800Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:55.797Z"
     },
     {
       "address": "0xb955549766b1127bf5b8b834610d1427f47171a4",
@@ -664,9 +714,10 @@
       "referredBy": "spk-3471e0",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.247Z",
-      "lastActive": "2026-11-07T08:24:02.247Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.185Z"
     },
     {
       "address": "0xbbbb222233334444555566667777888899990000",
@@ -677,9 +728,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T07:43:22.822Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:53.364Z"
     },
     {
       "address": "0xbc5d4447cd615daac2338ce7b9c70eab18d78e21",
@@ -690,9 +742,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": "Primary Referrer Wallet"
+      "createdAt": "2026-10-09T08:22:38.725Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "Primary Referrer Wallet",
+      "_syncedAt": "2026-10-17T08:13:55.760Z"
     },
     {
       "address": "0xc117dcdd2e7197d0a61399288a994968dd05ce53",
@@ -703,9 +756,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.208Z"
     },
     {
       "address": "0xc2b0a3cf3f5db1f3becaa76f29b362873b3f0035",
@@ -717,11 +771,13 @@
       "role": "user",
       "status": "active",
       "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.547Z",
+      "lastActive": "2026-11-07T08:40:39.221Z",
       "notes": "",
       "hasActivatedMining": true,
       "hasDepositedTreasury": true,
-      "miningCycleStartTime": 1793965777821
+      "miningCycleStartTime": 1793965777821,
+      "activeSessionId": "mine_c2b0a3_1793965777821",
+      "lastMiningStart": "2026-11-06T11:49:37.821Z"
     },
     {
       "address": "0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894",
@@ -732,9 +788,10 @@
       "referredBy": "0x2c40d21557d46400f9e96b644d5344a691a24097",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-11-04T07:27:25.369Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-11-05T09:52:16.236Z"
     },
     {
       "address": "0xc8ae035c7bd0d6a043d7389f5defd3daee0e9006",
@@ -745,9 +802,10 @@
       "referredBy": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.287Z"
     },
     {
       "address": "0xca9daa27d78377b43e17cf12313489eb67b529c9",
@@ -758,9 +816,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.305Z"
     },
     {
       "address": "0xd2565bbfe9fb455007039f0a43614824b127fd76",
@@ -771,9 +830,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.325Z"
     },
     {
       "address": "0xdeb6a0c82d9a8b3b66cd206a131dc2233971cd12",
@@ -784,9 +844,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:13:56.344Z"
     },
     {
       "address": "0xe1370f971602eb6a28bb7247e5bb74ed72cebdda",
@@ -797,9 +858,10 @@
       "referredBy": "0xc5d529abc68fa3150e7007fe04b4f82fe8fc7894",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-11-05T09:52:16.236Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-11-05T09:52:16.238Z"
     },
     {
       "address": "0xe367227508727ce15f2821ad03574145cecfdce3",
@@ -810,9 +872,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:14:46.428Z"
     },
     {
       "address": "0xeeeeffff00001111222233334444555566667777",
@@ -823,9 +886,10 @@
       "referredBy": "0x7777888899990000111122223333444455556666",
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:14:47.052Z"
     },
     {
       "address": "0xf339c9dd3512b04d5b255eca323134e452098c90",
@@ -836,9 +900,10 @@
       "referredBy": null,
       "role": "user",
       "status": "active",
-      "createdAt": "2026-11-07T08:24:02.248Z",
-      "lastActive": "2026-11-07T08:24:02.248Z",
-      "notes": ""
+      "createdAt": "2026-10-17T06:47:56.593Z",
+      "lastActive": "2026-11-07T08:40:38.927Z",
+      "notes": "",
+      "_syncedAt": "2026-10-17T08:16:48.548Z"
     },
     {
       "address": "0x07cc9c95494db86ad198d323871d3fb27fc1a88c",
@@ -4237,6 +4302,15 @@
   "testnetWallets": [
     {
       "address": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
+      "testnetUsdt": 1000,
+      "testnetSpk": 0,
+      "autoBuyEnabled": true,
+      "slippageTolerance": 0.5,
+      "totalHarvestAutoBoughtSpk": 0,
+      "totalUsdtSpentOnAutoBuy": 0
+    },
+    {
+      "address": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
       "testnetUsdt": 1000,
       "testnetSpk": 0,
       "autoBuyEnabled": true,

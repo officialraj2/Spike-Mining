@@ -121,26 +121,73 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
      currentWallet.toLowerCase().includes(activeCode.replace(/^SPK-/i, '').toLowerCase()))
   );
 
-  // Auto-close immediately if connected wallet is already bonded under a sponsor
+  const [bondedInfo, setBondedInfo] = useState<{
+    isBonded: boolean;
+    sponsor: string | null;
+    isDifferentSponsor: boolean;
+  } | null>(null);
+
+  // Check if connected wallet is already bonded to a sponsor
   useEffect(() => {
-    if (!isOpen || !currentWallet) return;
-    const norm = currentWallet.toLowerCase().trim();
-    const cachedRef = localStorage.getItem(`spike_referred_by_${norm}`);
-    const isBondedFlag = localStorage.getItem(`spike_is_bonded_${norm}`);
-    const bondedSponsor = localStorage.getItem(`spike_bonded_sponsor_${norm}`);
-    if (cachedRef || isBondedFlag === 'true' || bondedSponsor) {
-      onClose();
+    if (!isOpen || !currentWallet) {
+      setBondedInfo(null);
       return;
     }
+    const norm = currentWallet.toLowerCase().trim();
+    const activeSponsorLower = (sponsorAddress || activeCode || '').toLowerCase();
+
+    // Check local cache first
+    const cachedRef = (localStorage.getItem(`spike_referred_by_${norm}`) || localStorage.getItem(`spike_bonded_sponsor_${norm}`) || '').trim();
+    const isBondedFlag = localStorage.getItem(`spike_is_bonded_${norm}`) === 'true';
+
+    if (cachedRef || isBondedFlag) {
+      const sp = cachedRef || 'Registered Sponsor';
+      const spLower = sp.toLowerCase();
+      const isSame =
+        spLower === activeSponsorLower ||
+        (spLower.length >= 8 && activeSponsorLower.includes(spLower.slice(2, 8))) ||
+        (activeSponsorLower.length >= 8 && spLower.includes(activeSponsorLower.slice(2, 8))) ||
+        (activeCode && spLower.includes(activeCode.toLowerCase()));
+
+      setBondedInfo({
+        isBonded: true,
+        sponsor: sp,
+        isDifferentSponsor: !isSame,
+      });
+    }
+
     // Deep verification via Firestore and backend API
-    isUserAlreadyBonded(norm).then(({ isBonded }) => {
+    isUserAlreadyBonded(norm).then(({ isBonded, sponsor }) => {
       if (isBonded) {
-        onClose();
+        const sp = sponsor || cachedRef || 'Registered Sponsor';
+        const spLower = sp.toLowerCase();
+        const isSame =
+          spLower === activeSponsorLower ||
+          (spLower.length >= 8 && activeSponsorLower.includes(spLower.slice(2, 8))) ||
+          (activeSponsorLower.length >= 8 && spLower.includes(activeSponsorLower.slice(2, 8))) ||
+          (activeCode && spLower.includes(activeCode.toLowerCase()));
+
+        setBondedInfo({
+          isBonded: true,
+          sponsor: sp,
+          isDifferentSponsor: !isSame,
+        });
       }
     });
-  }, [isOpen, currentWallet, onClose]);
+  }, [isOpen, currentWallet, sponsorAddress, activeCode]);
 
   const handleExecuteBinding = async () => {
+    if (bondedInfo?.isBonded) {
+      if (bondedInfo.isDifferentSponsor) {
+        setBindError(
+          `User already exists! This wallet is permanently registered under verified sponsor ${bondedInfo.sponsor?.slice(0, 6)}...${bondedInfo.sponsor?.slice(-4)}. Re-bonding to another sponsor is not permitted.`
+        );
+      } else {
+        onClose();
+        if (onOpenMining) onOpenMining();
+      }
+      return;
+    }
     if (currentWallet && sponsorAddress && currentWallet.toLowerCase() === sponsorAddress.toLowerCase()) {
       setBindError('Self-referral is not permitted. Please connect a distinct joiner wallet.');
       return;
@@ -489,6 +536,96 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                       </button>
                     </div>
                   </div>
+                ) : bondedInfo?.isBonded ? (
+                  bondedInfo.isDifferentSponsor ? (
+                    /* USER ALREADY EXISTS / BONDED UNDER DIFFERENT SPONSOR */
+                    <div className="p-4 bg-gradient-to-br from-[#1c121e] to-[#121c2c] rounded-xl border border-rose-500/40 space-y-3.5 shadow-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-2xl">lock_person</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm sm:text-base font-headline font-black text-rose-400">
+                              User Already Exists
+                            </h3>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                              IMMUTABLE BOND
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-300 mt-0.5">
+                            This wallet is already permanently registered under another sponsor
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-[#0a101d] rounded-lg border border-[#1e2e42] text-xs font-mono space-y-1.5">
+                        <div className="flex justify-between text-gray-400">
+                          <span>Connected Wallet:</span>
+                          <span className="text-white font-bold">{currentWallet.slice(0, 8)}...{currentWallet.slice(-6)}</span>
+                        </div>
+                        <div className="flex justify-between text-gray-400">
+                          <span>Verified Sponsor:</span>
+                          <span className="text-[#D4AF37] font-bold">
+                            {bondedInfo.sponsor ? `${bondedInfo.sponsor.slice(0, 8)}...${bondedInfo.sponsor.slice(-6)}` : 'Permanent Sponsor'}
+                          </span>
+                        </div>
+                        <div className="pt-1.5 border-t border-[#1c2b3b] text-[11px] text-amber-300/90 leading-relaxed font-sans">
+                          In the SPIKE Web3 protocol, wallet referral bonds are permanent and immutable to protect sponsor attribution. Re-bonding this wallet under another referral link is not permitted.
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          onClose();
+                          if (onOpenMining) onOpenMining();
+                        }}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00b4d8] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-101 flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">dashboard</span>
+                        <span>Go to My Dashboard</span>
+                      </button>
+                    </div>
+                  ) : (
+                    /* ALREADY CONNECTED TO THIS SPONSOR */
+                    <div className="p-4 bg-gradient-to-br from-[#0a1824] to-[#121c2c] rounded-xl border border-emerald-500/40 space-y-3.5 shadow-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-2xl">verified</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm sm:text-base font-headline font-black text-emerald-400">
+                              Already Connected to Sponsor
+                            </h3>
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              VERIFIED
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-300 mt-0.5">
+                            You are already a verified partner under sponsor {activeCode}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-[#0a101d] rounded-lg border border-[#1e2e42] text-xs font-mono text-gray-300 space-y-1">
+                        <p className="text-[11px] leading-relaxed font-sans">
+                          Your wallet is already permanently bonded under this sponsor. No second bonding is required.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          onClose();
+                          if (onOpenMining) onOpenMining();
+                        }}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00b4d8] text-[#0A0F1D] font-headline font-black text-xs tracking-wider transition-all shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-101 flex items-center justify-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">dashboard</span>
+                        <span>Go to My Dashboard</span>
+                      </button>
+                    </div>
+                  )
                 ) : !isConnected ? (
                   /* NOT CONNECTED STATE: CONNECT WALLET OPTIONS */
                   <div className="space-y-3">

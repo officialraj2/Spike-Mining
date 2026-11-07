@@ -415,74 +415,95 @@ export default function App() {
   useEffect(() => {
     if (!isWalletConnected || !walletAddress) return;
     const normWallet = walletAddress.toLowerCase().trim();
-    const isBondedFlag = localStorage.getItem(`spike_is_bonded_${normWallet}`);
-    if (isBondedFlag === 'true') {
-      localStorage.removeItem('spike_pending_referrer');
-      localStorage.removeItem('spike_pending_sponsor_addr');
-      localStorage.removeItem('spike_pending_sponsor_code');
-      setPendingInvite(null);
-      setIsReferralModalOpen(false);
-      return;
-    }
 
-    const pendingReferrer = localStorage.getItem('spike_pending_referrer') || (pendingInvite ? (pendingInvite.sponsorAddr || pendingInvite.code) : null);
-    if (!pendingReferrer) return;
-
-    const normPending = pendingReferrer.toLowerCase();
-    const isSelf = normPending === normWallet || normPending.includes(normWallet.slice(2, 8));
-
-    if (isSelf) {
-      return;
-    }
-
-    // Fire-and-forget sync to Cloud Firestore directly so referrals persist across devices on static hosting
-    registerReferralInFirestore(pendingReferrer, walletAddress).catch(() => {});
-
-    fetch('/api/referrals/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        referrerCodeOrAddr: pendingReferrer,
-        refereeAddress: walletAddress,
-      }),
-    })
-      .then(async (r) => {
-        const contentType = r.headers.get('content-type') || '';
-        if (!r.ok || !contentType.includes('application/json')) {
-          throw new Error(`Non-JSON or error response: ${r.status}`);
-        }
-        return r.json();
-      })
-      .then((data) => {
-        if (data && data.success) {
-          localStorage.setItem(`spike_referred_by_${normWallet}`, pendingReferrer);
-          localStorage.removeItem('spike_pending_referrer');
-          localStorage.removeItem('spike_pending_sponsor_addr');
-          localStorage.removeItem('spike_pending_sponsor_code');
-          setPendingInvite(null);
-          if (data.refereeStats) setReferralStats(data.refereeStats);
-          window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
-          addToast(
-            'Referral Connected & Counted!',
-            `Successfully linked to sponsor ${data.referrer?.referralCode || pendingReferrer}! Partner counted toward team milestones.`,
-            'success'
-          );
-        }
-      })
-      .catch((_err) => {
-        // Resilient fallback: Ensure referee binding is preserved locally and dispatched even on static CDN hosting
-        localStorage.setItem(`spike_referred_by_${normWallet}`, pendingReferrer);
+    // Verify if this wallet is already bonded before attempting any auto-bind
+    isUserAlreadyBonded(normWallet).then((bondedCheck) => {
+      if (bondedCheck.isBonded) {
         localStorage.removeItem('spike_pending_referrer');
         localStorage.removeItem('spike_pending_sponsor_addr');
         localStorage.removeItem('spike_pending_sponsor_code');
         setPendingInvite(null);
-        window.dispatchEvent(new CustomEvent('spike_partner_registered', {
-          detail: {
-            referrerAddress: pendingReferrer,
-            refereeAddress: walletAddress,
-          },
-        }));
-      });
+        setIsReferralModalOpen(false);
+        return;
+      }
+
+      const pendingReferrer = localStorage.getItem('spike_pending_referrer') || (pendingInvite ? (pendingInvite.sponsorAddr || pendingInvite.code) : null);
+      if (!pendingReferrer) return;
+
+      const normPending = pendingReferrer.toLowerCase();
+      const isSelf = normPending === normWallet || normPending.includes(normWallet.slice(2, 8));
+
+      if (isSelf) {
+        return;
+      }
+
+      // Fire-and-forget sync to Cloud Firestore directly so referrals persist across devices on static hosting
+      registerReferralInFirestore(pendingReferrer, walletAddress).catch(() => {});
+
+      fetch('/api/referrals/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referrerCodeOrAddr: pendingReferrer,
+          refereeAddress: walletAddress,
+        }),
+      })
+        .then(async (r) => {
+          const contentType = r.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            throw new Error(`Non-JSON or error response: ${r.status}`);
+          }
+          return r.json();
+        })
+        .then((data) => {
+          if (data && data.success) {
+            localStorage.setItem(`spike_referred_by_${normWallet}`, pendingReferrer);
+            localStorage.setItem(`spike_is_bonded_${normWallet}`, 'true');
+            localStorage.setItem(`spike_bonded_sponsor_${normWallet}`, pendingReferrer);
+            localStorage.removeItem('spike_pending_referrer');
+            localStorage.removeItem('spike_pending_sponsor_addr');
+            localStorage.removeItem('spike_pending_sponsor_code');
+            setPendingInvite(null);
+            if (data.refereeStats) setReferralStats(data.refereeStats);
+            window.dispatchEvent(new CustomEvent('spike_partner_registered', { detail: data }));
+            addToast(
+              'Referral Connected & Counted!',
+              `Successfully linked to sponsor ${data.referrer?.referralCode || pendingReferrer}! Partner counted toward team milestones.`,
+              'success'
+            );
+          } else if (data && data.alreadyBonded) {
+            // Already bonded to another sponsor: clean pending state and do not count under new sponsor
+            localStorage.removeItem('spike_pending_referrer');
+            localStorage.removeItem('spike_pending_sponsor_addr');
+            localStorage.removeItem('spike_pending_sponsor_code');
+            setPendingInvite(null);
+            setIsReferralModalOpen(false);
+          }
+        })
+        .catch((_err) => {
+          // Resilient fallback only if wallet was NOT already bonded to someone else
+          const isLocallyBonded = localStorage.getItem(`spike_is_bonded_${normWallet}`) === 'true';
+          const localSponsor = localStorage.getItem(`spike_bonded_sponsor_${normWallet}`) || localStorage.getItem(`spike_referred_by_${normWallet}`);
+          if (isLocallyBonded && localSponsor && localSponsor.toLowerCase() !== pendingReferrer.toLowerCase()) {
+            localStorage.removeItem('spike_pending_referrer');
+            setPendingInvite(null);
+            return;
+          }
+          localStorage.setItem(`spike_referred_by_${normWallet}`, pendingReferrer);
+          localStorage.setItem(`spike_is_bonded_${normWallet}`, 'true');
+          localStorage.setItem(`spike_bonded_sponsor_${normWallet}`, pendingReferrer);
+          localStorage.removeItem('spike_pending_referrer');
+          localStorage.removeItem('spike_pending_sponsor_addr');
+          localStorage.removeItem('spike_pending_sponsor_code');
+          setPendingInvite(null);
+          window.dispatchEvent(new CustomEvent('spike_partner_registered', {
+            detail: {
+              referrerAddress: pendingReferrer,
+              refereeAddress: walletAddress,
+            },
+          }));
+        });
+    });
   }, [isWalletConnected, walletAddress, pendingInvite]);
 
   // Update browser URL query param whenever activeTab changes
@@ -1844,8 +1865,46 @@ export default function App() {
       addToast('Self-Referral Restricted', 'A sponsor cannot join under their own wallet. Please connect a distinct joiner wallet.', 'warning');
       return false;
     }
-    // Always register in Firestore directly so referrals persist across devices on static hosting
-    registerReferralInFirestore(clean, referee).catch(() => {});
+
+    // CRITICAL: Check if this referee wallet is ALREADY bonded under a sponsor
+    const bondedCheck = await isUserAlreadyBonded(referee);
+    if (bondedCheck.isBonded && bondedCheck.sponsor) {
+      const activeSponsorLower = clean.toLowerCase();
+      const existingSponsorLower = bondedCheck.sponsor.toLowerCase();
+      const isSameSponsor =
+        existingSponsorLower === activeSponsorLower ||
+        (existingSponsorLower.length >= 8 && activeSponsorLower.includes(existingSponsorLower.slice(2, 8))) ||
+        (activeSponsorLower.length >= 8 && existingSponsorLower.includes(activeSponsorLower.slice(2, 8)));
+
+      if (!isSameSponsor) {
+        addToast(
+          'User Already Exists',
+          `This wallet is already permanently registered under verified sponsor ${bondedCheck.sponsor.slice(0, 6)}...${bondedCheck.sponsor.slice(-4)}. Re-bonding to another sponsor is not permitted.`,
+          'warning'
+        );
+        setIsReferralModalOpen(false);
+        setActiveTab('dashboard');
+        return false;
+      } else {
+        addToast('Already Connected', 'This wallet is already permanently bonded under this sponsor.', 'info');
+        setIsReferralModalOpen(false);
+        setActiveTab('dashboard');
+        return true;
+      }
+    }
+
+    // Direct Firestore registration attempt
+    const firestoreRes = await registerReferralInFirestore(clean, referee).catch(() => null);
+    if (firestoreRes && !firestoreRes.success && (firestoreRes as any).alreadyBonded) {
+      addToast(
+        'User Already Exists',
+        firestoreRes.error || 'This wallet is already permanently registered under another sponsor. Re-bonding is not permitted.',
+        'warning'
+      );
+      setIsReferralModalOpen(false);
+      setActiveTab('dashboard');
+      return false;
+    }
 
     try {
       const res = await fetch('/api/referrals/register', {
@@ -1856,11 +1915,7 @@ export default function App() {
           refereeAddress: referee,
         }),
       });
-      const contentType = res.headers.get('content-type') || '';
-      if (!res.ok || !contentType.includes('application/json')) {
-        throw new Error('Static hosting endpoint returned non-JSON');
-      }
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
       if (data && data.success) {
         // Cache stats for both parties
         if (data.referrer && data.referrerStats) {
@@ -1915,17 +1970,39 @@ export default function App() {
         } catch {}
         addToast('Sponsor Linked & Counted', data.message || 'Sponsor verified and partner counted toward team milestones!', 'success');
         return true;
+      } else if (data && data.alreadyBonded) {
+        addToast(
+          'User Already Exists',
+          data.message || 'This wallet is already permanently bonded under another sponsor. Re-bonding is not permitted.',
+          'warning'
+        );
+        setIsReferralModalOpen(false);
+        setActiveTab('dashboard');
+        return false;
       } else {
         addToast('Referral Error', data?.message || data?.error || 'Failed to bind sponsor', 'error');
         return false;
       }
     } catch {
-      // Offline / Static hosting fallback: Dispatch partner event and update local state
+      // Offline fallback: ONLY bind if referee is NOT already bonded to another sponsor
+      const normRef = referee.toLowerCase();
+      const localBonded = localStorage.getItem(`spike_is_bonded_${normRef}`) === 'true';
+      const localSponsor = localStorage.getItem(`spike_bonded_sponsor_${normRef}`) || localStorage.getItem(`spike_referred_by_${normRef}`);
+      if (localBonded && localSponsor && localSponsor.toLowerCase() !== clean.toLowerCase()) {
+        addToast(
+          'User Already Exists',
+          'This wallet is already permanently registered under another sponsor. Re-bonding is not permitted.',
+          'warning'
+        );
+        setIsReferralModalOpen(false);
+        setActiveTab('dashboard');
+        return false;
+      }
+
       const fallbackData = {
         referrerAddress: clean,
         refereeAddress: referee,
       };
-      const normRef = referee.toLowerCase();
       localStorage.setItem(`spike_referred_by_${normRef}`, clean);
       localStorage.setItem(`spike_is_bonded_${normRef}`, 'true');
       localStorage.setItem(`spike_bonded_sponsor_${normRef}`, clean);
@@ -2338,23 +2415,8 @@ export default function App() {
               isOpen={isReferralModalOpen}
               onClose={() => setIsReferralModalOpen(false)}
               referralCodeOrAddr={referralCodeToVerify || ''}
-              currentWallet={
-                (walletAddress && referralCodeToVerify && (
-                  walletAddress.toLowerCase() === referralCodeToVerify.toLowerCase() ||
-                  referralCodeToVerify.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
-                  walletAddress.toLowerCase().includes(referralCodeToVerify.replace(/^SPK-/i, '').toLowerCase())
-                ))
-                  ? ''
-                  : walletAddress
-              }
-              isConnected={
-                isWalletConnected &&
-                !(walletAddress && referralCodeToVerify && (
-                  walletAddress.toLowerCase() === referralCodeToVerify.toLowerCase() ||
-                  referralCodeToVerify.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
-                  walletAddress.toLowerCase().includes(referralCodeToVerify.replace(/^SPK-/i, '').toLowerCase())
-                ))
-              }
+              currentWallet={walletAddress}
+              isConnected={isWalletConnected}
               onConnectWallet={handleConnectWallet}
               onDisconnectWallet={handleDisconnectWallet}
               onBindSponsor={handleBindSponsor}
@@ -2523,23 +2585,8 @@ export default function App() {
             isOpen={isReferralModalOpen}
             onClose={() => setIsReferralModalOpen(false)}
             referralCodeOrAddr={referralCodeToVerify || ''}
-            currentWallet={
-              (walletAddress && referralCodeToVerify && (
-                walletAddress.toLowerCase() === referralCodeToVerify.toLowerCase() ||
-                referralCodeToVerify.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
-                walletAddress.toLowerCase().includes(referralCodeToVerify.replace(/^SPK-/i, '').toLowerCase())
-              ))
-                ? ''
-                : walletAddress
-            }
-            isConnected={
-              isWalletConnected &&
-              !(walletAddress && referralCodeToVerify && (
-                walletAddress.toLowerCase() === referralCodeToVerify.toLowerCase() ||
-                referralCodeToVerify.toLowerCase().includes(walletAddress.toLowerCase().slice(2, 8)) ||
-                walletAddress.toLowerCase().includes(referralCodeToVerify.replace(/^SPK-/i, '').toLowerCase())
-              ))
-            }
+            currentWallet={walletAddress}
+            isConnected={isWalletConnected}
             onConnectWallet={handleConnectWallet}
             onDisconnectWallet={handleDisconnectWallet}
             onBindSponsor={handleBindSponsor}

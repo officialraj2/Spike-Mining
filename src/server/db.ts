@@ -1565,7 +1565,7 @@ class PersistentDatabase {
   public registerReferral(
     referrerCodeOrAddr: string,
     refereeAddress: string
-  ): { success: boolean; referrer?: DbUser; referee?: DbUser; referral?: DbReferral; message?: string; alreadyBonded?: boolean } {
+  ): { success: boolean; referrer?: DbUser; referee?: DbUser; referral?: DbReferral; message?: string; alreadyBonded?: boolean; existingSponsor?: string } {
     if (!referrerCodeOrAddr || !refereeAddress) {
       return { success: false, message: 'Both referrer code/address and referee address are required' };
     }
@@ -1608,15 +1608,35 @@ class PersistentDatabase {
       (r) => r.refereeAddress.toLowerCase() === normReferee && r.tier === 1
     );
 
-    if (existingRef || (referee.referredBy && referee.referredBy.toLowerCase() !== normReferee)) {
-      return {
-        success: true,
-        alreadyBonded: true,
-        referrer,
-        referee,
-        referral: existingRef,
-        message: 'Partner is already bonded under verified sponsor.',
-      };
+    const existingSponsor = referee.referredBy || existingRef?.referrerAddress;
+    if (existingSponsor && existingSponsor.toLowerCase() !== normReferee) {
+      const isSameSponsor = existingSponsor.toLowerCase() === referrer.address.toLowerCase() ||
+        (referrer.referralCode && existingSponsor.toLowerCase() === referrer.referralCode.toLowerCase()) ||
+        existingSponsor.toLowerCase().includes(referrer.address.slice(2, 8).toLowerCase());
+
+      if (!isSameSponsor) {
+        // User already exists! DO NOT overwrite sponsor or increment the other sponsor's count
+        return {
+          success: false,
+          alreadyBonded: true,
+          existingSponsor,
+          referrer,
+          referee,
+          referral: existingRef,
+          message: `User already exists! This wallet is already permanently bonded under sponsor ${existingSponsor.slice(0, 6)}...${existingSponsor.slice(-4)}. Re-bonding to a different sponsor is not permitted.`,
+        };
+      } else {
+        // Already bonded to the same sponsor
+        return {
+          success: true,
+          alreadyBonded: true,
+          existingSponsor,
+          referrer,
+          referee,
+          referral: existingRef,
+          message: 'Partner is already bonded under this verified sponsor.',
+        };
+      }
     }
 
     // Bind sponsor

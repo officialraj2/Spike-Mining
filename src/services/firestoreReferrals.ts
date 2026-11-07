@@ -140,7 +140,7 @@ export async function isUserAlreadyBonded(walletAddress: string): Promise<{ isBo
 export async function registerReferralInFirestore(
   referrerCodeOrAddr: string,
   refereeAddress: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; alreadyBonded?: boolean; existingSponsor?: string; message?: string }> {
   try {
     if (!refereeAddress || !referrerCodeOrAddr) {
       return { success: false, error: 'Missing address or sponsor' };
@@ -182,6 +182,50 @@ export async function registerReferralInFirestore(
     // Create a deterministic document ID for this referee
     const cleanId = `ref_${normReferee.replace(/[^a-zA-Z0-9]/g, '')}`;
     const docRef = doc(db, 'referrals', cleanId);
+
+    // CRITICAL SECURITY CHECK: Check if this referee wallet is ALREADY bonded to a sponsor in Firestore
+    let existingSponsor = '';
+    try {
+      const refSnap = await getDoc(docRef);
+      if (refSnap.exists()) {
+        existingSponsor = (refSnap.data()?.referrerAddress || '').trim();
+      }
+      if (!existingSponsor) {
+        const uSnap = await getDoc(doc(db, 'users', normReferee));
+        if (uSnap.exists()) {
+          existingSponsor = (uSnap.data()?.referredBy || '').trim();
+        }
+      }
+    } catch {}
+
+    if (!existingSponsor) {
+      existingSponsor = (localStorage.getItem(`spike_referred_by_${normReferee}`) || localStorage.getItem(`spike_bonded_sponsor_${normReferee}`) || '').trim();
+    }
+
+    if (existingSponsor && existingSponsor.toLowerCase() !== normReferee) {
+      const isSameSponsor = existingSponsor.toLowerCase() === normReferrer.toLowerCase() ||
+        existingSponsor.toLowerCase() === sponsorCode.toLowerCase() ||
+        (normReferrer.length >= 10 && existingSponsor.toLowerCase().includes(normReferrer.slice(2, 8).toLowerCase()));
+
+      if (!isSameSponsor) {
+        // User already exists! DO NOT overwrite sponsor. Reject reassignment.
+        console.warn(`[Referral Lock] Referee ${normReferee} is already bonded to ${existingSponsor}. Re-bonding to ${normReferrer} denied.`);
+        return {
+          success: false,
+          alreadyBonded: true,
+          existingSponsor,
+          error: `User already exists! This wallet is already permanently registered under verified sponsor ${existingSponsor.slice(0, 6)}...${existingSponsor.slice(-4)}. Re-bonding under another sponsor is not permitted.`,
+        };
+      } else {
+        // Same sponsor, already bonded
+        return {
+          success: true,
+          alreadyBonded: true,
+          existingSponsor,
+          message: 'Partner is already bonded under this verified sponsor.',
+        };
+      }
+    }
 
     const now = new Date().toISOString();
     const data: FirestoreReferralRecord = {

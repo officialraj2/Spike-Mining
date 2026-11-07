@@ -997,7 +997,7 @@ app.post('/api/referrals/register', (req: Request, res: Response) => {
 
     const result = db.registerReferral(referrerCodeOrAddr, refereeAddress);
     if (!result.success) {
-      res.status(400).json(result);
+      res.json(result);
       return;
     }
 
