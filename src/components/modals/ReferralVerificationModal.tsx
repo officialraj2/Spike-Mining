@@ -227,25 +227,20 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
       let targetJoinerAddr = '';
 
       if (provider === 'Fresh Joiner') {
-        const chars = '0123456789abcdef';
-        let addr = '0x';
-        for (let i = 0; i < 40; i++) addr += chars[Math.floor(Math.random() * chars.length)];
-        targetJoinerAddr = addr;
-        await onConnectWallet('Testnet Joiner', addr, true);
-      } else {
-        const res = await onConnectWallet(provider, undefined, true);
-        if (typeof res === 'string' && res) {
-          targetJoinerAddr = res;
-        }
+        throw new Error('Test joiner is disabled. Please connect a real Web3 wallet.');
       }
 
-      // If no address returned or if returned address matches the sponsor, create a distinct joiner wallet
-      if (!targetJoinerAddr || (sponsorAddress && targetJoinerAddr.toLowerCase() === sponsorAddress.toLowerCase())) {
-        const chars = '0123456789abcdef';
-        let addr = '0x';
-        for (let i = 0; i < 40; i++) addr += chars[Math.floor(Math.random() * chars.length)];
-        targetJoinerAddr = addr;
-        await onConnectWallet('Joiner Wallet', addr, true);
+      const res = await onConnectWallet(provider, undefined, true);
+      if (typeof res === 'string' && res) {
+        targetJoinerAddr = res;
+      }
+
+      if (!targetJoinerAddr) {
+        throw new Error('No Web3 wallet detected. Please open this link inside MetaMask, Trust Wallet, or SafePal in-app DApp browser.');
+      }
+
+      if (sponsorAddress && targetJoinerAddr.toLowerCase() === sponsorAddress.toLowerCase()) {
+        throw new Error('Self-referral is not allowed. The connected wallet cannot be the sponsor wallet.');
       }
 
       setBoundRefereeAddress(targetJoinerAddr);
@@ -516,23 +511,15 @@ export const ReferralVerificationModal: React.FC<ReferralVerificationModalProps>
                       <span>You opened your own referral link</span>
                     </div>
                     <p className="text-xs text-gray-300 leading-relaxed">
-                      This link belongs to your currently connected wallet. Share it with friends or test adding a simulated partner to verify that they show up in your Recent Network Partners table.
+                      This referral link belongs to your currently connected wallet. Share it with your partners so they can connect their real Web3 wallets (MetaMask / Trust Wallet / SafePal) and bond under your team. Self-referral is strictly prevented.
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                    <div className="pt-1">
                       <button
                         onClick={copyReferralLink}
-                        className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#e6c35c] text-[#0A0F1D] font-headline font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md hover:brightness-105"
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#e6c35c] text-[#0A0F1D] font-headline font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-md hover:brightness-105"
                       >
                         <span className="material-symbols-outlined text-[16px]">content_copy</span>
                         <span>{isLinkCopied ? 'Link Copied!' : 'Copy My Referral Link'}</span>
-                      </button>
-                      <button
-                        onClick={() => handleConnectAndAutoBind('Fresh Joiner')}
-                        disabled={loadingBinding}
-                        className="py-2.5 px-4 rounded-xl bg-[#142232] hover:bg-[#1f334a] text-[#00F0FF] font-mono text-xs font-bold transition-colors border border-[#00F0FF]/30 flex items-center justify-center gap-1.5"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">person_add</span>
-                        <span>{loadingBinding ? 'Connecting...' : 'Connect Test Joiner (+1 Partner)'}</span>
                       </button>
                     </div>
                   </div>
