@@ -255,106 +255,232 @@ export interface ResolvedReferralItem {
   commissionUsdt: number;
 }
 
-/**
- * Fetch all direct referrals for a sponsor wallet directly from Cloud Firestore + Baseline.
- * Handles both 0x wallet address matching and SPK- referral code matching.
- */
-export async function getReferralsFromFirestore(walletAddress: string): Promise<{
+export interface FirestoreReferralTreeStats {
   directPartners: number;
+  downlinePartners: number;
+  totalPartners: number;
+  levelCounts: Record<number, number>;
   referrals: ResolvedReferralItem[];
-}> {
+}
+
+/**
+ * Fetch all direct and downline referrals for a sponsor wallet directly from Cloud Firestore + Baseline.
+ * Traverses Unilevel Tree across all 9 levels so that:
+ * 1. Direct partner joins count in directPartners (Tier 1).
+ * 2. Downline partner joins count in downlinePartners (Tier 2 through Tier 9).
+ * 3. Both direct and downline network members are included in the partner activity list.
+ */
+export async function getReferralsFromFirestore(walletAddress: string): Promise<FirestoreReferralTreeStats> {
+  const emptyStats: FirestoreReferralTreeStats = {
+    directPartners: 0,
+    downlinePartners: 0,
+    totalPartners: 0,
+    levelCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
+    referrals: [],
+  };
+
   try {
-    if (!walletAddress) return { directPartners: 0, referrals: [] };
+    if (!walletAddress) return emptyStats;
     const norm = walletAddress.toLowerCase().trim();
     const hex6 = norm.startsWith('0x') ? norm.slice(2, 8) : norm.replace(/^(spike-|spk-)/i, '').slice(0, 6);
     const code = `SPK-${hex6.toUpperCase()}`;
-
-    const referralsMap = new Map<string, ResolvedReferralItem>();
-
-    // 1. If this is the master sponsor, seed with baseline verified direct partners
     const isMaster = norm === MASTER_WALLET || norm.includes('3471e0');
+
+    // 1. Gather all edges from Firestore referrals collection and users collection
+    interface NetworkEdge {
+      id: string;
+      referrer: string;
+      referee: string;
+      tier: number;
+      timestamp: string;
+      volumeUsdt: number;
+      commissionUsdt: number;
+    }
+    const edgeMap = new Map<string, NetworkEdge>();
+
+    // Baseline direct partners for master wallet
     if (isMaster) {
       BASELINE_MASTER_DIRECTS.forEach((r, i) => {
         const addr = r.refereeAddress.toLowerCase();
-        referralsMap.set(addr, {
+        edgeMap.set(`edge_base_${addr}`, {
           id: `base_${i}_${addr.slice(2, 8)}`,
-          refereeAddress: r.refereeAddress,
-          address: r.refereeAddress,
+          referrer: MASTER_WALLET,
+          referee: r.refereeAddress,
           tier: 1,
-          joinedAt: r.timestamp,
-          createdAt: r.timestamp,
+          timestamp: r.timestamp,
           volumeUsdt: 150,
           commissionUsdt: 0,
         });
       });
     }
 
-    // 2. Query Cloud Firestore for any real-time registered referrals
-    // We check wallet address variations, referral code, and users collection
-    const queriesToRun = [
-      query(collection(db, 'referrals'), where('referrerAddress', '==', norm)),
-      query(collection(db, 'referrals'), where('referrerAddress', '==', walletAddress)),
-      query(collection(db, 'referrals'), where('referrerAddress', '==', code)),
-      query(collection(db, 'referrals'), where('referrerAddress', '==', code.toLowerCase())),
-      query(collection(db, 'referrals'), where('referralCode', '==', code)),
-      query(collection(db, 'referrals'), where('referralCode', '==', code.toLowerCase())),
-      query(collection(db, 'referrals'), where('referralCode', '==', hex6.toUpperCase())),
-      query(collection(db, 'referrals'), where('referralCode', '==', hex6.toLowerCase())),
-      query(collection(db, 'users'), where('referredBy', '==', norm)),
-      query(collection(db, 'users'), where('referredBy', '==', walletAddress)),
-      query(collection(db, 'users'), where('referredBy', '==', code)),
-    ];
-
-    if (isMaster) {
-      queriesToRun.push(
-        query(collection(db, 'referrals'), where('referrerAddress', '==', MASTER_REFERRAL_CODE)),
-        query(collection(db, 'referrals'), where('referrerAddress', '==', MASTER_REFERRAL_CODE.toLowerCase())),
-        query(collection(db, 'referrals'), where('referralCode', '==', MASTER_REFERRAL_CODE))
-      );
+    // Fetch all records from 'referrals' collection
+    try {
+      const refSnap = await getDocs(collection(db, 'referrals'));
+      refSnap.forEach((d) => {
+        const data = d.data() as any;
+        const refAddr = (data.referrerAddress || data.referrer || data.referralCode || '').trim();
+        const refereeAddr = (data.refereeAddress || data.address || d.id.replace(/^ref_/, '') || '').trim();
+        if (refAddr && refereeAddr && refAddr.toLowerCase() !== refereeAddr.toLowerCase()) {
+          const time = data.timestamp || data.createdAt || data.joinedAt || new Date().toISOString();
+          const key = `ref_${refereeAddr.toLowerCase()}`;
+          if (!edgeMap.has(key)) {
+            edgeMap.set(key, {
+              id: d.id,
+              referrer: refAddr,
+              referee: refereeAddr,
+              tier: data.tier || 1,
+              timestamp: time,
+              volumeUsdt: Number(data.volumeUsdt) || 150,
+              commissionUsdt: Number(data.commissionUsdt) || 0,
+            });
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('[Firestore referrals collection fetch notice]:', e);
     }
 
-    await Promise.allSettled(
-      queriesToRun.map(async (q) => {
-        try {
-          const snapshot = await getDocs(q);
-          snapshot.forEach((d) => {
-            const data = d.data() as any;
-            const refAddr = (data.refereeAddress || data.address || d.id || '').toLowerCase().trim();
-            if (refAddr && refAddr !== norm && refAddr !== code.toLowerCase()) {
-              const time = data.timestamp || data.createdAt || data.joinedAt || new Date().toISOString();
-              if (!referralsMap.has(refAddr)) {
-                referralsMap.set(refAddr, {
-                  id: d.id,
-                  refereeAddress: data.refereeAddress || data.address || refAddr,
-                  address: data.refereeAddress || data.address || refAddr,
-                  tier: data.tier || 1,
-                  joinedAt: time,
-                  createdAt: time,
-                  volumeUsdt: Number(data.volumeUsdt) || 150,
-                  commissionUsdt: Number(data.commissionUsdt) || 0,
-                });
-              }
-            }
-          });
-        } catch (e) {
-          console.warn('[Firestore Sub-Query Handled]:', e);
+    // Fetch all records from 'users' collection to capture referredBy links
+    try {
+      const userSnap = await getDocs(collection(db, 'users'));
+      userSnap.forEach((d) => {
+        const uData = d.data() as any;
+        const refereeAddr = (uData.address || d.id || '').trim();
+        const refAddr = (uData.referredBy || '').trim();
+        if (refAddr && refereeAddr && refAddr.toLowerCase() !== refereeAddr.toLowerCase()) {
+          const key = `ref_${refereeAddr.toLowerCase()}`;
+          if (!edgeMap.has(key)) {
+            const time = uData.createdAt || uData.lastActive || new Date().toISOString();
+            edgeMap.set(key, {
+              id: `user_ref_${refereeAddr.slice(2, 8)}`,
+              referrer: refAddr,
+              referee: refereeAddr,
+              tier: 1,
+              timestamp: time,
+              volumeUsdt: 150,
+              commissionUsdt: 0,
+            });
+          }
         }
-      })
-    );
+      });
+    } catch (e) {
+      console.warn('[Firestore users collection fetch notice]:', e);
+    }
 
-    const referrals = Array.from(referralsMap.values());
+    const allEdges = Array.from(edgeMap.values());
+
+    // Helper to test if a referral edge matches a given sponsor address/code
+    const matchesSponsor = (edgeReferrer: string, targetAddr: string, targetSlice: string, targetCode: string): boolean => {
+      const r = edgeReferrer.toLowerCase().trim();
+      const t = targetAddr.toLowerCase().trim();
+      const s = targetSlice.toLowerCase().trim();
+      const c = targetCode.toLowerCase().trim();
+      if (r === t || r === c || r === `spike-${s}` || r === s) return true;
+      if (s.length >= 6 && r.includes(s)) return true;
+      if (targetAddr.length >= 10 && r.includes(targetAddr.slice(2, 8))) return true;
+      return false;
+    };
+
+    // Level-by-level BFS traversal across unilevel structure (Level 1 direct, Levels 2..9 downline)
+    const levelCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+    const visited = new Set<string>();
+    visited.add(norm);
+    visited.add(code.toLowerCase());
+    visited.add(hex6.toLowerCase());
+    if (isMaster) {
+      visited.add(MASTER_WALLET);
+      visited.add(MASTER_REFERRAL_CODE.toLowerCase());
+    }
+
+    const resolvedMembersMap = new Map<string, ResolvedReferralItem>();
+
+    // 1. LEVEL 1 (DIRECTS)
+    const level1Queue: string[] = [];
+    allEdges.forEach((edge) => {
+      const child = edge.referee.toLowerCase().trim();
+      if (!child || visited.has(child)) return;
+
+      const isDirectMatch = matchesSponsor(edge.referrer, norm, hex6, code) ||
+        (isMaster && (edge.referrer.toLowerCase() === MASTER_REFERRAL_CODE.toLowerCase() || edge.referrer.toLowerCase().includes('3471e0')));
+
+      if (isDirectMatch) {
+        visited.add(child);
+        level1Queue.push(child);
+        resolvedMembersMap.set(child, {
+          id: edge.id,
+          refereeAddress: edge.referee,
+          address: edge.referee,
+          tier: 1,
+          joinedAt: edge.timestamp,
+          createdAt: edge.timestamp,
+          volumeUsdt: edge.volumeUsdt,
+          commissionUsdt: edge.commissionUsdt,
+        });
+      }
+    });
+
+    levelCounts[1] = level1Queue.length;
+
+    // 2. DOWNLINE LEVELS (2 through 9)
+    let currentQueue = level1Queue;
+    let currentLevel = 2;
+
+    while (currentQueue.length > 0 && currentLevel <= 9) {
+      const nextQueue: string[] = [];
+      for (const parent of currentQueue) {
+        const pSlice = parent.startsWith('0x') ? parent.slice(2, 8) : parent.replace(/^(spike-|spk-)/i, '').slice(0, 6);
+        const pCode = `SPK-${pSlice.toUpperCase()}`;
+
+        allEdges.forEach((edge) => {
+          const child = edge.referee.toLowerCase().trim();
+          if (!child || visited.has(child)) return;
+
+          if (matchesSponsor(edge.referrer, parent, pSlice, pCode)) {
+            visited.add(child);
+            nextQueue.push(child);
+            resolvedMembersMap.set(child, {
+              id: edge.id,
+              refereeAddress: edge.referee,
+              address: edge.referee,
+              tier: currentLevel,
+              joinedAt: edge.timestamp,
+              createdAt: edge.timestamp,
+              volumeUsdt: edge.volumeUsdt,
+              commissionUsdt: edge.commissionUsdt,
+            });
+          }
+        });
+      }
+
+      levelCounts[currentLevel] = nextQueue.length;
+      currentQueue = nextQueue;
+      currentLevel++;
+    }
+
+    const directPartners = levelCounts[1];
+    let downlinePartners = 0;
+    for (let lvl = 2; lvl <= 9; lvl++) {
+      downlinePartners += (levelCounts[lvl] || 0);
+    }
+    const totalPartners = directPartners + downlinePartners;
+
+    const referrals = Array.from(resolvedMembersMap.values());
     referrals.sort((a, b) => {
       const timeA = new Date(a.createdAt || a.joinedAt || 0).getTime();
       const timeB = new Date(b.createdAt || b.joinedAt || 0).getTime();
-      return timeB - timeA; // Newest joining at the top (datewise descending)
+      return timeB - timeA; // Newest joins at the top (datewise descending)
     });
 
     return {
-      directPartners: referrals.length,
+      directPartners,
+      downlinePartners,
+      totalPartners,
+      levelCounts,
       referrals,
     };
   } catch (err: any) {
     console.warn('[Firestore Referral Stats Handled]:', err?.message || err);
-    return { directPartners: 0, referrals: [] };
+    return emptyStats;
   }
 }

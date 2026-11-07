@@ -28,19 +28,19 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
     .reduce((sum, [, val]) => sum + (val || 0), 0);
 
   // Helper to determine if a specific unilevel milestone tier is unlocked
+  // Level-specific condition:
+  // Milestone 1 (Level 1): 10 Direct Partners (levelCounts[1] >= 10)
+  // Milestone 2 (Level 2): 100 Partners from Directs (levelCounts[2] >= 100)
+  // Milestone N (Level N): levelCounts[N] >= tier.partnersRequired
   const isTierReached = (tier: TeamMilestoneTier) => {
     const levelNum = tier.level || 1;
     const countAtLevel = levelCounts?.[levelNum] ?? (levelNum === 1 ? directPartners : 0);
-    return countAtLevel >= tier.partnersRequired || totalTeamPartners >= tier.partnersRequired;
+    return countAtLevel >= tier.partnersRequired;
   };
 
   const getTierProgressCount = (tier: TeamMilestoneTier) => {
     const levelNum = tier.level || 1;
-    const countAtLevel = levelCounts?.[levelNum] ?? (levelNum === 1 ? directPartners : 0);
-    if (totalTeamPartners >= tier.partnersRequired && countAtLevel === 0) {
-      return totalTeamPartners;
-    }
-    return countAtLevel;
+    return levelCounts?.[levelNum] ?? (levelNum === 1 ? directPartners : 0);
   };
 
   // Track claimed milestone IDs per wallet

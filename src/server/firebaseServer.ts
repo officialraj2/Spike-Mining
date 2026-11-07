@@ -352,36 +352,27 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
 }
 
 /**
- * On-demand real-time sync for a specific user wallet or sponsor from Cloud Firestore into in-memory database
+ * On-demand real-time sync for referral networks from Cloud Firestore into in-memory database.
+ * Syncs all direct and downline referral relationships so team calculations are 100% accurate.
  */
 export async function syncReferralsForUser(dbInstance: any, walletAddress: string): Promise<number> {
-  if (!firestore || !walletAddress) return 0;
-  const norm = walletAddress.toLowerCase().trim();
-  const hex6 = norm.startsWith('0x') ? norm.slice(2, 8) : norm.replace(/^(spike-|spk-)/i, '').slice(0, 6);
-  const code = `SPK-${hex6.toUpperCase()}`;
-
+  if (!firestore) return 0;
   let updatedCount = 0;
   try {
-    const queries = [
-      query(collection(firestore, 'referrals'), where('referrerAddress', '==', norm)),
-      query(collection(firestore, 'referrals'), where('referrerAddress', '==', code)),
-      query(collection(firestore, 'referrals'), where('referralCode', '==', code)),
-      query(collection(firestore, 'referrals'), where('refereeAddress', '==', norm)),
-    ];
-
-    const snaps = await Promise.all(queries.map((q) => getDocs(q).catch(() => null)));
-    snaps.forEach((snap) => {
-      if (!snap) return;
-      snap.forEach((d) => {
+    // 1. Fetch all documents from Firestore 'referrals' collection
+    const refSnap = await getDocs(collection(firestore, 'referrals')).catch(() => null);
+    if (refSnap && !refSnap.empty) {
+      refSnap.forEach((d) => {
         const data = d.data();
-        let refAddr = (data.referrerAddress || '').trim().toLowerCase();
-        const refereeAddr = (data.refereeAddress || '').trim().toLowerCase();
+        let refAddr = (data.referrerAddress || data.referrer || data.referralCode || '').trim().toLowerCase();
+        const refereeAddr = (data.refereeAddress || data.address || d.id.replace(/^ref_/, '') || '').trim().toLowerCase();
         if (!refAddr || !refereeAddr || refAddr === refereeAddr) return;
 
         // If referrerAddress is code, resolve to full user address if available
-        if (refAddr.startsWith('spk-') || refAddr.startsWith('spike-') || refAddr === hex6) {
+        if (refAddr.startsWith('spk-') || refAddr.startsWith('spike-')) {
+          const slice = refAddr.replace(/^(spike-|spk-)/i, '').toLowerCase();
           const matchUser = dbInstance.data.users.find((u: any) =>
-            u.address.toLowerCase().includes(hex6)
+            u.address.toLowerCase().includes(slice)
           );
           if (matchUser) refAddr = matchUser.address.toLowerCase();
         }
@@ -414,15 +405,43 @@ export async function syncReferralsForUser(dbInstance: any, walletAddress: strin
         if (refUser) {
           if (!refUser.referredBy || refUser.referredBy.toLowerCase() !== refAddr) {
             refUser.referredBy = refAddr;
+            updatedCount++;
           }
         } else {
           dbInstance.upsertUser({
             address: refereeAddr,
             referredBy: refAddr,
           });
+          updatedCount++;
         }
       });
-    });
+    }
+
+    // 2. Fetch all documents from Firestore 'users' collection to capture referredBy links
+    const userSnap = await getDocs(collection(firestore, 'users')).catch(() => null);
+    if (userSnap && !userSnap.empty) {
+      userSnap.forEach((d) => {
+        const uData = d.data();
+        const addr = (uData.address || d.id || '').trim().toLowerCase();
+        const referredBy = (uData.referredBy || '').trim().toLowerCase();
+        if (addr && referredBy && addr !== referredBy) {
+          const existingUser = dbInstance.getUser(addr);
+          if (existingUser) {
+            if (!existingUser.referredBy || existingUser.referredBy.toLowerCase() !== referredBy) {
+              existingUser.referredBy = referredBy;
+              updatedCount++;
+            }
+          } else {
+            dbInstance.upsertUser({
+              address: addr,
+              referredBy: referredBy,
+              referralCode: uData.referralCode || `SPK-${addr.slice(2, 8).toUpperCase()}`,
+            });
+            updatedCount++;
+          }
+        }
+      });
+    }
 
     if (updatedCount > 0) {
       dbInstance.save();

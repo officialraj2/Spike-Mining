@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TEAM_MILESTONE_TIERS } from '../../data/mockData';
 import { TeamRewardMilestonesSection } from '../TeamRewardMilestonesSection';
-import { HashrateLevelInfo } from '../../types';
+import { HashrateLevelInfo, TeamMilestoneTier } from '../../types';
 import { getReferralsFromFirestore } from '../../services/firestoreReferrals';
 import { submitWithdrawalRequest, getUserWithdrawals } from '../../services/firestoreWithdrawals';
 
@@ -117,17 +117,18 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
       }
     } catch {}
 
-    // Resilient Firestore query: ensure all direct partners from Firestore are seamlessly accounted for
+    // Resilient Firestore query: ensure all direct & downline partners from Firestore are seamlessly accounted for
     try {
       const fsData = await getReferralsFromFirestore(walletAddress);
-      if (fsData && fsData.directPartners > 0) {
+      if (fsData && (fsData.directPartners > 0 || fsData.downlinePartners > 0)) {
         if (!baseStats) {
           baseStats = {
             address: walletAddress,
             directPartners: fsData.directPartners,
-            downlinePartners: 0,
-            totalPartners: fsData.directPartners,
+            downlinePartners: fsData.downlinePartners,
+            totalPartners: fsData.totalPartners,
             totalCommissions: 0,
+            levelCounts: fsData.levelCounts,
             referrals: fsData.referrals.map((r, i) => ({
               id: r.id || `fs_${i}`,
               refereeAddress: r.refereeAddress || (r as any).address,
@@ -143,7 +144,22 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           };
         } else {
           const directCount = Math.max(baseStats.directPartners || 0, fsData.directPartners);
-          const totalCount = Math.max(baseStats.totalPartners || 0, directCount + (baseStats.downlinePartners || 0));
+          const downlineCount = Math.max(baseStats.downlinePartners || 0, fsData.downlinePartners);
+          const totalCount = Math.max(baseStats.totalPartners || 0, directCount + downlineCount);
+          baseStats.directPartners = directCount;
+          baseStats.downlinePartners = downlineCount;
+          baseStats.totalPartners = totalCount;
+          baseStats.levelCounts = {
+            1: Math.max(baseStats.levelCounts?.[1] || 0, fsData.levelCounts?.[1] || directCount),
+            2: Math.max(baseStats.levelCounts?.[2] || 0, fsData.levelCounts?.[2] || 0),
+            3: Math.max(baseStats.levelCounts?.[3] || 0, fsData.levelCounts?.[3] || 0),
+            4: Math.max(baseStats.levelCounts?.[4] || 0, fsData.levelCounts?.[4] || 0),
+            5: Math.max(baseStats.levelCounts?.[5] || 0, fsData.levelCounts?.[5] || 0),
+            6: Math.max(baseStats.levelCounts?.[6] || 0, fsData.levelCounts?.[6] || 0),
+            7: Math.max(baseStats.levelCounts?.[7] || 0, fsData.levelCounts?.[7] || 0),
+            8: Math.max(baseStats.levelCounts?.[8] || 0, fsData.levelCounts?.[8] || 0),
+            9: Math.max(baseStats.levelCounts?.[9] || 0, fsData.levelCounts?.[9] || 0),
+          };
           const existingRefs = baseStats.referrals || [];
           const refMap = new Map();
           existingRefs.forEach((r: any) => refMap.set((r.refereeAddress || r.address || '').toLowerCase(), r));
@@ -164,9 +180,11 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               });
             }
           });
-          baseStats.directPartners = directCount;
-          baseStats.totalPartners = totalCount;
-          baseStats.referrals = Array.from(refMap.values());
+          baseStats.referrals = Array.from(refMap.values()).sort((a: any, b: any) => {
+            const timeA = new Date(a.createdAt || a.joinedAt || 0).getTime();
+            const timeB = new Date(b.createdAt || b.joinedAt || 0).getTime();
+            return timeB - timeA;
+          });
         }
       }
     } catch {}
@@ -368,11 +386,17 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
 
+  const isMilestoneLevelReached = (m: TeamMilestoneTier) => {
+    const lvl = m.level || 1;
+    const countAtLevel = effectiveStats?.levelCounts?.[lvl] ?? (lvl === 1 ? directPartners : 0);
+    return countAtLevel >= m.partnersRequired;
+  };
+
   const nextClaimable = TEAM_MILESTONE_TIERS.find(
-    (m) => totalTeamPartners >= m.partnersRequired && !claimedMilestones.includes(m.id)
+    (m) => isMilestoneLevelReached(m) && !claimedMilestones.includes(m.id)
   );
   const nextLocked = TEAM_MILESTONE_TIERS.find(
-    (m) => totalTeamPartners < m.partnersRequired
+    (m) => !isMilestoneLevelReached(m)
   );
 
   const handleCopy = () => {
@@ -988,8 +1012,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                         </div>
                       </td>
                       <td className="py-3 px-3">
-                        <span className="px-2.5 py-0.5 rounded text-xs font-headline font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                          Team Partner
+                        <span className={`px-2.5 py-0.5 rounded text-xs font-headline font-semibold border ${
+                          (ref.tier || 1) === 1
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            : 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/30'
+                        }`}>
+                          {(ref.tier || 1) === 1 ? 'Direct Partner' : `Downline (L${ref.tier})`}
                         </span>
                       </td>
                       <td className="py-3 px-3 text-white font-mono">

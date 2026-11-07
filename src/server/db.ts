@@ -1322,6 +1322,40 @@ class PersistentDatabase {
     const totalCommissions = allDirects.reduce((acc, r) => acc + (r.commissionUsdt || 0), 0);
     const hashrateInfo = this.calculateUserHashrate(norm);
     const teamStats = this.getUserTeamStats(norm);
+
+    // Build complete team network list (Directs + Downlines with tier numbers)
+    const allTeamMembersMap = new Map<string, DbReferral>();
+    allDirects.forEach((d) => {
+      allTeamMembersMap.set(d.refereeAddress.toLowerCase(), { ...d, tier: 1 });
+    });
+
+    for (let lvl = 2; lvl <= 9; lvl++) {
+      const members = teamStats.levelMembers[lvl] || [];
+      for (const childAddr of members) {
+        const cLower = childAddr.toLowerCase();
+        if (!allTeamMembersMap.has(cLower)) {
+          const rawRef = this.data.referrals.find((r) => (r.refereeAddress || '').toLowerCase() === cLower);
+          const rawUser = this.getUser(cLower);
+          allTeamMembersMap.set(cLower, {
+            id: rawRef?.id || `ref-downline-${lvl}-${cLower.slice(2, 8)}`,
+            referrerAddress: rawRef?.referrerAddress || rawUser?.referredBy || targetAddress,
+            refereeAddress: childAddr,
+            tier: lvl,
+            commissionUsdt: rawRef?.commissionUsdt || 0,
+            volumeUsdt: rawRef?.volumeUsdt || 150.0,
+            createdAt: rawRef?.createdAt || rawUser?.createdAt || new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    const allTeamReferrals = Array.from(allTeamMembersMap.values());
+    allTeamReferrals.sort((a, b) => {
+      const timeA = new Date(a.createdAt || 0).getTime();
+      const timeB = new Date(b.createdAt || 0).getTime();
+      return timeB - timeA; // Newest joining at the top (datewise descending)
+    });
+
     // Calculate milestone rewards recorded in transactions for this user (strictly earned rewards, excluding payouts/withdrawals)
     const milestoneRewards = this.data.transactions
       .filter((t) => {
@@ -1356,7 +1390,7 @@ class PersistentDatabase {
       approvedWithdrawalsAmount: +approvedWithdrawalsAmount.toFixed(2),
       totalWithdrawn: +approvedWithdrawalsAmount.toFixed(2),
       availableWithdrawableBalance,
-      referrals: allDirects,
+      referrals: allTeamReferrals,
       referredBy: resolvedUser?.referredBy || null,
       referralCode: code,
       hashrateInfo,

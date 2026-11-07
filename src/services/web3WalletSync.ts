@@ -90,9 +90,20 @@ export async function requestWeb3Connection(preferredProviderName?: string): Pro
   }
 
   if (target && typeof target.request === 'function') {
-    const accounts = await target.request({ method: 'eth_requestAccounts' });
-    if (Array.isArray(accounts) && accounts.length > 0 && accounts[0]) {
-      return accounts[0].toLowerCase();
+    try {
+      const accounts = await target.request({ method: 'eth_requestAccounts' });
+      if (Array.isArray(accounts) && accounts.length > 0 && accounts[0]) {
+        return accounts[0].toLowerCase();
+      }
+    } catch (err: any) {
+      console.warn('[Web3 requestAccounts notice]:', err?.message || err);
+      try {
+        const existing = await target.request({ method: 'eth_accounts' });
+        if (Array.isArray(existing) && existing.length > 0 && existing[0]) {
+          return existing[0].toLowerCase();
+        }
+      } catch {}
+      return null;
     }
   }
   return null;

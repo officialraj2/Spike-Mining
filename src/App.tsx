@@ -693,14 +693,16 @@ export default function App() {
         setReferralStats(JSON.parse(cachedRef));
       }
 
-      // Live sync direct team partners from Cloud Firestore (works on static hosting & VPS)
+      // Live sync direct & downline team partners from Cloud Firestore (works on static hosting & VPS)
       getReferralsFromFirestore(norm)
         .then((fsData) => {
-          if (fsData && fsData.directPartners > 0) {
+          if (fsData && (fsData.directPartners > 0 || fsData.downlinePartners > 0)) {
             setReferralStats((prev: any) => ({
               ...prev,
               directPartners: Math.max(prev?.directPartners || 0, fsData.directPartners),
-              totalPartners: Math.max(prev?.totalPartners || 0, fsData.directPartners),
+              downlinePartners: Math.max(prev?.downlinePartners || 0, fsData.downlinePartners),
+              totalPartners: Math.max(prev?.totalPartners || 0, fsData.totalPartners),
+              levelCounts: fsData.levelCounts || prev?.levelCounts,
               referrals: fsData.referrals,
             }));
           }
@@ -1670,11 +1672,13 @@ export default function App() {
       .catch(async () => {
         try {
           const fsData = await getReferralsFromFirestore(finalAddress);
-          if (fsData && fsData.directPartners > 0) {
+          if (fsData && (fsData.directPartners > 0 || fsData.downlinePartners > 0)) {
             setReferralStats((prev: any) => ({
               ...prev,
               directPartners: Math.max(prev?.directPartners || 0, fsData.directPartners),
-              totalPartners: Math.max(prev?.totalPartners || 0, fsData.directPartners),
+              downlinePartners: Math.max(prev?.downlinePartners || 0, fsData.downlinePartners),
+              totalPartners: Math.max(prev?.totalPartners || 0, fsData.totalPartners),
+              levelCounts: fsData.levelCounts || prev?.levelCounts,
               referrals: fsData.referrals,
             }));
           }
