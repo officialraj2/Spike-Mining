@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MiningNode } from '../../types';
 
 interface DeployNodeModalProps {
@@ -27,6 +27,26 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
   const [smartCallStep, setSmartCallStep] = useState<'idle' | 'requesting' | 'broadcasting' | 'confirming'>('idle');
   const [txErrorMessage, setTxErrorMessage] = useState<string | null>(null);
 
+  const [treasuryWallet, setTreasuryWallet] = useState('0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7');
+
+  useEffect(() => {
+    fetch('/api/treasury')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d && d.treasuryWalletAddress) {
+          setTreasuryWallet(d.treasuryWalletAddress);
+        }
+      })
+      .catch(() => {});
+    const onTreasuryUpdate = (e: any) => {
+      if (e?.detail?.treasuryWalletAddress) {
+        setTreasuryWallet(e.detail.treasuryWalletAddress);
+      }
+    };
+    window.addEventListener('treasuryUpdated', onTreasuryUpdate);
+    return () => window.removeEventListener('treasuryUpdated', onTreasuryUpdate);
+  }, []);
+
   if (!isOpen) return null;
 
   const currentTier = {
@@ -42,7 +62,6 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
     dailySpkYield: 0.01667,
   };
 
-  const treasuryWallet = '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
   const usdtContractBsc = '0x55d398326f99059fF775485246999027B3197955';
   const hasEnoughBalance = walletBalance >= 10;
 
@@ -102,18 +121,12 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
       }
     }
 
-    // Step 2: Broadcasting to BSC Mempool
-    setSmartCallStep('broadcasting');
-    await new Promise((r) => setTimeout(r, 650));
-
-    // If no injected provider was detected (e.g. read-only or manual simulation), generate valid hash
+    // If no real Web3 transaction was signed/broadcasted, strictly reject deployment
     if (!generatedTxHash) {
-      const chars = '0123456789abcdef';
-      let h = '0x';
-      for (let i = 0; i < 64; i++) {
-        h += chars[Math.floor(Math.random() * chars.length)];
-      }
-      generatedTxHash = h;
+      setIsDeploying(false);
+      setSmartCallStep('idle');
+      setTxErrorMessage('Web3 payment required: Please approve the 10 USDT transfer from your connected Web3 wallet (MetaMask / Trust Wallet) to deploy the mining node.');
+      return;
     }
 
     // Step 3: Crediting Treasury & Confirming on BSC Block
