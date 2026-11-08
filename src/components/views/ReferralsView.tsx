@@ -24,8 +24,12 @@ export interface ReferralStatsData {
   directPartners: number;
   downlinePartners: number;
   totalPartners: number;
+  activeDirectPartners?: number;
+  activeDownlinePartners?: number;
+  activeTotalPartners?: number;
   totalCommissions: number;
   levelCounts?: Record<number, number>;
+  activeLevelCounts?: Record<number, number>;
   milestoneRewardsClaimed?: number;
   withdrawals?: WithdrawalItem[];
   pendingWithdrawalsAmount?: number;
@@ -38,6 +42,7 @@ export interface ReferralStatsData {
     commissionUsdt: number;
     volumeUsdt: number;
     createdAt: string;
+    hasActiveMining?: boolean;
   }>;
   referredBy?: string | null;
 }
@@ -944,14 +949,27 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
         directPartners={directPartners}
         downlinePartners={downlinePartners}
         levelCounts={effectiveStats?.levelCounts}
+        activeDirectPartners={effectiveStats?.activeDirectPartners}
+        activeDownlinePartners={effectiveStats?.activeDownlinePartners}
+        activeLevelCounts={effectiveStats?.activeLevelCounts}
         onClaimReward={handleClaimMilestone}
         walletAddress={walletAddress}
       />
 
       {/* Recent Referral Activity Table */}
       <div className="bg-[#122130] rounded-xl p-5 md:p-6 border border-[#1c2b3b] shadow-md">
-        <h2 className="text-lg font-bold font-headline text-white mb-1">Recent Network Partner Activity</h2>
-        <p className="text-xs text-[#c6c6cc] mb-4">Live partners joining your network and counting toward Team Milestones</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h2 className="text-lg font-bold font-headline text-white mb-1">Recent Network Partner Activity</h2>
+            <p className="text-xs text-[#c6c6cc]">Live partners joining your network. Only partners with an <strong>Active Mining Ring</strong> count toward Team Milestones.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-mono font-bold flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>{effectiveStats?.activeTotalPartners ?? referralsList.filter((r: any) => r.hasActiveMining).length} Active Miners</span>
+            </span>
+          </div>
+        </div>
 
         {referralsList.length === 0 ? (
           <div className="py-10 px-4 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col items-center justify-center space-y-2.5">
@@ -971,9 +989,9 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               <thead>
                 <tr className="text-[#c6c6cc] font-headline border-b border-[#1c2b3b]">
                   <th className="py-2.5 px-3">Invited Member</th>
-                  <th className="py-2.5 px-3">Partner Status</th>
-                  <th className="py-2.5 px-3">Rig Deployed</th>
-                  <th className="py-2.5 px-3">Milestone Contribution</th>
+                  <th className="py-2.5 px-3">Tier</th>
+                  <th className="py-2.5 px-3">Mining Ring Status</th>
+                  <th className="py-2.5 px-3">Milestone Qualification</th>
                   <th className="py-2.5 px-3 text-right">Date</th>
                 </tr>
               </thead>
@@ -998,6 +1016,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                     }
                   }
                   const refAddr = ref.refereeAddress || (ref as any).address || '0xUnknown';
+                  const isMiningActive = Boolean((ref as any).hasActiveMining);
 
                   return (
                     <tr key={ref.id || i} className="hover:bg-[#1c2b3b]/30 transition-colors">
@@ -1017,14 +1036,34 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                             ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                             : 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/30'
                         }`}>
-                          {(ref.tier || 1) === 1 ? 'Direct Partner' : `Downline (L${ref.tier})`}
+                          {(ref.tier || 1) === 1 ? 'Direct (L1)' : `Downline (L${ref.tier})`}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-white font-mono">
-                        {ref.volumeUsdt ? `$${Number(ref.volumeUsdt).toFixed(0)} Volume` : 'Active Rig'}
+                      <td className="py-3 px-3">
+                        {isMiningActive ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-headline font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>Mining Ring Active</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-headline font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <span className="material-symbols-outlined text-[13px]">hourglass_empty</span>
+                            <span>No Active Ring</span>
+                          </span>
+                        )}
                       </td>
-                      <td className="py-3 px-3 text-[#00F0FF] font-bold font-mono">
-                        +1 Partner Target
+                      <td className="py-3 px-3 font-mono font-semibold">
+                        {isMiningActive ? (
+                          <span className="text-emerald-400 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                            <span>Counts (+1 Active)</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 flex items-center gap-1 text-[11px]">
+                            <span className="material-symbols-outlined text-[15px] text-slate-500">pending</span>
+                            <span>Pending Ring Activation</span>
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-3 text-right">
                         <div className="font-mono text-white text-xs font-semibold tracking-wide">{dateStr}</div>

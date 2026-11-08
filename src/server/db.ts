@@ -520,7 +520,11 @@ class PersistentDatabase {
     directCount: number;
     downlineCount: number;
     totalTeamCount: number;
+    activeDirectCount: number;
+    activeDownlineCount: number;
+    activeTotalTeamCount: number;
     levelCounts: Record<number, number>;
+    activeLevelCounts: Record<number, number>;
     levelMembers: Record<number, string[]>;
   } {
     const norm = (userAddress || '').toLowerCase();
@@ -528,8 +532,26 @@ class PersistentDatabase {
       directCount: 0,
       downlineCount: 0,
       totalTeamCount: 0,
+      activeDirectCount: 0,
+      activeDownlineCount: 0,
+      activeTotalTeamCount: 0,
       levelCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
+      activeLevelCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
       levelMembers: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [] }
+    };
+
+    // Helper to verify if an address has ever activated mining
+    const isUserActiveMiner = (addr: string): boolean => {
+      const aNorm = addr.toLowerCase().trim();
+      const u = this.getUser(aNorm);
+      if (u && (u.hasActivatedMining || u.hasDepositedTreasury || (u.miningCycleStartTime && u.miningCycleStartTime > 0))) {
+        return true;
+      }
+      const hasNode = (this.data.nodes || []).some((n) => n.userAddress.toLowerCase() === aNorm && (n.status === 'mining' || n.status === 'idle'));
+      if (hasNode) return true;
+      const hasSess = (this.data.miningSessions || []).some((s) => s.userAddress.toLowerCase() === aNorm);
+      if (hasSess) return true;
+      return false;
     };
 
     const slice6 = norm.startsWith('0x') ? norm.slice(2, 8) : norm.replace(/^(spike-|spk-)/i, '');
@@ -576,10 +598,26 @@ class PersistentDatabase {
     });
 
     const directCount = uniqueDirects.size;
+    let activeDirectCount = 0;
+    uniqueDirects.forEach((d) => {
+      if (isUserActiveMiner(d)) activeDirectCount++;
+    });
 
     // Track level by level (Unilevel Tree: Level 1, Level 2, Level 3, Level 4... up to Level 9)
     const levelCounts: Record<number, number> = {
       1: directCount,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+      6: 0,
+      7: 0,
+      8: 0,
+      9: 0,
+    };
+
+    const activeLevelCounts: Record<number, number> = {
+      1: activeDirectCount,
       2: 0,
       3: 0,
       4: 0,
@@ -609,6 +647,7 @@ class PersistentDatabase {
 
     let queue = Array.from(uniqueDirects);
     let downlineCount = 0;
+    let activeDownlineCount = 0;
     let currentLevel = 2;
 
     while (queue.length > 0 && currentLevel <= 9) {
@@ -625,6 +664,10 @@ class PersistentDatabase {
             visited.add(child);
             nextTier.push(child);
             downlineCount++;
+            if (isUserActiveMiner(child)) {
+              activeDownlineCount++;
+              activeLevelCounts[currentLevel] = (activeLevelCounts[currentLevel] || 0) + 1;
+            }
           }
         }
         // Also traverse downline via users table
@@ -637,6 +680,10 @@ class PersistentDatabase {
                 visited.add(child);
                 nextTier.push(child);
                 downlineCount++;
+                if (isUserActiveMiner(child)) {
+                  activeDownlineCount++;
+                  activeLevelCounts[currentLevel] = (activeLevelCounts[currentLevel] || 0) + 1;
+                }
               }
             }
           }
@@ -652,7 +699,11 @@ class PersistentDatabase {
       directCount,
       downlineCount,
       totalTeamCount: directCount + downlineCount,
+      activeDirectCount,
+      activeDownlineCount,
+      activeTotalTeamCount: activeDirectCount + activeDownlineCount,
       levelCounts,
+      activeLevelCounts,
       levelMembers,
     };
   }
@@ -1325,8 +1376,21 @@ class PersistentDatabase {
 
     // Build complete team network list (Directs + Downlines with tier numbers)
     const allTeamMembersMap = new Map<string, DbReferral>();
+    // Helper to check if child has activated mining
+    const isUserActiveMiner = (addr: string): boolean => {
+      const aNorm = addr.toLowerCase().trim();
+      const u = this.getUser(aNorm);
+      if (u && (u.hasActivatedMining || u.hasDepositedTreasury || (u.miningCycleStartTime && u.miningCycleStartTime > 0))) {
+        return true;
+      }
+      return (this.data.nodes || []).some((n) => n.userAddress.toLowerCase() === aNorm && (n.status === 'mining' || n.status === 'idle')) ||
+             (this.data.miningSessions || []).some((s) => s.userAddress.toLowerCase() === aNorm);
+    };
+
     allDirects.forEach((d) => {
-      allTeamMembersMap.set(d.refereeAddress.toLowerCase(), { ...d, tier: 1 });
+      const cLower = d.refereeAddress.toLowerCase();
+      const hasActiveMining = isUserActiveMiner(cLower);
+      allTeamMembersMap.set(cLower, { ...d, tier: 1, hasActiveMining } as any);
     });
 
     for (let lvl = 2; lvl <= 9; lvl++) {
@@ -1336,6 +1400,7 @@ class PersistentDatabase {
         if (!allTeamMembersMap.has(cLower)) {
           const rawRef = this.data.referrals.find((r) => (r.refereeAddress || '').toLowerCase() === cLower);
           const rawUser = this.getUser(cLower);
+          const hasActiveMining = isUserActiveMiner(cLower);
           allTeamMembersMap.set(cLower, {
             id: rawRef?.id || `ref-downline-${lvl}-${cLower.slice(2, 8)}`,
             referrerAddress: rawRef?.referrerAddress || rawUser?.referredBy || targetAddress,
@@ -1344,7 +1409,8 @@ class PersistentDatabase {
             commissionUsdt: rawRef?.commissionUsdt || 0,
             volumeUsdt: rawRef?.volumeUsdt || 150.0,
             createdAt: rawRef?.createdAt || rawUser?.createdAt || new Date().toISOString(),
-          });
+            hasActiveMining,
+          } as any);
         }
       }
     }
@@ -1382,7 +1448,11 @@ class PersistentDatabase {
       directPartners: Math.max(teamStats.directCount, allDirects.length),
       downlinePartners: teamStats.downlineCount,
       totalPartners: Math.max(teamStats.totalTeamCount, allDirects.length + teamStats.downlineCount),
+      activeDirectPartners: teamStats.activeDirectCount,
+      activeDownlinePartners: teamStats.activeDownlineCount,
+      activeTotalPartners: teamStats.activeTotalTeamCount,
       levelCounts: teamStats.levelCounts,
+      activeLevelCounts: teamStats.activeLevelCounts,
       totalCommissions: effectiveEarned,
       milestoneRewardsClaimed: +milestoneRewards.toFixed(2),
       withdrawals,

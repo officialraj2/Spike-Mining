@@ -6,6 +6,9 @@ interface TeamRewardMilestonesSectionProps {
   directPartners?: number;
   downlinePartners?: number;
   levelCounts?: Record<number, number>;
+  activeDirectPartners?: number;
+  activeDownlinePartners?: number;
+  activeLevelCounts?: Record<number, number>;
   onClaimReward?: (amountUsd: number, milestoneName: string) => void;
   walletAddress?: string;
 }
@@ -14,33 +17,41 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
   directPartners = 0,
   downlinePartners = 0,
   levelCounts,
+  activeDirectPartners,
+  activeDownlinePartners,
+  activeLevelCounts,
   onClaimReward,
   walletAddress,
 }) => {
-  // Real team partner calculations from actual referrals
-  const totalTeamPartners = directPartners + downlinePartners;
-  const l1Count = levelCounts?.[1] ?? directPartners;
-  const l2Count = levelCounts?.[2] ?? 0;
-  const l3Count = levelCounts?.[3] ?? 0;
-  const l4Count = levelCounts?.[4] ?? 0;
-  const l5PlusCount = Object.entries(levelCounts || {})
+  // Use active miners for milestone unlocking (must have active mining ring)
+  const effectiveActiveLevelCounts = activeLevelCounts || levelCounts;
+  const effectiveActiveDirects = activeDirectPartners !== undefined ? activeDirectPartners : directPartners;
+  const effectiveActiveDownline = activeDownlinePartners !== undefined ? activeDownlinePartners : downlinePartners;
+  const totalActiveMiners = effectiveActiveDirects + effectiveActiveDownline;
+  const totalRegisteredPartners = directPartners + downlinePartners;
+
+  const l1Count = effectiveActiveLevelCounts?.[1] ?? effectiveActiveDirects;
+  const l2Count = effectiveActiveLevelCounts?.[2] ?? 0;
+  const l3Count = effectiveActiveLevelCounts?.[3] ?? 0;
+  const l4Count = effectiveActiveLevelCounts?.[4] ?? 0;
+  const l5PlusCount = Object.entries(effectiveActiveLevelCounts || {})
     .filter(([lvl]) => Number(lvl) >= 5)
     .reduce((sum, [, val]) => sum + (val || 0), 0);
 
   // Helper to determine if a specific unilevel milestone tier is unlocked
   // Level-specific condition:
-  // Milestone 1 (Level 1): 10 Direct Partners (levelCounts[1] >= 10)
-  // Milestone 2 (Level 2): 100 Partners from Directs (levelCounts[2] >= 100)
-  // Milestone N (Level N): levelCounts[N] >= tier.partnersRequired
+  // Milestone 1 (Level 1): 10 ACTIVE Direct Mining Partners (activeLevelCounts[1] >= 10)
+  // Milestone 2 (Level 2): 100 ACTIVE Partners from Directs (activeLevelCounts[2] >= 100)
+  // Milestone N (Level N): activeLevelCounts[N] >= tier.partnersRequired
   const isTierReached = (tier: TeamMilestoneTier) => {
     const levelNum = tier.level || 1;
-    const countAtLevel = levelCounts?.[levelNum] ?? (levelNum === 1 ? directPartners : 0);
+    const countAtLevel = effectiveActiveLevelCounts?.[levelNum] ?? (levelNum === 1 ? effectiveActiveDirects : 0);
     return countAtLevel >= tier.partnersRequired;
   };
 
   const getTierProgressCount = (tier: TeamMilestoneTier) => {
     const levelNum = tier.level || 1;
-    return levelCounts?.[levelNum] ?? (levelNum === 1 ? directPartners : 0);
+    return effectiveActiveLevelCounts?.[levelNum] ?? (levelNum === 1 ? effectiveActiveDirects : 0);
   };
 
   // Track claimed milestone IDs per wallet
@@ -138,39 +149,44 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">groups</span>
                 <span className="text-xs sm:text-sm font-headline font-bold uppercase tracking-wider text-white">
-                  Total Team Calculation (Direct + Downline Team)
+                  Milestone Qualification: Active Mining Ring Partners
                 </span>
-                <span className="px-2.5 py-0.5 rounded text-xs font-headline font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  ENTIRE TEAM CALCULATED
+                <span className="px-2.5 py-0.5 rounded text-[11px] font-headline font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[13px]">bolt</span>
+                  <span>ACTIVE RIGS ONLY</span>
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-300 font-body">
-                Real-time partner network tracking across all unilevel generations.
+                Milestones ($15 to $500,000 USDT) strictly require partners who have <strong>activated their mining rings</strong>. Mere registrations without active rings do not qualify.
               </p>
             </div>
 
             {/* Live Count Pill Cards */}
             <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <div className="px-4 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
-                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Direct Partners</div>
-                <div className="text-base sm:text-lg font-extrabold font-headline text-white">{directPartners}</div>
+              <div className="px-3.5 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
+                <div className="text-[10px] text-slate-400 font-body font-semibold uppercase tracking-wider">Active Directs (L1)</div>
+                <div className="text-base sm:text-lg font-extrabold font-headline text-emerald-400">
+                  {effectiveActiveDirects} <span className="text-[10px] text-slate-400 font-normal">/ {directPartners} reg</span>
+                </div>
               </div>
 
               <span className="text-[#00F0FF] font-bold text-lg">+</span>
 
-              <div className="px-4 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
-                <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Downline Partners</div>
-                <div className="text-base sm:text-lg font-extrabold font-headline text-white">{downlinePartners}</div>
+              <div className="px-3.5 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
+                <div className="text-[10px] text-slate-400 font-body font-semibold uppercase tracking-wider">Active Downline (L2-9)</div>
+                <div className="text-base sm:text-lg font-extrabold font-headline text-emerald-400">
+                  {effectiveActiveDownline} <span className="text-[10px] text-slate-400 font-normal">/ {downlinePartners} reg</span>
+                </div>
               </div>
 
               <span className="text-[#00F0FF] font-bold text-lg">=</span>
 
-              <div className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#D4AF37]/20 border border-[#00F0FF]/50 text-center shadow-[0_0_15px_rgba(0,240,255,0.25)]">
-                <div className="text-xs text-[#00F0FF] font-headline font-bold uppercase tracking-wider">
-                  Total Team Partners
+              <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 via-[#00F0FF]/20 to-[#D4AF37]/20 border border-emerald-500/50 text-center shadow-[0_0_15px_rgba(16,185,129,0.25)]">
+                <div className="text-[10px] text-emerald-300 font-headline font-bold uppercase tracking-wider">
+                  Active Mining Team
                 </div>
                 <div className="text-xl sm:text-2xl font-black font-headline text-white tracking-tight">
-                  {totalTeamPartners} <span className="text-xs text-[#00F0FF] font-medium font-body">Partners</span>
+                  {totalActiveMiners} <span className="text-xs text-emerald-400 font-medium font-body">Active Miners</span>
                 </div>
               </div>
             </div>
@@ -181,13 +197,13 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-xs text-slate-400">
-                Real Network Referrals: <strong className="text-white">{totalTeamPartners} Real Partners Active</strong>
+                Milestone Qualification Pool: <strong className="text-white">{totalActiveMiners} Active Mining Partners</strong> <span className="text-slate-500 font-mono">({totalRegisteredPartners} total registered)</span>
               </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-lg bg-[#051424] text-[#00F0FF] border border-[#00F0FF]/30 text-xs font-body font-semibold flex items-center gap-1.5 shadow-sm">
                 <span className="material-symbols-outlined text-[14px] text-emerald-400">verified</span>
-                <span>Milestones Unlock on Real Referrals</span>
+                <span>Active Mining Rigs Unlock Milestones</span>
               </span>
             </div>
           </div>

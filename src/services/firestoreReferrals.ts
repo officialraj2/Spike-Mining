@@ -297,13 +297,18 @@ export interface ResolvedReferralItem {
   createdAt: string;
   volumeUsdt: number;
   commissionUsdt: number;
+  hasActiveMining?: boolean;
 }
 
 export interface FirestoreReferralTreeStats {
   directPartners: number;
   downlinePartners: number;
   totalPartners: number;
+  activeDirectPartners: number;
+  activeDownlinePartners: number;
+  activeTotalPartners: number;
   levelCounts: Record<number, number>;
+  activeLevelCounts: Record<number, number>;
   referrals: ResolvedReferralItem[];
 }
 
@@ -312,14 +317,18 @@ export interface FirestoreReferralTreeStats {
  * Traverses Unilevel Tree across all 9 levels so that:
  * 1. Direct partner joins count in directPartners (Tier 1).
  * 2. Downline partner joins count in downlinePartners (Tier 2 through Tier 9).
- * 3. Both direct and downline network members are included in the partner activity list.
+ * 3. Only partners who have activated their mining rings qualify for milestone unlocks and activeLevelCounts.
  */
 export async function getReferralsFromFirestore(walletAddress: string): Promise<FirestoreReferralTreeStats> {
   const emptyStats: FirestoreReferralTreeStats = {
     directPartners: 0,
     downlinePartners: 0,
     totalPartners: 0,
+    activeDirectPartners: 0,
+    activeDownlinePartners: 0,
+    activeTotalPartners: 0,
     levelCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
+    activeLevelCounts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
     referrals: [],
   };
 
@@ -426,8 +435,33 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
       return false;
     };
 
+    // Fetch active mining indicators from Firestore (users who have hasActivatedMining, or active mining sessions)
+    const activeMinersSet = new Set<string>();
+    try {
+      const userSnap = await getDocs(collection(db, 'users'));
+      userSnap.forEach((d) => {
+        const uData = d.data() as any;
+        const addr = (uData.address || d.id || '').toLowerCase().trim();
+        if (addr && (uData.hasActivatedMining || uData.hasDepositedTreasury || (uData.miningCycleStartTime && Number(uData.miningCycleStartTime) > 0))) {
+          activeMinersSet.add(addr);
+        }
+      });
+    } catch {}
+
+    try {
+      const sessSnap = await getDocs(collection(db, 'mining_sessions'));
+      sessSnap.forEach((d) => {
+        const sData = d.data() as any;
+        const addr = (sData.userAddress || '').toLowerCase().trim();
+        if (addr && (sData.status === 'mining' || sData.status === 'active' || (sData.startTime && Number(sData.startTime) > 0))) {
+          activeMinersSet.add(addr);
+        }
+      });
+    } catch {}
+
     // Level-by-level BFS traversal across unilevel structure (Level 1 direct, Levels 2..9 downline)
     const levelCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+    const activeLevelCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
     const visited = new Set<string>();
     visited.add(norm);
     visited.add(code.toLowerCase());
@@ -451,6 +485,10 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
       if (isDirectMatch) {
         visited.add(child);
         level1Queue.push(child);
+        const isActive = activeMinersSet.has(child);
+        if (isActive) {
+          activeLevelCounts[1] = (activeLevelCounts[1] || 0) + 1;
+        }
         resolvedMembersMap.set(child, {
           id: edge.id,
           refereeAddress: edge.referee,
@@ -460,6 +498,7 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
           createdAt: edge.timestamp,
           volumeUsdt: edge.volumeUsdt,
           commissionUsdt: edge.commissionUsdt,
+          hasActiveMining: isActive,
         });
       }
     });
@@ -483,6 +522,10 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
           if (matchesSponsor(edge.referrer, parent, pSlice, pCode)) {
             visited.add(child);
             nextQueue.push(child);
+            const isActive = activeMinersSet.has(child);
+            if (isActive) {
+              activeLevelCounts[currentLevel] = (activeLevelCounts[currentLevel] || 0) + 1;
+            }
             resolvedMembersMap.set(child, {
               id: edge.id,
               refereeAddress: edge.referee,
@@ -492,6 +535,7 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
               createdAt: edge.timestamp,
               volumeUsdt: edge.volumeUsdt,
               commissionUsdt: edge.commissionUsdt,
+              hasActiveMining: isActive,
             });
           }
         });
@@ -509,6 +553,13 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
     }
     const totalPartners = directPartners + downlinePartners;
 
+    const activeDirectPartners = activeLevelCounts[1] || 0;
+    let activeDownlinePartners = 0;
+    for (let lvl = 2; lvl <= 9; lvl++) {
+      activeDownlinePartners += (activeLevelCounts[lvl] || 0);
+    }
+    const activeTotalPartners = activeDirectPartners + activeDownlinePartners;
+
     const referrals = Array.from(resolvedMembersMap.values());
     referrals.sort((a, b) => {
       const timeA = new Date(a.createdAt || a.joinedAt || 0).getTime();
@@ -520,7 +571,11 @@ export async function getReferralsFromFirestore(walletAddress: string): Promise<
       directPartners,
       downlinePartners,
       totalPartners,
+      activeDirectPartners,
+      activeDownlinePartners,
+      activeTotalPartners,
       levelCounts,
+      activeLevelCounts,
       referrals,
     };
   } catch (err: any) {

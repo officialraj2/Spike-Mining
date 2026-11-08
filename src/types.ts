@@ -156,15 +156,25 @@ export interface ReferralItem {
   commissionUsdt: number;
   volumeUsdt: number;
   createdAt: string;
+  hasActiveMining?: boolean;
 }
 
 export interface ReferralStatsData {
+  address?: string;
   directPartners: number;
   downlinePartners: number;
   totalPartners: number;
+  activeDirectPartners?: number;
+  activeDownlinePartners?: number;
+  activeTotalPartners?: number;
   totalCommissions: number;
+  milestoneRewardsClaimed?: number;
+  levelCounts?: Record<number, number>;
+  activeLevelCounts?: Record<number, number>;
   referrals: ReferralItem[];
   referredBy?: string | null;
+  referralCode?: string;
+  hashrateInfo?: HashrateLevelInfo;
 }
 
 export interface ReferralTier {
@@ -235,26 +245,4 @@ export interface TestnetTransaction {
   gasFeeBnb: number;
   details: string;
   timestamp: string;
-}
-
-export interface ReferralStatsData {
-  address?: string;
-  directPartners: number;
-  downlinePartners: number;
-  totalPartners: number;
-  totalCommissions: number;
-  milestoneRewardsClaimed?: number;
-  levelCounts?: Record<number, number>;
-  referrals: Array<{
-    id: string;
-    referrerAddress: string;
-    refereeAddress: string;
-    tier: number;
-    commissionUsdt: number;
-    volumeUsdt: number;
-    createdAt: string;
-  }>;
-  referredBy?: string | null;
-  referralCode?: string;
-  hashrateInfo?: HashrateLevelInfo;
 }
