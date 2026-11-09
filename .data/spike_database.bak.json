@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastSaved": "2026-11-09T08:07:17.049Z",
+  "lastSaved": "2026-11-09T19:00:26.986Z",
   "users": [
     {
       "address": "0x3471e07c4d2f7e11c155760a7b386e616b5c3715",
@@ -13,10 +13,10 @@
       "role": "master",
       "status": "active",
       "createdAt": "2026-10-22T07:32:42.455Z",
-      "lastActive": "2026-11-09T08:04:29.559Z",
+      "lastActive": "2026-11-09T18:58:58.880Z",
       "notes": "Master Creator & Protocol Root Authority",
       "lastMiningStart": "2026-11-08T20:22:56.974Z",
-      "_syncedAt": "2026-11-09T06:20:01.067Z",
+      "_syncedAt": "2026-11-09T08:07:17.199Z",
       "activeSessionId": "mine_3471e0_1794169376974",
       "hasActivatedMining": true,
       "hasDepositedTreasury": true,
@@ -70,108 +70,228 @@
   },
   "auditLogs": [
     {
-      "id": "audit-1794211636835-850",
+      "id": "audit-1794250826935-552",
       "adminUser": "System Admin",
       "action": "PURGE_NON_MASTER_DATA",
       "target": "All Non-Master Addresses",
-      "details": "Purged 12 users, 0 nodes, 11 referrals.",
-      "timestamp": "2026-11-09T08:07:16.836Z"
+      "details": "Purged 27 users, 18 nodes, 26 referrals.",
+      "timestamp": "2026-11-09T19:00:26.935Z"
     },
     {
-      "id": "audit-1794211469621-464",
+      "id": "audit-1794239601422-68",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xf648e2505e6d9875559fc908b288f2c9bd9e5037",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.422Z"
+    },
+    {
+      "id": "audit-1794239601422-696",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xb9ff25414fccbe1d3c39778910fa64226746ef2d",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.422Z"
+    },
+    {
+      "id": "audit-1794239601422-552",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xb3cb0652aca76fa12498bd4ba9630cd5a4f20339",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.422Z"
+    },
+    {
+      "id": "audit-1794239601422-310",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x6884c3a256e5826e841595a846626b89f717e834",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.422Z"
+    },
+    {
+      "id": "audit-1794239601421-655",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x4a273de28790718b8a4412e674eb47a9eac4e992",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.421Z"
+    },
+    {
+      "id": "audit-1794239601421-10",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x0f918f7231331e130aca526ecc7e73b655f375a4",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.421Z"
+    },
+    {
+      "id": "audit-1794239601421-759",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x0e92aef181b02dd08158c607d87007d0803e03ff",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.421Z"
+    },
+    {
+      "id": "audit-1794239601421-454",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x064648b646f56c38b53a223cfba5662b02d03a06",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.421Z"
+    },
+    {
+      "id": "audit-1794239601380-786",
       "adminUser": "SYSTEM",
       "action": "USER_REGISTER",
       "target": "0xfd016fbd180a0bd7e60567d11cd45661fa290724",
       "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.621Z"
+      "timestamp": "2026-11-09T15:53:21.380Z"
     },
     {
-      "id": "audit-1794211469621-738",
+      "id": "audit-1794239601380-717",
       "adminUser": "SYSTEM",
       "action": "USER_REGISTER",
       "target": "0xf4c464f340d2d149d89a779b5854f6e02741bf12",
       "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.621Z"
+      "timestamp": "2026-11-09T15:53:21.380Z"
     },
     {
-      "id": "audit-1794211469621-367",
+      "id": "audit-1794239601380-730",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xee8f10f2a1e5787e1d2018a14ec4819a922a82dc",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.380Z"
+    },
+    {
+      "id": "audit-1794239601380-173",
       "adminUser": "SYSTEM",
       "action": "USER_REGISTER",
       "target": "0xe99e94052e103a7eefc6561e68592f2a99d2cee8",
       "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.621Z"
+      "timestamp": "2026-11-09T15:53:21.380Z"
     },
     {
-      "id": "audit-1794211469621-310",
-      "adminUser": "SYSTEM",
-      "action": "USER_REGISTER",
-      "target": "0xca995cb63e8512d8258c65ed5f2e96de4b1e1a48",
-      "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.621Z"
-    },
-    {
-      "id": "audit-1794211469620-861",
-      "adminUser": "SYSTEM",
-      "action": "USER_REGISTER",
-      "target": "0xaf9d926107d222a68c3a7ff7b920acd0a5c9fb23",
-      "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.620Z"
-    },
-    {
-      "id": "audit-1794211469620-390",
-      "adminUser": "SYSTEM",
-      "action": "USER_REGISTER",
-      "target": "0xa95b0a21572ac6a559bc70b9bcd8c36f59718761",
-      "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.620Z"
-    },
-    {
-      "id": "audit-1794211469620-655",
-      "adminUser": "SYSTEM",
-      "action": "USER_REGISTER",
-      "target": "0x7ccc5769113f4163a9323bfe74af318aac19ef85",
-      "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.620Z"
-    },
-    {
-      "id": "audit-1794211469620-166",
-      "adminUser": "SYSTEM",
-      "action": "USER_REGISTER",
-      "target": "0x40f2efcf7397be97ca7aa10b5965bc6ddf3b9b6b",
-      "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.620Z"
-    },
-    {
-      "id": "audit-1794211469620-982",
-      "adminUser": "SYSTEM",
-      "action": "USER_REGISTER",
-      "target": "0x39c7b19b9cc059f9437fb636fa0b61bf955803d8",
-      "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.620Z"
-    },
-    {
-      "id": "audit-1794211469620-282",
-      "adminUser": "SYSTEM",
-      "action": "USER_REGISTER",
-      "target": "0x217b27a9c62c3c65fd51eea15d8addcf51acefe9",
-      "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.620Z"
-    },
-    {
-      "id": "audit-1794211469619-412",
-      "adminUser": "SYSTEM",
-      "action": "USER_REGISTER",
-      "target": "0x0150e35ca3906981162c52b8985fabba773ff5c0",
-      "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.619Z"
-    },
-    {
-      "id": "audit-1794211469559-538",
+      "id": "audit-1794239601380-27",
       "adminUser": "SYSTEM",
       "action": "USER_REGISTER",
       "target": "0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7",
       "details": "New user wallet connected to database",
-      "timestamp": "2026-11-09T08:04:29.559Z"
+      "timestamp": "2026-11-09T15:53:21.380Z"
+    },
+    {
+      "id": "audit-1794239601380-559",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xcc4f72c7456dd272425bab04e18075a0b2bde62b",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.380Z"
+    },
+    {
+      "id": "audit-1794239601380-927",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xca995cb63e8512d8258c65ed5f2e96de4b1e1a48",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.380Z"
+    },
+    {
+      "id": "audit-1794239601380-926",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xaf9d926107d222a68c3a7ff7b920acd0a5c9fb23",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.380Z"
+    },
+    {
+      "id": "audit-1794239601380-459",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xaf88c8e3c4ae2b58ade49c00ac8f1bc8968a48c4",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.380Z"
+    },
+    {
+      "id": "audit-1794239601380-189",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0xa95b0a21572ac6a559bc70b9bcd8c36f59718761",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.380Z"
+    },
+    {
+      "id": "audit-1794239601379-467",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x9448d10c3513ca60a2a6d8397b9d0a9c2b45b789",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
+    },
+    {
+      "id": "audit-1794239601379-893",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x7ccc5769113f4163a9323bfe74af318aac19ef85",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
+    },
+    {
+      "id": "audit-1794239601379-160",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x76f22d823c0e59bbd6d4a2613c50da76897d59c5",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
+    },
+    {
+      "id": "audit-1794239601379-189",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x5461a77a0719391f33c8e0038f628bb82e22978f",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
+    },
+    {
+      "id": "audit-1794239601379-555",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x40f2efcf7397be97ca7aa10b5965bc6ddf3b9b6b",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
+    },
+    {
+      "id": "audit-1794239601379-352",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x402cbb7470f41ecccac469a1a4e598d38e9048e1",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
+    },
+    {
+      "id": "audit-1794239601379-455",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x217b27a9c62c3c65fd51eea15d8addcf51acefe9",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
+    },
+    {
+      "id": "audit-1794239601379-696",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x19e7d3ad2e1935aadcacb2c294cf9dffa9a574a6",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
+    },
+    {
+      "id": "audit-1794239601379-37",
+      "adminUser": "SYSTEM",
+      "action": "USER_REGISTER",
+      "target": "0x1818474daba366cf51d475f9b4a8d667ec663249",
+      "details": "New user wallet connected to database",
+      "timestamp": "2026-11-09T15:53:21.379Z"
     },
     {
       "id": "audit-1794205200662-177",
