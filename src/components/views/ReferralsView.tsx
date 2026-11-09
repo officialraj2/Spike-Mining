@@ -96,11 +96,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
 
-  // Sponsor input state for manual binding
-  const [sponsorInput, setSponsorInput] = useState('');
-  const [bindingSponsor, setBindingSponsor] = useState(false);
-  const [bindMessage, setBindMessage] = useState<string | null>(null);
-
   // Local real-time synchronized stats
   const [localStats, setLocalStats] = useState<ReferralStatsData | null>(referralStats || null);
   const [isSyncingStats, setIsSyncingStats] = useState<boolean>(false);
@@ -570,8 +565,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
         )}
       </div>
 
-        {/* Referral Link & Code Box */}
-      <div className="bg-gradient-to-b from-[#122130] to-[#081524] rounded-2xl p-5 md:p-6 border border-cyan-500/30 shadow-md space-y-4 animate-box-glow-cyan">
+        {/* Referral Link & Code Box (Enhanced with Outer Glow and Shadow Animation) */}
+      <div className="bg-gradient-to-b from-[#0e2338] via-[#091b2c] to-[#051320] rounded-2xl p-5 md:p-6 border-2 border-[#00F0FF]/55 shadow-[0_0_35px_rgba(0,240,255,0.32)] space-y-4 animate-box-glow-hybrid relative overflow-hidden transition-all duration-300 hover:shadow-[0_0_55px_rgba(0,240,255,0.5)]">
+        {/* Ambient Corner Glow Accents */}
+        <div className="absolute top-0 left-0 w-24 h-24 border-t-2 border-l-2 border-[#00F0FF]/60 rounded-tl-2xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-24 h-24 border-t-2 border-r-2 border-[#00F0FF]/60 rounded-tr-2xl pointer-events-none" />
+        <div className="absolute -top-10 -right-10 w-36 h-36 bg-[#00F0FF]/15 rounded-full blur-2xl pointer-events-none" />
         {/* Short Referral Link & Code Inputs */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -597,7 +596,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             </div>
             
             {hasActiveMining ? (
-              <div className="mt-2.5 flex items-center gap-2 bg-[#0a0f1d] border border-[#1c2b3b] rounded-xl p-2.5">
+              <div className="mt-2.5 flex items-center gap-2 bg-gradient-to-r from-[#071626] via-[#0b2135] to-[#071626] border-2 border-[#00F0FF]/65 rounded-xl p-2.5 shadow-[0_0_30px_rgba(0,240,255,0.45)] animate-box-glow-cyan transition-all duration-300 relative overflow-hidden">
                 <span className="material-symbols-outlined text-[#00F0FF] text-[20px] ml-1">link</span>
                 <input
                   type="text"
@@ -691,7 +690,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="mt-2.5 p-3.5 bg-gradient-to-r from-amber-500/10 via-[#0a0f1d] to-amber-500/10 border border-amber-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="mt-2.5 p-3.5 bg-gradient-to-r from-amber-500/15 via-[#0b1724] to-amber-500/15 border-2 border-amber-500/50 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_28px_rgba(245,158,11,0.3)] animate-box-glow-amber transition-all">
                 <div className="flex items-center gap-2.5">
                   <span className="material-symbols-outlined text-amber-400 text-[24px]">lock_clock</span>
                   <div>
@@ -717,7 +716,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             )}
           </div>
 
-          <div className="md:w-64 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-between shrink-0">
+          <div className="md:w-64 p-3 rounded-xl bg-gradient-to-r from-[#071626] via-[#0d2238] to-[#071626] border-2 border-[#D4AF37]/60 shadow-[0_0_25px_rgba(212,175,55,0.35)] animate-box-glow-gold flex items-center justify-between shrink-0 transition-all">
             <div>
               <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Referral Code</div>
               <div className="text-base font-bold font-mono text-[#D4AF37] mt-0.5 tracking-wider">
@@ -744,128 +743,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               </span>
             )}
           </div>
-        </div>
-
-        {/* Sponsor Status & Binding Card */}
-        <div className="pt-3 border-t border-[#1c2b3b] bg-[#0a0f1d]/70 p-3.5 rounded-xl border border-[#1c2b3b]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${activeSponsor ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-[#00F0FF]/10 text-[#00F0FF] border border-[#00F0FF]/30'}`}>
-              <span className="material-symbols-outlined text-[18px]">{activeSponsor ? 'verified_user' : 'handshake'}</span>
-            </div>
-            <div>
-              <div className="text-xs font-body font-semibold uppercase text-slate-400 tracking-wider">Sponsor Status</div>
-              {activeSponsor ? (
-                <div className="text-xs sm:text-sm font-body font-bold text-white flex items-center gap-1.5 mt-0.5">
-                  <span className="text-emerald-400 font-semibold">Active Sponsor:</span>
-                  <span className="text-[#00F0FF] font-mono">{activeSponsor.slice(0, 6)}...{activeSponsor.slice(-4)}</span>
-                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded font-headline font-semibold">Bound</span>
-                </div>
-              ) : (
-                <div className="text-xs font-body text-slate-400 mt-0.5">
-                  Not linked to a sponsor yet. Enter your inviter's wallet or code below.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {!activeSponsor && onBindSponsor && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-              <input
-                type="text"
-                placeholder="Paste link, SPK-..., or 0x..."
-                value={sponsorInput}
-                disabled={bindingSponsor}
-                onChange={(e) => setSponsorInput(e.target.value)}
-                onKeyDown={async (e) => {
-                  if (e.key === 'Enter' && !bindingSponsor && sponsorInput.trim()) {
-                    e.preventDefault();
-                    const input = sponsorInput.trim();
-                    setBindingSponsor(true);
-                    try {
-                      const ok = await onBindSponsor(input);
-                      if (ok) {
-                        setBindMessage('✓ Sponsor bonded! Team partner added.');
-                        setSponsorInput('');
-                        refreshLiveStats();
-                        try {
-                          const bc = new BroadcastChannel('spike_referral_live_sync');
-                          bc.postMessage({ type: 'PARTNER_BOUND', input });
-                          bc.close();
-                        } catch {}
-                        setTimeout(() => setBindMessage(null), 4000);
-                      }
-                    } finally {
-                      setBindingSponsor(false);
-                    }
-                  }
-                }}
-                className="bg-[#122130] border border-[#1c2b3b] text-white font-mono text-xs px-3 py-1.5 rounded-lg focus:outline-none focus:border-[#00F0FF] w-full sm:w-64 placeholder:text-gray-500 disabled:opacity-50"
-              />
-              <button
-                disabled={bindingSponsor || !sponsorInput.trim()}
-                onClick={async () => {
-                  const input = sponsorInput.trim();
-                  if (!input) return;
-                  setBindingSponsor(true);
-                  try {
-                    const ok = await onBindSponsor(input);
-                    if (ok) {
-                      setBindMessage('✓ Sponsor bonded! Team partner added.');
-                      setSponsorInput('');
-                      refreshLiveStats();
-                      try {
-                        const bc = new BroadcastChannel('spike_referral_live_sync');
-                        bc.postMessage({ type: 'PARTNER_BOUND', input });
-                        bc.close();
-                      } catch {}
-                      setTimeout(() => setBindMessage(null), 4000);
-                    }
-                  } finally {
-                    setBindingSponsor(false);
-                  }
-                }}
-                className="px-4 py-1.5 rounded-lg bg-[#D4AF37] hover:bg-[#ffe088] active:scale-95 text-[#0A0F1D] font-bold text-xs font-headline transition-all disabled:opacity-50 shrink-0 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                {bindingSponsor ? (
-                  <>
-                    <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
-                    <span>Bonding...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[15px]">link</span>
-                    <span>Bond Sponsor</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-          {bindMessage && (
-            <div className="w-full text-left sm:text-right mt-1">
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-mono font-semibold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                {bindMessage}
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Live Invitation & Partner Tracking Action Bar */}
-        <div className="pt-2 border-t border-[#1c2b3b] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0a0f1d]/50 p-3 rounded-xl">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-[#94a3b8]">
-              Share your link with partners. Every registered miner joins your network in real time and progresses your <strong className="text-white">Team Milestone Rewards</strong> ($15 to $500,000 USDT).
-            </span>
-          </div>
-
-          <button
-            onClick={handleCopy}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#00F0FF]/20 to-[#D4AF37]/20 hover:from-[#00F0FF]/30 hover:to-[#D4AF37]/30 border border-[#00F0FF]/40 text-[#00F0FF] hover:text-white text-xs font-headline font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto shrink-0 shadow-sm active:scale-95"
-            title="Copy Referral Link to share"
-          >
-            <span className="material-symbols-outlined text-[16px]">share</span>
-            <span>{copied ? 'Link Copied!' : 'Share Referral Link'}</span>
-          </button>
         </div>
       </div>
 
