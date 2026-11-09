@@ -11,6 +11,8 @@ interface TeamRewardMilestonesSectionProps {
   activeLevelCounts?: Record<number, number>;
   onClaimReward?: (amountUsd: number, milestoneName: string) => void;
   walletAddress?: string;
+  hasActiveMining?: boolean;
+  onOpenDepositModal?: () => void;
 }
 
 export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionProps> = ({
@@ -22,11 +24,13 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
   activeLevelCounts,
   onClaimReward,
   walletAddress,
+  hasActiveMining = false,
+  onOpenDepositModal,
 }) => {
   // Use active miners for milestone unlocking (must have active mining ring)
-  const effectiveActiveLevelCounts = activeLevelCounts || levelCounts;
-  const effectiveActiveDirects = activeDirectPartners !== undefined ? activeDirectPartners : directPartners;
-  const effectiveActiveDownline = activeDownlinePartners !== undefined ? activeDownlinePartners : downlinePartners;
+  const effectiveActiveLevelCounts = activeLevelCounts || { 1: activeDirectPartners || 0, 2: activeDownlinePartners || 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
+  const effectiveActiveDirects = typeof activeDirectPartners === 'number' ? activeDirectPartners : 0;
+  const effectiveActiveDownline = typeof activeDownlinePartners === 'number' ? activeDownlinePartners : 0;
   const totalActiveMiners = effectiveActiveDirects + effectiveActiveDownline;
   const totalRegisteredPartners = directPartners + downlinePartners;
 
@@ -39,11 +43,11 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
     .reduce((sum, [, val]) => sum + (val || 0), 0);
 
   // Helper to determine if a specific unilevel milestone tier is unlocked
-  // Level-specific condition:
-  // Milestone 1 (Level 1): 10 ACTIVE Direct Mining Partners (activeLevelCounts[1] >= 10)
-  // Milestone 2 (Level 2): 100 ACTIVE Partners from Directs (activeLevelCounts[2] >= 100)
-  // Milestone N (Level N): activeLevelCounts[N] >= tier.partnersRequired
+  // Strict condition:
+  // 1. Current user must have an active mining ring (hasActiveMining === true)
+  // 2. Active level count must meet or exceed required partners
   const isTierReached = (tier: TeamMilestoneTier) => {
+    if (!hasActiveMining) return false;
     const levelNum = tier.level || 1;
     const countAtLevel = effectiveActiveLevelCounts?.[levelNum] ?? (levelNum === 1 ? effectiveActiveDirects : 0);
     return countAtLevel >= tier.partnersRequired;
@@ -97,6 +101,8 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
   );
 
   const handleClaim = (milestone: TeamMilestoneTier) => {
+    if (!hasActiveMining) return;
+    if (!isTierReached(milestone)) return;
     if (claimedIds.includes(milestone.id)) return;
     const updated = [...claimedIds, milestone.id];
     setClaimedIds(updated);
@@ -112,7 +118,35 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
 
   return (
     <div className="space-y-6">
-
+      {/* Mining Inactive Alert if User Has Not Deployed 5$ Ring */}
+      {!hasActiveMining && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border-2 border-amber-500/40 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_25px_rgba(245,158,11,0.15)]">
+          <div className="flex items-center gap-3.5 text-center sm:text-left">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-white font-bold text-sm sm:text-base flex items-center justify-center sm:justify-start gap-2">
+                <span>Mining Ring Activation Required ($5 USDT)</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">Locked</span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Milestone rewards and referral invitations require an active mining node. Only partners with active nodes count toward team milestones.
+              </p>
+            </div>
+          </div>
+          {onOpenDepositModal && (
+            <button
+              onClick={onOpenDepositModal}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-all hover:scale-105 shrink-0"
+            >
+              Deposit $5 To Activate
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ============================================================
           MAIN SPIKE TEAM-BASED REWARD PROGRAM CONSOLE (FROM ATTACHED PHOTO)

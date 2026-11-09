@@ -55,6 +55,8 @@ interface ReferralsViewProps {
   referralStats?: ReferralStatsData;
   onBindSponsor?: (codeOrAddr: string) => Promise<boolean>;
   onOpenVerificationModal?: (code?: string) => void;
+  hasActiveMining?: boolean;
+  onOpenDepositModal?: () => void;
 }
 
 export const ReferralsView: React.FC<ReferralsViewProps> = ({
@@ -65,6 +67,8 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   referralStats,
   onBindSponsor,
   onOpenVerificationModal,
+  hasActiveMining = false,
+  onOpenDepositModal,
 }) => {
   const normAddr = walletAddress ? walletAddress.toLowerCase() : '';
   const shortAddr = walletAddress ? walletAddress.slice(2, 8).toUpperCase() : 'USER';
@@ -132,8 +136,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             directPartners: fsData.directPartners,
             downlinePartners: fsData.downlinePartners,
             totalPartners: fsData.totalPartners,
+            activeDirectPartners: fsData.activeDirectPartners || 0,
+            activeDownlinePartners: fsData.activeDownlinePartners || 0,
+            activeTotalPartners: fsData.activeTotalPartners || 0,
             totalCommissions: 0,
             levelCounts: fsData.levelCounts,
+            activeLevelCounts: fsData.activeLevelCounts,
             referrals: fsData.referrals.map((r, i) => ({
               id: r.id || `fs_${i}`,
               refereeAddress: r.refereeAddress || (r as any).address,
@@ -142,7 +150,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               tier: r.tier || 1,
               joinedAt: r.joinedAt || r.createdAt || new Date().toISOString(),
               createdAt: r.createdAt || r.joinedAt || new Date().toISOString(),
-              activeMiners: 1,
+              hasActiveMining: Boolean(r.hasActiveMining),
               volumeUsdt: r.volumeUsdt || 150,
               commissionUsdt: r.commissionUsdt || 0,
             })),
@@ -154,6 +162,10 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           baseStats.directPartners = directCount;
           baseStats.downlinePartners = downlineCount;
           baseStats.totalPartners = totalCount;
+          baseStats.activeDirectPartners = typeof baseStats.activeDirectPartners === 'number' ? baseStats.activeDirectPartners : (fsData.activeDirectPartners || 0);
+          baseStats.activeDownlinePartners = typeof baseStats.activeDownlinePartners === 'number' ? baseStats.activeDownlinePartners : (fsData.activeDownlinePartners || 0);
+          baseStats.activeTotalPartners = (baseStats.activeDirectPartners || 0) + (baseStats.activeDownlinePartners || 0);
+          baseStats.activeLevelCounts = baseStats.activeLevelCounts || fsData.activeLevelCounts;
           baseStats.levelCounts = {
             1: Math.max(baseStats.levelCounts?.[1] || 0, fsData.levelCounts?.[1] || directCount),
             2: Math.max(baseStats.levelCounts?.[2] || 0, fsData.levelCounts?.[2] || 0),
@@ -179,10 +191,15 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 tier: r.tier || 1,
                 joinedAt: r.joinedAt || r.createdAt || new Date().toISOString(),
                 createdAt: r.createdAt || r.joinedAt || new Date().toISOString(),
-                activeMiners: 1,
+                hasActiveMining: Boolean(r.hasActiveMining),
                 volumeUsdt: r.volumeUsdt || 150,
                 commissionUsdt: r.commissionUsdt || 0,
               });
+            } else {
+              const existing = refMap.get(a);
+              if (r.hasActiveMining) {
+                existing.hasActiveMining = true;
+              }
             }
           });
           baseStats.referrals = Array.from(refMap.values()).sort((a: any, b: any) => {
@@ -314,9 +331,9 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
   React.useEffect(() => {
     try {
-      const activeDir = effectiveStats?.activeDirectPartners ?? effectiveStats?.directPartners ?? 0;
+      const activeDir = typeof effectiveStats?.activeDirectPartners === 'number' ? effectiveStats.activeDirectPartners : 0;
       let parsed: string[] = [];
-      if (activeDir >= 10) {
+      if (hasActiveMining && activeDir >= 10) {
         const saved = localStorage.getItem(`spike_claimed_milestones_${walletAddress || 'default'}`);
         parsed = saved ? JSON.parse(saved) : [];
       } else {
@@ -401,9 +418,10 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
 
   const isMilestoneLevelReached = (m: TeamMilestoneTier) => {
+    if (!hasActiveMining) return false;
     const lvl = m.level || 1;
-    const countAtLevel = effectiveStats?.levelCounts?.[lvl] ?? (lvl === 1 ? directPartners : 0);
-    return countAtLevel >= m.partnersRequired;
+    const activeCountAtLevel = effectiveStats?.activeLevelCounts?.[lvl] ?? (lvl === 1 ? (effectiveStats?.activeDirectPartners ?? 0) : 0);
+    return activeCountAtLevel >= m.partnersRequired;
   };
 
   const nextClaimable = TEAM_MILESTONE_TIERS.find(
@@ -420,9 +438,13 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   };
 
   const handleClaimMilestone = (amountUsd: number, milestoneLabel: string) => {
+    if (!hasActiveMining) return;
+    const milestoneId = nextClaimable?.id || TEAM_MILESTONE_TIERS.find(m => m.label === milestoneLabel)?.id || '';
+    const targetMilestone = TEAM_MILESTONE_TIERS.find(m => m.id === milestoneId);
+    if (!targetMilestone || !isMilestoneLevelReached(targetMilestone)) return;
+
     onClaimReferralRewards(amountUsd, milestoneLabel);
     setClaimSuccess(milestoneLabel);
-    const milestoneId = nextClaimable?.id || TEAM_MILESTONE_TIERS.find(m => m.label === milestoneLabel)?.id || '';
     const updatedMilestones = claimedMilestones.includes(milestoneId) ? claimedMilestones : [...claimedMilestones, milestoneId];
     setClaimedMilestones(updatedMilestones);
     try { localStorage.setItem(storageKey, JSON.stringify(updatedMilestones)); } catch {}
@@ -559,6 +581,12 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                   <span className="material-symbols-outlined text-[#00F0FF] text-[22px]">share_location</span>
                   <span>Your Referral Link</span>
                 </span>
+                {!hasActiveMining && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-headline font-bold text-[11px] flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[13px]">lock</span>
+                    <span>LOCKED — ACTIVE MINING REQUIRED</span>
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-body flex items-center gap-1.5 text-emerald-400 font-semibold">
@@ -568,118 +596,153 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               </div>
             </div>
             
-            <div className="mt-2.5 flex items-center gap-2 bg-[#0a0f1d] border border-[#1c2b3b] rounded-xl p-2.5">
-              <span className="material-symbols-outlined text-[#00F0FF] text-[20px] ml-1">link</span>
-              <input
-                type="text"
-                readOnly
-                value={activeLinkToCopy}
-                className="bg-transparent text-white font-mono text-xs sm:text-sm truncate flex-1 tracking-tight border-none outline-none select-all min-w-0"
-              />
-              <button
-                onClick={handleCopy}
-                className="px-3.5 sm:px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">
-                  {copied ? 'check' : 'content_copy'}
-                </span>
-                <span>{copied ? 'Copied!' : 'Copy Link'}</span>
-              </button>
-
-              {/* Direct Open / Test Button */}
-              <a
-                href={activeLinkToCopy}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors flex items-center justify-center shrink-0 cursor-pointer"
-                title="Open production link in new tab to test"
-              >
-                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-              </a>
-
-              {/* Native / Social Share Button */}
-              <div className="relative">
+            {hasActiveMining ? (
+              <div className="mt-2.5 flex items-center gap-2 bg-[#0a0f1d] border border-[#1c2b3b] rounded-xl p-2.5">
+                <span className="material-symbols-outlined text-[#00F0FF] text-[20px] ml-1">link</span>
+                <input
+                  type="text"
+                  readOnly
+                  value={activeLinkToCopy}
+                  className="bg-transparent text-white font-mono text-xs sm:text-sm truncate flex-1 tracking-tight border-none outline-none select-all min-w-0"
+                />
                 <button
-                  onClick={() => {
-                    if (navigator.share) {
-                      navigator.share({
-                        title: 'Join SPIKE Decentralized Mining',
-                        text: `Join my SPIKE mining team and earn team milestone rewards! Use code ${refCode}:`,
-                        url: activeLinkToCopy,
-                      }).catch(() => {});
-                    } else {
-                      setShowShareMenu(!showShareMenu);
-                    }
-                  }}
-                  className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors cursor-pointer"
-                  title="Share production link"
+                  onClick={handleCopy}
+                  className="px-3.5 sm:px-4 py-2 rounded-lg bg-[#00F0FF] text-[#0A0F1D] font-bold text-xs font-headline hover:bg-[#7df4ff] transition-all flex items-center gap-1.5 shrink-0 tracking-wide shadow-[0_0_15px_rgba(0,240,255,0.3)] active:scale-95 cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[18px]">share</span>
+                  <span className="material-symbols-outlined text-[16px]">
+                    {copied ? 'check' : 'content_copy'}
+                  </span>
+                  <span>{copied ? 'Copied!' : 'Copy Link'}</span>
                 </button>
 
-                {showShareMenu && (
-                  <div className="absolute right-0 top-full mt-2 z-30 w-52 bg-[#0d1624] border border-[#1c2b3b] rounded-xl p-2 shadow-xl space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onCopyText(productionRefLink);
-                        setCopied(true);
-                        setShowShareMenu(false);
-                        setTimeout(() => setCopied(false), 2000);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors text-left cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">content_copy</span>
-                      <span>Copy Production Link</span>
-                    </button>
-                    <div className="my-1 border-t border-[#1c2b3b]/70" />
-                    <a
-                      href={`https://wa.me/?text=${encodeURIComponent(`Join my SPIKE mining team and start earning with code ${refCode}!\n\n${productionRefLink}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
-                    >
-                      <span>💬 WhatsApp</span>
-                    </a>
-                    <a
-                      href={`https://t.me/share/url?url=${encodeURIComponent(productionRefLink)}&text=${encodeURIComponent(`Join my SPIKE mining team with code ${refCode}!`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
-                    >
-                      <span>✈️ Telegram</span>
-                    </a>
-                    <a
-                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join my @SpikeNodes mining team using code ${refCode}! ${productionRefLink}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
-                    >
-                      <span>🐦 X / Twitter</span>
-                    </a>
+                {/* Direct Open / Test Button */}
+                <a
+                  href={activeLinkToCopy}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+                  title="Open production link in new tab to test"
+                >
+                  <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+                </a>
+
+                {/* Native / Social Share Button */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      if (navigator.share) {
+                        navigator.share({
+                          title: 'Join SPIKE Decentralized Mining',
+                          text: `Join my SPIKE mining team and earn team milestone rewards! Use code ${refCode}:`,
+                          url: activeLinkToCopy,
+                        }).catch(() => {});
+                      } else {
+                        setShowShareMenu(!showShareMenu);
+                      }
+                    }}
+                    className="p-2 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-white hover:text-[#00F0FF] transition-colors cursor-pointer"
+                    title="Share production link"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">share</span>
+                  </button>
+
+                  {showShareMenu && (
+                    <div className="absolute right-0 top-full mt-2 z-30 w-52 bg-[#0d1624] border border-[#1c2b3b] rounded-xl p-2 shadow-xl space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onCopyText(productionRefLink);
+                          setCopied(true);
+                          setShowShareMenu(false);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors text-left cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">content_copy</span>
+                        <span>Copy Production Link</span>
+                      </button>
+                      <div className="my-1 border-t border-[#1c2b3b]/70" />
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(`Join my SPIKE mining team and start earning with code ${refCode}!\n\n${productionRefLink}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
+                      >
+                        <span>💬 WhatsApp</span>
+                      </a>
+                      <a
+                        href={`https://t.me/share/url?url=${encodeURIComponent(productionRefLink)}&text=${encodeURIComponent(`Join my SPIKE mining team with code ${refCode}!`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
+                      >
+                        <span>✈️ Telegram</span>
+                      </a>
+                      <a
+                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join my @SpikeNodes mining team using code ${refCode}! ${productionRefLink}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs text-white hover:bg-[#152335] rounded-lg transition-colors"
+                      >
+                        <span>🐦 X / Twitter</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2.5 p-3.5 bg-gradient-to-r from-amber-500/10 via-[#0a0f1d] to-amber-500/10 border border-amber-500/30 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="material-symbols-outlined text-amber-400 text-[24px]">lock_clock</span>
+                  <div>
+                    <div className="text-xs sm:text-sm font-headline font-bold text-white">
+                      Referral Link Locked (5$ Mining Ring Required)
+                    </div>
+                    <div className="text-[11px] text-slate-300 font-sans mt-0.5">
+                      To unlock your unique referral link and earn milestone rewards, activate your mining node by depositing <strong>5$ USDT</strong> to protocol treasury.
+                    </div>
                   </div>
+                </div>
+                {onOpenDepositModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenDepositModal}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-headline font-extrabold text-xs shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:brightness-110 active:scale-95 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">bolt</span>
+                    <span>Deposit 5$ to Unlock</span>
+                  </button>
                 )}
               </div>
-            </div>
+            )}
           </div>
 
           <div className="md:w-64 p-3 rounded-xl bg-[#0a0f1d] border border-[#1c2b3b] flex items-center justify-between shrink-0">
             <div>
               <div className="text-xs text-slate-400 font-body font-semibold uppercase tracking-wider">Referral Code</div>
-              <div className="text-base font-bold font-mono text-[#D4AF37] mt-0.5 tracking-wider">{refCode}</div>
+              <div className="text-base font-bold font-mono text-[#D4AF37] mt-0.5 tracking-wider">
+                {hasActiveMining ? refCode : '•••••••'}
+              </div>
             </div>
-            <button
-              onClick={() => {
-                onCopyText(refCode);
-                setCopiedCode(true);
-                setTimeout(() => setCopiedCode(false), 2000);
-              }}
-              className="px-3.5 py-1.5 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1.5 font-headline font-bold cursor-pointer"
-              title="Copy Code"
-            >
-              <span className="material-symbols-outlined text-[16px]">{copiedCode ? 'check' : 'content_copy'}</span>
-              <span>{copiedCode ? 'Copied' : 'Copy'}</span>
-            </button>
+            {hasActiveMining ? (
+              <button
+                onClick={() => {
+                  onCopyText(refCode);
+                  setCopiedCode(true);
+                  setTimeout(() => setCopiedCode(false), 2000);
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-[#1c2b3b] hover:bg-[#273647] text-[#00F0FF] text-xs transition-colors flex items-center gap-1.5 font-headline font-bold cursor-pointer"
+                title="Copy Code"
+              >
+                <span className="material-symbols-outlined text-[16px]">{copiedCode ? 'check' : 'content_copy'}</span>
+                <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+              </button>
+            ) : (
+              <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[11px] font-mono font-bold flex items-center gap-1">
+                <span className="material-symbols-outlined text-[13px]">lock</span>
+                <span>Locked</span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -963,6 +1026,8 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
         activeLevelCounts={effectiveStats?.activeLevelCounts}
         onClaimReward={handleClaimMilestone}
         walletAddress={walletAddress}
+        hasActiveMining={hasActiveMining}
+        onOpenDepositModal={onOpenDepositModal}
       />
 
       {/* Recent Referral Activity Table */}

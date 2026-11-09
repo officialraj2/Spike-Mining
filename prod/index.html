@@ -41,103 +41,128 @@
     <script>
       // Suppress known third-party browser extension injection errors and Firestore quota notifications
       (function() {
+        var isExtensionOrQuotaError = function(msg, src, stack) {
+          msg = String(msg || '');
+          src = String(src || '');
+          stack = String(stack || '');
+          return (
+            msg.indexOf('Failed to connect to MetaMask') !== -1 ||
+            msg.indexOf('MetaMask') !== -1 ||
+            msg.indexOf('chrome-extension://') !== -1 ||
+            msg.indexOf('inpage.js') !== -1 ||
+            src.indexOf('chrome-extension://') !== -1 ||
+            src.indexOf('inpage.js') !== -1 ||
+            stack.indexOf('chrome-extension://') !== -1 ||
+            stack.indexOf('inpage.js') !== -1 ||
+            msg.indexOf('User rejected') !== -1 ||
+            msg.indexOf('WALLET_TIMEOUT') !== -1 ||
+            msg.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
+            msg.indexOf('Quota limit exceeded') !== -1 ||
+            msg.indexOf('Free daily write units') !== -1 ||
+            msg.indexOf('resource-exhausted') !== -1
+          );
+        };
+
+        // 1. Wrap window.addEventListener so any listener registered (including Vite dev client overlay)
+        // ignores third-party browser extension errors
+        var origAddEventListener = window.addEventListener;
+        window.addEventListener = function(type, listener, options) {
+          if ((type === 'error' || type === 'unhandledrejection') && typeof listener === 'function') {
+            var wrappedListener = function(event) {
+              try {
+                var msg = '';
+                var src = '';
+                var stack = '';
+                if (type === 'error') {
+                  msg = (event && (event.message || (event.error && event.error.message))) || '';
+                  src = (event && event.filename) || '';
+                  stack = (event && event.error && event.error.stack) || '';
+                } else if (type === 'unhandledrejection') {
+                  var r = event && event.reason;
+                  msg = (typeof r === 'string' ? r : (r && (r.message || r.stack))) || '';
+                  stack = (r && r.stack) || '';
+                }
+                if (isExtensionOrQuotaError(msg, src, stack)) {
+                  if (event && event.preventDefault) event.preventDefault();
+                  if (event && event.stopImmediatePropagation) event.stopImmediatePropagation();
+                  return;
+                }
+              } catch (e) {}
+              return listener.apply(this, arguments);
+            };
+            return origAddEventListener.call(this, type, wrappedListener, options);
+          }
+          return origAddEventListener.call(this, type, listener, options);
+        };
+
+        // 2. Intercept console.error
         var origError = console.error;
         console.error = function() {
           var fullText = '';
           try {
             for (var i = 0; i < arguments.length; i++) {
               var a = arguments[i];
-              if (typeof a === 'string') {
-                fullText += ' ' + a;
-              } else if (a && a.message) {
-                fullText += ' ' + a.message;
-              } else if (a) {
-                try {
-                  fullText += ' ' + JSON.stringify(a);
-                } catch (e) {
-                  fullText += ' ' + String(a);
-                }
+              if (typeof a === 'string') fullText += ' ' + a;
+              else if (a && a.message) fullText += ' ' + a.message;
+              else if (a && a.stack) fullText += ' ' + a.stack;
+              else if (a) {
+                try { fullText += ' ' + JSON.stringify(a); } catch (e) { fullText += ' ' + String(a); }
               }
             }
           } catch (e) {}
 
-          if (
-            fullText.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
-            fullText.indexOf('Quota limit exceeded') !== -1 ||
-            fullText.indexOf('Free daily write units') !== -1 ||
-            fullText.indexOf("GrpcConnection RPC 'Write' stream") !== -1 ||
-            fullText.indexOf('resource-exhausted') !== -1
-          ) {
-            console.warn('[Handled Firestore Quota]: Daily quota reached; running smoothly in persistent local database mode.');
-            return;
-          }
-
-          if (
-            fullText.indexOf('Failed to connect to MetaMask') !== -1 ||
-            fullText.indexOf('chrome-extension://') !== -1 ||
-            fullText.indexOf('inpage.js') !== -1 ||
-            fullText.indexOf('MetaMask') !== -1 ||
-            fullText.indexOf('User rejected') !== -1
-          ) {
-            console.warn('[Handled Web3 Extension Notice]:', fullText);
+          if (isExtensionOrQuotaError(fullText, '', '')) {
+            console.warn('[Handled Web3 Extension/Quota Notice]:', fullText.slice(0, 160));
             return;
           }
           return origError.apply(console, arguments);
         };
-      })();
 
-      window.addEventListener('unhandledrejection', function(event) {
-        var reason = event.reason;
-        var msg = (typeof reason === 'string' ? reason : (reason && reason.message) || '');
-        if (
-          msg.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
-          msg.indexOf('Quota limit exceeded') !== -1 ||
-          msg.indexOf('Free daily write units') !== -1 ||
-          msg.indexOf('resource-exhausted') !== -1
-        ) {
-          event.preventDefault();
-          console.warn('[Handled Firestore Quota Notice]: Daily quota reached; using local database.');
-          return;
+        // 3. Early capture-phase error listeners
+        var swallowEvent = function(e) {
+          var msg = (e && (e.message || (e.error && e.error.message))) || '';
+          var src = (e && e.filename) || '';
+          var stack = (e && e.error && e.error.stack) || '';
+          if (e && e.reason) {
+            var r = e.reason;
+            msg = msg || String((typeof r === 'string' ? r : (r && (r.message || r.stack))) || '');
+            stack = stack || String((r && r.stack) || '');
+          }
+          if (isExtensionOrQuotaError(msg, src, stack)) {
+            if (e && e.preventDefault) e.preventDefault();
+            if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+            return true;
+          }
+        };
+        origAddEventListener.call(window, 'error', swallowEvent, true);
+        origAddEventListener.call(window, 'unhandledrejection', swallowEvent, true);
+
+        // 4. MutationObserver to remove any <vite-error-overlay> triggered by extensions
+        if (typeof MutationObserver !== 'undefined') {
+          var obs = new MutationObserver(function(mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+              var nodes = mutations[i].addedNodes;
+              for (var j = 0; j < nodes.length; j++) {
+                var node = nodes[j];
+                if (node && node.nodeName && node.nodeName.toLowerCase() === 'vite-error-overlay') {
+                  var text = (node.shadowRoot && node.shadowRoot.textContent) || node.textContent || '';
+                  if (isExtensionOrQuotaError(text, '', '')) {
+                    node.remove();
+                  }
+                }
+              }
+            }
+          });
+          obs.observe(document.documentElement, { childList: true, subtree: true });
         }
-        if (
-          msg.indexOf('Failed to connect to MetaMask') !== -1 ||
-          msg.indexOf('MetaMask') !== -1 ||
-          msg.indexOf('User rejected') !== -1 ||
-          (reason && reason.stack && reason.stack.indexOf('chrome-extension://') !== -1)
-        ) {
-          event.preventDefault();
-          console.warn('[Handled Web3 Extension Notice]:', msg);
-        }
-      });
-      window.addEventListener('error', function(event) {
-        var msg = event.message || '';
-        var filename = event.filename || '';
-        if (
-          msg.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
-          msg.indexOf('Quota limit exceeded') !== -1 ||
-          msg.indexOf('Free daily write units') !== -1 ||
-          msg.indexOf('resource-exhausted') !== -1
-        ) {
-          event.preventDefault();
-          console.warn('[Handled Firestore Quota Error]:', msg);
-          return;
-        }
-        if (
-          msg.indexOf('Failed to connect to MetaMask') !== -1 ||
-          filename.indexOf('chrome-extension://') !== -1 ||
-          (event.error && event.error.stack && event.error.stack.indexOf('chrome-extension://') !== -1)
-        ) {
-          event.preventDefault();
-          console.warn('[Handled Web3 Extension Error]:', msg);
-        }
-      });
+      })();
     </script>
 
-    <script type="module" crossorigin src="/assets/index-Bcc5j8w0.js"></script>
+    <script type="module" crossorigin src="/assets/index-CGt3dZVc.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-CRqgUL4m.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-CUGYPdDw.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-Bli6OY6F.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-E0e37zE8.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-CG-fh4ju.css">
   </head>
   <body class="bg-[#051424] text-[#d4e4fa] antialiased selection:bg-[#00F0FF]/20 selection:text-[#00F0FF] min-h-screen">
     <div id="root"></div>

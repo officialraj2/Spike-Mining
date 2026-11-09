@@ -159,9 +159,9 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         setConnectingProvider(null);
         setConnectingStatus(null);
         if (isInsideIframe) {
-          setErrorMessage('SafePal Wallet: Browser sandbox me extension detect nahi hui. Kripya app ko full browser tab me open karein.');
+          setErrorMessage('SafePal Wallet: Extension not detected in embedded preview. Please open in a full browser tab.');
         } else {
-          setErrorMessage('SafePal Wallet is browser me detect nahi hui. Kripya SafePal App ya Extension check karein.');
+          setErrorMessage('SafePal Wallet was not detected in this browser. Please install or enable the SafePal extension.');
         }
         return;
       }
@@ -174,12 +174,24 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
           setConnectingStatus(`Web3 popup opening... Please approve account access in your wallet.`);
           
           // Allow ample time (45s) for user to unlock and click 'Next / Connect' in popup
-          const accountsPromise = eth.request({ method: 'eth_requestAccounts' }) as Promise<string[]>;
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('WALLET_TIMEOUT')), 45000)
-          );
+          let accounts: string[] = [];
+          try {
+            const reqPromise = Promise.resolve().then(() =>
+              (eth.request({ method: 'eth_requestAccounts' }) as Promise<string[]>)
+            );
+            // Catch error on the promise directly to prevent unhandled rejection event
+            reqPromise.catch((innerErr) => {
+              console.warn('[Handled inpage wallet rejection]:', innerErr?.message || innerErr);
+            });
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('WALLET_TIMEOUT')), 45000)
+            );
 
-          const accounts = await Promise.race([accountsPromise, timeoutPromise]);
+            accounts = await Promise.race([reqPromise, timeoutPromise]);
+          } catch (innerErr) {
+            throw innerErr;
+          }
+
           if (accounts && accounts.length > 0) {
             onConnect(id === 'trustwallet' ? 'Trust Wallet' : id === 'binance' ? 'Binance Wallet' : 'MetaMask', accounts[0]);
             setConnectingProvider(null);
@@ -199,7 +211,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
             setErrorMessage('Wallet did not respond within 45s. Please unlock your extension and try again.');
           } else if (msg.includes('Failed to connect to MetaMask') || isInsideIframe) {
             setErrorMessage(
-              'MetaMask is restricted inside embedded browser preview iframes. Click "Open in Full Browser Tab" to connect your live extension, or click "Continue in Web3 Sandbox Mode" below.'
+              'MetaMask is restricted inside embedded browser preview iframes. Click "Open in Full Browser Tab" to connect your live extension directly.'
             );
           } else {
             setErrorMessage(msg || 'Wallet extension connection failed.');
@@ -212,11 +224,11 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
         setConnectingStatus(null);
         if (isInsideIframe) {
           setErrorMessage(
-            'Browser Security (iFrame Sandbox): Chrome/Brave extensions are restricted from injecting into embedded preview iframes. Kripya app ko Full Tab me open karein!'
+            'Browser Security: Browser extensions are restricted inside embedded preview iframes. Please open the dApp in a full browser tab.'
           );
         } else {
           setErrorMessage(
-            'Wallet extension is browser me detect nahi hui. Kripya wallet extension install ya enable karein.'
+            'Wallet extension was not detected in this browser. Please install or enable your Web3 extension.'
           );
         }
         return;

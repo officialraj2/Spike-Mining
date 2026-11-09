@@ -1443,6 +1443,17 @@ export default function App() {
   };
 
   const handleClaimReferralMilestone = (amountUsd: number, milestoneLabel: string = 'Team Milestone') => {
+    const userHasActiveMining = Boolean(
+      isMasterUser ||
+      isAdmin ||
+      nodes.some((n) => n.status === 'mining') ||
+      (walletAddress && localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true')
+    );
+    if (!userHasActiveMining) {
+      addToast('Mining Required', 'You must have an active $5 mining node to claim milestone rewards.', 'error');
+      return;
+    }
+
     const randomTxHash = `0x${Array.from({ length: 4 }, () =>
       Math.floor(Math.random() * 16).toString(16)
     ).join('')}...${Array.from({ length: 4 }, () =>
@@ -2187,6 +2198,13 @@ export default function App() {
         );
         break;
       case 'referrals':
+        const userHasActiveMining = Boolean(
+          isMasterUser ||
+          isAdmin ||
+          nodes.some((n) => n.status === 'mining') ||
+          (walletAddress && localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true')
+        );
+
         currentComponent = (
           <ReferralsView
             walletAddress={walletAddress}
@@ -2199,6 +2217,8 @@ export default function App() {
               setReferralCodeToVerify(code || '');
               setIsReferralModalOpen(true);
             }}
+            hasActiveMining={userHasActiveMining}
+            onOpenDepositModal={() => setIsDepositModalOpen(true)}
           />
         );
         break;
