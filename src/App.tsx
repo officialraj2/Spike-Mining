@@ -321,7 +321,27 @@ export default function App() {
         }
       }
 
-      // CHECK: Is the user ALREADY bonded to a sponsor?
+      // ALWAYS capture and store pending referral parameters from URL first
+      if (sponsorAddr) {
+        localStorage.setItem('spike_pending_sponsor_addr', sponsorAddr);
+      }
+      if (refVal && refVal.trim()) {
+        const cleanRef = refVal.trim();
+        const code = cleanRef.toUpperCase();
+        localStorage.setItem('spike_pending_referrer', sponsorAddr || cleanRef);
+        localStorage.setItem('spike_pending_sponsor_code', code);
+        setPendingInvite({ code, sponsorAddr });
+        setReferralCodeToVerify(sponsorAddr || cleanRef);
+        console.log('[App] Referral link detected and saved:', { cleanRef, sponsorAddr });
+      } else if (sponsorAddr) {
+        const code = `SPK-${sponsorAddr.slice(2, 8).toUpperCase()}`;
+        localStorage.setItem('spike_pending_referrer', sponsorAddr);
+        localStorage.setItem('spike_pending_sponsor_code', code);
+        setPendingInvite({ code, sponsorAddr });
+        setReferralCodeToVerify(sponsorAddr);
+      }
+
+      // CHECK: If the CURRENTLY connected user is ALREADY permanently bonded, route them to Dashboard
       const savedUser = (localStorage.getItem('spike_wallet_address') || '').toLowerCase().trim();
       let isAlreadyBonded = false;
       if (savedUser) {
@@ -334,39 +354,13 @@ export default function App() {
       }
 
       if (isAlreadyBonded) {
-        // User already bonded! Directly route to Dashboard and NEVER show referral verification popup
+        // User is already bonded; don't show prompt to self, but preserve pending referral in case they switch wallets
         setIsReferralModalOpen(false);
         setActiveTab('dashboard');
-        try {
-          const cleanUrl = new URL(window.location.href);
-          cleanUrl.searchParams.delete('ref');
-          cleanUrl.searchParams.delete('code');
-          cleanUrl.searchParams.delete('referrer');
-          cleanUrl.searchParams.delete('sponsor');
-          cleanUrl.searchParams.delete('r');
-          window.history.replaceState({}, document.title, cleanUrl.toString());
-        } catch {}
         return;
       }
 
-      if (sponsorAddr) {
-        localStorage.setItem('spike_pending_sponsor_addr', sponsorAddr);
-      }
-      if (refVal && refVal.trim()) {
-        const cleanRef = refVal.trim();
-        const code = cleanRef.toUpperCase();
-        localStorage.setItem('spike_pending_referrer', sponsorAddr || cleanRef);
-        localStorage.setItem('spike_pending_sponsor_code', code);
-        setPendingInvite({ code, sponsorAddr });
-        setReferralCodeToVerify(sponsorAddr || cleanRef);
-        setIsReferralModalOpen(true);
-        console.log('[App] Referral link detected and saved:', { cleanRef, sponsorAddr });
-      } else if (sponsorAddr) {
-        const code = `SPK-${sponsorAddr.slice(2, 8).toUpperCase()}`;
-        localStorage.setItem('spike_pending_referrer', sponsorAddr);
-        localStorage.setItem('spike_pending_sponsor_code', code);
-        setPendingInvite({ code, sponsorAddr });
-        setReferralCodeToVerify(sponsorAddr);
+      if (refVal || sponsorAddr) {
         setIsReferralModalOpen(true);
       }
     } catch {
@@ -374,39 +368,21 @@ export default function App() {
     }
   }, []);
 
-  // Reactive Bonded Check: If active connected wallet is already bonded, prevent/close referral verification popup and route directly to Dashboard
+  // Reactive Bonded Check: If active connected wallet is already bonded, close verification modal for this wallet
   useEffect(() => {
     if (!walletAddress) return;
     const norm = walletAddress.toLowerCase().trim();
-    isUserAlreadyBonded(norm).then(({ isBonded }) => {
+    isUserAlreadyBonded(norm).then(({ isBonded, sponsor }) => {
       if (isBonded) {
         setIsReferralModalOpen(false);
-        // Clear pending invite from localStorage so it never pops up verification
-        localStorage.removeItem('spike_pending_referrer');
-        localStorage.removeItem('spike_pending_sponsor_addr');
-        localStorage.removeItem('spike_pending_sponsor_code');
-        setPendingInvite(null);
-
-        // If URL has referral params or path, clean them and switch directly to dashboard
-        try {
-          const currentUrl = new URL(window.location.href);
-          const hadRefParams = currentUrl.searchParams.has('ref') ||
-            currentUrl.searchParams.has('code') ||
-            currentUrl.searchParams.has('referrer') ||
-            currentUrl.searchParams.has('sponsor') ||
-            currentUrl.searchParams.has('r') ||
-            window.location.pathname.includes('/ref/') ||
-            window.location.pathname.includes('/r/');
-          if (hadRefParams) {
-            currentUrl.searchParams.delete('ref');
-            currentUrl.searchParams.delete('code');
-            currentUrl.searchParams.delete('referrer');
-            currentUrl.searchParams.delete('sponsor');
-            currentUrl.searchParams.delete('r');
-            window.history.replaceState({}, document.title, currentUrl.pathname + (currentUrl.search ? currentUrl.search : ''));
-            setActiveTab('dashboard');
-          }
-        } catch {}
+        const pendingRef = (localStorage.getItem('spike_pending_referrer') || '').toLowerCase().trim();
+        // Only clear pending invite if this wallet is bonded to that specific sponsor
+        if (pendingRef && sponsor && (sponsor.toLowerCase() === pendingRef || sponsor.toLowerCase().includes(pendingRef.slice(2, 8)))) {
+          localStorage.removeItem('spike_pending_referrer');
+          localStorage.removeItem('spike_pending_sponsor_addr');
+          localStorage.removeItem('spike_pending_sponsor_code');
+          setPendingInvite(null);
+        }
       }
     });
   }, [walletAddress]);
@@ -419,11 +395,15 @@ export default function App() {
     // Verify if this wallet is already bonded before attempting any auto-bind
     isUserAlreadyBonded(normWallet).then((bondedCheck) => {
       if (bondedCheck.isBonded) {
-        localStorage.removeItem('spike_pending_referrer');
-        localStorage.removeItem('spike_pending_sponsor_addr');
-        localStorage.removeItem('spike_pending_sponsor_code');
-        setPendingInvite(null);
         setIsReferralModalOpen(false);
+        const pendingRef = (localStorage.getItem('spike_pending_referrer') || '').toLowerCase().trim();
+        // Only clear pending invite if this specific wallet was already bonded under that sponsor
+        if (pendingRef && bondedCheck.sponsor && (bondedCheck.sponsor.toLowerCase() === pendingRef || bondedCheck.sponsor.toLowerCase().includes(pendingRef.slice(2, 8)))) {
+          localStorage.removeItem('spike_pending_referrer');
+          localStorage.removeItem('spike_pending_sponsor_addr');
+          localStorage.removeItem('spike_pending_sponsor_code');
+          setPendingInvite(null);
+        }
         return;
       }
 
