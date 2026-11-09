@@ -512,6 +512,12 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
         await deleteDoc(d.ref).catch(() => {});
       }
     } catch {}
+    try {
+      const sessionSnap2 = await getDocs(collection(firestore, 'mining_sessions'));
+      for (const d of sessionSnap2.docs) {
+        await deleteDoc(d.ref).catch(() => {});
+      }
+    } catch {}
 
     // Delete all transactions
     const txSnap = await getDocs(collection(firestore, 'transactions'));
