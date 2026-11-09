@@ -314,8 +314,17 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
   React.useEffect(() => {
     try {
-      const saved = localStorage.getItem(`spike_claimed_milestones_${walletAddress || 'default'}`);
-      setClaimedMilestones(saved ? JSON.parse(saved) : []);
+      const activeDir = effectiveStats?.activeDirectPartners ?? effectiveStats?.directPartners ?? 0;
+      let parsed: string[] = [];
+      if (activeDir >= 10) {
+        const saved = localStorage.getItem(`spike_claimed_milestones_${walletAddress || 'default'}`);
+        parsed = saved ? JSON.parse(saved) : [];
+      } else {
+        try {
+          localStorage.removeItem(`spike_claimed_milestones_${walletAddress || 'default'}`);
+        } catch {}
+      }
+      setClaimedMilestones(parsed);
     } catch {
       setClaimedMilestones([]);
     }

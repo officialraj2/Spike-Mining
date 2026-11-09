@@ -65,15 +65,24 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
     }
   });
 
-  // Keep claimedIds synced if wallet changes
+  // Keep claimedIds synced if wallet changes or if reset occurs
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem(`spike_claimed_milestones_${walletAddress || 'default'}`);
-      setClaimedIds(saved ? JSON.parse(saved) : []);
+      let parsed: string[] = saved ? JSON.parse(saved) : [];
+      // If team partners were reset (e.g. 0 active directs), reset claimed milestones so test starts fresh from scratch
+      if (effectiveActiveDirects < 10) {
+        parsed = [];
+        try {
+          localStorage.removeItem(`spike_claimed_milestones_${walletAddress || 'default'}`);
+          localStorage.removeItem(`spike_referral_stats_${(walletAddress || '').toLowerCase()}`);
+        } catch {}
+      }
+      setClaimedIds(parsed);
     } catch {
       setClaimedIds([]);
     }
-  }, [walletAddress]);
+  }, [walletAddress, effectiveActiveDirects]);
 
   const [justClaimedId, setJustClaimedId] = useState<string | null>(null);
 
