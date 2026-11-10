@@ -592,31 +592,31 @@ export const AiMiningAssistant: React.FC = () => {
 
   return (
     <>
-      {/* Floating Launcher Button */}
-      <div className="fixed bottom-6 right-6 z-40">
+      {/* Floating Launcher Button - positioned above mobile bottom bar (bottom-[74px] on mobile, bottom-6 on desktop) */}
+      <div className="fixed bottom-[74px] sm:bottom-6 right-3 sm:right-6 z-[70]">
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
-            className="group relative flex items-center gap-3 pl-3 pr-4 py-2.5 rounded-full bg-[#071322]/90 backdrop-blur-xl border border-[#00F0FF]/40 text-white shadow-[0_4px_25px_rgba(0,240,255,0.25)] hover:border-[#D4AF37] hover:shadow-[0_4px_30px_rgba(212,175,55,0.35)] transition-all duration-300 transform hover:-translate-y-0.5 active:scale-95"
+            className="group relative flex items-center gap-2 sm:gap-3 px-3 sm:pl-3 sm:pr-4 py-2 sm:py-2.5 rounded-full bg-[#071322]/95 backdrop-blur-xl border border-[#00F0FF]/50 text-white shadow-[0_4px_25px_rgba(0,240,255,0.35)] hover:border-[#D4AF37] hover:shadow-[0_4px_30px_rgba(212,175,55,0.4)] transition-all duration-300 transform hover:-translate-y-0.5 active:scale-95"
             title="Open SPIKE Protocol Intelligence"
           >
-            <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-[#00F0FF]/30 to-[#D4AF37]/30 blur-sm opacity-60 group-hover:opacity-100 transition duration-300 pointer-events-none" />
+            <div className="absolute -inset-0.5 rounded-full bg-gradient-to-r from-[#00F0FF]/35 to-[#D4AF37]/35 blur-sm opacity-75 group-hover:opacity-100 transition duration-300 pointer-events-none" />
 
             <div className="relative flex items-center justify-center">
-              <SpikeAiLogoIcon size={30} />
+              <SpikeAiLogoIcon size={26} className="sm:w-[30px] sm:h-[30px]" />
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#071322] animate-pulse" />
             </div>
 
             <div className="relative text-left font-sans">
-              <div className="text-[12px] font-extrabold tracking-wide flex items-center gap-1.5 font-headline">
+              <div className="text-[11px] sm:text-[12px] font-extrabold tracking-wide flex items-center gap-1 sm:gap-1.5 font-headline">
                 <span className="bg-gradient-to-r from-white via-cyan-100 to-[#00F0FF] bg-clip-text text-transparent">
-                  SPIKE Intelligence
+                  AI Guide
                 </span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-cyan-950/80 text-[#00F0FF] border border-[#00F0FF]/30 font-mono">
+                <span className="text-[8.5px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded-full bg-cyan-950/80 text-[#00F0FF] border border-[#00F0FF]/30 font-mono">
                   {language === 'hi' ? 'हिंदी' : 'EN'}
                 </span>
               </div>
-              <div className="text-[10px] text-[#94a3b8] group-hover:text-amber-300 transition-colors font-mono flex items-center gap-1">
+              <div className="hidden sm:flex text-[10px] text-[#94a3b8] group-hover:text-amber-300 transition-colors font-mono items-center gap-1">
                 <span>Autonomous Mining Guide</span>
               </div>
             </div>
@@ -624,11 +624,16 @@ export const AiMiningAssistant: React.FC = () => {
         )}
       </div>
 
-      {/* Expanded Chat Modal / Window */}
+      {/* Expanded Chat Modal / Window - Full bottom sheet on mobile, floating widget on desktop */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[94vw] sm:w-[440px] h-[600px] max-h-[88vh] bg-[#071322]/95 backdrop-blur-2xl border border-[#00F0FF]/40 rounded-3xl shadow-[0_10px_60px_rgba(0,0,0,0.85),0_0_40px_rgba(0,240,255,0.25)] flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 z-[80] w-full sm:w-[440px] h-[88dvh] sm:h-[600px] max-h-[92dvh] sm:max-h-[88vh] bg-[#071322]/98 backdrop-blur-2xl border-t sm:border border-[#00F0FF]/40 rounded-t-3xl sm:rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.9),0_0_40px_rgba(0,240,255,0.25)] flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in">
+          {/* Mobile Sheet Handle */}
+          <div className="pt-2 pb-1 flex justify-center sm:hidden bg-gradient-to-r from-[#0a1e33] via-[#081829] to-[#06121f]">
+            <div className="w-10 h-1 rounded-full bg-slate-600" />
+          </div>
+
           {/* Header */}
-          <div className="px-4 py-3 bg-gradient-to-r from-[#0a1e33] via-[#081829] to-[#06121f] border-b border-[#1b344d] flex items-center justify-between">
+          <div className="px-4 py-2.5 sm:py-3 bg-gradient-to-r from-[#0a1e33] via-[#081829] to-[#06121f] border-b border-[#1b344d] flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <SpikeAiLogoIcon size={34} />
@@ -801,7 +806,7 @@ export const AiMiningAssistant: React.FC = () => {
               e.preventDefault();
               handleSendMessage();
             }}
-            className="p-3 bg-[#081726] border-t border-[#18314a] flex items-center gap-2"
+            className="p-3 pb-5 sm:pb-3 bg-[#081726] border-t border-[#18314a] flex items-center gap-2 shrink-0"
           >
             <input
               ref={inputRef}
