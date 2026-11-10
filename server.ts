@@ -11,6 +11,7 @@ import { requireAuth } from './src/middleware/auth.ts';
 import type { AuthRequest } from './src/middleware/auth.ts';
 import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from './src/db/users.ts';
 import { db as sqlDb } from './src/db/index.ts';
+import { processAiMiningChat } from './src/server/geminiAi.ts';
 
 dotenv.config();
 
@@ -917,6 +918,20 @@ app.post('/api/deposit/verify-hash', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Deposit verification failed' });
+  }
+});
+
+app.post('/api/ai/chat', async (req: Request, res: Response) => {
+  try {
+    const { message, language = 'en' } = req.body || {};
+    if (!message || typeof message !== 'string') {
+      res.status(400).json({ success: false, error: 'Message string is required' });
+      return;
+    }
+    const reply = await processAiMiningChat(message, language === 'hi' ? 'hi' : 'en');
+    res.json({ success: true, reply });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'AI assistant service error' });
   }
 });
 

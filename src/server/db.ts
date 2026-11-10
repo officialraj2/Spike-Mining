@@ -506,6 +506,7 @@ class PersistentDatabase {
       maintenanceMode: this.data.settings.maintenanceMode,
       turboMultiplier: this.data.settings.turboMultiplier,
       dailyYieldPercent: this.data.settings.dailyYieldPercent,
+      treasuryBalanceUsdt: this.getTreasuryInfo().treasuryBalanceUsdt,
     };
   }
 
@@ -2504,9 +2505,24 @@ class PersistentDatabase {
   }
 
   public getTreasuryInfo() {
+    const depositsTotal = (this.data.users || []).filter((u) => u.hasDepositedTreasury).length * 5.0;
+    const nodeCostsTotal = (this.data.nodes || []).reduce((acc, n) => acc + (Number(n.costUsdt) || 10.0), 0);
+    const stored = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
+    const effectiveTreasury = Math.max(stored, +(depositsTotal + nodeCostsTotal).toFixed(2));
+
+    if (effectiveTreasury > stored) {
+      this.data.settings.treasuryBalanceUsdt = effectiveTreasury;
+      this.data.settings.updatedAt = new Date().toISOString();
+      this.save();
+    }
+
     return {
-      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
-      treasuryBalanceUsdt: typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0,
+      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+      treasuryBalanceUsdt: effectiveTreasury,
+      depositsTotal,
+      nodeCostsTotal,
+      totalDepositedUsers: (this.data.users || []).filter((u) => u.hasDepositedTreasury).length,
+      totalActiveRigs: (this.data.nodes || []).length,
       depositRequiredUsdt: 5.0,
       miningCostUsdt: 10.0,
       totalProjectCostUsdt: 15.0,

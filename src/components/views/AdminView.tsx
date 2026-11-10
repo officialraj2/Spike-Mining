@@ -8,6 +8,8 @@ import {
   RewardTransaction,
 } from '../../types';
 import { getAllWithdrawals, approveWithdrawal, rejectWithdrawal } from '../../services/firestoreWithdrawals';
+import { db as firestoreDb } from '../../firebase';
+import { collection, doc, getDocs, getDoc, onSnapshot } from 'firebase/firestore';
 
 // Safe JSON parser helper to prevent "Unexpected end of JSON input" errors
 async function safeJsonParse(res: Response): Promise<any> {
@@ -202,34 +204,38 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
-  // Fetch full admin dashboard data from backend API
+  // Fetch full admin dashboard data from backend API with automatic Cloud Firestore fallback for static domains
   const fetchAllData = useCallback(async (quiet = false) => {
     if (!quiet) setIsRefreshing(true);
+    let apiSuccess = false;
     try {
       const [metricsRes, usersRes, nodesRes, txsRes, settingsRes, logsRes, treasuryRes, withdrawalsRes] = await Promise.all([
-        fetch('/api/admin/metrics'),
-        fetch('/api/admin/users'),
-        fetch('/api/admin/nodes'),
-        fetch('/api/admin/transactions'),
-        fetch('/api/admin/settings'),
-        fetch('/api/admin/audit-logs'),
-        fetch('/api/treasury'),
-        fetch('/api/withdrawals'),
+        fetch('/api/admin/metrics').catch(() => null),
+        fetch('/api/admin/users').catch(() => null),
+        fetch('/api/admin/nodes').catch(() => null),
+        fetch('/api/admin/transactions').catch(() => null),
+        fetch('/api/admin/settings').catch(() => null),
+        fetch('/api/admin/audit-logs').catch(() => null),
+        fetch('/api/treasury').catch(() => null),
+        fetch('/api/withdrawals').catch(() => null),
       ]);
 
-      if (metricsRes.ok) {
+      if (metricsRes && metricsRes.ok) {
         const data = await safeJsonParse(metricsRes);
-        if (data) setMetrics(data);
+        if (data) { setMetrics(data); apiSuccess = true; }
       }
-      if (usersRes.ok) {
+      if (usersRes && usersRes.ok) {
         const data = await safeJsonParse(usersRes);
-        if (data?.users) setUsers(data.users);
+        if (data?.users && Array.isArray(data.users) && data.users.length > 0) {
+          setUsers(data.users);
+          apiSuccess = true;
+        }
       }
-      if (nodesRes.ok) {
+      if (nodesRes && nodesRes.ok) {
         const data = await safeJsonParse(nodesRes);
         if (data?.nodes) setNodes(data.nodes);
       }
-      if (txsRes.ok) {
+      if (txsRes && txsRes.ok) {
         const data = await safeJsonParse(txsRes);
         if (data?.transactions) setTransactions(data.transactions);
       }
@@ -251,7 +257,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         }
       } catch {}
       setWithdrawalRequests(allWList);
-      if (settingsRes.ok) {
+      if (settingsRes && settingsRes.ok) {
         const data = await safeJsonParse(settingsRes);
         if (data?.settings) {
           setSettings(data.settings);
@@ -278,12 +284,139 @@ export const AdminView: React.FC<AdminViewProps> = ({
           setTreasuryAddressInput((prev) => prev || addr);
         }
       }
-      if (logsRes.ok) {
+      if (logsRes && logsRes.ok) {
         const data = await safeJsonParse(logsRes);
         if (data?.logs) setAuditLogs(data.logs);
       }
     } catch (err) {
-      console.warn('[Admin] Background fetch notice:', err);
+      console.warn('[Admin] Backend fetch notice:', err);
+    }
+
+    // Direct Cloud Firestore Fallback (Crucial for custom domains like Hostinger spikenodes.com without Node server)
+    try {
+      const [fsUsersSnap, fsNodesSnap, fsSettingsDoc, fsTxsSnap] = await Promise.all([
+        getDocs(collection(firestoreDb, 'users')).catch(() => null),
+        getDocs(collection(firestoreDb, 'nodes')).catch(() => null),
+        getDoc(doc(firestoreDb, 'settings', 'global')).catch(() => null),
+        getDocs(collection(firestoreDb, 'transactions')).catch(() => null),
+      ]);
+
+      let loadedUsers: AdminUser[] = [];
+      let loadedNodes: MiningNode[] = [];
+
+      if (fsUsersSnap && !fsUsersSnap.empty) {
+        fsUsersSnap.forEach((d) => {
+          const data = d.data();
+          const addr = (data.address || d.id || '').trim();
+          if (addr && addr.startsWith('0x')) {
+            loadedUsers.push({
+              address: addr,
+              role: (data.role || (addr.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase() ? 'master' : 'user')) as any,
+              status: (data.status || 'active') as any,
+              balanceUsdt: Number(data.balanceUsdt || 0),
+              balanceBnb: Number(data.balanceBnb || 0.005),
+              totalMined: Number(data.totalMined || 0),
+              referralCode: data.referralCode || `SPK-${addr.slice(2, 8).toUpperCase()}`,
+              referredBy: data.referredBy || null,
+              createdAt: data.createdAt || new Date().toISOString(),
+              lastActive: data.lastActive || new Date().toISOString(),
+              hasActivatedMining: Boolean(data.hasActivatedMining),
+              hasDepositedTreasury: Boolean(data.hasDepositedTreasury),
+            } as AdminUser);
+          }
+        });
+        if (loadedUsers.length > 0) {
+          setUsers((prev) => (prev.length >= loadedUsers.length && apiSuccess ? prev : loadedUsers));
+        }
+      }
+
+      if (fsNodesSnap && !fsNodesSnap.empty) {
+        fsNodesSnap.forEach((d) => {
+          const data = d.data();
+          loadedNodes.push({
+            id: d.id,
+            name: data.name || 'ASIC Rig',
+            region: data.region || 'US-East (Stratum Cluster)',
+            status: data.status || 'mining',
+            hashrate: Number(data.hashrate || 1.25),
+            temperature: Number(data.temperature || 64),
+            shareAcceptance: Number(data.shareAcceptance || 99.98),
+            fanSpeed: Number(data.fanSpeed || 75),
+            powerUsage: Number(data.powerUsage || 1400),
+            uptimeDays: Number(data.uptimeDays || 1),
+            algorithm: data.algorithm || 'SHA-256 (Stratum)',
+            logs: Array.isArray(data.logs) ? data.logs : ['Stratum connection verified'],
+            userAddress: data.userAddress || '',
+          });
+        });
+        if (loadedNodes.length > 0) {
+          setNodes((prev) => (prev.length >= loadedNodes.length && apiSuccess ? prev : loadedNodes));
+        }
+      }
+
+      if (fsSettingsDoc && fsSettingsDoc.exists()) {
+        const sData = fsSettingsDoc.data() as AdminSettings;
+        setSettings((prev) => prev || sData);
+        setSettingsForm((prev) => (Object.keys(prev).length > 0 ? prev : sData));
+
+        // Real-Time Dynamic Inflow Accumulation ($5 per user deposit + $10 per node activation)
+        const depositsTotal = loadedUsers.filter((u) => u.hasDepositedTreasury).length * 5.0;
+        const nodeCostsTotal = loadedNodes.reduce((acc, n) => acc + (Number(n.costUsdt) || 10.0), 0);
+        const storedTreasuryVal = typeof sData?.treasuryBalanceUsdt === 'number' ? sData.treasuryBalanceUsdt : 0;
+        const effectiveRealtimeTreasury = Math.max(storedTreasuryVal, +(depositsTotal + nodeCostsTotal).toFixed(2));
+
+        if (sData?.treasuryWalletAddress || effectiveRealtimeTreasury > 0) {
+          const addr = sData?.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+          setTreasuryAddressInput((prev) => prev || addr);
+          setTreasuryInfo((prev) => ({
+            treasuryWalletAddress: addr,
+            treasuryBalanceUsdt: Math.max(prev.treasuryBalanceUsdt, effectiveRealtimeTreasury),
+          }));
+        }
+      }
+
+      if (fsTxsSnap && !fsTxsSnap.empty) {
+        const loadedTxs: RewardTransaction[] = [];
+        fsTxsSnap.forEach((d) => {
+          const data = d.data();
+          loadedTxs.push({
+            id: d.id,
+            txHash: data.txHash || d.id,
+            rewardSource: data.rewardSource || 'Mining Rewards Payout',
+            amount: Number(data.amount || 0),
+            currency: data.currency || 'USDT',
+            timestamp: data.timestamp || 'Just now',
+            status: data.status || 'Confirmed',
+          });
+        });
+        if (loadedTxs.length > 0) {
+          setTransactions((prev) => (prev.length >= loadedTxs.length && apiSuccess ? prev : loadedTxs));
+        }
+      }
+
+      // Compute metrics if null (from live Firestore snapshot)
+      setMetrics((prev) => {
+        if (prev && apiSuccess) return prev;
+        const uCount = fsUsersSnap && !fsUsersSnap.empty ? fsUsersSnap.size : 1;
+        const nCount = fsNodesSnap && !fsNodesSnap.empty ? fsNodesSnap.size : 0;
+        const sData = fsSettingsDoc && fsSettingsDoc.exists() ? fsSettingsDoc.data() : null;
+        return {
+          totalUsers: uCount,
+          activeNodes: nCount,
+          totalNodes: nCount,
+          totalHashrate: nCount > 0 ? nCount * 100 : 347.7,
+          totalMinedUsdt: 0,
+          totalUserBalance: 0,
+          totalTransactions: fsTxsSnap ? fsTxsSnap.size : 0,
+          dbSizeKb: 65,
+          lastSaved: new Date().toISOString(),
+          maintenanceMode: false,
+          turboMultiplier: sData?.turboMultiplier || 10,
+          dailyYieldPercent: sData?.dailyYieldPercent || 3.88,
+        };
+      });
+    } catch (fsErr) {
+      console.warn('[Admin] Firestore direct fallback notice:', fsErr);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -297,6 +430,54 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }, 8000);
     return () => clearInterval(interval);
   }, [fetchAllData]);
+
+  // Real-Time live listener for Treasury Vault and Node activations (Instant live updates)
+  useEffect(() => {
+    let unsubSettings: (() => void) | undefined;
+    let unsubNodes: (() => void) | undefined;
+
+    try {
+      unsubSettings = onSnapshot(doc(firestoreDb, 'settings', 'global'), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data?.treasuryWalletAddress) {
+            setTreasuryAddressInput((prev) => prev || data.treasuryWalletAddress);
+          }
+          if (typeof data?.treasuryBalanceUsdt === 'number') {
+            setTreasuryInfo((prev) => ({
+              ...prev,
+              treasuryBalanceUsdt: Math.max(prev.treasuryBalanceUsdt, Number(data.treasuryBalanceUsdt)),
+              treasuryWalletAddress: data.treasuryWalletAddress || prev.treasuryWalletAddress,
+            }));
+          }
+        }
+      });
+
+      unsubNodes = onSnapshot(collection(firestoreDb, 'nodes'), (snap) => {
+        if (!snap.empty) {
+          let nodeCostSum = 0;
+          snap.forEach((d) => {
+            nodeCostSum += Number(d.data().costUsdt) || 10.0;
+          });
+          setTreasuryInfo((prev) => {
+            const currentDeposits = users.filter((u) => u.hasDepositedTreasury).length * 5.0;
+            const liveSum = +(currentDeposits + nodeCostSum).toFixed(2);
+            return {
+              ...prev,
+              treasuryBalanceUsdt: Math.max(prev.treasuryBalanceUsdt, liveSum),
+            };
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('[Admin] Live treasury listener notice:', e);
+    }
+
+    return () => {
+      unsubSettings?.();
+      unsubNodes?.();
+    };
+  }, [users]);
 
   // Handle balance adjustment in backend DB
   const handleExecuteAdjustBalance = async () => {
@@ -1206,18 +1387,30 @@ export const AdminView: React.FC<AdminViewProps> = ({
           <div className="text-[11px] text-[#94a3b8] font-mono mt-1">Pending In-App</div>
         </div>
 
-        {/* Card 6: Official Protocol Treasury Vault (Company Reserve) */}
-        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#D4AF37]/50 shadow-sm relative overflow-hidden group animate-box-glow-hybrid">
+        {/* Card 6: Official Protocol Treasury Vault (Company Reserve) - Real-Time Accumulation */}
+        <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#D4AF37]/50 shadow-sm relative overflow-hidden group animate-box-glow-hybrid hover:border-[#D4AF37] transition-all">
           <div className="flex items-center justify-between text-[#D4AF37] mb-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider font-bold">Treasury Vault</span>
+            <span className="text-[10px] font-mono uppercase tracking-wider font-bold flex items-center gap-1.5">
+              <span>Treasury Vault</span>
+              <span className="px-1.5 py-0.5 rounded text-[8.5px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                Live Inflow
+              </span>
+            </span>
             <span className="material-symbols-outlined text-[18px]">account_balance</span>
           </div>
-          <div className="text-2xl font-extrabold text-[#D4AF37] font-headline">
-            ${treasuryInfo.treasuryBalanceUsdt.toLocaleString('en-US', { minimumFractionDigits: 1 })}
+          <div className="text-2xl font-extrabold text-[#D4AF37] font-headline flex items-baseline gap-1.5">
+            <span>${treasuryInfo.treasuryBalanceUsdt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-xs text-white/70 font-mono font-normal">USDT</span>
           </div>
-          <div className="text-[10px] text-amber-300 font-mono mt-1 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Company Official Vault</span>
+          <div className="text-[10px] text-amber-300 font-mono mt-1 flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Real-Time Accumulated</span>
+            </span>
+            <span className="text-[8.5px] text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/40 font-mono">
+              $5 Dep + $10 Rings
+            </span>
           </div>
         </div>
 

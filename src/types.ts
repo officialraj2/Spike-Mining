@@ -13,6 +13,7 @@ export interface AdminMetrics {
   maintenanceMode: boolean;
   turboMultiplier: number;
   dailyYieldPercent: number;
+  treasuryBalanceUsdt?: number;
 }
 
 export const DEFAULT_PANCAKESWAP_ROUTER_ADDRESS = '0x10ED43C718714eb63d5aA57B78B54704E256024E'; // Official PancakeSwap V2 Router on BSC
@@ -71,6 +72,8 @@ export interface AdminUser {
   directPartners?: number;
   totalPartners?: number;
   hashrateInfo?: HashrateLevelInfo;
+  hasDepositedTreasury?: boolean;
+  hasActivatedMining?: boolean;
 }
 
 export interface AdminSettings {

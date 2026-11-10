@@ -18,6 +18,7 @@ import { fetchOnChainBalances } from './services/onchainBalance';
 import { registerReferralInFirestore, getReferralsFromFirestore, isUserAlreadyBonded } from './services/firestoreReferrals';
 import { persistMiningStart, fetchActiveMiningSession } from './services/miningSessionSync';
 import { getRealActiveAccount, requestWeb3Connection, subscribeToWeb3AccountChanges } from './services/web3WalletSync';
+import { AiMiningAssistant } from './components/AiMiningAssistant';
 
 
 // Code-split heavy views and modals for sub-100ms ultra-fast initial paint
@@ -299,6 +300,15 @@ export default function App() {
       ) {
         setActiveTab(tabParam as TabType);
       }
+
+      // Live tab switcher event for AI Assistant and internal links
+      const handleSwitchTab = (e: any) => {
+        const t = e?.detail?.tab;
+        if (t && ['home', 'dashboard', 'mining-nodes', 'referrals', 'withdraw-history', 'roadmap', 'admin'].includes(t)) {
+          setActiveTab(t as TabType);
+        }
+      };
+      window.addEventListener('spike_switch_tab', handleSwitchTab);
 
       // Capture referral code or address from URL (?ref=..., ?code=..., ?referrer=..., or /ref/..., /r/...)
       let refVal = params.get('ref') || params.get('code') || params.get('referrer') || params.get('r');
@@ -2594,6 +2604,9 @@ export default function App() {
           />
         )}
       </Suspense>
+
+      {/* Floating AI Mining Assistant with Zero-Leak Privacy Guardrails */}
+      <AiMiningAssistant />
 
       {/* Toast Notification Container */}
       <Toast toasts={toasts} onDismiss={handleDismissToast} />
