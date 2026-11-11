@@ -272,7 +272,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
     }
   };
 
-  // 2. Auto-Verify Hash on BNB Smart Chain and Add $5 to Protocol Treasury
+  // 2. Auto-Verify Hash on BNB Smart Chain and Add $10 to Protocol Treasury
   const handleVerifyHash = async (hashToVerify?: string) => {
     const hash = (hashToVerify || txHashInput).trim();
     if (!hash) {
@@ -615,12 +615,12 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                   {isVerifying ? (
                     <>
                       <div className="w-4 h-4 border-2 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
-                      <span>Auto-Verifying on Blockchain &amp; Crediting $5 to Treasury...</span>
+                      <span>Auto-Verifying on Blockchain &amp; Crediting $10 to Treasury...</span>
                     </>
                   ) : (
                     <>
                       <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                      <span>Verify Hash &amp; Credit $5 to Protocol Treasury</span>
+                      <span>Verify Hash &amp; Credit $10 to Protocol Treasury</span>
                     </>
                   )}
                 </button>
