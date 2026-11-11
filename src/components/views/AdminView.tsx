@@ -359,8 +359,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
         setSettings((prev) => prev || sData);
         setSettingsForm((prev) => (Object.keys(prev).length > 0 ? prev : sData));
 
-        // Real-Time Dynamic Inflow Accumulation ($5 per user deposit + $10 per node activation)
-        const depositsTotal = loadedUsers.filter((u) => u.hasDepositedTreasury).length * 5.0;
+        // Real-Time Dynamic Inflow Accumulation ($10 per user deposit + $10 per node activation)
+        const depositsTotal = loadedUsers.filter((u) => u.hasDepositedTreasury).length * 10.0;
         const nodeCostsTotal = loadedNodes.reduce((acc, n) => acc + (Number(n.costUsdt) || 10.0), 0);
         const storedTreasuryVal = typeof sData?.treasuryBalanceUsdt === 'number' ? sData.treasuryBalanceUsdt : 0;
         const effectiveRealtimeTreasury = Math.max(storedTreasuryVal, +(depositsTotal + nodeCostsTotal).toFixed(2));
@@ -460,7 +460,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             nodeCostSum += Number(d.data().costUsdt) || 10.0;
           });
           setTreasuryInfo((prev) => {
-            const currentDeposits = users.filter((u) => u.hasDepositedTreasury).length * 5.0;
+            const currentDeposits = users.filter((u) => u.hasDepositedTreasury).length * 10.0;
             const liveSum = +(currentDeposits + nodeCostSum).toFixed(2);
             return {
               ...prev,
@@ -4197,7 +4197,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-[#D4AF37]"
                 />
                 <span className="text-[10px] text-amber-300/80 mt-1 block">
-                  Official company vault for all worldwide $5 USDT Step 1 deposits. Non-claimable by users.
+                  Official company vault for all worldwide $10 USDT Step 1 deposits. Non-claimable by users.
                 </span>
               </div>
 
@@ -4279,7 +4279,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   <li className="flex items-start gap-1.5">
                     <span className="text-[#00F0FF]">1.</span>
                     <span>
-                      <strong className="text-white">Worldwide Inflow:</strong> All users worldwide deposit their Step 1 ($5 USDT Protocol Entry Fee) directly to this address.
+                      <strong className="text-white">Worldwide Inflow:</strong> All users worldwide deposit their Step 1 ($10 USDT Protocol Entry Fee) directly to this address.
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">

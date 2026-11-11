@@ -115,12 +115,12 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
     setErrorMsg(null);
     setIsSendingWeb3(true);
     setVerificationStage(1);
-    setVerificationMessage('Please confirm the transfer of 5 USDT in your connected Web3 wallet...');
+    setVerificationMessage('Please confirm the transfer of 10 USDT in your connected Web3 wallet...');
 
     try {
       const win = window as any;
       if (!win.ethereum) {
-        setErrorMsg('Web3 wallet extension (e.g. MetaMask / Trust Wallet) not detected in this browser. Please transfer 5 USDT directly and enter the transaction hash below.');
+        setErrorMsg('Web3 wallet extension (e.g. MetaMask / Trust Wallet) not detected in this browser. Please transfer 10 USDT directly and enter the transaction hash below.');
         setIsSendingWeb3(false);
         setVerificationStage(0);
         return;
@@ -175,12 +175,12 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
         });
         if (rawBal && rawBal !== '0x') {
           const balBig = BigInt(rawBal);
-          const requiredBig = 5n * (10n ** BigInt(tokenDecimals));
+          const requiredBig = 10n * (10n ** BigInt(tokenDecimals));
           if (balBig < requiredBig) {
             const divisor = 10n ** BigInt(Math.max(0, tokenDecimals - 4));
             const userBalNum = Number(balBig / divisor) / 10000;
             setErrorMsg(
-              `Insufficient BEP-20 USDT in connected wallet (${userBalNum.toFixed(2)} USDT available, 5.00 USDT required). Please add USDT to your wallet or verify your TxID below.`
+              `Insufficient BEP-20 USDT in connected wallet (${userBalNum.toFixed(2)} USDT available, 10.00 USDT required). Please add USDT to your wallet or verify your TxID below.`
             );
             setIsSendingWeb3(false);
             setVerificationStage(0);
@@ -196,8 +196,8 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
       const cleanOfficial = (protocolWallet || OFFICIAL_PROTOCOL_WALLET).toLowerCase().replace('0x', '');
       const paddedTo = cleanOfficial.padStart(64, '0');
 
-      // 5 USDT Protocol Entry Fee
-      const amountHex = (5n * (10n ** BigInt(tokenDecimals))).toString(16).padStart(64, '0');
+      // 10 USDT Protocol Entry Fee
+      const amountHex = (10n * (10n ** BigInt(tokenDecimals))).toString(16).padStart(64, '0');
       const data = `0xa9059cbb${paddedTo}${amountHex}`;
 
       // Calculate safe gas limit
@@ -262,7 +262,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
       } else if (errString.includes('gas limit too high') || errString.includes('cap: 16777216')) {
         setErrorMsg('RPC gas limit cap resolved. Gas limit locked to 100,000 gas. Please try again.');
       } else if (errString.includes('insufficient funds') || errString.includes('exceeds balance') || errString.includes('transfer amount exceeds')) {
-        setErrorMsg('Insufficient balance: Your connected wallet needs at least 5 BEP-20 USDT and a small amount of BNB for gas fees.');
+        setErrorMsg('Insufficient balance: Your connected wallet needs at least 10 BEP-20 USDT and a small amount of BNB for gas fees.');
       } else if (errString.includes('execution reverted')) {
         setErrorMsg('Transaction execution reverted by smart contract (likely insufficient BEP-20 USDT balance in wallet).');
       } else {
@@ -292,7 +292,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
 
     try {
       const activeUserAddress = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-      let updatedBalance = Math.max(0, +(walletBalance - 5).toFixed(2));
+      let updatedBalance = Math.max(0, +(walletBalance - 10).toFixed(2));
       let isVerified = false;
 
       try {
@@ -302,7 +302,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
           body: JSON.stringify({
             userAddress: activeUserAddress,
             txHash: hash,
-            amount: 5,
+            amount: 10,
           }),
         });
 
@@ -335,14 +335,14 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
       }
 
       setVerificationStage(4);
-      setVerificationMessage('Transaction verified on-chain! $5.00 USDT deposited into Official Protocol Treasury!');
+      setVerificationMessage('Transaction verified on-chain! $10.00 USDT deposited into Official Protocol Treasury!');
 
       const blockNum = 42950000 + Math.floor(Math.random() * 25000);
 
       setSuccessData({
         txHash: hash,
         newBalance: updatedBalance,
-        amount: 5,
+        amount: 10,
         blockNumber: blockNum,
       });
 
@@ -401,7 +401,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
               </div>
               <div>
                 <h3 className="text-xl sm:text-2xl font-bold font-headline text-emerald-400">
-                  +$5.00 USDT Deposited to Treasury!
+                  +$10.00 USDT Deposited to Treasury!
                 </h3>
                 <p className="text-xs sm:text-sm text-emerald-200/90 font-body mt-1">
                   Activation Completed. Funds securely credited to the Official Protocol Treasury Vault.
@@ -475,7 +475,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                 <div className="pt-1 relative z-10">
                   <div className="text-4xl sm:text-5xl font-extrabold font-headline text-white tracking-tight flex items-baseline gap-2.5">
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-[#D4AF37]">
-                      5.00
+                      10.00
                     </span>
                     <span className="text-xl font-bold font-headline text-[#00F0FF]">USDT</span>
                   </div>
@@ -523,7 +523,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                       ) : (
                         <div className="w-4 h-4 border border-gray-600 rounded-full shrink-0" />
                       )}
-                      <span>4. Crediting $5.00 USDT into Protocol Treasury</span>
+                      <span>4. Crediting $10.00 USDT into Protocol Treasury</span>
                     </div>
                   </div>
 
@@ -560,7 +560,7 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
                   ) : (
                     <>
                       <span className="material-symbols-outlined text-[22px] font-bold">account_balance_wallet</span>
-                      <span>Deposit 5.00 USDT to Treasury</span>
+                      <span>Deposit 10.00 USDT to Treasury</span>
                     </>
                   )}
                 </button>

@@ -2505,7 +2505,7 @@ class PersistentDatabase {
   }
 
   public getTreasuryInfo() {
-    const depositsTotal = (this.data.users || []).filter((u) => u.hasDepositedTreasury).length * 5.0;
+    const depositsTotal = (this.data.users || []).filter((u) => u.hasDepositedTreasury).length * 10.0;
     const nodeCostsTotal = (this.data.nodes || []).reduce((acc, n) => acc + (Number(n.costUsdt) || 10.0), 0);
     const stored = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
     const effectiveTreasury = Math.max(stored, +(depositsTotal + nodeCostsTotal).toFixed(2));
@@ -2523,9 +2523,9 @@ class PersistentDatabase {
       nodeCostsTotal,
       totalDepositedUsers: (this.data.users || []).filter((u) => u.hasDepositedTreasury).length,
       totalActiveRigs: (this.data.nodes || []).length,
-      depositRequiredUsdt: 5.0,
+      depositRequiredUsdt: 10.0,
       miningCostUsdt: 10.0,
-      totalProjectCostUsdt: 15.0,
+      totalProjectCostUsdt: 20.0,
       network: 'BNB Smart Chain (BEP-20)',
       contractAddress: this.data.settings.bscContractAddress,
       lastUpdated: new Date().toISOString(),
@@ -2557,7 +2557,7 @@ class PersistentDatabase {
 
   public processTreasuryDeposit(
     userAddress: string,
-    amount = 5.0,
+    amount = 10.0,
     txHash?: string
   ): {
     success: boolean;

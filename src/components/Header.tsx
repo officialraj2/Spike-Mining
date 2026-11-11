@@ -296,7 +296,7 @@ export const Header: React.FC<HeaderProps> = ({
                           onOpenDepositModal?.();
                         }}
                         className="w-full text-left px-3 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF]/25 via-[#00F0FF]/15 to-[#122130] hover:from-[#00F0FF]/35 hover:via-[#00F0FF]/25 border border-[#00F0FF]/60 hover:border-[#00F0FF] flex items-center justify-between text-xs transition-all shadow-[0_0_15px_rgba(0,240,255,0.25)] group"
-                        title="Deposit 5 USDT (BEP-20) to Protocol Treasury Wallet"
+                        title="Deposit 10 USDT (BEP-20) to Protocol Treasury Wallet"
                       >
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg bg-[#00F0FF]/20 border border-[#00F0FF]/60 flex items-center justify-center text-[#00F0FF] group-hover:scale-110 transition-transform shadow-sm">
@@ -304,7 +304,7 @@ export const Header: React.FC<HeaderProps> = ({
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[#00F0FF] font-headline font-bold text-xs tracking-wide">
-                              Deposit 5 USDT
+                              Deposit 10 USDT
                             </span>
                           </div>
                         </div>
@@ -566,10 +566,10 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <div className="flex items-center gap-3">
                       <span className="material-symbols-outlined text-[18px]">add</span>
-                      <span>Deposit 5 USDT</span>
+                      <span>Deposit 10 USDT</span>
                     </div>
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-400/20 text-emerald-400 border border-emerald-400/40 font-bold">
-                      +$5
+                      +$10
                     </span>
                   </button>
 

@@ -118,7 +118,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
 
   return (
     <div className="space-y-6">
-      {/* Mining Inactive Alert if User Has Not Deployed 5$ Ring */}
+      {/* Mining Inactive Alert if User Has Not Deployed 10$ Ring */}
       {!hasActiveMining && (
         <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border-2 border-amber-500/40 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[0_0_25px_rgba(245,158,11,0.15)]">
           <div className="flex items-center gap-3.5 text-center sm:text-left">
@@ -129,7 +129,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
             </div>
             <div>
               <div className="text-white font-bold text-sm sm:text-base flex items-center justify-center sm:justify-start gap-2">
-                <span>Mining Ring Activation Required ($5 USDT)</span>
+                <span>Mining Ring Activation Required ($10 USDT)</span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase">Locked</span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
@@ -142,7 +142,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               onClick={onOpenDepositModal}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 transition-all hover:scale-105 shrink-0"
             >
-              Deposit $5 To Activate
+              Deposit $10 To Activate
             </button>
           )}
         </div>

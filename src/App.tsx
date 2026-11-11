@@ -1440,7 +1440,7 @@ export default function App() {
       (walletAddress && localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true')
     );
     if (!userHasActiveMining) {
-      addToast('Mining Required', 'You must have an active $5 mining node to claim milestone rewards.', 'error');
+      addToast('Mining Required', 'You must have an active $10 mining node to claim milestone rewards.', 'error');
       return;
     }
 
@@ -1517,13 +1517,13 @@ export default function App() {
     const newTx: RewardTransaction = {
       id: `tx-dep-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       txHash: cleanHash,
-      rewardSource: 'Step 1: 5 USDT Protocol Deposit to Official Treasury Vault',
-      amount: -5,
+      rewardSource: 'Step 1: 10 USDT Protocol Deposit to Official Treasury Vault',
+      amount: -10,
       currency: 'USDT',
       timestamp: 'Just now',
       status: 'Confirmed',
     };
-    // Activate mining node upon 5$ deposit to treasury
+    // Activate mining node upon 10$ deposit to treasury
     const activeNode: MiningNode = {
       id: `node-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       name: `SPIKE ASIC Rig #${nodes.length + 1}`,
@@ -1537,7 +1537,7 @@ export default function App() {
       uptimeDays: 1,
       algorithm: 'SHA-256 (Stratum)',
       logs: [
-        'Deposit of 5.00 USDT received in Official Protocol Treasury Vault',
+        'Deposit of 10.00 USDT received in Official Protocol Treasury Vault',
         'Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443',
         '24-Hour Mining Cycle Started · Automated Nodescan Buyback Enabled',
       ],
@@ -1584,7 +1584,7 @@ export default function App() {
         hashrateVh: 100,
         tierName: 'Falcon Titan Apex',
         nodeName: activeNode.name,
-        treasuryContributionUsdt: 5.0,
+        treasuryContributionUsdt: 10.0,
       }).catch(() => {});
     }
 
@@ -1597,7 +1597,7 @@ export default function App() {
     } catch {}
 
     addToast(
-      '5 USDT Deposit Confirmed!',
+      '10 USDT Deposit Confirmed!',
       'Funds deposited to Protocol Treasury. Mining started and 24-hour harvesting cycle active from 0 SPIKE!',
       'success'
     );

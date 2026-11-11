@@ -47,7 +47,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   // Turbo 10x is permanently fixed as requested
   const isTurbo = true;
 
-  // Check if user has deposited 5 USDT or has active mining rigs
+  // Check if user has deposited 10 USDT or has active mining rigs
   const [hasDeposited5Usdt, setHasDeposited5Usdt] = useState<boolean>(() => {
     try {
       if (walletAddress) {
@@ -78,7 +78,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
   const is24hRunning = cycleStartTime > 0 && Math.floor((Date.now() - cycleStartTime) / 1000) < 86400;
 
-  // Animation & loop runs when 5 USDT is deposited or mining node is active
+  // Animation & loop runs when 10 USDT is deposited or mining node is active
   const isMining = Boolean(
     isNodeActive ||
     hasDeposited5Usdt ||
@@ -971,7 +971,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] text-[#0A0F1D] font-headline font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:scale-102 cursor-pointer active:scale-95"
                 >
                   <span className="material-symbols-outlined text-[20px]">payments</span>
-                  <span>Deposit 5 USDT to Start 24h Mining</span>
+                  <span>Deposit 10 USDT to Start 24h Mining</span>
                 </button>
               </div>
             ) : !is24hComplete && secondsRemaining > 0 ? (

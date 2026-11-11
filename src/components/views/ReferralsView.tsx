@@ -695,10 +695,10 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                   <span className="material-symbols-outlined text-amber-400 text-[24px]">lock_clock</span>
                   <div>
                     <div className="text-xs sm:text-sm font-headline font-bold text-white">
-                      Referral Link Locked (5$ Mining Ring Required)
+                      Referral Link Locked (10$ Mining Ring Required)
                     </div>
                     <div className="text-[11px] text-slate-300 font-sans mt-0.5">
-                      To unlock your unique referral link and earn milestone rewards, activate your mining node by depositing <strong>5$ USDT</strong> to protocol treasury.
+                      To unlock your unique referral link and earn milestone rewards, activate your mining node by depositing <strong>10$ USDT</strong> to protocol treasury.
                     </div>
                   </div>
                 </div>
@@ -709,7 +709,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                     className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-headline font-extrabold text-xs shadow-[0_0_15px_rgba(245,158,11,0.35)] hover:brightness-110 active:scale-95 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
                   >
                     <span className="material-symbols-outlined text-[16px]">bolt</span>
-                    <span>Deposit 5$ to Unlock</span>
+                    <span>Deposit 10$ to Unlock</span>
                   </button>
                 )}
               </div>

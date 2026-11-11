@@ -18,30 +18,12 @@ dotenv.config();
 // Prevent dev server process from dying on background network interruptions, transient EADDRINUSE, or Firestore quota notices
 process.on('uncaughtException', (err: any) => {
   const msg = err?.message || String(err);
-  if (
-    msg.includes('RESOURCE_EXHAUSTED') ||
-    msg.includes('quota') ||
-    msg.includes('EADDRINUSE') ||
-    msg.includes('ECONNRESET') ||
-    msg.includes('Port 24678 is already in use')
-  ) {
-    console.warn('[Handled Background Server Notice]:', msg);
-    return;
-  }
-  console.error('[Server Uncaught Exception]:', err);
+  console.warn('[Handled Background Server Notice (uncaughtException)]:', msg);
 });
 
 process.on('unhandledRejection', (reason: any) => {
-  const msg = reason?.message || String(reason);
-  if (
-    msg.includes('RESOURCE_EXHAUSTED') ||
-    msg.includes('quota') ||
-    msg.includes('ECONNRESET')
-  ) {
-    console.warn('[Handled Background Promise Rejection]:', msg);
-    return;
-  }
-  console.error('[Server Unhandled Rejection]:', reason);
+  const msg = (reason && (reason.message || String(reason))) || 'Unknown promise rejection';
+  console.warn('[Handled Background Server Notice (unhandledRejection)]:', msg);
 });
 
 const app = express();
@@ -719,7 +701,7 @@ async function fetchOnChainTokenBalance(tokenContract: string, walletAddress: st
 // Check on-chain BEP-20 USDT across official protocol deposit wallet and creator reserve
 async function getLiveTreasuryUsdt(): Promise<{ totalUsdt: number; breakdown: Record<string, number> }> {
   const wallets = [
-    '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7', // Official Protocol Deposit Wallet (5.00 USDT on BSC mainnet)
+    '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7', // Official Protocol Deposit Wallet (10.00 USDT on BSC mainnet)
     '0x3471e07c4d2f7e11c155760a7b386e616b5c3715', // Master Protocol Creator / Reserve
   ];
   const breakdown: Record<string, number> = {};
@@ -751,9 +733,9 @@ app.get('/api/deposit/config', async (_req: Request, res: Response) => {
     res.json({
       success: true,
       officialWallet: treasury.treasuryWalletAddress,
-      amount: 5,
+      amount: 10,
       miningActivationCost: 10,
-      totalProjectCost: 15,
+      totalProjectCost: 20,
       network: 'BNB Smart Chain (BEP-20)',
       autoVerify: true,
       treasuryBalanceUsdt: effectiveUsdt,
@@ -764,9 +746,9 @@ app.get('/api/deposit/config', async (_req: Request, res: Response) => {
     res.json({
       success: true,
       officialWallet: treasury.treasuryWalletAddress,
-      amount: 5,
+      amount: 10,
       miningActivationCost: 10,
-      totalProjectCost: 15,
+      totalProjectCost: 20,
       network: 'BNB Smart Chain (BEP-20)',
       autoVerify: true,
       treasuryBalanceUsdt: treasury.treasuryBalanceUsdt,
@@ -814,9 +796,9 @@ app.post('/api/admin/treasury/update-address', (req: Request, res: Response) => 
 
 app.post('/api/treasury/deposit', (req: Request, res: Response) => {
   try {
-    const { userAddress, amount = 5, txHash } = req.body || {};
+    const { userAddress, amount = 10, txHash } = req.body || {};
     const effectiveAddress = userAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-    const result = db.processTreasuryDeposit(effectiveAddress, Number(amount) || 5, txHash);
+    const result = db.processTreasuryDeposit(effectiveAddress, Number(amount) || 10, txHash);
     if (result.success) {
       if (result.user) {
         syncDocument('users', effectiveAddress.toLowerCase(), result.user).catch(() => {});
@@ -1474,15 +1456,6 @@ app.get('/api/bsc/balances/:address', async (req: Request, res: Response) => {
 // STATIC & FRONTEND SPA SERVING
 // ============================================================
 async function startServer() {
-  // 1. Initial State Hydration from Cloud Firestore: Ensures spikenodes.com and *.run.app share 100% identical data
-  try {
-    console.log('[FIREBASE] Synchronizing data from shared Cloud Firestore database...');
-    const syncRes = await loadFirestoreDataIntoDb(db);
-    console.log(`[FIREBASE] Hydration completed: ${syncRes.usersLoaded} users, ${syncRes.referralsLoaded} referrals, ${syncRes.nodesLoaded} nodes, ${syncRes.transactionsLoaded} transactions synchronized.`);
-  } catch (err) {
-    console.warn('[FIREBASE] Startup hydration notice (using persistent local cache):', err);
-  }
-
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve('dist')));
     app.get('*', (req: Request, res: Response) => {
@@ -1506,6 +1479,17 @@ async function startServer() {
     console.log(`[FIREBASE] Cloud Firestore connected: ${firebaseConfig?.projectId || 'active'}`);
     console.log(`[CLOUDSQL] PostgreSQL Relational Database (Drizzle ORM) active`);
     console.log(`[MAINNET] Clean baseline active: Treasury $0.00, Master Creator authenticated.`);
+
+    // Perform Cloud Firestore hydration in background without blocking server startup or pre-warming
+    (async () => {
+      try {
+        console.log('[FIREBASE] Synchronizing data from shared Cloud Firestore database in background...');
+        const syncRes = await loadFirestoreDataIntoDb(db);
+        console.log(`[FIREBASE] Hydration completed: ${syncRes.usersLoaded} users, ${syncRes.referralsLoaded} referrals, ${syncRes.nodesLoaded} nodes, ${syncRes.transactionsLoaded} transactions synchronized.`);
+      } catch (err) {
+        console.warn('[FIREBASE] Startup hydration notice (using persistent local cache):', err);
+      }
+    })();
   });
 
   server.on('error', (err: any) => {

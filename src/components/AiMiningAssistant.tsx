@@ -104,10 +104,10 @@ const IMMUTABLE_KNOWLEDGE_BASE = {
 1. **Step 1 [Wallet Authentication]:**
    Connect your Web3 Wallet (MetaMask, TrustWallet, or Binance Web3) on the **BNB Smart Chain (BEP-20)** network.
 
-2. **Step 2 [Protocol Entry — $5.00 USDT]:**
-   Click **"Deposit / Protocol Entry"** and transfer $5.00 USDT into the Official Protocol Treasury. This verifies your wallet on-chain and permanently unlocks your unique referral code.
+2. **Step 2 [Protocol Entry — $10.00 USDT]:**
+   Click **"Deposit / Protocol Entry"** and transfer $10.00 USDT into the Official Protocol Treasury. This activates your mining rig, starts hashing, and permanently unlocks your unique referral code.
 
-3. **Step 3 [Rig Provisioning — $10.00 USDT]:**
+3. **Step 3 [Rig Provisioning]:**
    Click **"Activate Node"**. Your dedicated ASIC cloud stratum rig is instantly deployed to the network pool and commences the automated 24-hour mining cycle.
 
 4. **Step 4 [Daily Harvesting]:**
@@ -118,10 +118,10 @@ const IMMUTABLE_KNOWLEDGE_BASE = {
 1. **Step 1 [Wallet Connect]:**
    Apna Web3 Wallet (MetaMask, TrustWallet ya Binance Web3) connect karein aur network **BNB Smart Chain (BEP-20)** select karein.
 
-2. **Step 2 [Protocol Entry — $5.00 USDT]:**
-   "Deposit / Protocol Entry" par click karke $5.00 USDT deposit karein. Isse aapka wallet on-chain verify hota hai aur referral link unlock ho jata hai.
+2. **Step 2 [Protocol Entry — $10.00 USDT]:**
+   "Deposit / Protocol Entry" par click karke $10.00 USDT deposit karein. Isse aapka mining rig active hota hai, 24-hour mining start hoti hai aur referral link unlock ho jata hai.
 
-3. **Step 3 [Rig Activation — $10.00 USDT]:**
+3. **Step 3 [Rig Activation]:**
    "Activate Node" par click karein. Aapka dedicated ASIC Cloud Rig instant deploy ho jayega aur 24-ghante ki mining cycle start ho jayegi.
 
 4. **Step 4 [Daily Harvest]:**
@@ -249,10 +249,10 @@ function getHardcodedKnowledgeResponse(query: string, lang: Language): string {
 
   // Default welcome response
   if (lang === 'hi') {
-    return `👋 **Namaste! SPIKE Protocol Intelligence me aapka swagat hai.**\n\nMain aapka specialized Web3 Cloud Mining and Validator Guide hoon. Kripya apna sawal select karein ya type karein:\n\n• ⚡ **Cloud Mining Architecture:** Automated 24h hashing aur 3.88% daily yield benefits\n• 👥 **Referral Matrix Logic:** Direct bound wallets check karna aur milestone bonuses unlock karna\n• 🚀 **Node & Rig Activation:** Step 1 ($5 USDT Protocol Entry) aur Step 2 ($10 USDT Rig Provisioning)\n• 💰 **Settlement & Payouts:** Daily reward harvesting aur on-chain USDT swap`;
+    return `👋 **Namaste! SPIKE Protocol Intelligence me aapka swagat hai.**\n\nMain aapka specialized Web3 Cloud Mining and Validator Guide hoon. Kripya apna sawal select karein ya type karein:\n\n• ⚡ **Cloud Mining Architecture:** Automated 24h hashing aur 3.88% daily yield benefits\n• 👥 **Referral Matrix Logic:** Direct bound wallets check karna aur milestone bonuses unlock karna\n• 🚀 **Node & Rig Activation:** Treasury deposit ($10 USDT Protocol Entry) se mining aur referral unlock\n• 💰 **Settlement & Payouts:** Daily reward harvesting aur on-chain USDT swap`;
   }
 
-  return `👋 **Welcome to SPIKE Protocol Intelligence.**\n\nI am your specialized Web3 Cloud Mining and Validator Guide. Please select a topic or enter your inquiry below:\n\n• ⚡ **Cloud Mining Architecture:** Automated 24h hashing and 3.88% daily compounding yield\n• 👥 **Referral Matrix Logic:** On-chain code binding, speed multipliers (up to 857.14 VH/s), and milestone payouts\n• 🚀 **Node Provisioning Workflow:** Step 1 ($5 Protocol Entry) and Step 2 ($10 Rig Activation)\n• 💰 **Settlement & Tokenomics:** 24-hour harvest cycles and instant BEP-20 USDT swaps`;
+  return `👋 **Welcome to SPIKE Protocol Intelligence.**\n\nI am your specialized Web3 Cloud Mining and Validator Guide. Please select a topic or enter your inquiry below:\n\n• ⚡ **Cloud Mining Architecture:** Automated 24h hashing and 3.88% daily compounding yield\n• 👥 **Referral Matrix Logic:** On-chain code binding, speed multipliers (up to 857.14 VH/s), and milestone payouts\n• 🚀 **Node Provisioning Workflow:** Treasury deposit ($10 Protocol Entry) to activate mining & unlock referrals\n• 💰 **Settlement & Tokenomics:** 24-hour harvest cycles and instant BEP-20 USDT swaps`;
 }
 
 // Live personalized withdrawal inquiry handler
@@ -579,14 +579,14 @@ export const AiMiningAssistant: React.FC = () => {
         { label: '🔍 Mera Withdrawal Status', query: 'Mera withdrawal status kya hai?' },
         { label: '⚡ Cloud Mining Kaise Kaam Karta Hai?', query: 'Cloud Mining kaise kaam karta hai aur iske kya fayde hain?' },
         { label: '👥 Referral Logic & Check Guide', query: 'Referral logic kaise kaam karta hai aur milestone rewards kaise milte hain?' },
-        { label: '🚀 Node Activation Workflow ($5 + $10)', query: 'Mining Rig aur Node activate karne ka exact process kya hai?' },
+        { label: '🚀 Node Activation Workflow ($10)', query: 'Mining Rig aur Node activate karne ka exact process kya hai?' },
         { label: '💰 Daily Yield & USDT Harvest', query: 'Daily rewards aur withdrawal settlement kaise hoti hai?' },
       ]
     : [
         { label: '🔍 My Withdrawal Status', query: 'What is my withdrawal status?' },
         { label: '⚡ How Cloud Mining Works', query: 'How does cloud mining work and what are the benefits?' },
         { label: '👥 Referral Logic & Matrix', query: 'Explain the referral logic, multipliers, and milestone rewards' },
-        { label: '🚀 Node Activation Protocol ($5 + $10)', query: 'What are the steps to activate a mining node and ring?' },
+        { label: '🚀 Node Activation Protocol ($10)', query: 'What are the steps to activate a mining node and ring?' },
         { label: '💰 Daily Compounding Yield & Harvest', query: 'How does daily yield harvest and settlement work?' },
       ];
 

@@ -46,9 +46,8 @@ CORE KNOWLEDGE DOMAINS:
 
 3. NODE PROVISIONING & ONBOARDING WORKFLOW:
    - Step 1 [Wallet Connection]: Connect Web3 wallet (MetaMask, TrustWallet, Binance Web3) via BNB Smart Chain (BEP-20).
-   - Step 2 [Protocol Entry]: Deposit $5.00 USDT into the Official Protocol Treasury to authenticate the node and unlock referral mechanics.
-   - Step 3 [Rig Activation]: Provision the ASIC Cloud Rig for $10.00 USDT to start the automated 24-hour mining engine.
-   - Step 4 [Daily Harvest]: Access the dashboard daily to harvest mined SPIKE tokens and convert to USDT.
+   - Step 2 [Protocol Entry]: Deposit $10.00 USDT into the Official Protocol Treasury to authenticate the node, start 24h cloud mining, and unlock referral mechanics.
+   - Step 3 [Daily Harvest]: Access the dashboard daily to harvest mined SPIKE tokens and convert to USDT.
 
 ============================================================
 INSTITUTIONAL SECURITY & ZERO-TOLERANCE PRIVACY MANDATE:
@@ -114,7 +113,7 @@ export function getSmartLocalResponse(message: string): string {
     lower.includes('5$') ||
     lower.includes('10$')
   ) {
-    return `🚀 **Validator Rig & Node Activation Protocol:**\n\n1. **Step 1 [Wallet Authentication]:** Apna Web3 Wallet (MetaMask, TrustWallet ya Binance Web3) connect karein aur network **BNB Smart Chain (BEP-20)** select karein.\n2. **Step 2 [Protocol Entry — $5.00 USDT]:** "Deposit / Protocol Entry" option par click karke $5 USDT deposit karein. Isse aapka wallet verify hota hai aur referral link permanently unlock ho jata hai.\n3. **Step 3 [Rig Deployment — $10.00 USDT]:** "Activate Node" par click karein. Aapka dedicated ASIC Cloud Rig instant stratum pool se connect hokar 24-hour mining engine start karega.\n4. **Daily Harvest Cycle:** Har 24 ghante baad dashboard par aakar "Harvest Rewards" claim karein.`;
+    return `🚀 **Validator Rig & Node Activation Protocol:**\n\n1. **Step 1 [Wallet Authentication]:** Apna Web3 Wallet (MetaMask, TrustWallet ya Binance Web3) connect karein aur network **BNB Smart Chain (BEP-20)** select karein.\n2. **Step 2 [Protocol Entry — $10.00 USDT]:** "Deposit / Protocol Entry" option par click karke $10 USDT deposit karein. Isse aapka mining ring active hota hai, 24-hour mining start hoti hai aur referral link permanently unlock ho jata hai.\n3. **Step 3 [Daily Harvest Cycle]:** Har 24 ghante baad dashboard par aakar "Harvest Rewards" claim karein aur USDT me swap karein.`;
   }
 
   // Withdrawals & Payouts
@@ -128,7 +127,7 @@ export function getSmartLocalResponse(message: string): string {
   }
 
   // Default Professional Introduction
-  return `👋 **Namaste! Welcome to SPIKE Protocol Intelligence.**\n\nMain aapka specialized Web3 Cloud Mining and Validator Guide hoon. Main aapki nimnlikhit vishayon me sahayata kar sakta hoon:\n\n• ⚡ **Cloud Mining Architecture:** Automated 24h hashing aur 3.88% daily yield benefits\n• 👥 **Referral Matrix & Analytics:** Direct bound wallets check karna aur milestone bonuses unlock karna\n• 🚀 **Node & Rig Activation:** Step 1 ($5 USDT Protocol Entry) aur Step 2 ($10 USDT Rig Provisioning)\n• 🔐 **Web3 Infrastructure:** BNB Smart Chain wallet connection aur reward settlement\n\nAap apna sawal neeche type kar sakte hain!`;
+  return `👋 **Namaste! Welcome to SPIKE Protocol Intelligence.**\n\nMain aapka specialized Web3 Cloud Mining and Validator Guide hoon. Main aapki nimnlikhit vishayon me sahayata kar sakta hoon:\n\n• ⚡ **Cloud Mining Architecture:** Automated 24h hashing aur 3.88% daily yield benefits\n• 👥 **Referral Matrix & Analytics:** Direct bound wallets check karna aur milestone bonuses unlock karna\n• 🚀 **Node & Rig Activation:** Treasury deposit ($10 USDT Protocol Entry) se mining aur referral unlock\n• 🔐 **Web3 Infrastructure:** BNB Smart Chain wallet connection aur reward settlement\n\nAap apna sawal neeche type kar sakte hain!`;
 }
 
 export async function processAiMiningChat(message: string, language: 'en' | 'hi' = 'en'): Promise<string> {
