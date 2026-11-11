@@ -41,7 +41,7 @@ CORE KNOWLEDGE DOMAINS:
      • Level 2 (100 Team): Boosts to 400 VH/s (15-day target cycle).
      • Level 3 (1,000 Team): Boosts to 600 VH/s (10-day cycle).
      • Level 4 (5,000 Team): Boosts to 857.14 VH/s (7-day cycle).
-   - Milestone USDT Payouts: Multi-tier rewards (Level 1: $50 USDT, Level 2: $250 USDT, Level 3: $1,000 USDT) claimable directly to wallet.
+   - Milestone USDT Payouts: Multi-tier rewards (Level 1: $30 USDT, Level 2: $200 USDT, Level 3: $2,000 USDT) claimable directly to wallet.
    - Verification: Dashboard > "Referrals" provides real-time bound addresses, active mining telemetry, team volume, and claim status.
 
 3. NODE PROVISIONING & ONBOARDING WORKFLOW:
@@ -99,7 +99,7 @@ export function getSmartLocalResponse(message: string): string {
     lower.includes('sponsor') ||
     lower.includes('downline')
   ) {
-    return `👥 **Referral Matrix & Network Verification Guide:**\n\n1. **Unique Cryptographic Code:** Dashboard ke **Referrals** tab me aapka on-chain code (e.g. \`SPK-XXXXXX\`) generate hota hai.\n2. **Live Network Telemetry:**\n   - Dashboard > **Referrals** tab me aap apne saare **Direct Bound Wallets**, unka **Active Mining Status**, aur **Cumulative Team Volume** real-time monitor kar sakte hain.\n3. **Hashrate Speed Acceleration (Multipliers):**\n   - **Level 1 (10 Directs):** 200 VH/s Hashrate (Target mining duration 60 days se ghatkar 30 days ho jata hai).\n   - **Level 2 (100 Total Team):** 400 VH/s Hashrate (Target 15 days me complete).\n   - **Level 3 (1,000 Team):** 600 VH/s Hashrate (Target 10 days me complete).\n4. **Institutional Milestone Rewards:** Direct USDT milestone bonuses (Level 1: $50 USDT, Level 2: $250 USDT, Level 3: $1,000 USDT) seedhe aapke Web3 wallet me claimable hote hain.`;
+    return `👥 **Referral Matrix & Network Verification Guide:**\n\n1. **Unique Cryptographic Code:** Dashboard ke **Referrals** tab me aapka on-chain code (e.g. \`SPK-XXXXXX\`) generate hota hai.\n2. **Live Network Telemetry:**\n   - Dashboard > **Referrals** tab me aap apne saare **Direct Bound Wallets**, unka **Active Mining Status**, aur **Cumulative Team Volume** real-time monitor kar sakte hain.\n3. **Hashrate Speed Acceleration (Multipliers):**\n   - **Level 1 (10 Directs):** 200 VH/s Hashrate (Target mining duration 60 days se ghatkar 30 days ho jata hai).\n   - **Level 2 (100 Total Team):** 400 VH/s Hashrate (Target 15 days me complete).\n   - **Level 3 (1,000 Team):** 600 VH/s Hashrate (Target 10 days me complete).\n4. **Institutional Milestone Rewards:** Direct USDT milestone bonuses (Level 1: $30 USDT, Level 2: $200 USDT, Level 3: $2,000 USDT) seedhe aapke Web3 wallet me claimable hote hain.`;
   }
 
   // Rig / Node Activation Workflow

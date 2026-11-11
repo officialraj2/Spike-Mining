@@ -68,9 +68,9 @@ const IMMUTABLE_KNOWLEDGE_BASE = {
 
 3. **Institutional Milestone Cash Bonuses:**
    As your referral network expands, you unlock tiered USDT cash payouts:
-   • **Milestone Level 1:** **$50.00 USDT** Direct Cash Bonus.
-   • **Milestone Level 2:** **$250.00 USDT** Direct Cash Bonus.
-   • **Milestone Level 3:** **$1,000.00 USDT** Direct Cash Bonus.
+   • **Milestone Level 1:** **$30.00 USDT** Direct Cash Bonus.
+   • **Milestone Level 2:** **$200.00 USDT** Direct Cash Bonus.
+   • **Milestone Level 3:** **$2,000.00 USDT** Direct Cash Bonus.
 
 4. **How to Verify & Track Referrals:**
    Navigate to Dashboard > **Referrals** tab. You can inspect all bound wallet addresses, verify their active mining status, check downline depth, and claim pending milestone payouts.`,
@@ -90,9 +90,9 @@ const IMMUTABLE_KNOWLEDGE_BASE = {
 
 3. **Cash Milestone Rewards (USDT Bonuses):**
    Team size badhne par direct cash payouts milte hain:
-   • **Level 1 Milestone:** **$50.00 USDT**
-   • **Level 2 Milestone:** **$250.00 USDT**
-   • **Level 3 Milestone:** **$1,000.00 USDT**
+   • **Level 1 Milestone:** **$30.00 USDT**
+   • **Level 2 Milestone:** **$200.00 USDT**
+   • **Level 3 Milestone:** **$2,000.00 USDT**
 
 4. **Referral Kaise Check Karein:**
    Dashboard ke **Referrals** tab me jayein. Wahan aapke saare **Direct Bound Wallets**, unka **Active Mining Status**, aur **Cumulative Team Volume** live show hota hai.`

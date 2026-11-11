@@ -426,6 +426,29 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
     (m) => !isMilestoneLevelReached(m)
   );
 
+  // Career progression calculations for visual milestone progress bar
+  const achievedMilestones = TEAM_MILESTONE_TIERS.filter((m) => isMilestoneLevelReached(m));
+  const currentAchievedTier = achievedMilestones.length > 0 ? achievedMilestones[achievedMilestones.length - 1] : null;
+  const nextTargetTier = TEAM_MILESTONE_TIERS.find((m) => !isMilestoneLevelReached(m)) || null;
+
+  const targetLevelNum = nextTargetTier?.level ?? 1;
+  const activeDirectCount = effectiveStats?.activeDirectPartners ?? directPartners;
+  const activeDownlineCount = effectiveStats?.activeDownlinePartners ?? downlinePartners;
+  const activeTotalTeamCount = effectiveStats?.activeTotalPartners ?? totalTeamPartners;
+
+  // Level 1 measures direct partners; Level 2..9 measures count at that level (or total downline)
+  const currentMetricCountForNext = targetLevelNum === 1
+    ? activeDirectCount
+    : (effectiveStats?.activeLevelCounts?.[targetLevelNum] ?? activeTotalTeamCount);
+
+  const targetPartnersRequired = nextTargetTier?.partnersRequired ?? 10;
+  const milestoneProgressPct = nextTargetTier
+    ? Math.min(100, Math.max(0, Math.round((currentMetricCountForNext / targetPartnersRequired) * 100)))
+    : 100;
+  const remainingPartnersForNext = nextTargetTier
+    ? Math.max(0, targetPartnersRequired - currentMetricCountForNext)
+    : 0;
+
   const handleCopy = () => {
     onCopyText(activeLinkToCopy);
     setCopied(true);
@@ -890,6 +913,253 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
               </span>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Visual Milestone Progression Card (Next Tier Progress) */}
+      <div className="bg-gradient-to-b from-[#0e2133] via-[#091929] to-[#06121f] rounded-2xl p-5 md:p-6 border-2 border-[#00F0FF]/40 shadow-[0_0_30px_rgba(0,240,255,0.22)] relative overflow-hidden space-y-5 animate-box-glow-blue transition-all">
+        {/* Decorative corner glows */}
+        <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#00F0FF]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Header: Current Tier -> Next Milestone Target */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-md bg-[#00F0FF]/15 border border-[#00F0FF]/30 font-mono text-[10px] font-bold tracking-wider text-[#00F0FF] uppercase flex items-center gap-1">
+                <span className="material-symbols-outlined text-[13px]">trending_up</span>
+                <span>Milestone Career Progression</span>
+              </span>
+              {!hasActiveMining && (
+                <span className="px-2.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 font-mono text-[10px] font-bold text-amber-300 uppercase flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[13px]">lock</span>
+                  <span>10$ Deposit Required</span>
+                </span>
+              )}
+            </div>
+            <h3 className="text-xl md:text-2xl font-black font-headline text-white mt-1.5 flex items-center gap-2 flex-wrap">
+              <span>{currentAchievedTier ? `${currentAchievedTier.label} Achieved` : 'Starting Tier (Cadet)'}</span>
+              <span className="material-symbols-outlined text-[#00F0FF] text-[20px] animate-pulse">arrow_forward</span>
+              <span className="text-[#D4AF37]">
+                {nextTargetTier ? `Target: ${nextTargetTier.label} (${nextTargetTier.rewardFormatted} USDT)` : 'Grandmaster Rank'}
+              </span>
+            </h3>
+            <p className="text-xs text-slate-300 mt-1 max-w-xl">
+              Track your real-time progress toward the next team milestone payout. All milestones pay instantly in USDT upon reaching active node requirements.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+            <div className="bg-[#071626] border border-[#1c2b3b] px-3.5 py-2 rounded-xl text-right">
+              <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Overall Progress</div>
+              <div className="text-lg font-black font-headline text-[#00F0FF] tabular-nums">
+                {nextTargetTier ? `${milestoneProgressPct}%` : '100%'}
+              </div>
+            </div>
+            <div className="bg-[#071626] border border-[#D4AF37]/40 px-3.5 py-2 rounded-xl text-right">
+              <div className="text-[10px] font-mono text-amber-300 uppercase tracking-wider">Next Reward</div>
+              <div className="text-lg font-black font-headline text-[#D4AF37] tabular-nums">
+                {nextTargetTier ? `${nextTargetTier.rewardFormatted} USDT` : 'Completed'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dual Metric Indicator Cards (Direct & Total Team Partners) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 relative z-10">
+          {/* Metric 1: Direct Partners */}
+          <div className="bg-[#071524]/90 rounded-xl p-3.5 border border-[#00F0FF]/25 hover:border-[#00F0FF]/40 transition-colors">
+            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+              <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+                <span className="material-symbols-outlined text-[16px] text-[#00F0FF]">person_add</span>
+                <span>Direct Partners (L1)</span>
+              </span>
+              <span className="font-mono text-[11px] text-[#00F0FF]">{activeDirectCount} Active</span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-black font-headline text-white tabular-nums">
+                {activeDirectCount}
+                <span className="text-xs font-normal text-slate-400 ml-1">/ 10 target</span>
+              </span>
+              <span className={`text-[11px] font-headline font-bold px-2 py-0.5 rounded ${
+                activeDirectCount >= 10
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-slate-800 text-slate-400 border border-slate-700'
+              }`}>
+                {activeDirectCount >= 10 ? 'L1 Base Met' : `${Math.max(0, 10 - activeDirectCount)} needed`}
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-1.5 truncate">
+              {directPartners} total registered direct partners
+            </div>
+          </div>
+
+          {/* Metric 2: Total Team Partners (Downline) */}
+          <div className="bg-[#071524]/90 rounded-xl p-3.5 border border-purple-500/25 hover:border-purple-500/40 transition-colors">
+            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+              <span className="flex items-center gap-1.5 font-semibold text-slate-300">
+                <span className="material-symbols-outlined text-[16px] text-purple-400">hub</span>
+                <span>Total Team Partners</span>
+              </span>
+              <span className="font-mono text-[11px] text-purple-300">{activeTotalTeamCount} Active</span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-black font-headline text-white tabular-nums">
+                {activeTotalTeamCount}
+                <span className="text-xs font-normal text-slate-400 ml-1">miners</span>
+              </span>
+              <span className="text-[11px] font-headline font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                {downlinePartners > 0 ? `+${downlinePartners} Downline` : 'Level 1 Base'}
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-1.5 truncate">
+              {totalTeamPartners} total partners in network hierarchy
+            </div>
+          </div>
+
+          {/* Metric 3: Next Tier Target Requirement */}
+          <div className="bg-[#071524]/90 rounded-xl p-3.5 border border-amber-500/30 hover:border-amber-500/50 transition-colors">
+            <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
+              <span className="flex items-center gap-1.5 font-semibold text-amber-300">
+                <span className="material-symbols-outlined text-[16px] text-[#D4AF37]">military_tech</span>
+                <span>Next Milestone Target</span>
+              </span>
+              <span className="font-mono text-[11px] text-[#D4AF37]">
+                {nextTargetTier ? nextTargetTier.label : 'Max Level'}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between mt-1">
+              <span className="text-2xl font-black font-headline text-[#D4AF37] tabular-nums">
+                {nextTargetTier ? nextTargetTier.rewardFormatted : '$980,230'}
+                <span className="text-xs font-normal text-slate-400 ml-1">USDT</span>
+              </span>
+              <span className="text-[11px] font-headline font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                {nextTargetTier ? `${targetPartnersRequired.toLocaleString()} req.` : 'Claimed'}
+              </span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-1.5 truncate">
+              {nextTargetTier
+                ? `${remainingPartnersForNext.toLocaleString()} more needed at Level ${targetLevelNum}`
+                : 'All 9 career tiers completed!'}
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Progress Bar Section */}
+        <div className="space-y-2 relative z-10 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-1">
+            <span className="font-headline font-bold text-white flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse" />
+              <span>
+                Progress toward {nextTargetTier ? `${nextTargetTier.label} (${nextTargetTier.rewardFormatted} USDT)` : 'Maximum Tier'}:
+              </span>
+              <span className="text-slate-400 font-normal font-sans">
+                {currentMetricCountForNext.toLocaleString()} / {targetPartnersRequired.toLocaleString()} active nodes
+              </span>
+            </span>
+            <div className="flex items-center gap-2 font-mono text-xs">
+              <span className="text-slate-400">Current Completion:</span>
+              <span className="font-black text-[#00F0FF] bg-[#00F0FF]/10 px-2 py-0.5 rounded border border-[#00F0FF]/30">
+                {milestoneProgressPct}%
+              </span>
+            </div>
+          </div>
+
+          {/* High-tech glowing progress bar container */}
+          <div className="relative w-full h-4 sm:h-5 bg-[#05101a] rounded-full p-0.5 border border-[#00F0FF]/35 shadow-[inset_0_2px_4px_rgba(0,0,0,0.7)] overflow-hidden">
+            {/* Visual step tick dividers */}
+            <div className="absolute inset-0 flex justify-between px-6 pointer-events-none opacity-20">
+              <div className="w-[1px] h-full bg-slate-400" />
+              <div className="w-[1px] h-full bg-slate-400" />
+              <div className="w-[1px] h-full bg-slate-400" />
+            </div>
+
+            {/* Filled Animated Gradient Track */}
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#00F0FF] via-[#38bdf8] to-[#D4AF37] transition-all duration-700 ease-out relative shadow-[0_0_16px_rgba(0,240,255,0.7)] flex items-center justify-end"
+              style={{ width: `${Math.max(milestoneProgressPct > 0 ? 3 : 0, Math.min(100, milestoneProgressPct))}%` }}
+            >
+              {/* Shimmer light animation overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-shimmer" />
+              {milestoneProgressPct > 8 && (
+                <span className="text-[10px] font-mono font-black text-slate-950 pr-1.5 select-none drop-shadow-sm">
+                  {milestoneProgressPct}%
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Step markers scale */}
+          <div className="flex justify-between text-[10px] font-mono text-slate-400 px-1 pt-0.5">
+            <span>0% Start</span>
+            <span>25%</span>
+            <span>50% Midpoint</span>
+            <span>75%</span>
+            <span className="text-[#D4AF37] font-bold">100% ({nextTargetTier ? nextTargetTier.rewardFormatted : '$980k'})</span>
+          </div>
+        </div>
+
+        {/* Dynamic Status Banner & Action CTA */}
+        <div className="relative z-10 pt-1">
+          {!hasActiveMining ? (
+            <div className="p-3.5 bg-gradient-to-r from-amber-500/15 via-[#0b1724] to-amber-500/15 border border-amber-500/40 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-amber-400 text-[22px]">lock_clock</span>
+                <div className="text-xs text-slate-300">
+                  <span className="font-bold text-white block">Mining Ring Inactive (10$ USDT Deposit Required)</span>
+                  Deposit 10$ USDT to Protocol Treasury to activate mining and unlock your milestone bonus progression.
+                </div>
+              </div>
+              {onOpenDepositModal && (
+                <button
+                  type="button"
+                  onClick={onOpenDepositModal}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-headline font-extrabold text-xs shadow-[0_0_12px_rgba(245,158,11,0.35)] hover:brightness-110 active:scale-95 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
+                >
+                  <span className="material-symbols-outlined text-[16px]">bolt</span>
+                  <span>Deposit 10$ to Activate</span>
+                </button>
+              )}
+            </div>
+          ) : nextClaimable ? (
+            <div className="p-3.5 bg-gradient-to-r from-[#D4AF37]/20 via-[#0b1724] to-[#00F0FF]/20 border border-[#D4AF37]/50 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_25px_rgba(212,175,55,0.35)] animate-pulse">
+              <div className="flex items-center gap-2.5">
+                <span className="material-symbols-outlined text-[#D4AF37] text-[24px]">celebration</span>
+                <div className="text-xs text-slate-200">
+                  <span className="font-bold text-white block">Milestone Goal Reached!</span>
+                  You have satisfied the partner requirements for <strong>{nextClaimable.label}</strong>. Claim your <strong>+{nextClaimable.rewardFormatted} USDT</strong> reward now.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleClaimMilestone(nextClaimable.rewardUsd, nextClaimable.label)}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] text-[#0A0F1D] font-headline font-black text-xs shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
+              >
+                <span className="material-symbols-outlined text-[18px]">payments</span>
+                <span>Claim {nextClaimable.rewardFormatted} USDT</span>
+              </button>
+            </div>
+          ) : nextTargetTier ? (
+            <div className="p-3 bg-[#071524]/80 border border-[#1c2b3b] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-slate-300">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">info</span>
+                <span>
+                  Need <strong className="text-white font-mono">{remainingPartnersForNext.toLocaleString()}</strong> more verified active partners at Level {targetLevelNum} to unlock the <strong className="text-[#D4AF37] font-mono">{nextTargetTier.rewardFormatted} USDT</strong> reward.
+                </span>
+              </div>
+              <div className="text-[11px] font-mono text-[#00F0FF] shrink-0">
+                Direct: {activeDirectCount}/10 • Team: {activeTotalTeamCount}
+              </div>
+            </div>
+          ) : (
+            <div className="p-3.5 bg-gradient-to-r from-emerald-500/20 via-[#0b1724] to-emerald-500/20 border border-emerald-500/40 rounded-xl flex items-center gap-2.5 text-xs text-emerald-300">
+              <span className="material-symbols-outlined text-emerald-400 text-[24px]">workspace_premium</span>
+              <div>
+                <span className="font-bold text-white block">Grandmaster Career Rank Achieved!</span>
+                All 9 Team Milestone Tiers completed. You have unlocked all <strong>$980,230 USDT</strong> in protocol milestone bonuses.
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

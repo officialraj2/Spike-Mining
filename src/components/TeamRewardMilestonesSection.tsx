@@ -500,7 +500,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
           </div>
           <div className="flex items-center gap-2 text-[#D4AF37] font-semibold">
             <span className="material-symbols-outlined text-[18px]">military_tech</span>
-            <span>Cumulative Rewards: Up to $738,115 USDT Total Career Bonus</span>
+            <span>Cumulative Rewards: Up to $980,230 USDT Total Career Bonus</span>
           </div>
         </div>
       </div>
