@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+import { doc, setDoc } from 'firebase/firestore';
+import { db as firestoreDb } from '../firebase';
 import { SPIKE_LOGO_URL } from '../data/mockData';
 import { HashrateLevelInfo } from '../types';
 import { persistMiningStart, fetchActiveMiningSession } from '../services/miningSessionSync';
@@ -619,6 +621,34 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           miningCycleStartTime: nextCycleStart,
         }),
       }).catch(() => {});
+
+      // Persist claim record directly to Cloud Firestore 'transactions' for Admin Panel Claim Tracker
+      try {
+        const safeSlug = String(finalTx.txHash || finalTx.id || Date.now()).replace(/[^a-zA-Z0-9]/g, '').slice(0, 40);
+        const claimDocId = `claim_${safeSlug}`;
+        await setDoc(
+          doc(firestoreDb, 'transactions', claimDocId),
+          {
+            id: claimDocId,
+            userAddress: userAddr,
+            txHash: finalTx.txHash || claimDocId,
+            type: 'claim',
+            amount: Number(effectiveCreditedSpk) || Number(spkToBuy) || 0,
+            spkAmount: Number(effectiveCreditedSpk) || Number(spkToBuy) || 0,
+            usdtAmount: Number(finalTx.usdtAmount) || +(spkToBuy * 1.12).toFixed(4),
+            currency: 'SPK',
+            status: 'Confirmed',
+            verifiedOnChain: Boolean(data?.spkCreditedOnChain || web3TxHash),
+            blockNumber: Number(finalTx.blockNumber || 0),
+            details: String(finalTx.details || 'Mining Reward Claim').slice(0, 300),
+            timestamp: finalTx.timestamp || new Date().toISOString(),
+            _syncedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (fsClaimErr) {
+        console.warn('[Mining] Firestore claim sync notice:', fsClaimErr);
+      }
 
       if (userAddr) {
         persistMiningStart({

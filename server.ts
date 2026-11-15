@@ -521,6 +521,19 @@ app.get('/api/admin/transactions', (req: Request, res: Response) => {
   res.json({ transactions: txs });
 });
 
+app.get('/api/admin/claims', (req: Request, res: Response) => {
+  try {
+    const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+    const address = typeof req.query.address === 'string' ? req.query.address : undefined;
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 500;
+    const result = db.getClaimLogs({ startDate, endDate, address, limit });
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to fetch user claims' });
+  }
+});
+
 app.post('/api/admin/transactions/:id/status', (req: Request, res: Response) => {
   const { id } = req.params;
   const { status, adminUser = 'Admin Portal' } = req.body;
@@ -1812,6 +1825,25 @@ app.post('/api/testnet/harvest-autobuy', async (req: Request, res: Response) => 
       const updatedUser = db.getUser(targetAddr);
       if (updatedUser) {
         syncDocument('users', targetAddr.toLowerCase(), updatedUser).catch(() => {});
+      }
+      if (result.tx) {
+        const claimDocId = `claim_${Date.now()}_${targetAddr.toLowerCase().slice(2, 8)}`;
+        syncDocument('transactions', claimDocId, {
+          id: claimDocId,
+          userAddress: targetAddr,
+          txHash: result.tx.txHash,
+          type: 'claim',
+          amount: result.tx.spkAmount,
+          spkAmount: result.tx.spkAmount,
+          usdtAmount: result.tx.usdtAmount,
+          currency: 'SPK',
+          status: 'Confirmed',
+          verifiedOnChain: receiptInfo.spkCreditedOnChain,
+          payoutMethod,
+          blockNumber: result.tx.blockNumber,
+          details: result.tx.details,
+          timestamp: result.tx.timestamp,
+        }).catch(() => {});
       }
     }
 

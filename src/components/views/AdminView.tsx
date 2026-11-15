@@ -68,8 +68,30 @@ export const AdminView: React.FC<AdminViewProps> = ({
   );
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'master' | 'overview' | 'withdrawals' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
+    'master' | 'overview' | 'claims' | 'withdrawals' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
   >(isMasterUser || (currentWallet && currentWallet.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase()) ? 'master' : 'overview');
+
+  // Admin Claim Tracker State
+  const [claimsList, setClaimsList] = useState<Array<{
+    id: string;
+    userAddress: string;
+    spkAmount: number;
+    usdtAmount: number;
+    currency: string;
+    txHash: string;
+    status: string;
+    verifiedOnChain: boolean;
+    blockNumber: number;
+    details: string;
+    timestamp: string;
+    source: string;
+  }>>([]);
+  const [claimDatePreset, setClaimDatePreset] = useState<'all' | 'today' | 'yesterday' | '7d' | '30d' | 'custom'>('all');
+  const [claimStartDate, setClaimStartDate] = useState<string>('');
+  const [claimEndDate, setClaimEndDate] = useState<string>('');
+  const [claimSearchQuery, setClaimSearchQuery] = useState<string>('');
+  const [claimViewMode, setClaimViewMode] = useState<'logs' | 'wallets'>('logs');
+  const [claimVerifyFilter, setClaimVerifyFilter] = useState<'all' | 'onchain' | 'ledger'>('all');
 
   // Withdrawal Requests State
   const [withdrawalRequests, setWithdrawalRequests] = useState<any[]>([]);
@@ -209,11 +231,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
     if (!quiet) setIsRefreshing(true);
     let apiSuccess = false;
     try {
-      const [metricsRes, usersRes, nodesRes, txsRes, settingsRes, logsRes, treasuryRes, withdrawalsRes] = await Promise.all([
+      const [metricsRes, usersRes, nodesRes, txsRes, claimsRes, settingsRes, logsRes, treasuryRes, withdrawalsRes] = await Promise.all([
         fetch('/api/admin/metrics').catch(() => null),
         fetch('/api/admin/users').catch(() => null),
         fetch('/api/admin/nodes').catch(() => null),
         fetch('/api/admin/transactions').catch(() => null),
+        fetch('/api/admin/claims?limit=500').catch(() => null),
         fetch('/api/admin/settings').catch(() => null),
         fetch('/api/admin/audit-logs').catch(() => null),
         fetch('/api/treasury').catch(() => null),
@@ -238,6 +261,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
       if (txsRes && txsRes.ok) {
         const data = await safeJsonParse(txsRes);
         if (data?.transactions) setTransactions(data.transactions);
+      }
+      let apiClaims: any[] = [];
+      if (claimsRes && claimsRes.ok) {
+        const cData = await safeJsonParse(claimsRes);
+        if (cData && Array.isArray(cData.claims)) {
+          apiClaims = cData.claims;
+          setClaimsList(apiClaims);
+        }
       }
       let allWList: any[] = [];
       if (withdrawalsRes && withdrawalsRes.ok) {
@@ -287,6 +318,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
       if (logsRes && logsRes.ok) {
         const data = await safeJsonParse(logsRes);
         if (data?.logs) setAuditLogs(data.logs);
+      }
+      if (apiClaims.length > 0) {
+        setClaimsList(apiClaims);
       }
     } catch (err) {
       console.warn('[Admin] Backend fetch notice:', err);
@@ -377,20 +411,59 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       if (fsTxsSnap && !fsTxsSnap.empty) {
         const loadedTxs: RewardTransaction[] = [];
+        const fsClaims: any[] = [];
         fsTxsSnap.forEach((d) => {
           const data = d.data();
           loadedTxs.push({
             id: d.id,
+            userAddress: data.userAddress || '',
+            type: data.type || 'claim',
             txHash: data.txHash || d.id,
-            rewardSource: data.rewardSource || 'Mining Rewards Payout',
+            rewardSource: data.rewardSource || data.details || 'Mining Rewards Payout',
             amount: Number(data.amount || 0),
             currency: data.currency || 'USDT',
             timestamp: data.timestamp || 'Just now',
             status: data.status || 'Confirmed',
           });
+
+          const isClaimDoc =
+            data.type === 'claim' ||
+            data.type === 'harvest_autobuy' ||
+            d.id.startsWith('claim');
+          if (isClaimDoc) {
+            const spkVal = Number(data.spkAmount || (String(data.currency).toUpperCase() === 'SPK' ? data.amount : Number(data.amount || 0) / 1.12) || 0);
+            const usdtVal = Number(data.usdtAmount || +(spkVal * 1.12).toFixed(4));
+            fsClaims.push({
+              id: d.id,
+              userAddress: data.userAddress || 'Unknown',
+              spkAmount: spkVal,
+              usdtAmount: usdtVal,
+              currency: data.currency || 'SPK',
+              txHash: data.txHash || d.id,
+              status: data.status || 'Confirmed',
+              verifiedOnChain: Boolean(data.verifiedOnChain || (data.details && String(data.details).includes('On-Chain V3'))),
+              blockNumber: Number(data.blockNumber || 0),
+              details: data.details || 'Mining Reward Claim',
+              timestamp: data.timestamp || data._syncedAt || new Date().toISOString(),
+              source: data.verifiedOnChain ? 'On-Chain V3 Swap' : 'Firestore Claim Record',
+            });
+          }
         });
         if (loadedTxs.length > 0) {
           setTransactions((prev) => (prev.length >= loadedTxs.length && apiSuccess ? prev : loadedTxs));
+        }
+        if (fsClaims.length > 0) {
+          setClaimsList((prev) => {
+            const merged = new Map<string, any>();
+            prev.forEach((c) => merged.set((c.txHash || c.id).toLowerCase(), c));
+            fsClaims.forEach((c) => {
+              const key = (c.txHash || c.id).toLowerCase();
+              if (!merged.has(key)) merged.set(key, c);
+            });
+            return Array.from(merged.values()).sort(
+              (a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+            );
+          });
         }
       }
 
@@ -1434,6 +1507,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         {[
           { id: 'master', label: 'Master Control Center', icon: 'shield_lock', badge: 'ROOT' },
           { id: 'overview', label: 'Dashboard Overview', icon: 'dashboard' },
+          { id: 'claims', label: 'User Claims', icon: 'fact_check', count: claimsList.length },
           {
             id: 'withdrawals',
             label: 'Withdrawal Requests',
@@ -3961,6 +4035,488 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* ============================================================
+          TAB CONTENT: USER CLAIMS AUDIT & DATE TRACKER (ADMIN ONLY)
+         ============================================================ */}
+      {activeSubTab === 'claims' && (() => {
+        const formatDateYmd = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+
+        const applyDatePreset = (preset: 'all' | 'today' | 'yesterday' | '7d' | '30d') => {
+          setClaimDatePreset(preset);
+          const now = new Date();
+          if (preset === 'all') {
+            setClaimStartDate('');
+            setClaimEndDate('');
+          } else if (preset === 'today') {
+            const ymd = formatDateYmd(now);
+            setClaimStartDate(ymd);
+            setClaimEndDate(ymd);
+          } else if (preset === 'yesterday') {
+            const y = new Date(now);
+            y.setDate(now.getDate() - 1);
+            const ymd = formatDateYmd(y);
+            setClaimStartDate(ymd);
+            setClaimEndDate(ymd);
+          } else if (preset === '7d') {
+            const start = new Date(now);
+            start.setDate(now.getDate() - 6);
+            setClaimStartDate(formatDateYmd(start));
+            setClaimEndDate(formatDateYmd(now));
+          } else if (preset === '30d') {
+            const start = new Date(now);
+            start.setDate(now.getDate() - 29);
+            setClaimStartDate(formatDateYmd(start));
+            setClaimEndDate(formatDateYmd(now));
+          }
+        };
+
+        const filteredClaims = claimsList.filter((c) => {
+          const tsMs = new Date(c.timestamp || 0).getTime();
+          if (claimStartDate) {
+            const [yy, mm, dd] = claimStartDate.split('-').map(Number);
+            const startLocal = new Date(yy, mm - 1, dd, 0, 0, 0, 0).getTime();
+            if (!isNaN(startLocal) && tsMs < startLocal) return false;
+          }
+          if (claimEndDate) {
+            const [yy, mm, dd] = claimEndDate.split('-').map(Number);
+            const endLocal = new Date(yy, mm - 1, dd, 23, 59, 59, 999).getTime();
+            if (!isNaN(endLocal) && tsMs > endLocal) return false;
+          }
+          if (claimVerifyFilter === 'onchain' && !c.verifiedOnChain) return false;
+          if (claimVerifyFilter === 'ledger' && c.verifiedOnChain) return false;
+          if (claimSearchQuery.trim()) {
+            const q = claimSearchQuery.trim().toLowerCase();
+            const matchAddr = (c.userAddress || '').toLowerCase().includes(q);
+            const matchHash = (c.txHash || '').toLowerCase().includes(q);
+            if (!matchAddr && !matchHash) return false;
+          }
+          return true;
+        });
+
+        const uniqueWalletMap = new Map<string, {
+          address: string;
+          claimCount: number;
+          totalSpk: number;
+          totalUsdt: number;
+          onChainCount: number;
+          firstClaimAt: string;
+          lastClaimAt: string;
+        }>();
+
+        filteredClaims.forEach((c) => {
+          const addr = (c.userAddress || 'Unknown').toLowerCase();
+          const existing = uniqueWalletMap.get(addr);
+          if (!existing) {
+            uniqueWalletMap.set(addr, {
+              address: c.userAddress || addr,
+              claimCount: 1,
+              totalSpk: Number(c.spkAmount || 0),
+              totalUsdt: Number(c.usdtAmount || 0),
+              onChainCount: c.verifiedOnChain ? 1 : 0,
+              firstClaimAt: c.timestamp,
+              lastClaimAt: c.timestamp,
+            });
+          } else {
+            existing.claimCount += 1;
+            existing.totalSpk += Number(c.spkAmount || 0);
+            existing.totalUsdt += Number(c.usdtAmount || 0);
+            if (c.verifiedOnChain) existing.onChainCount += 1;
+            if (new Date(c.timestamp).getTime() < new Date(existing.firstClaimAt).getTime()) {
+              existing.firstClaimAt = c.timestamp;
+            }
+            if (new Date(c.timestamp).getTime() > new Date(existing.lastClaimAt).getTime()) {
+              existing.lastClaimAt = c.timestamp;
+            }
+          }
+        });
+
+        const groupedWallets = Array.from(uniqueWalletMap.values()).sort(
+          (a, b) => new Date(b.lastClaimAt || 0).getTime() - new Date(a.lastClaimAt || 0).getTime()
+        );
+
+        const totalSpkFiltered = filteredClaims.reduce((acc, c) => acc + (Number(c.spkAmount) || 0), 0);
+        const totalUsdtFiltered = filteredClaims.reduce((acc, c) => acc + (Number(c.usdtAmount) || 0), 0);
+        const onChainCountFiltered = filteredClaims.filter((c) => c.verifiedOnChain).length;
+
+        const exportClaimsCsv = () => {
+          const headers = ['Date & Time', 'User Wallet Address', 'SPK Claimed', 'USDT Volume', 'Verification', 'Status', 'Tx Hash'];
+          const rows = filteredClaims.map((c) => [
+            new Date(c.timestamp).toISOString(),
+            c.userAddress,
+            Number(c.spkAmount || 0).toFixed(5),
+            Number(c.usdtAmount || 0).toFixed(4),
+            c.verifiedOnChain ? 'On-Chain V3' : 'Protocol Ledger',
+            c.status,
+            c.txHash,
+          ]);
+          const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `spike_user_claims_${claimStartDate || 'all'}_to_${claimEndDate || 'now'}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+
+        return (
+          <div className="space-y-4">
+            {/* Summary KPI Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b]">
+                <div className="text-xs text-[#94a3b8] mb-1">Total Claims</div>
+                <div className="text-2xl font-bold text-white font-mono tabular-nums">{filteredClaims.length}</div>
+                <div className="text-[11px] text-[#94a3b8] mt-1 font-mono tabular-nums">
+                  {onChainCountFiltered} On-Chain V3 · {filteredClaims.length - onChainCountFiltered} Ledger
+                </div>
+              </div>
+              <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b]">
+                <div className="text-xs text-[#94a3b8] mb-1">Unique Claiming Wallets</div>
+                <div className="text-2xl font-bold text-[#00F0FF] font-mono tabular-nums">{groupedWallets.length}</div>
+                <div className="text-[11px] text-[#94a3b8] mt-1">Distinct BSC addresses</div>
+              </div>
+              <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b]">
+                <div className="text-xs text-[#94a3b8] mb-1">Total SPK Claimed</div>
+                <div className="text-2xl font-bold text-emerald-400 font-mono tabular-nums">
+                  {totalSpkFiltered.toFixed(5)} SPK
+                </div>
+                <div className="text-[11px] text-[#94a3b8] mt-1">Across selected period</div>
+              </div>
+              <div className="bg-[#0d1d2c] rounded-xl p-4 border border-[#1c2b3b]">
+                <div className="text-xs text-[#94a3b8] mb-1">Total USDT Swap Value</div>
+                <div className="text-2xl font-bold text-[#D4AF37] font-mono tabular-nums">
+                  ${totalUsdtFiltered.toFixed(4)}
+                </div>
+                <div className="text-[11px] text-[#94a3b8] mt-1">Pool swap settlement value</div>
+              </div>
+            </div>
+
+            {/* Filter & Date Toolbar */}
+            <div className="bg-[#0d1d2c] rounded-2xl border border-[#1c2b3b] p-4 space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                {/* Date Presets */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { id: 'all', label: 'All Time' },
+                    { id: 'today', label: 'Today' },
+                    { id: 'yesterday', label: 'Yesterday' },
+                    { id: '7d', label: 'Last 7 Days' },
+                    { id: '30d', label: 'Last 30 Days' },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => applyDatePreset(p.id as any)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                        claimDatePreset === p.id
+                          ? 'bg-[#00F0FF] text-[#051424]'
+                          : 'bg-[#122130] text-[#94a3b8] hover:text-white border border-[#1c2b3b]'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* View Mode & Export */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1 p-1 bg-[#122130] rounded-lg border border-[#1c2b3b]">
+                    <button
+                      type="button"
+                      onClick={() => setClaimViewMode('logs')}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                        claimViewMode === 'logs' ? 'bg-[#1c2b3b] text-white' : 'text-[#94a3b8] hover:text-white'
+                      }`}
+                    >
+                      All Claim Logs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClaimViewMode('wallets')}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
+                        claimViewMode === 'wallets' ? 'bg-[#1c2b3b] text-white' : 'text-[#94a3b8] hover:text-white'
+                      }`}
+                    >
+                      By User Wallet
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={exportClaimsCsv}
+                    disabled={filteredClaims.length === 0}
+                    className="px-3.5 py-1.5 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-white text-xs font-semibold border border-[#1c2b3b] transition-colors flex items-center gap-1.5 disabled:opacity-40 cursor-pointer whitespace-nowrap"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">download</span>
+                    <span>Download CSV</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Custom Date Range + Wallet Search + Verification Filter */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-[#1c2b3b]">
+                <div>
+                  <label className="block text-[11px] text-[#94a3b8] mb-1">From Date</label>
+                  <input
+                    type="date"
+                    value={claimStartDate}
+                    onChange={(e) => {
+                      setClaimStartDate(e.target.value);
+                      setClaimDatePreset('custom');
+                    }}
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#94a3b8] mb-1">To Date</label>
+                  <input
+                    type="date"
+                    value={claimEndDate}
+                    onChange={(e) => {
+                      setClaimEndDate(e.target.value);
+                      setClaimDatePreset('custom');
+                    }}
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#94a3b8] mb-1">Verification Type</label>
+                  <select
+                    value={claimVerifyFilter}
+                    onChange={(e) => setClaimVerifyFilter(e.target.value as any)}
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00F0FF]"
+                  >
+                    <option value="all">All Claims</option>
+                    <option value="onchain">On-Chain V3 Verified Only</option>
+                    <option value="ledger">Protocol Ledger Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-[#94a3b8] mb-1">Search Wallet or Tx Hash</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={claimSearchQuery}
+                      onChange={(e) => setClaimSearchQuery(e.target.value)}
+                      placeholder="0x... wallet or tx hash"
+                      className="w-full bg-[#122130] border border-[#1c2b3b] rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[#00F0FF]"
+                    />
+                    {(claimStartDate || claimEndDate || claimSearchQuery || claimVerifyFilter !== 'all') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          applyDatePreset('all');
+                          setClaimSearchQuery('');
+                          setClaimVerifyFilter('all');
+                        }}
+                        className="px-2.5 py-2 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[#94a3b8] hover:text-white text-xs border border-[#1c2b3b] shrink-0 cursor-pointer"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Data Table Section */}
+            <div className="bg-[#0d1d2c] rounded-2xl border border-[#1c2b3b] overflow-hidden">
+              <div className="p-4 border-b border-[#1c2b3b] flex items-center justify-between gap-2">
+                <h3 className="font-bold text-white text-sm font-headline">
+                  {claimViewMode === 'logs'
+                    ? `User Claim History (${filteredClaims.length})`
+                    : `Claiming Wallets Summary (${groupedWallets.length})`}
+                </h3>
+                <span className="text-xs text-[#94a3b8] font-mono">
+                  {claimStartDate || claimEndDate
+                    ? `${claimStartDate || 'Start'} / ${claimEndDate || 'Today'}`
+                    : 'All Dates'}
+                </span>
+              </div>
+
+              {isLoading ? (
+                <div className="p-6 space-y-3">
+                  {[1, 2, 3, 4].map((n) => (
+                    <div key={n} className="h-10 rounded-lg bg-[#122130] animate-pulse" />
+                  ))}
+                </div>
+              ) : filteredClaims.length === 0 ? (
+                <div className="p-10 text-center space-y-3">
+                  <p className="text-sm text-[#94a3b8]">
+                    Selected date range ya filter ke liye koi user claim record nahi mila.
+                  </p>
+                  {(claimStartDate || claimEndDate || claimSearchQuery || claimVerifyFilter !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        applyDatePreset('all');
+                        setClaimSearchQuery('');
+                        setClaimVerifyFilter('all');
+                      }}
+                      className="px-4 py-2 rounded-lg bg-[#00F0FF] text-[#051424] text-xs font-bold cursor-pointer"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+              ) : claimViewMode === 'logs' ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead>
+                      <tr className="bg-[#122130] text-[#94a3b8] border-b border-[#1c2b3b]">
+                        <th className="p-3.5">Date & Time</th>
+                        <th className="p-3.5">User Wallet Address</th>
+                        <th className="p-3.5 text-right">SPK Claimed</th>
+                        <th className="p-3.5 text-right">USDT Value</th>
+                        <th className="p-3.5">Execution Mode</th>
+                        <th className="p-3.5">BSC Tx Hash</th>
+                        <th className="p-3.5">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1c2b3b]/60">
+                      {filteredClaims.map((claim, idx) => {
+                        const dt = new Date(claim.timestamp || Date.now());
+                        const formattedDate = isNaN(dt.getTime())
+                          ? claim.timestamp
+                          : dt.toLocaleString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            });
+                        const isRealHash = claim.txHash && /^0x[a-fA-F0-9]{64}$/.test(claim.txHash);
+                        return (
+                          <tr key={`${claim.id}-${idx}`} className="hover:bg-[#122130]/50 transition-colors">
+                            <td className="p-3.5 text-[#cbd5e1] tabular-nums whitespace-nowrap">{formattedDate}</td>
+                            <td className="p-3.5 text-[#00F0FF] tabular-nums">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setClaimSearchQuery(claim.userAddress)}
+                                  className="hover:underline text-left cursor-pointer"
+                                  title="Filter claims by this wallet"
+                                >
+                                  {claim.userAddress}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard?.writeText(claim.userAddress);
+                                    onNotify?.('Copied', 'Wallet address copied', 'info');
+                                  }}
+                                  className="text-[#94a3b8] hover:text-white cursor-pointer"
+                                  title="Copy address"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">content_copy</span>
+                                </button>
+                              </div>
+                            </td>
+                            <td className="p-3.5 text-right text-emerald-400 font-bold tabular-nums whitespace-nowrap">
+                              +{Number(claim.spkAmount || 0).toFixed(5)} SPK
+                            </td>
+                            <td className="p-3.5 text-right text-[#D4AF37] tabular-nums whitespace-nowrap">
+                              ${Number(claim.usdtAmount || 0).toFixed(4)}
+                            </td>
+                            <td className="p-3.5 text-[#cbd5e1] whitespace-nowrap">
+                              {claim.verifiedOnChain ? 'On-Chain V3 Swap' : 'Protocol Ledger'}
+                            </td>
+                            <td className="p-3.5 text-[#94a3b8] whitespace-nowrap">
+                              {isRealHash ? (
+                                <a
+                                  href={`https://bscscan.com/tx/${claim.txHash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[#00F0FF] hover:underline"
+                                  title={claim.txHash}
+                                >
+                                  {claim.txHash.slice(0, 10)}...{claim.txHash.slice(-6)}
+                                </a>
+                              ) : (
+                                <span title={claim.txHash}>
+                                  {claim.txHash ? `${claim.txHash.slice(0, 12)}...` : 'Pending'}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3.5 whitespace-nowrap">
+                              <span className={claim.status === 'Confirmed' ? 'text-emerald-400' : 'text-amber-400'}>
+                                {claim.status || 'Confirmed'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead>
+                      <tr className="bg-[#122130] text-[#94a3b8] border-b border-[#1c2b3b]">
+                        <th className="p-3.5">User Wallet Address</th>
+                        <th className="p-3.5 text-right">Claim Count</th>
+                        <th className="p-3.5 text-right">On-Chain V3</th>
+                        <th className="p-3.5 text-right">Total SPK Claimed</th>
+                        <th className="p-3.5 text-right">Total USDT Value</th>
+                        <th className="p-3.5">First Claim</th>
+                        <th className="p-3.5">Latest Claim</th>
+                        <th className="p-3.5 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#1c2b3b]/60">
+                      {groupedWallets.map((w) => (
+                        <tr key={w.address} className="hover:bg-[#122130]/50 transition-colors">
+                          <td className="p-3.5 text-[#00F0FF] tabular-nums">{w.address}</td>
+                          <td className="p-3.5 text-right text-white font-bold tabular-nums">{w.claimCount}</td>
+                          <td className="p-3.5 text-right text-emerald-400 tabular-nums">{w.onChainCount}</td>
+                          <td className="p-3.5 text-right text-emerald-400 font-bold tabular-nums">
+                            +{w.totalSpk.toFixed(5)} SPK
+                          </td>
+                          <td className="p-3.5 text-right text-[#D4AF37] tabular-nums">
+                            ${w.totalUsdt.toFixed(4)}
+                          </td>
+                          <td className="p-3.5 text-[#94a3b8] tabular-nums whitespace-nowrap">
+                            {new Date(w.firstClaimAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="p-3.5 text-[#cbd5e1] tabular-nums whitespace-nowrap">
+                            {new Date(w.lastClaimAt).toLocaleString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="p-3.5 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClaimSearchQuery(w.address);
+                                setClaimViewMode('logs');
+                              }}
+                              className="px-2.5 py-1 rounded bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] text-[11px] border border-[#1c2b3b] cursor-pointer"
+                            >
+                              View Logs
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ============================================================
           TAB CONTENT 4: LEDGER & TRANSACTIONS

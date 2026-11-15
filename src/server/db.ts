@@ -2403,6 +2403,26 @@ class PersistentDatabase {
       this.data.testnetTransactions = [];
     }
     this.data.testnetTransactions.unshift(tx);
+
+    // Also record in master transactions ledger as type 'claim' for Admin Claim Tracker & Firestore sync
+    const alreadyInMaster = this.data.transactions.some(
+      (t) => t.txHash && txHash && t.txHash.toLowerCase() === txHash.toLowerCase() && t.type === 'claim'
+    );
+    if (!alreadyInMaster) {
+      this.data.transactions.unshift({
+        id: `claim-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        userAddress: wallet.address,
+        txHash,
+        type: 'claim',
+        amount: exactMinedSpk,
+        currency: 'SPK',
+        timestamp: tx.timestamp,
+        status: 'Confirmed',
+        details: `${onChainMeta?.verifiedOnChain ? 'On-Chain V3 Claim' : 'Mining Claim'} · ${exactMinedSpk.toFixed(5)} SPK (${requiredUsdt.toFixed(4)} USDT) | ${tx.details}`,
+        blockNumber,
+      });
+    }
+
     this.save();
 
     return {
@@ -2416,6 +2436,130 @@ class PersistentDatabase {
       poolVersion: 'PancakeSwap V3',
       feeTier: 500,
       slippageUsed: effectiveSlippage,
+    };
+  }
+
+  public getClaimLogs(filters?: {
+    startDate?: string;
+    endDate?: string;
+    address?: string;
+    limit?: number;
+  }): {
+    claims: Array<{
+      id: string;
+      userAddress: string;
+      spkAmount: number;
+      usdtAmount: number;
+      currency: string;
+      txHash: string;
+      status: string;
+      verifiedOnChain: boolean;
+      blockNumber: number;
+      details: string;
+      timestamp: string;
+      source: string;
+    }>;
+    summary: {
+      totalClaims: number;
+      uniqueWallets: number;
+      totalSpkClaimed: number;
+      totalUsdtVolume: number;
+      onChainVerifiedCount: number;
+    };
+  } {
+    const map = new Map<string, any>();
+
+    // 1. Collect from testnetTransactions (harvest_autobuy)
+    for (const t of this.data.testnetTransactions || []) {
+      if (t.type !== 'harvest_autobuy') continue;
+      const key = (t.txHash || t.id).toLowerCase();
+      map.set(key, {
+        id: t.id,
+        userAddress: t.userAddress,
+        spkAmount: Number(t.spkAmount || 0),
+        usdtAmount: Number(t.usdtAmount || 0),
+        currency: 'SPK',
+        txHash: t.txHash,
+        status: t.status || 'Confirmed',
+        verifiedOnChain: Boolean(t.verifiedOnChain),
+        blockNumber: Number(t.blockNumber || 0),
+        details: t.details || '',
+        timestamp: t.timestamp,
+        source: t.verifiedOnChain ? 'On-Chain V3 Swap' : 'Mining Claim Engine',
+      });
+    }
+
+    // 2. Collect from master transactions (type === 'claim')
+    for (const t of this.data.transactions || []) {
+      if (t.type !== 'claim') continue;
+      const key = (t.txHash || t.id).toLowerCase();
+      if (!map.has(key)) {
+        const isSpk = (t.currency || '').toUpperCase() === 'SPK';
+        const amt = Number(t.amount || 0);
+        const usdtMatch = (t.details || '').match(/([\d.]+)\s*USDT/i);
+        const parsedUsdt = usdtMatch ? Number(usdtMatch[1]) : (isSpk ? +(amt * 1.12).toFixed(4) : amt);
+        const parsedSpk = isSpk ? amt : +(amt / 1.12).toFixed(5);
+        map.set(key, {
+          id: t.id,
+          userAddress: t.userAddress,
+          spkAmount: parsedSpk,
+          usdtAmount: parsedUsdt,
+          currency: t.currency || 'SPK',
+          txHash: t.txHash,
+          status: t.status || 'Confirmed',
+          verifiedOnChain: Boolean(t.details && (t.details.includes('On-Chain V3') || t.details.includes('exactInputSingle'))),
+          blockNumber: Number(t.blockNumber || 0),
+          details: t.details || '',
+          timestamp: t.timestamp,
+          source: 'Mining Claim Ledger',
+        });
+      }
+    }
+
+    let list = Array.from(map.values()).sort(
+      (a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime()
+    );
+
+    if (filters?.address && filters.address.trim()) {
+      const q = filters.address.trim().toLowerCase();
+      list = list.filter(
+        (c) =>
+          (c.userAddress || '').toLowerCase().includes(q) ||
+          (c.txHash || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (filters?.startDate && filters.startDate.trim()) {
+      const startMs = new Date(`${filters.startDate.trim()}T00:00:00.000Z`).getTime();
+      if (!isNaN(startMs)) {
+        list = list.filter((c) => new Date(c.timestamp || 0).getTime() >= startMs);
+      }
+    }
+
+    if (filters?.endDate && filters.endDate.trim()) {
+      const endMs = new Date(`${filters.endDate.trim()}T23:59:59.999Z`).getTime();
+      if (!isNaN(endMs)) {
+        list = list.filter((c) => new Date(c.timestamp || 0).getTime() <= endMs);
+      }
+    }
+
+    const limit = filters?.limit && filters.limit > 0 ? filters.limit : 500;
+    const sliced = list.slice(0, limit);
+
+    const uniqueSet = new Set(sliced.map((c) => (c.userAddress || '').toLowerCase()).filter(Boolean));
+    const totalSpkClaimed = +sliced.reduce((acc, c) => acc + (Number(c.spkAmount) || 0), 0).toFixed(5);
+    const totalUsdtVolume = +sliced.reduce((acc, c) => acc + (Number(c.usdtAmount) || 0), 0).toFixed(4);
+    const onChainVerifiedCount = sliced.filter((c) => c.verifiedOnChain).length;
+
+    return {
+      claims: sliced,
+      summary: {
+        totalClaims: sliced.length,
+        uniqueWallets: uniqueSet.size,
+        totalSpkClaimed,
+        totalUsdtVolume,
+        onChainVerifiedCount,
+      },
     };
   }
 
