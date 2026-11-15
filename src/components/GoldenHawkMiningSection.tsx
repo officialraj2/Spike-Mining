@@ -338,8 +338,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     setClaimProgressStep(1);
     setAutoBuyNotice('Connecting to Web3 BSC Network & Validating Proof-of-Work shares...');
 
-    const poolAddr = '0xdB75fAB72e56492CFE870344D115C57047992F3c'; // Official PancakeSwap Liquidity Pool (Pair) Contract
-    const routerAddr = '0x10ED43C718714eb63d5aA57B78B54704E256024E'; // Official PancakeSwap V2 Router
+    const poolAddr = '0xdB75fAB72e56492CFE870344D115C57047992F3c'; // Official PancakeSwap V3 Liquidity Pool (Pair, 0.05%)
+    const routerAddr = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4'; // Official PancakeSwap V3 Smart Router
     const userAddr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
     const usdtContract = '0x55d398326f99059fF775485246999027B3197955'; // BEP-20 USDT
     const usdtCost = +(spkToBuy * 1.12).toFixed(4);
@@ -455,7 +455,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         status: 'Confirmed',
         blockNumber: 42918500 + Math.floor(Math.random() * 1000),
         gasFeeBnb: 0.00015,
-        details: `NodescanRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(5)} SPK, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x10ED43C718714eb63d5aA57B78B54704E256024E)`,
+        details: `PancakeV3SmartRouter.exactInputSingle(amountOut=${spkToBuy.toFixed(5)} SPK, fee=500, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x13f4EA83D0bd40E75C8222255bc855a974568Dd4)`,
         timestamp: new Date().toISOString(),
       };
 
@@ -505,7 +505,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           hashrateVh: activeHashrate,
           tierName: hashrateInfo?.level || 'Falcon Titan Apex',
           nodeName: 'Golden Hawk Cluster',
-          treasuryContributionUsdt: 5.0,
+          treasuryContributionUsdt: 10.0,
         }).catch(() => {});
       }
 
@@ -556,7 +556,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         status: 'Confirmed',
         blockNumber: 42918500,
         gasFeeBnb: 0.00015,
-        details: `PancakeRouter.swapTokensForExactTokens(amountOut=${spkToBuy.toFixed(5)} SPK, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x10ED43C718714eb63d5aA57B78B54704E256024E)`,
+        details: `PancakeV3SmartRouter.exactInputSingle(amountOut=${spkToBuy.toFixed(5)} SPK, fee=500, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x13f4EA83D0bd40E75C8222255bc855a974568Dd4)`,
         timestamp: new Date().toISOString(),
       };
       let currentSpk = 0;
@@ -1367,9 +1367,9 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                 <div className="flex items-center justify-between text-[#94a3b8]">
                   <span>Nodescan Router:</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-[#00F0FF] font-bold">0x10ED...024E</span>
+                    <span className="text-[#00F0FF] font-bold">0x13f4...8Dd4</span>
                     <a
-                      href="https://bscscan.com/address/0x10ED43C718714eb63d5aA57B78B54704E256024E"
+                      href="https://bscscan.com/address/0x13f4EA83D0bd40E75C8222255bc855a974568Dd4"
                       target="_blank"
                       rel="noreferrer"
                       className="text-[#94a3b8] hover:text-white ml-0.5"

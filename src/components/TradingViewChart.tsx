@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LiveTxn } from '../types';
 
 export const PANCAKESWAP_PAIR_CONTRACT = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
-export const PANCAKESWAP_ROUTER_CONTRACT = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
+export const PANCAKESWAP_ROUTER_CONTRACT = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
 
 export interface TVCandle {
   time: string;

@@ -145,6 +145,11 @@ export interface DbTestnetTx {
   gasFeeBnb: number;
   details: string;
   timestamp: string;
+  poolVersion?: string;
+  feeTier?: number;
+  routerAddress?: string;
+  pairAddress?: string;
+  verifiedOnChain?: boolean;
 }
 
 export interface DbTestnetSpikeToken {
@@ -247,7 +252,7 @@ const INITIAL_DATA: DatabaseSchema = {
     baseHashrateTh: 1.25,
     miningCycleHours: 24,
     dailyRewardSpk: 35.0,
-    minDepositUsdt: 5.0,
+    minDepositUsdt: 10.0,
     pancakeRouterAddress: '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4',
     pancakePairAddress: '0xdB75fAB72e56492CFE870344D115C57047992F3c',
     testnetFastCycleEnabled: false,
@@ -300,7 +305,7 @@ const INITIAL_DATA: DatabaseSchema = {
     totalSupply: 50_000_000,
     circulatingSupply: 0,
     decimals: 18,
-    contractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    contractAddress: '0xc213905ac995bCC943c077b7918c8134094A9267',
     pair: '0xdB75fAB72e56492CFE870344D115C57047992F3c',
     poolSpkReserve: 10_000_000,
     poolUsdtReserve: 345_000,
@@ -357,11 +362,14 @@ class PersistentDatabase {
           if (!loadedSettings.treasuryWalletAddress) {
             loadedSettings.treasuryWalletAddress = '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
           }
-          if (!loadedSettings.pancakeRouterAddress) {
-            loadedSettings.pancakeRouterAddress = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
+          if (!loadedSettings.pancakeRouterAddress || loadedSettings.pancakeRouterAddress.toLowerCase() === '0x10ed43c718714eb63d5aa57b78b54704e256024e') {
+            loadedSettings.pancakeRouterAddress = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
           }
           if (!loadedSettings.pancakePairAddress) {
             loadedSettings.pancakePairAddress = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
+          }
+          if (typeof loadedSettings.minDepositUsdt !== 'number' || loadedSettings.minDepositUsdt < 10) {
+            loadedSettings.minDepositUsdt = 10.0;
           }
           if (typeof loadedSettings.treasuryBalanceUsdt !== 'number') {
             loadedSettings.treasuryBalanceUsdt = 0.0;
@@ -2020,8 +2028,8 @@ class PersistentDatabase {
         baseHashrateTh: 1.25,
         miningCycleHours: 24,
         dailyRewardSpk: 35.0,
-        minDepositUsdt: 5.0,
-        pancakeRouterAddress: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+        minDepositUsdt: 10.0,
+        pancakeRouterAddress: '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4',
         pancakePairAddress: '0xdB75fAB72e56492CFE870344D115C57047992F3c',
         testnetFastCycleEnabled: false,
         maintenanceMode: false,
@@ -2263,7 +2271,13 @@ class PersistentDatabase {
     minedSpkAmount: number,
     hashrate: number,
     slippageTolerance = 0.2,
-    customTxHash?: string
+    customTxHash?: string,
+    onChainMeta?: {
+      verifiedOnChain?: boolean;
+      blockNumber?: number;
+      gasFeeBnb?: number;
+      livePoolPrice?: number;
+    }
   ): {
     success: boolean;
     wallet: DbTestnetWallet;
@@ -2272,38 +2286,65 @@ class PersistentDatabase {
     route?: string[];
     routerAddress?: string;
     pairAddress?: string;
+    poolVersion?: string;
+    feeTier?: number;
     slippageUsed?: number;
+    duplicate?: boolean;
     error?: string;
   } {
     const wallet = this.getTestnetWallet(address);
     const token = this.getTestnetSpikeToken();
+    const routerAddress =
+      this.data.settings.pancakeRouterAddress &&
+      this.data.settings.pancakeRouterAddress.toLowerCase() !== '0x10ed43c718714eb63d5aa57b78b54704e256024e'
+        ? this.data.settings.pancakeRouterAddress
+        : '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
+    const pairAddress = this.data.settings.pancakePairAddress || '0xdB75fAB72e56492CFE870344D115C57047992F3c';
+
+    // Replay guard for already-recorded on-chain txHash
+    if (customTxHash && typeof customTxHash === 'string' && customTxHash.startsWith('0x') && customTxHash.length >= 40) {
+      const existing = (this.data.testnetTransactions || []).find(
+        (t) => t.txHash.toLowerCase() === customTxHash.toLowerCase()
+      );
+      if (existing) {
+        return {
+          success: true,
+          wallet,
+          token,
+          tx: existing,
+          route: ['USDT', 'SPK'],
+          routerAddress,
+          pairAddress,
+          poolVersion: 'PancakeSwap V3',
+          feeTier: 500,
+          duplicate: true,
+        };
+      }
+    }
+
     const exactMinedSpk = Number(minedSpkAmount) > 0 ? Number(minedSpkAmount) : (this.data.settings.dailyRewardSpk || 25.0);
 
-    // Dynamic AMM calculation on PancakeSwap v3 / v2 pool
+    // PancakeSwap V3 0.05% fee tier (fee = 500 -> 0.9995 net output multiplier)
+    const V3_FEE_MULTIPLIER = 0.9995;
     const poolSpk = token.poolSpkReserve;
     const poolUsdt = token.poolUsdtReserve;
     const numerator = poolUsdt * exactMinedSpk;
-    const denominator = Math.max(1, (poolSpk - exactMinedSpk) * 0.9975);
+    const denominator = Math.max(1, (poolSpk - exactMinedSpk) * V3_FEE_MULTIPLIER);
     const baseRequiredUsdt = Number((numerator / denominator).toFixed(5));
 
-    // Best slippage buffer (0.2% optimal slippage for ultra-fast confirmation)
     const effectiveSlippage = Number(slippageTolerance) > 0 ? Number(slippageTolerance) : 0.2;
-    const maxUsdtWithSlippage = Number((baseRequiredUsdt * (1 + effectiveSlippage / 100)).toFixed(5));
     const requiredUsdt = baseRequiredUsdt;
 
-    // If user's testnet USDT is insufficient, top up automatically so testing is effortless
     if (wallet.testnetUsdt < requiredUsdt) {
       wallet.testnetUsdt += 1000.0;
     }
 
-    // Execute PancakeSwap Router swap: Deduct USDT, Credit exact mined SPK
     wallet.testnetUsdt = Math.max(0, Number((wallet.testnetUsdt - requiredUsdt).toFixed(4)));
     wallet.testnetSpk = Number((wallet.testnetSpk + exactMinedSpk).toFixed(5));
     wallet.totalHarvestAutoBoughtSpk = Number((wallet.totalHarvestAutoBoughtSpk + exactMinedSpk).toFixed(5));
     wallet.totalUsdtSpentOnAutoBuy = Number((wallet.totalUsdtSpentOnAutoBuy + requiredUsdt).toFixed(4));
     wallet.lastAutoBuyAt = new Date().toISOString();
 
-    // Also update persistent user record if exists
     if (address) {
       const norm = address.toLowerCase();
       const existingUser = this.data.users.find((u) => u.address.toLowerCase() === norm);
@@ -2315,10 +2356,11 @@ class PersistentDatabase {
       }
     }
 
-    // Update AMM liquidity pool reserves & live price
     token.poolSpkReserve = Math.max(100000, token.poolSpkReserve - exactMinedSpk);
     token.poolUsdtReserve = token.poolUsdtReserve + requiredUsdt;
-    const newPrice = Number((token.poolUsdtReserve / token.poolSpkReserve).toFixed(6));
+    const newPrice = onChainMeta?.livePoolPrice && onChainMeta.livePoolPrice > 0
+      ? Number(onChainMeta.livePoolPrice.toFixed(6))
+      : Number((token.poolUsdtReserve / token.poolSpkReserve).toFixed(6));
     token.currentPrice = newPrice;
     token.volume24h = Number((token.volume24h + exactMinedSpk).toFixed(2));
     token.high24h = Math.max(token.high24h || 0.0368, newPrice);
@@ -2326,7 +2368,7 @@ class PersistentDatabase {
     token.buyPressure = Math.min(96, Number((token.buyPressure + 0.25).toFixed(1)));
 
     const txHash = customTxHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-    const blockNumber = 42918500 + (this.data.testnetTransactions?.length || 0);
+    const blockNumber = onChainMeta?.blockNumber || (42918500 + (this.data.testnetTransactions?.length || 0));
 
     const tx: DbTestnetTx = {
       id: `test-tx-${Date.now()}`,
@@ -2335,11 +2377,16 @@ class PersistentDatabase {
       type: 'harvest_autobuy',
       spkAmount: exactMinedSpk,
       usdtAmount: requiredUsdt,
-      priceUsdt: newPrice,
+      priceUsdt: token.currentPrice,
       status: 'Confirmed',
       blockNumber,
-      gasFeeBnb: 0.00015,
-      details: `PancakeRouter.exactInputSingle(amountOut=${exactMinedSpk.toFixed(5)} SPK, usdtIn=${requiredUsdt.toFixed(5)} USDT, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=${this.data.settings.pancakeRouterAddress || '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4'}) [Rate: $${newPrice} USDT/SPK | Hashrate: ${hashrate.toFixed(2)} TH/s]`,
+      gasFeeBnb: onChainMeta?.gasFeeBnb ?? 0.00015,
+      poolVersion: 'PancakeSwap V3',
+      feeTier: 500,
+      routerAddress,
+      pairAddress,
+      verifiedOnChain: Boolean(onChainMeta?.verifiedOnChain),
+      details: `PancakeV3SmartRouter.exactInputSingle(amountOut=${exactMinedSpk.toFixed(5)} SPK, usdtIn=${requiredUsdt.toFixed(5)} USDT, fee=500 [0.05%], pool=${pairAddress}, router=${routerAddress}) [Rate: $${token.currentPrice} USDT/SPK | Hashrate: ${hashrate.toFixed(2)} TH/s]`,
       timestamp: new Date().toISOString(),
     };
 
@@ -2355,8 +2402,11 @@ class PersistentDatabase {
       token,
       tx,
       route: ['USDT', 'SPK'],
-      routerAddress: this.data.settings.pancakeRouterAddress || '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4',
-      pairAddress: this.data.settings.pancakePairAddress || '0xdB75fAB72e56492CFE870344D115C57047992F3c',
+      routerAddress,
+      pairAddress,
+      poolVersion: 'PancakeSwap V3',
+      feeTier: 500,
+      slippageUsed: effectiveSlippage,
     };
   }
 
@@ -2364,29 +2414,78 @@ class PersistentDatabase {
     address: string,
     fromToken: 'USDT' | 'SPK',
     toToken: 'USDT' | 'SPK',
-    amountIn: number
-  ): { success: boolean; wallet: DbTestnetWallet; token: DbTestnetSpikeToken; tx: DbTestnetTx; error?: string } {
+    amountIn: number,
+    customTxHash?: string,
+    onChainMeta?: {
+      verifiedOnChain?: boolean;
+      blockNumber?: number;
+      gasFeeBnb?: number;
+      livePoolPrice?: number;
+    }
+  ): {
+    success: boolean;
+    wallet: DbTestnetWallet;
+    token: DbTestnetSpikeToken;
+    tx: DbTestnetTx;
+    routerAddress?: string;
+    pairAddress?: string;
+    poolVersion?: string;
+    feeTier?: number;
+    duplicate?: boolean;
+    error?: string;
+  } {
     const wallet = this.getTestnetWallet(address);
     const token = this.getTestnetSpikeToken();
     const numIn = Number(amountIn) || 0;
+    const routerAddress =
+      this.data.settings.pancakeRouterAddress &&
+      this.data.settings.pancakeRouterAddress.toLowerCase() !== '0x10ed43c718714eb63d5aa57b78b54704e256024e'
+        ? this.data.settings.pancakeRouterAddress
+        : '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
+    const pairAddress = this.data.settings.pancakePairAddress || '0xdB75fAB72e56492CFE870344D115C57047992F3c';
 
     if (numIn <= 0) {
       return { success: false, wallet, token, tx: null as any, error: 'Amount must be greater than 0' };
     }
 
+    // Replay guard for already-recorded on-chain txHash
+    if (customTxHash && typeof customTxHash === 'string' && customTxHash.startsWith('0x') && customTxHash.length >= 40) {
+      const existing = (this.data.testnetTransactions || []).find(
+        (t) => t.txHash.toLowerCase() === customTxHash.toLowerCase()
+      );
+      if (existing) {
+        return {
+          success: true,
+          wallet,
+          token,
+          tx: existing,
+          routerAddress,
+          pairAddress,
+          poolVersion: 'PancakeSwap V3',
+          feeTier: 500,
+          duplicate: true,
+        };
+      }
+    }
+
+    // PancakeSwap V3 0.05% fee tier (fee = 500 -> 0.9995 net output multiplier)
+    const V3_FEE_MULTIPLIER = 0.9995;
+
     if (fromToken === 'USDT') {
       if (wallet.testnetUsdt < numIn) {
         return { success: false, wallet, token, tx: null as any, error: 'Insufficient testnet USDT balance' };
       }
-      const amountInWithFee = numIn * 0.9975;
+      const amountInWithFee = numIn * V3_FEE_MULTIPLIER;
       const amountOut = Number(((token.poolSpkReserve * amountInWithFee) / (token.poolUsdtReserve + amountInWithFee)).toFixed(4));
-      
+
       wallet.testnetUsdt -= numIn;
       wallet.testnetSpk += amountOut;
 
       token.poolUsdtReserve += numIn;
       token.poolSpkReserve -= amountOut;
-      token.currentPrice = Number((token.poolUsdtReserve / token.poolSpkReserve).toFixed(6));
+      token.currentPrice = onChainMeta?.livePoolPrice && onChainMeta.livePoolPrice > 0
+        ? Number(onChainMeta.livePoolPrice.toFixed(6))
+        : Number((token.poolUsdtReserve / token.poolSpkReserve).toFixed(6));
       token.volume24h += amountOut;
       token.buyPressure = Math.min(95, token.buyPressure + 0.1);
 
@@ -2400,7 +2499,7 @@ class PersistentDatabase {
         }
       }
 
-      const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      const txHash = customTxHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
       const tx: DbTestnetTx = {
         id: `test-tx-${Date.now()}`,
         userAddress: wallet.address,
@@ -2410,30 +2509,33 @@ class PersistentDatabase {
         usdtAmount: numIn,
         priceUsdt: token.currentPrice,
         status: 'Confirmed',
-        blockNumber: 42918500 + (this.data.testnetTransactions?.length || 0),
-        gasFeeBnb: 0.00015,
-        details: `Swap ${numIn} USDT -> ${amountOut} SPK on Nodescan Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c) via Router (${this.data.settings.pancakeRouterAddress || '0x10ED43C718714eb63d5aA57B78B54704E256024E'})`,
+        blockNumber: onChainMeta?.blockNumber || (42918500 + (this.data.testnetTransactions?.length || 0)),
+        gasFeeBnb: onChainMeta?.gasFeeBnb ?? 0.00015,
+        poolVersion: 'PancakeSwap V3',
+        feeTier: 500,
+        routerAddress,
+        pairAddress,
+        verifiedOnChain: Boolean(onChainMeta?.verifiedOnChain),
+        details: `PancakeV3SmartRouter.exactInputSingle(${numIn} USDT -> ${amountOut} SPK, fee=500 [0.05%], pool=${pairAddress}, router=${routerAddress})`,
         timestamp: new Date().toISOString(),
       };
 
       if (!this.data.testnetTransactions) this.data.testnetTransactions = [];
       this.data.testnetTransactions.unshift(tx);
       this.save();
-      return { success: true, wallet, token, tx };
+      return { success: true, wallet, token, tx, routerAddress, pairAddress, poolVersion: 'PancakeSwap V3', feeTier: 500 };
     } else {
       // Selling SPK for USDT: ENFORCE 10% MAX SELL LIMIT WITH FLOAT TOLERANCE
       const norm = (address || '').toLowerCase();
       const existingUser = this.data.users.find((u) => u.address.toLowerCase() === norm);
-      
-      // Auto-sync wallet balance with user record if present
+
       if (existingUser && typeof existingUser.balanceSpk === 'number' && existingUser.balanceSpk > wallet.testnetSpk) {
         wallet.testnetSpk = existingUser.balanceSpk;
       }
-      
+
       const effectiveSpkBal = Math.max(wallet.testnetSpk, existingUser?.balanceSpk || 0, existingUser?.totalMined || 0);
       const maxAllowedSell = +(effectiveSpkBal * 0.10).toFixed(4);
-      
-      // Allow a small decimal tolerance (0.001) or minimum 0.1 SPK for small test balances
+
       if (effectiveSpkBal > 0 && numIn > maxAllowedSell + 0.005 && numIn > 0.10) {
         return {
           success: false,
@@ -2444,20 +2546,17 @@ class PersistentDatabase {
         };
       }
 
-      // If wallet is lower than user profile balance, sync it
       if (wallet.testnetSpk < numIn && effectiveSpkBal >= numIn) {
         wallet.testnetSpk = effectiveSpkBal;
       }
 
       if (wallet.testnetSpk < numIn && effectiveSpkBal < numIn) {
-        // Auto-provision balance for seamless testing if zero
         wallet.testnetSpk = Math.max(numIn, 10.0);
       }
 
-      const amountInWithFee = numIn * 0.9975;
-      // Fixed guaranteed rate of 1.12 USDT per SPIKE or pool formula
+      const netAmountIn = numIn * V3_FEE_MULTIPLIER;
       const guaranteedRate = 1.12;
-      const amountOut = Number((numIn * guaranteedRate).toFixed(4));
+      const amountOut = Number((netAmountIn * guaranteedRate).toFixed(4));
 
       wallet.testnetSpk = Math.max(0, Number((wallet.testnetSpk - numIn).toFixed(4)));
       wallet.testnetUsdt = Number((wallet.testnetUsdt + amountOut).toFixed(2));
@@ -2474,7 +2573,7 @@ class PersistentDatabase {
         existingUser.lastActive = new Date().toISOString();
       }
 
-      const txHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      const txHash = customTxHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
       const tx: DbTestnetTx = {
         id: `test-tx-${Date.now()}`,
         userAddress: wallet.address,
@@ -2484,16 +2583,21 @@ class PersistentDatabase {
         usdtAmount: amountOut,
         priceUsdt: guaranteedRate,
         status: 'Confirmed',
-        blockNumber: 42918500 + (this.data.testnetTransactions?.length || 0),
-        gasFeeBnb: 0.00015,
-        details: `Swap ${numIn} SPK -> ${amountOut} USDT on Nodescan Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c) via Smart Router (${this.data.settings.pancakeRouterAddress || '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4'})`,
+        blockNumber: onChainMeta?.blockNumber || (42918500 + (this.data.testnetTransactions?.length || 0)),
+        gasFeeBnb: onChainMeta?.gasFeeBnb ?? 0.00015,
+        poolVersion: 'PancakeSwap V3',
+        feeTier: 500,
+        routerAddress,
+        pairAddress,
+        verifiedOnChain: Boolean(onChainMeta?.verifiedOnChain),
+        details: `PancakeV3SmartRouter.exactInputSingle(${numIn} SPK -> ${amountOut} USDT, fee=500 [0.05%], pool=${pairAddress}, router=${routerAddress})`,
         timestamp: new Date().toISOString(),
       };
 
       if (!this.data.testnetTransactions) this.data.testnetTransactions = [];
       this.data.testnetTransactions.unshift(tx);
       this.save();
-      return { success: true, wallet, token, tx };
+      return { success: true, wallet, token, tx, routerAddress, pairAddress, poolVersion: 'PancakeSwap V3', feeTier: 500 };
     }
   }
 

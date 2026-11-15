@@ -417,6 +417,11 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         setSwapStatusStep('Transaction Broadcasted to BSC! Settling balances...');
       } catch (err: any) {
         console.warn('[SwapModal] Web3 wallet notice:', err?.message || err);
+        if (err?.code === 4001 || err?.message?.includes('User rejected') || err?.message?.includes('User denied')) {
+          setIsSwapping(false);
+          setSwapStatusStep('');
+          return;
+        }
       }
     } else {
       setSwapStatusStep('Executing Instant Protocol Settlement ($1.12 Rate)...');
@@ -435,6 +440,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           fromToken: apiFrom,
           toToken: apiTo,
           amountIn: numericFrom,
+          txHash: onChainTxHash || undefined,
         }),
       });
 

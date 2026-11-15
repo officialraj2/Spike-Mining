@@ -593,12 +593,17 @@ app.post('/api/faucet/claim', (req: Request, res: Response) => {
 });
 
 // BSC RPC on-chain transaction verifier
-async function verifyBscTxReceipt(txHash: string): Promise<{
+async function verifyBscTxReceipt(txHash?: string): Promise<{
   verifiedOnChain: boolean;
   blockNumber?: number;
   status?: 'Success' | 'Failed' | 'Pending';
   gasUsed?: number;
+  gasFeeBnb?: number;
 }> {
+  if (!txHash || typeof txHash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(txHash.trim())) {
+    return { verifiedOnChain: false, status: 'Pending' };
+  }
+
   const rpcs = [
     'https://bsc-dataseed.binance.org',
     'https://bsc-dataseed1.defibit.io',
@@ -626,7 +631,9 @@ async function verifyBscTxReceipt(txHash: string): Promise<{
           const blockNum = receipt.blockNumber ? parseInt(receipt.blockNumber, 16) : undefined;
           const status = receipt.status === '0x1' ? 'Success' : receipt.status === '0x0' ? 'Failed' : 'Pending';
           const gasUsed = receipt.gasUsed ? parseInt(receipt.gasUsed, 16) : undefined;
-          return { verifiedOnChain: true, blockNumber: blockNum, status, gasUsed };
+          const effGasPrice = receipt.effectiveGasPrice ? Number(BigInt(receipt.effectiveGasPrice)) : 1_000_000_000;
+          const gasFeeBnb = gasUsed ? +((gasUsed * effGasPrice) / 1e18).toFixed(6) : 0.00015;
+          return { verifiedOnChain: status === 'Success', blockNumber: blockNum, status, gasUsed, gasFeeBnb };
         }
       }
     } catch {
@@ -642,6 +649,9 @@ async function verifyBscTxReceipt(txHash: string): Promise<{
 // ============================================================
 const SPIKE_CONTRACT_BSC = '0xc213905ac995bCC943c077b7918c8134094A9267';
 const USDT_CONTRACT_BSC = '0x55d398326f99059fF775485246999027B3197955';
+const PANCAKE_V3_POOL_BSC = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
+const PANCAKE_V3_SMART_ROUTER_BSC = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
+const PANCAKE_V3_FEE_TIER = 500; // 0.05%
 const BSC_RPC_URLS = [
   'https://bsc-dataseed.binance.org/',
   'https://bsc-dataseed1.defibit.io/',
@@ -695,6 +705,80 @@ async function fetchOnChainTokenBalance(tokenContract: string, walletAddress: st
     return formatTokenDecimals(rawHex, decimals);
   } catch {
     return 0;
+  }
+}
+
+interface LiveV3PoolState {
+  poolAddress: string;
+  routerAddress: string;
+  poolVersion: string;
+  feeTier: number;
+  feePercent: string;
+  token0: { symbol: string; address: string; reserve: number };
+  token1: { symbol: string; address: string; reserve: number };
+  sqrtPriceX96: string;
+  tick: number;
+  liquidity: string;
+  unlocked: boolean;
+  onChainPriceUsdt: number;
+  onChainPriceSpkPerUsdt: number;
+  fetchedAt: string;
+}
+
+let cachedV3PoolState: { data: LiveV3PoolState; expiresAt: number } | null = null;
+
+async function fetchLiveV3PoolState(forceRefresh = false): Promise<LiveV3PoolState | null> {
+  if (!forceRefresh && cachedV3PoolState && Date.now() < cachedV3PoolState.expiresAt) {
+    return cachedV3PoolState.data;
+  }
+  try {
+    const [slot0Hex, liquidityHex, feeHex, usdtReserve, spkReserve] = await Promise.all([
+      callBscRpcNode('eth_call', [{ to: PANCAKE_V3_POOL_BSC, data: '0x3850c7bd' }, 'latest']),
+      callBscRpcNode('eth_call', [{ to: PANCAKE_V3_POOL_BSC, data: '0x1a686502' }, 'latest']),
+      callBscRpcNode('eth_call', [{ to: PANCAKE_V3_POOL_BSC, data: '0xddca3f43' }, 'latest']),
+      fetchOnChainTokenBalance(USDT_CONTRACT_BSC, PANCAKE_V3_POOL_BSC, 18),
+      fetchOnChainTokenBalance(SPIKE_CONTRACT_BSC, PANCAKE_V3_POOL_BSC, 18),
+    ]);
+
+    if (!slot0Hex || slot0Hex.length < 130) return cachedV3PoolState?.data || null;
+
+    const hexBody = slot0Hex.replace(/^0x/, '');
+    const sqrtPriceX96 = BigInt('0x' + hexBody.slice(0, 64));
+    const tickUnsigned = BigInt('0x' + hexBody.slice(64, 128));
+    const TWO_256 = 1n << 256n;
+    const TWO_255 = 1n << 255n;
+    const tick = Number(tickUnsigned >= TWO_255 ? tickUnsigned - TWO_256 : tickUnsigned);
+    const unlocked = hexBody.length >= 448 ? BigInt('0x' + hexBody.slice(384, 448)) === 1n : true;
+
+    const feeTier = feeHex && feeHex !== '0x' ? Number(BigInt(feeHex)) : PANCAKE_V3_FEE_TIER;
+    const liquidity = liquidityHex && liquidityHex !== '0x' ? BigInt(liquidityHex).toString() : '0';
+
+    // token0 = USDT (18 dec), token1 = SPK (18 dec) -> ratio = (sqrtPriceX96 / 2^96)^2 = SPK per 1 USDT
+    const q96 = Number(1n << 96n);
+    const spkPerUsdt = (Number(sqrtPriceX96) / q96) ** 2;
+    const usdtPerSpk = spkPerUsdt > 0 ? +(1 / spkPerUsdt).toFixed(6) : 0;
+
+    const state: LiveV3PoolState = {
+      poolAddress: PANCAKE_V3_POOL_BSC,
+      routerAddress: PANCAKE_V3_SMART_ROUTER_BSC,
+      poolVersion: 'PancakeSwap V3',
+      feeTier,
+      feePercent: `${(feeTier / 10000).toFixed(2)}%`,
+      token0: { symbol: 'USDT', address: USDT_CONTRACT_BSC, reserve: usdtReserve },
+      token1: { symbol: 'SPK', address: SPIKE_CONTRACT_BSC, reserve: spkReserve },
+      sqrtPriceX96: sqrtPriceX96.toString(),
+      tick,
+      liquidity,
+      unlocked,
+      onChainPriceUsdt: usdtPerSpk,
+      onChainPriceSpkPerUsdt: +spkPerUsdt.toFixed(6),
+      fetchedAt: new Date().toISOString(),
+    };
+
+    cachedV3PoolState = { data: state, expiresAt: Date.now() + 15_000 };
+    return state;
+  } catch {
+    return cachedV3PoolState?.data || null;
   }
 }
 
@@ -1292,25 +1376,50 @@ app.post('/api/transactions/record', (req: Request, res: Response) => {
 // ============================================================
 // SPIKE (SPK) TESTNET & HARVEST AUTO-BUY ENGINE APIS
 // ============================================================
-app.get('/api/testnet/spike/info', (req: Request, res: Response) => {
+app.get('/api/bsc/v3-pool', async (req: Request, res: Response) => {
+  try {
+    const force = req.query.refresh === 'true';
+    const pool = await fetchLiveV3PoolState(force);
+    if (!pool) {
+      res.status(503).json({ success: false, error: 'Unable to reach BSC RPC for V3 pool state' });
+      return;
+    }
+    res.json({ success: true, pool });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Error fetching V3 pool state' });
+  }
+});
+
+app.get('/api/testnet/spike/info', async (req: Request, res: Response) => {
   try {
     const token = db.getTestnetSpikeToken();
+    const v3Pool = await fetchLiveV3PoolState().catch(() => null);
     res.json({
       success: true,
       token,
+      routerAddress: PANCAKE_V3_SMART_ROUTER_BSC,
+      pairAddress: PANCAKE_V3_POOL_BSC,
+      poolVersion: 'PancakeSwap V3',
+      feeTier: PANCAKE_V3_FEE_TIER,
+      v3Pool,
       metrics: {
         totalSupply: token.totalSupply,
         circulatingSupply: token.circulatingSupply,
         symbol: token.symbol,
         name: token.name,
         decimals: token.decimals,
-        contractAddress: token.contractAddress,
-        pair: token.pair,
+        contractAddress: SPIKE_CONTRACT_BSC,
+        pair: PANCAKE_V3_POOL_BSC,
         priceUsdt: token.currentPrice,
+        onChainPriceUsdt: v3Pool?.onChainPriceUsdt ?? null,
         poolReserves: {
           spk: token.poolSpkReserve,
           usdt: token.poolUsdtReserve,
         },
+        onChainPoolReserves: v3Pool ? {
+          spk: v3Pool.token1.reserve,
+          usdt: v3Pool.token0.reserve,
+        } : null,
         volume24h: token.volume24h,
         high24h: token.high24h,
         low24h: token.low24h,
@@ -1333,6 +1442,10 @@ app.get('/api/testnet/wallet/:address', (req: Request, res: Response) => {
       success: true,
       wallet,
       tokenPrice: token.currentPrice,
+      routerAddress: PANCAKE_V3_SMART_ROUTER_BSC,
+      pairAddress: PANCAKE_V3_POOL_BSC,
+      poolVersion: 'PancakeSwap V3',
+      feeTier: PANCAKE_V3_FEE_TIER,
       transactions,
     });
   } catch (err: any) {
@@ -1360,33 +1473,94 @@ app.post('/api/testnet/wallet/faucet', (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/testnet/harvest-autobuy', (req: Request, res: Response) => {
+app.post('/api/testnet/harvest-autobuy', async (req: Request, res: Response) => {
   try {
     const { address, minedSpkAmount = 25.0, hashrate = 1.25, slippageTolerance = 0.2, txHash } = req.body;
     const targetAddr = (address && typeof address === 'string' && address.trim()) ? address.trim() : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
     const numAmount = Number(minedSpkAmount) > 0 ? Number(minedSpkAmount) : 25.0;
+
+    const [receiptInfo, v3Pool] = await Promise.all([
+      verifyBscTxReceipt(txHash),
+      fetchLiveV3PoolState().catch(() => null),
+    ]);
+
     const result = db.executeTestnetHarvestAutoBuy(
       targetAddr,
       numAmount,
       Number(hashrate) || 1.25,
       Number(slippageTolerance) || 0.2,
-      txHash
+      txHash,
+      {
+        verifiedOnChain: receiptInfo.verifiedOnChain,
+        blockNumber: receiptInfo.blockNumber,
+        gasFeeBnb: receiptInfo.gasFeeBnb,
+      }
     );
-    res.json(result);
+
+    if (result.success && !result.duplicate) {
+      const updatedUser = db.getUser(targetAddr);
+      if (updatedUser) {
+        syncDocument('users', targetAddr.toLowerCase(), updatedUser).catch(() => {});
+      }
+    }
+
+    res.json({
+      ...result,
+      v3Pool: v3Pool ? {
+        poolAddress: v3Pool.poolAddress,
+        routerAddress: v3Pool.routerAddress,
+        feeTier: v3Pool.feeTier,
+        onChainPriceUsdt: v3Pool.onChainPriceUsdt,
+        unlocked: v3Pool.unlocked,
+      } : undefined,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Server error executing harvest auto-buy' });
   }
 });
 
-app.post('/api/testnet/swap', (req: Request, res: Response) => {
+app.post('/api/testnet/swap', async (req: Request, res: Response) => {
   try {
-    const { address, fromToken, toToken, amountIn } = req.body;
-    const result = db.executeTestnetSwap(address, fromToken, toToken, Number(amountIn));
+    const { address, fromToken, toToken, amountIn, txHash } = req.body;
+    const [receiptInfo, v3Pool] = await Promise.all([
+      verifyBscTxReceipt(txHash),
+      fetchLiveV3PoolState().catch(() => null),
+    ]);
+
+    const result = db.executeTestnetSwap(
+      address,
+      fromToken,
+      toToken,
+      Number(amountIn),
+      txHash,
+      {
+        verifiedOnChain: receiptInfo.verifiedOnChain,
+        blockNumber: receiptInfo.blockNumber,
+        gasFeeBnb: receiptInfo.gasFeeBnb,
+      }
+    );
     if (!result.success) {
       res.status(400).json(result);
       return;
     }
-    res.json(result);
+
+    if (address && !result.duplicate) {
+      const updatedUser = db.getUser(address);
+      if (updatedUser) {
+        syncDocument('users', String(address).toLowerCase(), updatedUser).catch(() => {});
+      }
+    }
+
+    res.json({
+      ...result,
+      v3Pool: v3Pool ? {
+        poolAddress: v3Pool.poolAddress,
+        routerAddress: v3Pool.routerAddress,
+        feeTier: v3Pool.feeTier,
+        onChainPriceUsdt: v3Pool.onChainPriceUsdt,
+        unlocked: v3Pool.unlocked,
+      } : undefined,
+    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Server error executing testnet swap' });
   }
