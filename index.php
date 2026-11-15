@@ -11,6 +11,9 @@ $rootHtml = __DIR__ . '/index.html';
 // 1. Prefer compiled production bundle from dist/ or prod/
 if (file_exists($distHtml)) {
     header('Content-Type: text/html; charset=UTF-8');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     header('X-Powered-By: SPIKE-Nodes-AutoDeploy');
     readfile($distHtml);
     exit;
@@ -18,6 +21,9 @@ if (file_exists($distHtml)) {
 
 if (file_exists($prodHtml)) {
     header('Content-Type: text/html; charset=UTF-8');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     header('X-Powered-By: SPIKE-Nodes-AutoDeploy');
     readfile($prodHtml);
     exit;
@@ -25,6 +31,9 @@ if (file_exists($prodHtml)) {
 
 if (file_exists($rootHtml)) {
     header('Content-Type: text/html; charset=UTF-8');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     header('X-Powered-By: SPIKE-Nodes-AutoDeploy');
     readfile($rootHtml);
     exit;

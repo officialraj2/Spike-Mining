@@ -1,4 +1,4 @@
-name: Build and Verify
+name: Build and Sync Hostinger Production
 
 on:
   push:
@@ -8,24 +8,43 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci || npm install
 
-      - name: Build Project
+      - name: Build Project (dist & prod)
         run: npm run build
+
+      - name: Commit Fresh dist & prod for Hostinger Git Auto-Deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f dist prod
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: build dist and prod for Hostinger Git Auto-Deploy [skip ci]"
+            git push origin HEAD:main
+          else
+            echo "dist and prod are already up to date."
+          fi
 
       - name: Deploy to Hostinger via FTP (Optional)
         if: ${{ env.FTP_SERVER != '' }}

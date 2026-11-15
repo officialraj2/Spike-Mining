@@ -12,6 +12,7 @@ import type { AuthRequest } from './src/middleware/auth.ts';
 import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from './src/db/users.ts';
 import { db as sqlDb } from './src/db/index.ts';
 import { processAiMiningChat } from './src/server/geminiAi.ts';
+import { ethers } from 'ethers';
 
 dotenv.config();
 
@@ -592,16 +593,22 @@ app.post('/api/faucet/claim', (req: Request, res: Response) => {
   });
 });
 
-// BSC RPC on-chain transaction verifier
-async function verifyBscTxReceipt(txHash?: string): Promise<{
+const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const ERC20_APPROVAL_TOPIC = '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925';
+
+// BSC RPC on-chain transaction verifier (verifies actual SPK Transfer logs vs Approval-only txs)
+async function verifyBscTxReceipt(txHash?: string, expectedRecipient?: string): Promise<{
   verifiedOnChain: boolean;
+  spkCreditedOnChain: boolean;
+  onChainSpkReceived: number;
+  isApprovalOnly: boolean;
   blockNumber?: number;
   status?: 'Success' | 'Failed' | 'Pending';
   gasUsed?: number;
   gasFeeBnb?: number;
 }> {
   if (!txHash || typeof txHash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(txHash.trim())) {
-    return { verifiedOnChain: false, status: 'Pending' };
+    return { verifiedOnChain: false, spkCreditedOnChain: false, onChainSpkReceived: 0, isApprovalOnly: false, status: 'Pending' };
   }
 
   const rpcs = [
@@ -633,7 +640,45 @@ async function verifyBscTxReceipt(txHash?: string): Promise<{
           const gasUsed = receipt.gasUsed ? parseInt(receipt.gasUsed, 16) : undefined;
           const effGasPrice = receipt.effectiveGasPrice ? Number(BigInt(receipt.effectiveGasPrice)) : 1_000_000_000;
           const gasFeeBnb = gasUsed ? +((gasUsed * effGasPrice) / 1e18).toFixed(6) : 0.00015;
-          return { verifiedOnChain: status === 'Success', blockNumber: blockNum, status, gasUsed, gasFeeBnb };
+
+          const logs: any[] = Array.isArray(receipt.logs) ? receipt.logs : [];
+          let onChainSpkReceived = 0;
+          let transferCount = 0;
+          let approvalCount = 0;
+          const normRecip = expectedRecipient ? expectedRecipient.toLowerCase() : null;
+
+          for (const log of logs) {
+            const topic0 = String(log.topics?.[0] || '').toLowerCase();
+            if (topic0 === ERC20_APPROVAL_TOPIC) {
+              approvalCount++;
+            } else if (topic0 === ERC20_TRANSFER_TOPIC) {
+              transferCount++;
+              const logAddr = String(log.address || '').toLowerCase();
+              if (logAddr === SPIKE_CONTRACT_BSC.toLowerCase() && log.topics?.[2]) {
+                const toAddr = ('0x' + String(log.topics[2]).slice(-40)).toLowerCase();
+                if (!normRecip || toAddr === normRecip) {
+                  try {
+                    const amtWei = BigInt(log.data || '0x0');
+                    onChainSpkReceived += Number(ethers.formatUnits(amtWei, 18));
+                  } catch {}
+                }
+              }
+            }
+          }
+
+          const spkCreditedOnChain = status === 'Success' && onChainSpkReceived > 0;
+          const isApprovalOnly = status === 'Success' && transferCount === 0 && approvalCount > 0;
+
+          return {
+            verifiedOnChain: status === 'Success',
+            spkCreditedOnChain,
+            onChainSpkReceived: +onChainSpkReceived.toFixed(6),
+            isApprovalOnly,
+            blockNumber: blockNum,
+            status,
+            gasUsed,
+            gasFeeBnb,
+          };
         }
       }
     } catch {
@@ -641,7 +686,7 @@ async function verifyBscTxReceipt(txHash?: string): Promise<{
     }
   }
 
-  return { verifiedOnChain: false, status: 'Pending' };
+  return { verifiedOnChain: false, spkCreditedOnChain: false, onChainSpkReceived: 0, isApprovalOnly: false, status: 'Pending' };
 }
 
 // ============================================================
@@ -651,6 +696,7 @@ const SPIKE_CONTRACT_BSC = '0xc213905ac995bCC943c077b7918c8134094A9267';
 const USDT_CONTRACT_BSC = '0x55d398326f99059fF775485246999027B3197955';
 const PANCAKE_V3_POOL_BSC = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
 const PANCAKE_V3_SMART_ROUTER_BSC = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
+const PANCAKE_V3_QUOTER_V2_BSC = '0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997';
 const PANCAKE_V3_FEE_TIER = 500; // 0.05%
 const BSC_RPC_URLS = [
   'https://bsc-dataseed.binance.org/',
@@ -779,6 +825,198 @@ async function fetchLiveV3PoolState(forceRefresh = false): Promise<LiveV3PoolSta
     return state;
   } catch {
     return cachedV3PoolState?.data || null;
+  }
+}
+
+const ERC20_ABI = [
+  'function balanceOf(address account) view returns (uint256)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+];
+
+const V3_SMART_ROUTER_ABI = [
+  'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountOut)',
+  'function exactOutputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountOut, uint256 amountInMaximum, uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountIn)',
+];
+
+const V3_QUOTER_V2_ABI = [
+  'function quoteExactInputSingle((address tokenIn, address tokenOut, uint256 amountIn, uint24 fee, uint160 sqrtPriceLimitX96) params) returns (uint256 amountOut, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)',
+  'function quoteExactOutputSingle((address tokenIn, address tokenOut, uint256 amount, uint24 fee, uint160 sqrtPriceLimitX96) params) returns (uint256 amountIn, uint160 sqrtPriceX96After, uint32 initializedTicksCrossed, uint256 gasEstimate)',
+];
+
+function getRelayerPrivateKey(): string | null {
+  const raw =
+    process.env.PROTOCOL_RELAYER_PRIVATE_KEY ||
+    process.env.TREASURY_PRIVATE_KEY ||
+    process.env.BSC_RELAYER_PRIVATE_KEY ||
+    '';
+  const trimmed = raw.trim();
+  if (/^(0x)?[a-fA-F0-9]{64}$/.test(trimmed)) {
+    return trimmed.startsWith('0x') ? trimmed : `0x${trimmed}`;
+  }
+  return null;
+}
+
+async function getWorkingBscProvider(): Promise<ethers.JsonRpcProvider> {
+  for (const rpcUrl of BSC_RPC_URLS) {
+    try {
+      const provider = new ethers.JsonRpcProvider(rpcUrl, 56, { staticNetwork: true });
+      await provider.getBlockNumber();
+      return provider;
+    } catch {}
+  }
+  return new ethers.JsonRpcProvider(BSC_RPC_URLS[0], 56, { staticNetwork: true });
+}
+
+async function getV3QuoteAndClaimCalldata(params: {
+  userAddress: string;
+  spkAmount?: number;
+  usdtAmount?: number;
+}) {
+  const { userAddress, spkAmount = 0, usdtAmount = 0 } = params;
+  const erc20Iface = new ethers.Interface(ERC20_ABI);
+  const routerIface = new ethers.Interface(V3_SMART_ROUTER_ABI);
+  const quoterIface = new ethers.Interface(V3_QUOTER_V2_ABI);
+
+  const validUser = ethers.isAddress(userAddress) ? ethers.getAddress(userAddress) : '0x0000000000000000000000000000000000000000';
+  const effectiveUsdtIn = usdtAmount > 0 ? usdtAmount : Math.max(0.0001, +(spkAmount * 0.86).toFixed(6));
+  const amountInWei = ethers.parseUnits(effectiveUsdtIn.toFixed(6), 18);
+
+  let quotedSpkOut = +(effectiveUsdtIn / 0.858346).toFixed(6);
+  try {
+    const qData = quoterIface.encodeFunctionData('quoteExactInputSingle', [[
+      USDT_CONTRACT_BSC,
+      SPIKE_CONTRACT_BSC,
+      amountInWei,
+      PANCAKE_V3_FEE_TIER,
+      0n,
+    ]]);
+    const qHex = await callBscRpcNode('eth_call', [{ to: PANCAKE_V3_QUOTER_V2_BSC, data: qData }, 'latest']);
+    if (qHex && qHex !== '0x') {
+      const [outWei] = quoterIface.decodeFunctionResult('quoteExactInputSingle', qHex);
+      quotedSpkOut = +Number(ethers.formatUnits(outWei, 18)).toFixed(6);
+    }
+  } catch {}
+
+  let userUsdtBalance = 0;
+  let currentAllowanceWei = 0n;
+  if (validUser !== '0x0000000000000000000000000000000000000000') {
+    const [balHex, allowHex] = await Promise.all([
+      callBscRpcNode('eth_call', [{ to: USDT_CONTRACT_BSC, data: erc20Iface.encodeFunctionData('balanceOf', [validUser]) }, 'latest']),
+      callBscRpcNode('eth_call', [{ to: USDT_CONTRACT_BSC, data: erc20Iface.encodeFunctionData('allowance', [validUser, PANCAKE_V3_SMART_ROUTER_BSC]) }, 'latest']),
+    ]);
+    if (balHex && balHex !== '0x') userUsdtBalance = +Number(ethers.formatUnits(BigInt(balHex), 18)).toFixed(6);
+    if (allowHex && allowHex !== '0x') currentAllowanceWei = BigInt(allowHex);
+  }
+
+  const needsApproval = currentAllowanceWei < amountInWei;
+  const approveData = erc20Iface.encodeFunctionData('approve', [PANCAKE_V3_SMART_ROUTER_BSC, ethers.MaxUint256]);
+  const swapData = routerIface.encodeFunctionData('exactInputSingle', [[
+    USDT_CONTRACT_BSC,
+    SPIKE_CONTRACT_BSC,
+    PANCAKE_V3_FEE_TIER,
+    validUser,
+    amountInWei,
+    0n,
+    0n,
+  ]]);
+
+  return {
+    poolAddress: PANCAKE_V3_POOL_BSC,
+    routerAddress: PANCAKE_V3_SMART_ROUTER_BSC,
+    feeTier: PANCAKE_V3_FEE_TIER,
+    usdtIn: effectiveUsdtIn,
+    expectedSpkOut: quotedSpkOut,
+    userUsdtBalance,
+    hasEnoughUsdt: userUsdtBalance >= effectiveUsdtIn,
+    needsApproval,
+    relayerConfigured: Boolean(getRelayerPrivateKey()),
+    approveTx: needsApproval ? { to: USDT_CONTRACT_BSC, data: approveData, value: '0x0', gas: '0x15F90' } : null,
+    swapTx: { to: PANCAKE_V3_SMART_ROUTER_BSC, data: swapData, value: '0x0', gas: '0x61A80' },
+  };
+}
+
+// Automated server-side BSC Mainnet SPK disbursement (runs when PROTOCOL_RELAYER_PRIVATE_KEY is configured)
+async function executeBackendOnChainSpkPayout(recipientAddress: string, spkAmount: number): Promise<{
+  executed: boolean;
+  method?: 'relayer_spk_transfer' | 'relayer_v3_swap';
+  txHash?: string;
+  blockNumber?: number;
+  gasFeeBnb?: number;
+  spkSent?: number;
+  error?: string;
+}> {
+  const pk = getRelayerPrivateKey();
+  if (!pk) return { executed: false, error: 'PROTOCOL_RELAYER_PRIVATE_KEY not configured' };
+  if (!ethers.isAddress(recipientAddress)) return { executed: false, error: 'Invalid recipient BSC address' };
+  if (!(spkAmount > 0)) return { executed: false, error: 'Invalid SPK amount' };
+
+  try {
+    const provider = await getWorkingBscProvider();
+    const signer = new ethers.Wallet(pk, provider);
+    const spkContract = new ethers.Contract(SPIKE_CONTRACT_BSC, ERC20_ABI, signer);
+    const usdtContract = new ethers.Contract(USDT_CONTRACT_BSC, ERC20_ABI, signer);
+
+    const spkAmountWei = ethers.parseUnits(spkAmount.toFixed(6), 18);
+    const [relayerSpkBal, relayerUsdtBal] = await Promise.all([
+      spkContract.balanceOf(signer.address) as Promise<bigint>,
+      usdtContract.balanceOf(signer.address) as Promise<bigint>,
+    ]);
+
+    // Priority 1: Direct BEP-20 SPK transfer from Treasury/Relayer reserve directly to user's wallet
+    if (relayerSpkBal >= spkAmountWei) {
+      const tx = await spkContract.transfer(recipientAddress, spkAmountWei);
+      const receipt = await tx.wait(1);
+      const gasUsed = receipt?.gasUsed ? Number(receipt.gasUsed) : 52000;
+      const gasPrice = receipt?.gasPrice ? Number(receipt.gasPrice) : 1_000_000_000;
+      return {
+        executed: true,
+        method: 'relayer_spk_transfer',
+        txHash: tx.hash,
+        blockNumber: receipt?.blockNumber,
+        gasFeeBnb: +((gasUsed * gasPrice) / 1e18).toFixed(6),
+        spkSent: +spkAmount.toFixed(6),
+      };
+    }
+
+    // Priority 2: Relayer executes PancakeSwap V3 Smart Router swap (USDT -> SPK) with recipient = user wallet
+    const routerContract = new ethers.Contract(PANCAKE_V3_SMART_ROUTER_BSC, V3_SMART_ROUTER_ABI, signer);
+    const poolState = await fetchLiveV3PoolState().catch(() => null);
+    const estUsdt = +(spkAmount * (poolState?.onChainPriceUsdt || 0.86) * 1.02).toFixed(6);
+    const maxUsdtWei = ethers.parseUnits(Math.max(0.0001, estUsdt).toFixed(6), 18);
+
+    if (relayerUsdtBal >= maxUsdtWei) {
+      const currentAllow: bigint = await usdtContract.allowance(signer.address, PANCAKE_V3_SMART_ROUTER_BSC);
+      if (currentAllow < maxUsdtWei) {
+        const approveTx = await usdtContract.approve(PANCAKE_V3_SMART_ROUTER_BSC, ethers.MaxUint256);
+        await approveTx.wait(1);
+      }
+      const swapTx = await routerContract.exactOutputSingle({
+        tokenIn: USDT_CONTRACT_BSC,
+        tokenOut: SPIKE_CONTRACT_BSC,
+        fee: PANCAKE_V3_FEE_TIER,
+        recipient: recipientAddress,
+        amountOut: spkAmountWei,
+        amountInMaximum: maxUsdtWei,
+        sqrtPriceLimitX96: 0n,
+      });
+      const receipt = await swapTx.wait(1);
+      const gasUsed = receipt?.gasUsed ? Number(receipt.gasUsed) : 180000;
+      const gasPrice = receipt?.gasPrice ? Number(receipt.gasPrice) : 1_000_000_000;
+      return {
+        executed: true,
+        method: 'relayer_v3_swap',
+        txHash: swapTx.hash,
+        blockNumber: receipt?.blockNumber,
+        gasFeeBnb: +((gasUsed * gasPrice) / 1e18).toFixed(6),
+        spkSent: +spkAmount.toFixed(6),
+      };
+    }
+
+    return { executed: false, error: 'Relayer wallet has insufficient SPK/USDT balance on BSC Mainnet' };
+  } catch (err: any) {
+    return { executed: false, error: err?.shortMessage || err?.message || 'Relayer execution failed' };
   }
 }
 
@@ -1384,9 +1622,35 @@ app.get('/api/bsc/v3-pool', async (req: Request, res: Response) => {
       res.status(503).json({ success: false, error: 'Unable to reach BSC RPC for V3 pool state' });
       return;
     }
-    res.json({ success: true, pool });
+    res.json({ success: true, relayerConfigured: Boolean(getRelayerPrivateKey()), pool });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Error fetching V3 pool state' });
+  }
+});
+
+app.get('/api/bsc/v3-quote', async (req: Request, res: Response) => {
+  try {
+    const userAddress = String(req.query.address || '');
+    const spkAmount = Number(req.query.spkAmount || 0);
+    const usdtAmount = Number(req.query.usdtAmount || 0);
+    const quote = await getV3QuoteAndClaimCalldata({ userAddress, spkAmount, usdtAmount });
+    res.json({ success: true, ...quote });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to compute V3 quote' });
+  }
+});
+
+app.post('/api/bsc/v3-claim-tx', async (req: Request, res: Response) => {
+  try {
+    const { userAddress = '', spkAmount = 0, usdtAmount = 0 } = req.body || {};
+    const quote = await getV3QuoteAndClaimCalldata({
+      userAddress: String(userAddress),
+      spkAmount: Number(spkAmount) || 0,
+      usdtAmount: Number(usdtAmount) || 0,
+    });
+    res.json({ success: true, ...quote });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to build V3 swap calldata' });
   }
 });
 
@@ -1479,21 +1743,49 @@ app.post('/api/testnet/harvest-autobuy', async (req: Request, res: Response) => 
     const targetAddr = (address && typeof address === 'string' && address.trim()) ? address.trim() : '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
     const numAmount = Number(minedSpkAmount) > 0 ? Number(minedSpkAmount) : 25.0;
 
-    const [receiptInfo, v3Pool] = await Promise.all([
-      verifyBscTxReceipt(txHash),
+    let [receiptInfo, v3Pool] = await Promise.all([
+      verifyBscTxReceipt(txHash, targetAddr),
       fetchLiveV3PoolState().catch(() => null),
     ]);
 
+    let effectiveTxHash = txHash;
+    let payoutMethod: string = receiptInfo.spkCreditedOnChain ? 'user_v3_swap' : 'protocol_ledger';
+
+    // If user didn't execute a real SPK-crediting V3 swap (or sent approval-only tx) AND backend relayer is configured,
+    // execute a real on-chain BEP-20 SPK transfer / V3 swap directly to the user's wallet from backend!
+    let relayerResult: Awaited<ReturnType<typeof executeBackendOnChainSpkPayout>> | null = null;
+    if (!receiptInfo.spkCreditedOnChain && getRelayerPrivateKey()) {
+      relayerResult = await executeBackendOnChainSpkPayout(targetAddr, numAmount);
+      if (relayerResult.executed && relayerResult.txHash) {
+        effectiveTxHash = relayerResult.txHash;
+        payoutMethod = relayerResult.method || 'relayer_spk_transfer';
+        receiptInfo = {
+          verifiedOnChain: true,
+          spkCreditedOnChain: true,
+          onChainSpkReceived: relayerResult.spkSent || numAmount,
+          isApprovalOnly: false,
+          blockNumber: relayerResult.blockNumber,
+          status: 'Success',
+          gasFeeBnb: relayerResult.gasFeeBnb,
+        };
+      }
+    }
+
+    const effectiveSpkAmount = receiptInfo.spkCreditedOnChain && receiptInfo.onChainSpkReceived > 0
+      ? receiptInfo.onChainSpkReceived
+      : numAmount;
+
     const result = db.executeTestnetHarvestAutoBuy(
       targetAddr,
-      numAmount,
+      effectiveSpkAmount,
       Number(hashrate) || 1.25,
       Number(slippageTolerance) || 0.2,
-      txHash,
+      effectiveTxHash,
       {
-        verifiedOnChain: receiptInfo.verifiedOnChain,
+        verifiedOnChain: receiptInfo.spkCreditedOnChain,
         blockNumber: receiptInfo.blockNumber,
         gasFeeBnb: receiptInfo.gasFeeBnb,
+        livePoolPrice: v3Pool?.onChainPriceUsdt,
       }
     );
 
@@ -1506,6 +1798,12 @@ app.post('/api/testnet/harvest-autobuy', async (req: Request, res: Response) => 
 
     res.json({
       ...result,
+      payoutMethod,
+      spkCreditedOnChain: receiptInfo.spkCreditedOnChain,
+      onChainSpkReceived: receiptInfo.onChainSpkReceived,
+      isApprovalOnly: receiptInfo.isApprovalOnly,
+      relayerConfigured: Boolean(getRelayerPrivateKey()),
+      relayerNotice: relayerResult && !relayerResult.executed ? relayerResult.error : undefined,
       v3Pool: v3Pool ? {
         poolAddress: v3Pool.poolAddress,
         routerAddress: v3Pool.routerAddress,
