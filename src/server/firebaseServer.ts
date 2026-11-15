@@ -461,15 +461,30 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
   deletedNodes: number;
   deletedReferrals: number;
   deletedTransactions: number;
+  deletedWithdrawals: number;
+  deletedSessions: number;
+  deletedAuditLogs: number;
 }> {
   if (!firestore) {
-    return { success: false, deletedUsers: 0, deletedNodes: 0, deletedReferrals: 0, deletedTransactions: 0 };
+    return {
+      success: false,
+      deletedUsers: 0,
+      deletedNodes: 0,
+      deletedReferrals: 0,
+      deletedTransactions: 0,
+      deletedWithdrawals: 0,
+      deletedSessions: 0,
+      deletedAuditLogs: 0,
+    };
   }
   const masterLower = masterAddresses.map((a) => a.toLowerCase().trim());
   let deletedUsers = 0;
   let deletedNodes = 0;
   let deletedReferrals = 0;
   let deletedTransactions = 0;
+  let deletedWithdrawals = 0;
+  let deletedSessions = 0;
+  let deletedAuditLogs = 0;
 
   try {
     // Delete all nodes completely (active mining rigs reset to 0)
@@ -479,7 +494,7 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
       deletedNodes++;
     }
 
-    // Delete non-master users and reset master user documents
+    // Delete non-master users and reset master user documents (clearing bond, mining & milestone flags)
     const usersSnap = await getDocs(collection(firestore, 'users'));
     for (const d of usersSnap.docs) {
       const data = d.data();
@@ -488,17 +503,24 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
         await deleteDoc(d.ref).catch(() => {});
         deletedUsers++;
       } else {
-        // Reset master user referral bond & stats
         await setDoc(d.ref, {
+          address: data.address || addr,
+          balanceUsdt: 0,
+          balanceBnb: 0,
+          balanceSpk: 0,
           referredBy: null,
           role: 'master',
+          status: 'active',
           totalMined: 0,
+          hasDepositedTreasury: false,
+          hasActivatedMining: false,
+          miningCycleStartTime: 0,
           _syncedAt: new Date().toISOString(),
         }, { merge: true }).catch(() => {});
       }
     }
 
-    // Delete all referral bindings so Root wallet has a clean 0-partner slate for fresh testing
+    // Delete all referral bindings so all bond addresses & team milestones start at 0
     const refSnap = await getDocs(collection(firestore, 'referrals'));
     for (const d of refSnap.docs) {
       await deleteDoc(d.ref).catch(() => {});
@@ -510,29 +532,76 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
       const sessionSnap = await getDocs(collection(firestore, 'miningSessions'));
       for (const d of sessionSnap.docs) {
         await deleteDoc(d.ref).catch(() => {});
+        deletedSessions++;
       }
     } catch {}
     try {
       const sessionSnap2 = await getDocs(collection(firestore, 'mining_sessions'));
       for (const d of sessionSnap2.docs) {
         await deleteDoc(d.ref).catch(() => {});
+        deletedSessions++;
       }
     } catch {}
 
-    // Delete all transactions
+    // Delete all transactions (includes milestone rewards, referral bonuses, claims, activations)
     const txSnap = await getDocs(collection(firestore, 'transactions'));
     for (const d of txSnap.docs) {
       await deleteDoc(d.ref).catch(() => {});
       deletedTransactions++;
     }
 
+    // Delete all withdrawal requests (including milestone reward withdrawals)
+    try {
+      const wdSnap = await getDocs(collection(firestore, 'withdrawals'));
+      for (const d of wdSnap.docs) {
+        await deleteDoc(d.ref).catch(() => {});
+        deletedWithdrawals++;
+      }
+    } catch {}
+
+    // Delete all audit logs
+    try {
+      const auditSnap = await getDocs(collection(firestore, 'auditLogs'));
+      for (const d of auditSnap.docs) {
+        await deleteDoc(d.ref).catch(() => {});
+        deletedAuditLogs++;
+      }
+    } catch {}
+
+    // Reset global treasury balance in settings/global
+    try {
+      await setDoc(doc(firestore, 'settings', 'global'), {
+        maintenanceMode: false,
+        treasuryBalanceUsdt: 0,
+        _syncedAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch {}
+
     console.log(
-      `[Firebase Server] Purged non-master records: ${deletedUsers} users, ${deletedNodes} nodes, ${deletedReferrals} referrals, ${deletedTransactions} transactions.`
+      `[Firebase Server] Purged records: ${deletedUsers} users, ${deletedNodes} nodes, ${deletedReferrals} referrals, ${deletedTransactions} transactions, ${deletedWithdrawals} withdrawals, ${deletedSessions} sessions.`
     );
-    return { success: true, deletedUsers, deletedNodes, deletedReferrals, deletedTransactions };
+    return {
+      success: true,
+      deletedUsers,
+      deletedNodes,
+      deletedReferrals,
+      deletedTransactions,
+      deletedWithdrawals,
+      deletedSessions,
+      deletedAuditLogs,
+    };
   } catch (err) {
     console.warn('[Firebase Server] Error purging non-master documents:', err);
-    return { success: false, deletedUsers, deletedNodes, deletedReferrals, deletedTransactions };
+    return {
+      success: false,
+      deletedUsers,
+      deletedNodes,
+      deletedReferrals,
+      deletedTransactions,
+      deletedWithdrawals,
+      deletedSessions,
+      deletedAuditLogs,
+    };
   }
 }
 

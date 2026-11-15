@@ -11,6 +11,7 @@ import { requireAuth } from './src/middleware/auth.ts';
 import type { AuthRequest } from './src/middleware/auth.ts';
 import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from './src/db/users.ts';
 import { db as sqlDb } from './src/db/index.ts';
+import { users as sqlUsersTable, miningNodes as sqlMiningNodesTable, transactions as sqlTransactionsTable } from './src/db/schema.ts';
 import { processAiMiningChat } from './src/server/geminiAi.ts';
 import { ethers } from 'ethers';
 
@@ -220,16 +221,24 @@ app.get('/api/db/export', (req: Request, res: Response) => {
   res.json(exportData);
 });
 
-app.post('/api/db/reset', (req: Request, res: Response) => {
+app.post('/api/db/reset', async (req: Request, res: Response) => {
   const adminAddress = req.body.adminAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
   const result = db.resetMainnetBaseline(adminAddress);
-  res.json(result);
+  const firestoreResult = await purgeNonMasterFirestoreData([
+    '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+  ]).catch(() => null);
+  res.json({ ...result, firestore: firestoreResult });
 });
 
-app.post('/api/db/reset-mainnet', (req: Request, res: Response) => {
+app.post('/api/db/reset-mainnet', async (req: Request, res: Response) => {
   const adminAddress = req.body.adminAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
   const result = db.resetMainnetBaseline(adminAddress);
-  res.json(result);
+  const firestoreResult = await purgeNonMasterFirestoreData([
+    '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
+  ]).catch(() => null);
+  res.json({ ...result, firestore: firestoreResult });
 });
 
 app.post('/api/db/clean-to-master-only', async (req: Request, res: Response) => {
@@ -240,15 +249,25 @@ app.post('/api/db/clean-to-master-only', async (req: Request, res: Response) => 
     ];
     // 1. Purge memory and local JSON database
     const dbResult = db.purgeNonMasterData(masterWallets);
-    
+
     // 2. Purge Firestore collections
     const firestoreResult = await purgeNonMasterFirestoreData(masterWallets);
 
+    // 3. Clean Cloud SQL tables if provisioned
+    let sqlCleaned = false;
+    try {
+      await sqlDb.delete(sqlTransactionsTable);
+      await sqlDb.delete(sqlMiningNodesTable);
+      await sqlDb.delete(sqlUsersTable);
+      sqlCleaned = true;
+    } catch {}
+
     res.json({
       success: true,
-      message: 'All non-master addresses, mining records, nodes, and test data successfully cleaned from database.',
+      message: 'All bond addresses, active mining records, referral milestones, and test data successfully reset from database.',
       database: dbResult,
       firestore: firestoreResult,
+      sqlCleaned,
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Failed to clean database' });

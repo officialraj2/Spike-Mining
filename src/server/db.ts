@@ -2159,26 +2159,35 @@ class PersistentDatabase {
     this.data.transactions = [];
     this.data.withdrawalRequests = [];
 
-    // Filter testnet wallets and txs
-    this.data.testnetWallets = (this.data.testnetWallets || []).filter((w) => masterLower.includes(w.address.toLowerCase().trim()));
-    this.data.testnetTransactions = (this.data.testnetTransactions || []).filter((t) => masterLower.includes(t.userAddress.toLowerCase().trim()));
+    // Clear ALL testnet wallets, transactions, and reset treasury balance
+    this.data.testnetWallets = [];
+    this.data.testnetTransactions = [];
+    this.data.settings.treasuryBalanceUsdt = 0.0;
 
-    // Reset master user referral state & mined stats
+    // Reset master user referral state, active mining flags, balances & mined stats
     this.data.users = this.data.users.map((u) => ({
       ...u,
       role: 'master',
       referredBy: null,
       totalMined: 0.0,
+      balanceUsdt: 0.0,
+      balanceBnb: 0.0,
+      balanceSpk: 0.0,
+      hasDepositedTreasury: false,
+      hasActivatedMining: false,
+      miningCycleStartTime: undefined,
+      customHashrate: null,
+      customHashrateReason: undefined,
     }));
 
     this.logAudit(
       'System Admin',
       'PURGE_NON_MASTER_DATA',
       'All Non-Master Addresses',
-      `Purged ${initialUserCount - this.data.users.length} users, ${initialNodeCount - this.data.nodes.length} nodes, ${initialRefCount - this.data.referrals.length} referrals.`
+      `Purged ${initialUserCount - this.data.users.length} users, ${initialNodeCount} nodes, ${initialRefCount} referrals, ${initialTxCount} transactions, and reset all mining/milestone states.`
     );
 
-    this.save();
+    this.saveDirect(this.data);
     return {
       success: true,
       remainingUsers: this.data.users.length,
