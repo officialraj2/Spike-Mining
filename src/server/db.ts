@@ -381,10 +381,14 @@ class PersistentDatabase {
           if (!Array.isArray(loadedSettings.masterWalletAddresses) || loadedSettings.masterWalletAddresses.length === 0) {
             loadedSettings.masterWalletAddresses = [
               '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-              '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
             ];
-          } else if (!loadedSettings.masterWalletAddresses.map((a: string) => a.toLowerCase()).includes('0x3471e07c4d2f7e11c155760a7b386e616b5c3715')) {
-            loadedSettings.masterWalletAddresses.push('0x3471e07c4d2f7e11c155760a7b386e616b5c3715');
+          } else {
+            loadedSettings.masterWalletAddresses = loadedSettings.masterWalletAddresses.filter(
+              (a: string) => a && /^0x[a-fA-F0-9]{40}$/.test(a.trim())
+            );
+            if (!loadedSettings.masterWalletAddresses.map((a: string) => a.toLowerCase()).includes('0x3471e07c4d2f7e11c155760a7b386e616b5c3715')) {
+              loadedSettings.masterWalletAddresses.push('0x3471e07c4d2f7e11c155760a7b386e616b5c3715');
+            }
           }
           if (typeof loadedSettings.tier1CommissionPercent !== 'number') loadedSettings.tier1CommissionPercent = 15;
           if (typeof loadedSettings.tier2CommissionPercent !== 'number') loadedSettings.tier2CommissionPercent = 5;
@@ -1018,12 +1022,13 @@ class PersistentDatabase {
   }
 
   public isMasterUser(address: string): boolean {
-    if (!address) return false;
-    const norm = address.toLowerCase();
+    if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address.trim())) return false;
+    const norm = address.trim().toLowerCase();
     const list = (this.data.settings?.masterWalletAddresses || [
       '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-      '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-    ]).map((a) => a.toLowerCase());
+    ])
+      .filter((a) => typeof a === 'string' && /^0x[a-fA-F0-9]{40}$/.test(a.trim()))
+      .map((a) => a.trim().toLowerCase());
     return list.includes(norm);
   }
 

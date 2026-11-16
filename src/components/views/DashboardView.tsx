@@ -4,12 +4,12 @@ import { SPIKE_LOGO_URL } from '../../data/mockData';
 import { TradingViewChart } from '../TradingViewChart';
 import { GoldenHawkMiningSection } from '../GoldenHawkMiningSection';
 
-const BSCSCAN_TOKEN_URL = 'https://bscscan.com/token/0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+const BSCSCAN_TOKEN_URL = 'https://bscscan.com/token/0xc213905ac995bCC943c077b7918c8134094A9267';
 export const PANCAKESWAP_PAIR_CONTRACT = '0xdB75fAB72e56492CFE870344D115C57047992F3c';
 export const BSCSCAN_PAIR_URL = 'https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c';
 export const PANCAKESWAP_ROUTER_ADDRESS = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
 export const BSCSCAN_ROUTER_URL = 'https://bscscan.com/address/0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
-const PANCAKESWAP_ROUTER_URL = 'https://pancakeswap.finance/swap?outputCurrency=0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+const PANCAKESWAP_ROUTER_URL = 'https://pancakeswap.finance/swap?outputCurrency=0xc213905ac995bCC943c077b7918c8134094A9267';
 
 interface CandleTick {
   time: string;

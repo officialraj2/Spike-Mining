@@ -21,11 +21,6 @@ interface GoldenHawkMiningSectionProps {
   isRootWallet?: boolean;
 }
 
-const ROOT_WALLETS = [
-  '0x3471e07c4d2f7e11c155760a7b386e616b5c3715', // Project Creator Master Wallet
-  '0x71C8a914B97e889F12A0987cB32456Fa12349A2', // Protocol Co-Admin Wallet
-];
-
 export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = ({
   totalHashrate,
   walletBalance,
@@ -40,12 +35,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   onOpenDepositModal,
   isRootWallet = false,
 }) => {
-  // Root / Master wallet verification for developer test controls
-  const isRootWalletUser = Boolean(
-    isRootWallet ||
-    (walletAddress && ROOT_WALLETS.some((w) => w.toLowerCase() === walletAddress.toLowerCase())) ||
-    (typeof window !== 'undefined' && sessionStorage.getItem('spike_admin_authenticated') === 'true')
-  );
+  // Root / Master wallet status strictly verified via cryptographic signature session
+  const isRootWalletUser = Boolean(isRootWallet);
 
   // Turbo 10x is permanently fixed as requested
   const isTurbo = true;

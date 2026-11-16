@@ -386,7 +386,7 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
                   </span>
                 </div>
                 <p className="text-[10px] text-[#94a3b8] font-mono">
-                  Smart Contract call in progress. 10 USDT is transferring from your Web3 wallet to Treasury (0x3471...3715).
+                  Smart Contract call in progress. 10 USDT is transferring from your Web3 wallet to Official Protocol Treasury ({treasuryWallet.slice(0, 6)}...{treasuryWallet.slice(-4)}).
                 </p>
               </div>
             )}

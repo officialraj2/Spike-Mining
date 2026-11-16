@@ -30,20 +30,7 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showProviderPicker, setShowProviderPicker] = useState(false);
 
-  // Check if current session/wallet is authorized Root / Master creator wallet
-  const ROOT_WALLETS = [
-    '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-    '0x71c8a914b97e889f12a0987cb32456fa12349a2',
-  ];
-
-  const effectiveIsRoot = Boolean(
-    isRootWallet ||
-    (address && ROOT_WALLETS.includes(address.toLowerCase())) ||
-    (typeof window !== 'undefined' && (
-      sessionStorage.getItem('spike_admin_authenticated') === 'true' ||
-      ROOT_WALLETS.includes((localStorage.getItem('spike_wallet_address') || '').toLowerCase())
-    ))
-  );
+  const effectiveIsRoot = Boolean(isRootWallet);
 
   // Check if running inside an iframe (like AI Studio preview)
   const isInsideIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -241,18 +228,6 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
     setErrorMessage(
       `${id.toUpperCase()} extension or Web3 app is not detected in this browser. Please open this dApp inside your mobile wallet's in-app browser (MetaMask, Trust Wallet, or SafePal).`
     );
-  };
-
-  const handleConnectMasterWallet = () => {
-    onConnect('Master Creator Wallet', '0x3471e07c4d2f7e11c155760a7b386e616b5c3715');
-    setShowProviderPicker(false);
-    onClose();
-  };
-
-  const handleConnectDemoLeader = () => {
-    onConnect('Demo Leader', '0x71C8a914B97e889F12A0987cB32456Fa12349A2');
-    setShowProviderPicker(false);
-    onClose();
   };
 
   return (

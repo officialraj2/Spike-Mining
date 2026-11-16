@@ -19,6 +19,11 @@ import { registerReferralInFirestore, getReferralsFromFirestore, isUserAlreadyBo
 import { persistMiningStart, fetchActiveMiningSession } from './services/miningSessionSync';
 import { getRealActiveAccount, requestWeb3Connection, subscribeToWeb3AccountChanges } from './services/web3WalletSync';
 import { AiMiningAssistant } from './components/AiMiningAssistant';
+import {
+  clearAdminSession,
+  getActiveAdminSession,
+  isMasterWalletHashMatch,
+} from './services/adminAuth';
 
 
 // Code-split heavy views and modals for sub-100ms ultra-fast initial paint
@@ -201,12 +206,6 @@ export default function App() {
     isWalletConnectedRef.current = isWalletConnected;
   }, [walletAddress, isWalletConnected]);
 
-  // Designated Master Wallets with root auto-recognition
-  const MASTER_WALLETS = [
-    '0x3471e07c4d2f7e11c155760a7b386e616b5c3715', // Project Creator Master Wallet
-    '0x71C8a914B97e889F12A0987cB32456Fa12349A2', // Protocol Co-Admin Wallet
-  ];
-
   const [globalSettings, setGlobalSettings] = useState<AdminSettings | null>(() => {
     try {
       const cached = localStorage.getItem('spike_global_settings');
@@ -215,27 +214,27 @@ export default function App() {
     return null;
   });
 
-  // Auto-recognition of Master User
-  const isMasterUser = Boolean(
+  // Trigger counter to re-evaluate verified cryptographic admin session
+  const [adminAuthTick, setAdminAuthTick] = useState<number>(0);
+
+  // Hash-only check to show Admin navigation entry to connected Master Wallet owner (does NOT unlock admin!)
+  const isMasterWalletEligible = Boolean(
     isWalletConnected &&
     walletAddress &&
-    (
-      MASTER_WALLETS.map((w) => w.toLowerCase()).includes(walletAddress.toLowerCase()) ||
-      (globalSettings?.masterWalletAddresses &&
-        globalSettings.masterWalletAddresses.map((w) => w.toLowerCase()).includes(walletAddress.toLowerCase()))
-    )
+    isMasterWalletHashMatch(walletAddress, globalSettings?.masterWalletAddresses)
   );
 
-  // Admin access state (checked via master wallet, admin wallet, or verified passcode session)
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem('spike_admin_authenticated') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  // Admin & Master privileges strictly require an active verified ECDSA signature session
+  const verifiedAdminSession =
+    isWalletConnected && walletAddress
+      ? getActiveAdminSession(walletAddress, globalSettings?.masterWalletAddresses)
+      : null;
 
-  const isAdmin = isMasterUser || isAdminUnlocked;
+  // Keep adminAuthTick referenced so session unlock/lock re-renders immediately
+  void adminAuthTick;
+
+  const isMasterUser = Boolean(verifiedAdminSession);
+  const isAdmin = Boolean(verifiedAdminSession);
 
   // Real-time synchronization of project-wide global settings
   useEffect(() => {
@@ -2053,7 +2052,8 @@ export default function App() {
       localStorage.removeItem('spike_wallet_address');
       localStorage.removeItem('spike_balance_usdt');
       localStorage.removeItem('spike_balance_bnb');
-      sessionStorage.removeItem('spike_admin_authenticated');
+      clearAdminSession();
+      setAdminAuthTick((t) => t + 1);
       localStorage.setItem('spike_active_tab', 'home');
     } catch {}
     addToast('Logged Out', 'Disconnected from BEP-20 provider. Switched to public Home overview.', 'info');
@@ -2238,12 +2238,7 @@ export default function App() {
             onNetworkChange={setNetwork}
             onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
             onUnlockAdmin={() => {
-              setIsAdminUnlocked(true);
-              try {
-                sessionStorage.setItem('spike_admin_authenticated', 'true');
-              } catch {
-                // ignore
-              }
+              setAdminAuthTick((t) => t + 1);
             }}
           />
         );
@@ -2317,7 +2312,7 @@ export default function App() {
               onOpenDepositModal={() => setIsDepositModalOpen(true)}
               onNavigateHomeSection={handleNavigateHomeSection}
               onDisconnectWallet={handleDisconnectWallet}
-              isAdmin={isAdmin}
+              isAdmin={isAdmin || isMasterWalletEligible}
               isMasterUser={isMasterUser}
             />
           </div>
@@ -2336,7 +2331,7 @@ export default function App() {
             onOpenLogin={() => setIsConnectModalOpen(true)}
             onNavigateHomeSection={handleNavigateHomeSection}
             isSimulator={true}
-            isAdmin={isAdmin}
+            isAdmin={isAdmin || isMasterWalletEligible}
           />
         </div>
 
@@ -2453,7 +2448,8 @@ export default function App() {
           onTabChange={handleTabChange}
           nodeCount={nodes.length}
           onOpenSwapModal={() => setIsSwapModalOpen(true)}
-          isAdmin={isAdmin}
+          isAdmin={isAdmin || isMasterWalletEligible}
+          isMasterUser={isMasterUser}
         />
       )}
 
@@ -2479,7 +2475,8 @@ export default function App() {
           onOpenDepositModal={() => setIsDepositModalOpen(true)}
           onNavigateHomeSection={handleNavigateHomeSection}
           onDisconnectWallet={handleDisconnectWallet}
-          isAdmin={isAdmin}
+          isAdmin={isAdmin || isMasterWalletEligible}
+          isMasterUser={isMasterUser}
         />
 
 
@@ -2499,7 +2496,7 @@ export default function App() {
         onOpenLogin={() => setIsConnectModalOpen(true)}
         onNavigateHomeSection={handleNavigateHomeSection}
         isSimulator={false}
-        isAdmin={isAdmin}
+        isAdmin={isAdmin || isMasterWalletEligible}
       />
 
       {/* Modals & Dialogs (Mounted strictly on-demand for maximum speed) */}

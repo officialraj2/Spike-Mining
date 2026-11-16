@@ -1,5 +1,6 @@
 import { doc, setDoc, getDocs, collection, query, where, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getAdminAuthHeaders } from './adminAuth';
 
 export interface FirestoreWithdrawalRecord {
   id: string;
@@ -313,7 +314,7 @@ export async function approveWithdrawal(
     try {
       await fetch(`/api/admin/withdrawals/${id}/approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({ txHash, adminNote }),
       }).catch(() => null);
     } catch {}
@@ -371,7 +372,7 @@ export async function rejectWithdrawal(
     try {
       await fetch(`/api/admin/withdrawals/${id}/reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({ reason }),
       }).catch(() => null);
     } catch {}

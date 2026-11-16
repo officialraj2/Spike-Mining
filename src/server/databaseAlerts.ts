@@ -14,14 +14,14 @@ export interface SystemAlert {
   status: 'ACTIVE' | 'RESOLVED';
 }
 
-export const PRIMARY_ADMIN_ALERT_EMAIL = 'officialraj2@gmail.com';
+export const PRIMARY_ADMIN_ALERT_EMAIL = process.env.ADMIN_ALERT_EMAIL || 'officialraj2@gmail.com';
+const MASKED_ADMIN_CHANNEL = 'Backend Protected Admin Channel';
 
 const memoryAlerts: SystemAlert[] = [];
 
 /**
- * Dispatches an automated early-warning alert to the primary administrator email
- * (officialraj2@gmail.com) whenever any database irregularity, write retry,
- * or sync problem occurs.
+ * Dispatches an automated early-warning alert to the private administrator channel
+ * whenever any database irregularity, write retry, or sync problem occurs.
  */
 export async function dispatchSystemAlert(alert: {
   severity: 'CRITICAL' | 'WARNING' | 'INFO';
@@ -41,7 +41,7 @@ export async function dispatchSystemAlert(alert: {
     title: alert.title,
     message: alert.message,
     details: alert.details || null,
-    recipientEmail: PRIMARY_ADMIN_ALERT_EMAIL,
+    recipientEmail: MASKED_ADMIN_CHANNEL,
     dispatched: true,
     status: 'ACTIVE',
   };
@@ -51,10 +51,9 @@ export async function dispatchSystemAlert(alert: {
     memoryAlerts.pop();
   }
 
-  // Print prominent system alert banner in server console
+  // Print system alert notice in server logs without leaking PII to client/Firestore
   console.warn(`\n=====================================================================`);
   console.warn(`🚨 [SPIKE DATABASE HEALTH ALERT DISPATCHED]`);
-  console.warn(`To: ${PRIMARY_ADMIN_ALERT_EMAIL}`);
   console.warn(`Severity: ${newAlert.severity} | Category: ${newAlert.category}`);
   console.warn(`Title: ${newAlert.title}`);
   console.warn(`Message: ${newAlert.message}`);
@@ -128,7 +127,7 @@ export async function performDatabaseHealthCheck(): Promise<{
     return {
       healthy,
       latencyMs: latency,
-      alertRecipient: PRIMARY_ADMIN_ALERT_EMAIL,
+      alertRecipient: MASKED_ADMIN_CHANNEL,
       firestoreConnected: !!firestore,
       message,
     };
@@ -144,7 +143,7 @@ export async function performDatabaseHealthCheck(): Promise<{
     return {
       healthy: false,
       latencyMs: Date.now() - start,
-      alertRecipient: PRIMARY_ADMIN_ALERT_EMAIL,
+      alertRecipient: MASKED_ADMIN_CHANNEL,
       firestoreConnected: !!firestore,
       message: `Database error: ${err?.message || 'Check failed'}`,
     };

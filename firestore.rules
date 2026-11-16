@@ -59,7 +59,8 @@ service cloud.firestore {
 
     function isValidSystemSettings(data) {
       return data.keys().hasAll(['maintenanceMode']) &&
-        data.maintenanceMode is bool;
+        data.maintenanceMode is bool &&
+        (!('treasuryWalletAddress' in data) || (data.treasuryWalletAddress is string && data.treasuryWalletAddress.size() == 42));
     }
 
     function isValidAuditLog(data) {
@@ -89,76 +90,92 @@ service cloud.firestore {
 
     // Admins Collection
     match /admins/{adminId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
-    // Users Collection
+    // Users Collection (strictly prevents non-admin role escalation or deletion)
     match /users/{userId} {
       allow read: if true;
-      allow create, update: if isValidId(userId) && isValidUserProfile(incoming());
-      allow delete: if true;
+      allow create: if isAdmin() || (
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().role == 'user' &&
+        incoming().status == 'active'
+      );
+      allow update: if isAdmin() || (
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().role == existing().role &&
+        incoming().status == existing().status &&
+        incoming().address == existing().address
+      );
+      allow delete: if isAdmin();
     }
 
     // Mining Nodes Collection
     match /nodes/{nodeId} {
       allow read: if true;
       allow create, update: if isValidId(nodeId) && isValidMiningNode(incoming());
-      allow delete: if true;
+      allow delete: if isAdmin();
     }
 
     // Reward Transactions Collection
     match /transactions/{txId} {
       allow read: if true;
       allow create, update: if isValidId(txId) && isValidRewardTransaction(incoming());
-      allow delete: if true;
+      allow delete: if isAdmin();
     }
 
     // Referrals Collection
     match /referrals/{refId} {
       allow read: if true;
       allow create, update: if isValidId(refId) && isValidReferral(incoming());
-      allow delete: if true;
+      allow delete: if isAdmin();
     }
 
     // Withdrawals Collection
     match /withdrawals/{withdrawalId} {
       allow read: if true;
-      allow create, update: if isValidId(withdrawalId) && (isAdmin() || isValidWithdrawal(incoming()));
-      allow delete: if true;
+      allow create: if isAdmin() || (
+        isValidId(withdrawalId) &&
+        isValidWithdrawal(incoming()) &&
+        incoming().status == 'pending'
+      );
+      allow update: if isValidId(withdrawalId) && (isAdmin() || isValidWithdrawal(incoming()));
+      allow delete: if isAdmin();
     }
 
     // Global Settings Collection
     match /settings/{settingId} {
       allow read: if true;
       allow create, update: if isValidId(settingId) && isValidSystemSettings(incoming());
-      allow delete: if true;
+      allow delete: if isAdmin();
     }
 
     // Audit Logs Collection
     match /auditLogs/{logId} {
-      allow read: if true;
+      allow read: if isAdmin();
       allow create, update: if isValidId(logId) && isValidAuditLog(incoming());
-      allow delete: if true;
+      allow delete: if isAdmin();
     }
 
     // Mining Sessions Collection
     match /mining_sessions/{sessionId} {
       allow read: if true;
       allow create, update: if isValidId(sessionId);
-      allow delete: if true;
+      allow delete: if isAdmin();
     }
 
     // System Alerts Collection
     match /system_alerts/{alertId} {
-      allow read: if true;
+      allow read, delete: if isAdmin();
       allow create, update: if isValidId(alertId);
-      allow delete: if isAdmin();
     }
 
     // Connection Test Document for Validation
     match /test/{testId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

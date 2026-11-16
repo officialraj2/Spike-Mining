@@ -2,6 +2,9 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { testConnection } from './firebase.ts';
+import { initAntiInspectGuard } from './utils/antiInspect.ts';
+
+initAntiInspectGuard();
 
 // Catch and gracefully handle third-party browser extension injection errors, MetaMask inpage timeouts, and Firestore quota notices
 if (typeof window !== 'undefined') {

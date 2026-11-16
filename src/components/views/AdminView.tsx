@@ -10,6 +10,12 @@ import {
 import { getAllWithdrawals, approveWithdrawal, rejectWithdrawal } from '../../services/firestoreWithdrawals';
 import { db as firestoreDb } from '../../firebase';
 import { collection, doc, getDocs, getDoc, onSnapshot } from 'firebase/firestore';
+import {
+  authenticateMasterWalletWithSignature,
+  clearAdminSession,
+  getAdminAuthHeaders,
+  isMasterWalletHashMatch,
+} from '../../services/adminAuth';
 
 // Safe JSON parser helper to prevent "Unexpected end of JSON input" errors
 async function safeJsonParse(res: Response): Promise<any> {
@@ -45,8 +51,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
   onNetworkChange,
   onOpenTestnetModal,
 }) => {
-  const MASTER_CREATOR_ADDR = '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
-  
   // Backend state
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -57,19 +61,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Master User recognition
-  const isEffectiveMaster = Boolean(
-    isMasterUser ||
-    (currentWallet && [
-      MASTER_CREATOR_ADDR.toLowerCase(),
-      '0x71c8a914b97e889f12a0987cb32456fa12349a2'
-    ].includes(currentWallet.toLowerCase())) ||
-    (settings?.masterWalletAddresses && currentWallet && settings.masterWalletAddresses.map((a: string) => a.toLowerCase()).includes(currentWallet.toLowerCase()))
-  );
+  // Master User recognition strictly tied to verified signature session
+  const isEffectiveMaster = Boolean(isAdmin && isMasterUser);
 
   const [activeSubTab, setActiveSubTab] = useState<
     'master' | 'overview' | 'claims' | 'withdrawals' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
-  >(isMasterUser || (currentWallet && currentWallet.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase()) ? 'master' : 'overview');
+  >(isMasterUser ? 'master' : 'overview');
 
   // Admin Claim Tracker State
   const [claimsList, setClaimsList] = useState<Array<{
@@ -105,9 +102,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [isSavingMasterSettings, setIsSavingMasterSettings] = useState(false);
   const [masterUserSearch, setMasterUserSearch] = useState('');
 
-  // Security gate passcode state
-  const [passcode, setPasscode] = useState('');
-  const [passcodeError, setPasscodeError] = useState(false);
+  // Cryptographic Master Wallet signature authentication state
+  const [isSigningAuth, setIsSigningAuth] = useState(false);
+  const [signatureError, setSignatureError] = useState<string | null>(null);
 
   // Search & Filter
   const [userSearch, setUserSearch] = useState('');
@@ -179,11 +176,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       const res = await fetch(`/api/admin/users/${cleanAddr}/hashrate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({
           hashrate: hashrateVal,
           reason: reasonStr,
-          adminUser: 'Admin Portal',
+          adminUser: currentWallet || 'Master Admin',
         }),
       });
       const data = await safeJsonParse(res);
@@ -226,19 +223,21 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
-  // Fetch full admin dashboard data from backend API with automatic Cloud Firestore fallback for static domains
+  // Fetch full admin dashboard data from backend API with automatic Cloud Firestore fallback
   const fetchAllData = useCallback(async (quiet = false) => {
+    if (!isAdmin) return;
     if (!quiet) setIsRefreshing(true);
     let apiSuccess = false;
+    const authHeaders = getAdminAuthHeaders();
     try {
       const [metricsRes, usersRes, nodesRes, txsRes, claimsRes, settingsRes, logsRes, treasuryRes, withdrawalsRes] = await Promise.all([
-        fetch('/api/admin/metrics').catch(() => null),
-        fetch('/api/admin/users').catch(() => null),
-        fetch('/api/admin/nodes').catch(() => null),
-        fetch('/api/admin/transactions').catch(() => null),
-        fetch('/api/admin/claims?limit=500').catch(() => null),
-        fetch('/api/admin/settings').catch(() => null),
-        fetch('/api/admin/audit-logs').catch(() => null),
+        fetch('/api/admin/metrics', { headers: authHeaders }).catch(() => null),
+        fetch('/api/admin/users', { headers: authHeaders }).catch(() => null),
+        fetch('/api/admin/nodes', { headers: authHeaders }).catch(() => null),
+        fetch('/api/admin/transactions', { headers: authHeaders }).catch(() => null),
+        fetch('/api/admin/claims?limit=500', { headers: authHeaders }).catch(() => null),
+        fetch('/api/admin/settings', { headers: authHeaders }).catch(() => null),
+        fetch('/api/admin/audit-logs', { headers: authHeaders }).catch(() => null),
         fetch('/api/treasury').catch(() => null),
         fetch('/api/withdrawals').catch(() => null),
       ]);
@@ -345,7 +344,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
           if (addr && addr.startsWith('0x')) {
             loadedUsers.push({
               address: addr,
-              role: (data.role || (addr.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase() ? 'master' : 'user')) as any,
+              role: (data.role || (isMasterWalletHashMatch(addr) ? 'master' : 'user')) as any,
               status: (data.status || 'active') as any,
               balanceUsdt: Number(data.balanceUsdt || 0),
               balanceBnb: Number(data.balanceBnb || 0.005),
@@ -494,18 +493,20 @@ export const AdminView: React.FC<AdminViewProps> = ({
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
+    if (!isAdmin) return;
     fetchAllData();
     const interval = setInterval(() => {
       fetchAllData(true);
     }, 8000);
     return () => clearInterval(interval);
-  }, [fetchAllData]);
+  }, [fetchAllData, isAdmin]);
 
-  // Real-Time live listener for Treasury Vault and Node activations (Instant live updates)
+  // Real-Time live listener for Treasury Vault and Node activations (only when signed in)
   useEffect(() => {
+    if (!isAdmin) return;
     let unsubSettings: (() => void) | undefined;
     let unsubNodes: (() => void) | undefined;
 
@@ -583,11 +584,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       await fetch(`/api/admin/users/${targetAddr}/adjust-balance`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({
           usdtDelta: delta,
           reason: adjustReason,
-          adminUser: 'Admin Dashboard',
+          adminUser: currentWallet || 'Master Admin',
         }),
       });
     } catch {}
@@ -614,10 +615,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
       try {
         const res = await fetch(`/api/admin/withdrawals/${id}/approve`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
           body: JSON.stringify({
             txHash: customHash,
-            adminUser: currentWallet || 'Master Admin (0x3471...3715)',
+            adminUser: currentWallet || 'Master Admin',
           }),
         });
         const data = await safeJsonParse(res);
@@ -688,10 +689,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
       try {
         const res = await fetch(`/api/admin/withdrawals/${id}/reject`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
           body: JSON.stringify({
             reason,
-            adminUser: currentWallet || 'Master Admin (0x3471...3715)',
+            adminUser: currentWallet || 'Master Admin',
           }),
         });
         const data = await safeJsonParse(res);
@@ -795,7 +796,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       const res = await fetch('/api/admin/faucet/credit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({
           walletAddress: addr,
           amount: faucetAmount,
@@ -833,8 +834,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       const res = await fetch(`/api/admin/users/${user.address}/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus, adminUser: 'Admin Dashboard' }),
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+        body: JSON.stringify({ status: nextStatus, adminUser: currentWallet || 'Master Admin' }),
       });
       if (res.ok) {
         onNotify?.('User Status Updated', `${user.address.slice(0, 8)}... is now ${nextStatus}`, 'info');
@@ -873,7 +874,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       };
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify(payload),
       });
       if (res.ok) {
@@ -902,10 +903,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
       };
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({
           ...payload,
-          adminUser: currentWallet || 'Master User (0x3471...3715)',
+          adminUser: currentWallet || 'Master User',
         }),
       });
       if (res.ok) {
@@ -945,7 +946,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       const res = await fetch(`/api/admin/users/${targetAddress.toLowerCase()}/role`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({ role: newRole, adminUser: currentWallet || 'Master Admin' }),
       });
       const data = await safeJsonParse(res);
@@ -963,14 +964,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
   // Handle Add Authorized Master Wallet
   const handleAddMasterWallet = async () => {
     const clean = newMasterInput.trim();
-    if (!clean.startsWith('0x') || clean.length < 10) {
-      onNotify?.('Invalid Address', 'Enter a valid EVM address starting with 0x', 'error');
+    if (!/^0x[a-fA-F0-9]{40}$/.test(clean)) {
+      onNotify?.('Invalid Address', 'Enter a valid 42-char EVM address starting with 0x', 'error');
       return;
     }
-    const currentList = settingsForm.masterWalletAddresses || [
-      '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-      '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-    ];
+    const currentList = settingsForm.masterWalletAddresses || [];
     if (currentList.map((a) => a.toLowerCase()).includes(clean.toLowerCase())) {
       onNotify?.('Already Master', 'This wallet is already authorized as master', 'info');
       return;
@@ -981,8 +979,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       await fetch('/api/admin/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ masterWalletAddresses: updatedList, adminUser: 'Master User' }),
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+        body: JSON.stringify({ masterWalletAddresses: updatedList, adminUser: currentWallet || 'Master User' }),
       });
       onNotify?.('Master Wallet Added', `${clean.slice(0, 8)}... authorized with root privileges!`, 'success');
       fetchAllData(true);
@@ -991,7 +989,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   // Handle Remove Master Wallet
   const handleRemoveMasterWallet = async (removeAddr: string) => {
-    if (removeAddr.toLowerCase() === MASTER_CREATOR_ADDR.toLowerCase()) {
+    if (isMasterWalletHashMatch(removeAddr)) {
       onNotify?.('Protected', 'Primary creator wallet cannot be removed.', 'warning');
       return;
     }
@@ -1001,8 +999,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       await fetch('/api/admin/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ masterWalletAddresses: updatedList, adminUser: 'Master User' }),
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+        body: JSON.stringify({ masterWalletAddresses: updatedList, adminUser: currentWallet || 'Master User' }),
       });
       onNotify?.('Master Wallet Removed', `${removeAddr.slice(0, 8)}... removed from master list`, 'info');
       fetchAllData(true);
@@ -1014,7 +1012,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       await fetch('/api/admin/faucet/credit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({
           walletAddress: address,
           amount: 100,
@@ -1024,11 +1022,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
       });
       await fetch(`/api/admin/users/${address.toLowerCase()}/hashrate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
         body: JSON.stringify({
           hashrate: 200,
           reason: 'Founder Welcome Grant (Level 1 Boost)',
-          adminUser: 'Master User',
+          adminUser: currentWallet || 'Master User',
         }),
       });
       onNotify?.(
@@ -1058,8 +1056,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
     try {
       const res = await fetch('/api/admin/treasury/update-address', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newAddress: target, adminUser: 'Admin Dashboard' }),
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+        body: JSON.stringify({ newAddress: target, adminUser: currentWallet || 'Master Admin' }),
       });
       const data = await safeJsonParse(res);
       if (res.ok && data?.success) {
@@ -1090,14 +1088,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   // Handle Database Reset
   const handleResetDatabase = async () => {
-    if (!window.confirm('Are you sure you want to re-seed the backend database with default demo state?')) {
+    if (!window.confirm('Are you sure you want to re-seed the backend database with default baseline state?')) {
       return;
     }
     try {
       const res = await fetch('/api/db/reset', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminAddress: 'Admin' }),
+        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
+        body: JSON.stringify({ adminAddress: currentWallet || 'Master Admin' }),
       });
       if (res.ok) {
         onNotify?.('Database Reset', 'Database re-seeded successfully', 'info');
@@ -1111,7 +1109,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const handleSyncFirebase = async () => {
     setSyncingFirebase(true);
     try {
-      const res = await fetch('/api/firebase/sync', { method: 'POST' });
+      const res = await fetch('/api/firebase/sync', {
+        method: 'POST',
+        headers: { ...getAdminAuthHeaders() },
+      });
       const data = await safeJsonParse(res);
       if (data?.success) {
         onNotify?.(
@@ -1133,12 +1134,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const handleSendTestAlert = async () => {
     setIsSendingTestAlert(true);
     try {
-      const res = await fetch('/api/alerts/send-test', { method: 'POST' });
+      const res = await fetch('/api/alerts/send-test', {
+        method: 'POST',
+        headers: { ...getAdminAuthHeaders() },
+      });
       const data = await res.json();
       if (data && data.success) {
         onNotify?.(
           'Alert Sent!',
-          'Database early-warning alert successfully triggered to officialraj2@gmail.com!',
+          'Database early-warning alert successfully dispatched to private backend administrator channel!',
           'success'
         );
       } else {
@@ -1175,21 +1179,30 @@ export const AdminView: React.FC<AdminViewProps> = ({
     return n.status === nodeFilter;
   });
 
-  const handleVerifyPasscode = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const clean = passcode.trim();
-    if (clean === 'spike2026' || clean === 'admin123' || clean === '719842') {
-      setPasscodeError(false);
-      onNotify?.('Access Granted', 'Administrator identity verified.', 'success');
-      onUnlockAdmin?.();
-    } else {
-      setPasscodeError(true);
-      onNotify?.('Access Denied', 'Invalid administrator security key.', 'error');
+  const handleMasterSignatureAuth = async () => {
+    setSignatureError(null);
+    setIsSigningAuth(true);
+    try {
+      const result = await authenticateMasterWalletWithSignature(settings?.masterWalletAddresses);
+      if (result.success) {
+        onNotify?.('Master Signature Verified', 'Cryptographic ECDSA session unlocked.', 'success');
+        onUnlockAdmin?.();
+      } else {
+        const msg = result.error || 'Master Wallet signature verification failed.';
+        setSignatureError(msg);
+        onNotify?.('Access Denied', msg, 'error');
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Signature authentication failed.';
+      setSignatureError(msg);
+      onNotify?.('Authentication Error', msg, 'error');
+    } finally {
+      setIsSigningAuth(false);
     }
   };
 
-  // If user is not authorized as admin and not a recognized master user, show security authentication gate
-  if (!isAdmin && !isEffectiveMaster) {
+  // Strict cryptographic gate: ONLY a verified Master Wallet ECDSA signature can unlock Admin Panel
+  if (!isAdmin) {
     return (
       <div className="max-w-xl mx-auto my-12 p-6 sm:p-10 rounded-3xl bg-[#0d1d2c] border-2 border-red-500/30 shadow-[0_0_50px_rgba(239,68,68,0.15)] text-center space-y-6">
         <div className="w-20 h-20 rounded-2xl bg-red-500/10 text-red-400 border border-red-500/30 flex items-center justify-center mx-auto shadow-inner">
@@ -1199,102 +1212,60 @@ export const AdminView: React.FC<AdminViewProps> = ({
         <div className="space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/40">
             <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
-            RESTRICTED ADMIN ZONE
+            CRYPTOGRAPHIC SIGNATURE GATE
           </div>
           <h2 className="text-2xl font-extrabold font-headline text-white tracking-tight">
-            Administrator Authentication Required
+            Master Wallet Signature Required
           </h2>
           <p className="text-xs text-[#94a3b8] leading-relaxed max-w-md mx-auto">
-            Ye section sirf protocol operators aur system administrators ke liye reserved hai. Normal users ko database records aur balance adjustments ka access nahi hota.
+            Admin Console sirf authorized Master Wallet ke real Web3 ECDSA signature (MetaMask, SafePal, ya Trust Wallet) se hi unlock hota hai. Passcodes aur direct unlocks permanently disabled hain.
           </p>
         </div>
 
-        {/* Master User Direct Root Option */}
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-[#D4AF37]/20 via-[#122130] to-[#00F0FF]/20 border border-[#D4AF37]/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shrink-0">
-              <span className="material-symbols-outlined text-[22px]">admin_panel_settings</span>
-            </div>
-            <div>
-              <div className="text-xs font-bold text-white flex items-center gap-2">
-                <span>Master User (Root Owner)</span>
-                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#D4AF37] text-[#0A0F1D]">ROOT</span>
-              </div>
-              <div className="text-[11px] text-[#94a3b8] font-mono">
-                0x3471...3715 holds permanent protocol root authority.
-              </div>
-            </div>
+        <div className="p-4 rounded-2xl bg-[#122130]/90 border border-[#D4AF37]/40 text-left space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-[#D4AF37]">
+            <span className="material-symbols-outlined text-[18px]">verified_user</span>
+            <span>Zero-Trust Hardware / Extension Proof</span>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              onUnlockAdmin?.();
-              onNotify?.('Master Access Granted', 'Authenticated as Master Creator with root authority.', 'success');
-            }}
-            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] font-headline font-bold text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:opacity-95 transition-all cursor-pointer whitespace-nowrap"
-          >
-            Enter Master Console
-          </button>
+          <p className="text-[11px] font-mono text-[#94a3b8] leading-relaxed">
+            Sign a one-time cryptographic challenge nonce with your Master Wallet. No gas fee or blockchain transaction is sent.
+          </p>
+          {currentWallet && (
+            <div className="text-[11px] font-mono text-[#00F0FF] pt-1">
+              Active Browser Wallet: {currentWallet.slice(0, 6)}...{currentWallet.slice(-4)}
+            </div>
+          )}
         </div>
 
-        {/* Security Passcode Form */}
-        <form onSubmit={handleVerifyPasscode} className="space-y-3.5 max-w-md mx-auto text-left">
-          <div>
-            <label className="block text-xs font-mono text-[#94a3b8] mb-1">
-              Admin Master Passcode / Security Key:
-            </label>
-            <div className="relative">
-              <input
-                type="password"
-                placeholder="Enter admin passcode (e.g. spike2026)..."
-                value={passcode}
-                onChange={(e) => {
-                  setPasscode(e.target.value);
-                  setPasscodeError(false);
-                }}
-                className={`w-full bg-[#122130] border rounded-xl px-4 py-3 text-sm font-mono text-white placeholder-[#94a3b8]/50 focus:outline-none ${
-                  passcodeError ? 'border-red-500 text-red-200' : 'border-[#1c2b3b] focus:border-[#00F0FF]'
-                }`}
-              />
-              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[#94a3b8] text-[20px]">
-                key
-              </span>
-            </div>
-            {passcodeError && (
-              <p className="text-xs font-mono text-red-400 mt-1.5 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">error</span>
-                Incorrect passcode. Authorized credentials required.
-              </p>
-            )}
+        {signatureError && (
+          <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/40 text-xs font-mono text-red-300 flex items-start gap-2 text-left">
+            <span className="material-symbols-outlined text-[16px] text-red-400 shrink-0 mt-0.5">error</span>
+            <span>{signatureError}</span>
           </div>
+        )}
 
-          <button
-            type="submit"
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#00F0FF] text-[#0A0F1D] font-headline font-bold text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(212,175,55,0.4)] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[18px]">verified_user</span>
-            <span>Authenticate &amp; Unlock Admin Panel</span>
-          </button>
-        </form>
+        <button
+          type="button"
+          onClick={handleMasterSignatureAuth}
+          disabled={isSigningAuth}
+          className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#00F0FF] text-[#0A0F1D] font-headline font-bold text-xs uppercase tracking-wider shadow-[0_0_24px_rgba(212,175,55,0.4)] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {isSigningAuth ? 'progress_activity' : 'draw'}
+          </span>
+          <span>
+            {isSigningAuth
+              ? 'Waiting for Master Wallet Signature...'
+              : 'Sign Message with Master Wallet to Unlock'}
+          </span>
+        </button>
 
-        <div className="pt-2 border-t border-[#1c2b3b] flex flex-col sm:flex-row items-center justify-center gap-3 text-xs font-mono">
+        <div className="pt-2 border-t border-[#1c2b3b] flex items-center justify-center text-xs font-mono">
           <button
             onClick={() => onNavigateTab('dashboard')}
             className="text-[#94a3b8] hover:text-white transition-colors cursor-pointer"
           >
             ← Return to User Dashboard
-          </button>
-          <span className="text-[#1c2b3b] hidden sm:inline">•</span>
-          <button
-            onClick={() => {
-              setPasscode('spike2026');
-              setTimeout(() => {
-                onNotify?.('Demo Key Applied', 'Passcode "spike2026" filled. Click Unlock!', 'info');
-              }, 50);
-            }}
-            className="text-[#00F0FF] hover:underline cursor-pointer"
-          >
-            Owner Quick Passcode (spike2026)
           </button>
         </div>
       </div>
@@ -1614,10 +1585,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <div className="mt-5 pt-4 border-t border-[#1c2b3b] flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs font-mono">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[#94a3b8]">Authorized Master Wallets:</span>
-                {(settingsForm.masterWalletAddresses || [
-                  '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-                  '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
-                ]).map((addr) => {
+                {(settingsForm.masterWalletAddresses || []).map((addr) => {
                   const isCurrent = currentWallet && currentWallet.toLowerCase() === addr.toLowerCase();
                   return (
                     <span
@@ -1630,7 +1598,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     >
                       <span>{addr.slice(0, 6)}...{addr.slice(-4)}</span>
                       {isCurrent && <span className="text-[10px] text-emerald-400 font-bold">(YOU)</span>}
-                      {addr.toLowerCase() !== MASTER_CREATOR_ADDR.toLowerCase() && (
+                      {!isMasterWalletHashMatch(addr) && (
                         <button
                           type="button"
                           onClick={() => handleRemoveMasterWallet(addr)}
@@ -2360,10 +2328,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <div className="p-3 rounded-xl bg-[#0a1520] border border-emerald-500/30 flex items-center justify-between">
                   <span className="text-[#94a3b8] flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-[16px] text-emerald-400">mark_email_read</span>
-                    Primary Alert Recipient:
+                    Primary Alert Channel:
                   </span>
-                  <span className="text-[#00F0FF] font-bold select-all bg-[#00F0FF]/10 px-2 py-0.5 rounded border border-[#00F0FF]/30">
-                    officialraj2@gmail.com
+                  <span className="text-[#00F0FF] font-bold bg-[#00F0FF]/10 px-2 py-0.5 rounded border border-[#00F0FF]/30">
+                    Private Backend Admin Channel
                   </span>
                 </div>
 
@@ -2385,7 +2353,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-[#0A0F1D] font-headline font-bold text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.35)] active:scale-95 cursor-pointer disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[18px]">outgoing_mail</span>
-                <span>{isSendingTestAlert ? 'Dispatching Alert...' : 'Send Test Alert to officialraj2@gmail.com'}</span>
+                <span>{isSendingTestAlert ? 'Dispatching Alert...' : 'Send Test Alert to Backend Admin Channel'}</span>
               </button>
             </div>
 

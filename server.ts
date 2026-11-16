@@ -9,6 +9,12 @@ import { firestore, config as firebaseConfig, syncEntireDatabase, syncDocument, 
 import { dispatchSystemAlert, getRecentAlerts, performDatabaseHealthCheck, PRIMARY_ADMIN_ALERT_EMAIL } from './src/server/databaseAlerts.ts';
 import { requireAuth } from './src/middleware/auth.ts';
 import type { AuthRequest } from './src/middleware/auth.ts';
+import {
+  issueAdminChallenge,
+  verifyAdminChallengeSignature,
+  verifyAdminSessionToken,
+  createRequireAdminSignature,
+} from './src/middleware/adminAuth.ts';
 import { getUsers as getSqlUsers, getOrCreateUser as getOrCreateSqlUser } from './src/db/users.ts';
 import { db as sqlDb } from './src/db/index.ts';
 import { users as sqlUsersTable, miningNodes as sqlMiningNodesTable, transactions as sqlTransactionsTable } from './src/db/schema.ts';
@@ -29,6 +35,7 @@ process.on('unhandledRejection', (reason: any) => {
 });
 
 const app = express();
+const requireAdminSignature = createRequireAdminSignature((addr) => db.isMasterUser(addr));
 const argPortIndex = process.argv.indexOf('--port');
 const argPort = argPortIndex !== -1 && process.argv[argPortIndex + 1] ? parseInt(process.argv[argPortIndex + 1], 10) : undefined;
 const envPort = process.env.PORT ? parseInt(process.env.PORT, 10) : undefined;
@@ -39,7 +46,7 @@ const PORT = (envPort && envPort !== 8080) ? envPort : ((argPort && argPort !== 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-admin-token');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(200);
   }
@@ -110,20 +117,20 @@ app.get('/api/db/health', async (req: Request, res: Response) => {
   });
 });
 
-// Primary Alerting & Health Monitor System (Target: officialraj2@gmail.com)
+// Primary Alerting & Health Monitor System (Admin email strictly private in backend)
 app.get('/api/alerts/health', async (_req: Request, res: Response) => {
   const result = await performDatabaseHealthCheck();
   res.json({
     success: true,
-    recipientEmail: PRIMARY_ADMIN_ALERT_EMAIL,
+    recipientChannel: 'Backend Protected Admin Channel',
     ...result,
   });
 });
 
-app.get('/api/alerts/recent', (_req: Request, res: Response) => {
+app.get('/api/alerts/recent', requireAdminSignature, (_req: Request, res: Response) => {
   res.json({
     success: true,
-    recipientEmail: PRIMARY_ADMIN_ALERT_EMAIL,
+    recipientChannel: 'Backend Protected Admin Channel',
     alerts: getRecentAlerts(30),
   });
 });
@@ -138,28 +145,27 @@ app.post('/api/alerts/database', async (req: Request, res: Response) => {
       message: message || 'Anomalous database operation captured.',
       details: { ...details, userAddress },
     });
-    res.json({ success: true, alert, recipientEmail: PRIMARY_ADMIN_ALERT_EMAIL });
+    res.json({ success: true, alert, recipientChannel: 'Backend Protected Admin Channel' });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err?.message || 'Failed to dispatch alert' });
   }
 });
 
-app.post('/api/alerts/send-test', async (_req: Request, res: Response) => {
+app.post('/api/alerts/send-test', requireAdminSignature, async (_req: Request, res: Response) => {
   try {
     const alert = await dispatchSystemAlert({
       severity: 'INFO',
       category: 'DATABASE',
       title: 'Database Early-Warning Alert Test',
-      message: `Test alert successfully triggered for ${PRIMARY_ADMIN_ALERT_EMAIL}. Real-time monitoring and anomaly interception active.`,
+      message: `Test alert successfully dispatched to ${PRIMARY_ADMIN_ALERT_EMAIL}. Real-time monitoring and anomaly interception active.`,
       details: {
         timestamp: new Date().toISOString(),
         databaseHealth: 'OPTIMAL',
-        registeredAdmin: PRIMARY_ADMIN_ALERT_EMAIL,
       },
     });
     res.json({
       success: true,
-      message: `Test database alert sent to ${PRIMARY_ADMIN_ALERT_EMAIL}!`,
+      message: 'Test database alert dispatched to configured backend administrator channel!',
       alert,
     });
   } catch (err: any) {
@@ -214,38 +220,35 @@ app.get('/api/mining/sessions/:address', (req: Request, res: Response) => {
   res.json({ success: true, activeSession, sessions });
 });
 
-app.get('/api/db/export', (req: Request, res: Response) => {
+app.get('/api/db/export', requireAdminSignature, (req: Request, res: Response) => {
   const exportData = db.exportData();
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Content-Disposition', `attachment; filename=spike_database_backup_${Date.now()}.json`);
   res.json(exportData);
 });
 
-app.post('/api/db/reset', async (req: Request, res: Response) => {
-  const adminAddress = req.body.adminAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+app.post('/api/db/reset', requireAdminSignature, async (req: Request, res: Response) => {
+  const adminAddress = (req as any).adminAddress || req.body.adminAddress || 'Master Admin';
   const result = db.resetMainnetBaseline(adminAddress);
   const firestoreResult = await purgeNonMasterFirestoreData([
     '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-    '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
   ]).catch(() => null);
   res.json({ ...result, firestore: firestoreResult });
 });
 
-app.post('/api/db/reset-mainnet', async (req: Request, res: Response) => {
-  const adminAddress = req.body.adminAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+app.post('/api/db/reset-mainnet', requireAdminSignature, async (req: Request, res: Response) => {
+  const adminAddress = (req as any).adminAddress || req.body.adminAddress || 'Master Admin';
   const result = db.resetMainnetBaseline(adminAddress);
   const firestoreResult = await purgeNonMasterFirestoreData([
     '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-    '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
   ]).catch(() => null);
   res.json({ ...result, firestore: firestoreResult });
 });
 
-app.post('/api/db/clean-to-master-only', async (req: Request, res: Response) => {
+app.post('/api/db/clean-to-master-only', requireAdminSignature, async (req: Request, res: Response) => {
   try {
     const masterWallets = req.body.masterWallets || [
       '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-      '0x71C8a914B97e889F12A0987cB32456Fa12349A2',
     ];
     // 1. Purge memory and local JSON database
     const dbResult = db.purgeNonMasterData(masterWallets);
@@ -288,7 +291,7 @@ app.get('/api/firebase/status', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/firebase/sync', async (req: Request, res: Response) => {
+app.post('/api/firebase/sync', requireAdminSignature, async (req: Request, res: Response) => {
   try {
     const allData = db.exportData();
     const result = await syncEntireDatabase(allData);
@@ -374,9 +377,63 @@ app.get('/admin', (req: Request, res: Response) => {
 });
 
 // ============================================================
-// ADMIN PANEL APIS
+// ADMIN CRYPTOGRAPHIC SIGNATURE AUTHENTICATION & PANEL APIS
 // ============================================================
-app.get('/api/admin/metrics', (req: Request, res: Response) => {
+app.post('/api/admin/auth/challenge', (req: Request, res: Response) => {
+  const { address } = req.body || {};
+  const clean = typeof address === 'string' ? address.trim().toLowerCase() : '';
+  if (!/^0x[a-f0-9]{40}$/.test(clean)) {
+    res.status(400).json({ success: false, error: 'Valid BEP-20 wallet address required.' });
+    return;
+  }
+  if (!db.isMasterUser(clean)) {
+    res.status(403).json({ success: false, error: 'Connected wallet is not an authorized Master Wallet.' });
+    return;
+  }
+  const challengeData = issueAdminChallenge(clean);
+  if (!challengeData) {
+    res.status(400).json({ success: false, error: 'Could not create challenge.' });
+    return;
+  }
+  res.json({ success: true, ...challengeData });
+});
+
+app.post('/api/admin/auth/verify', (req: Request, res: Response) => {
+  const { address, challenge, signature } = req.body || {};
+  const result = verifyAdminChallengeSignature(
+    address,
+    challenge,
+    signature,
+    (addr) => db.isMasterUser(addr)
+  );
+  if (!result.success) {
+    res.status(401).json(result);
+    return;
+  }
+  res.json({
+    success: true,
+    token: result.token,
+    expiresAt: result.expiresAt,
+    address: String(address).trim().toLowerCase(),
+  });
+});
+
+app.get('/api/admin/auth/session', (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  const headerToken = req.headers['x-admin-token'];
+  const token =
+    (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : undefined) ||
+    (typeof headerToken === 'string' ? headerToken.trim() : undefined);
+
+  const payload = verifyAdminSessionToken(token, (addr) => db.isMasterUser(addr));
+  if (!payload) {
+    res.status(401).json({ success: false, authenticated: false });
+    return;
+  }
+  res.json({ success: true, authenticated: true, address: payload.address, expiresAt: payload.exp });
+});
+
+app.get('/api/admin/metrics', requireAdminSignature, (req: Request, res: Response) => {
   const stats = db.getStats();
   const settings = db.getSettings();
   const recentLogs = db.getAuditLogs(10);
@@ -387,15 +444,15 @@ app.get('/api/admin/metrics', (req: Request, res: Response) => {
   });
 });
 
-app.get('/api/admin/users', (req: Request, res: Response) => {
+app.get('/api/admin/users', requireAdminSignature, (req: Request, res: Response) => {
   const users = db.getUsers();
   res.json({ users });
 });
 
-app.post('/api/admin/users/:address/adjust-balance', (req: Request, res: Response) => {
+app.post('/api/admin/users/:address/adjust-balance', requireAdminSignature, (req: Request, res: Response) => {
   try {
     const { address } = req.params;
-    const { usdtDelta = 0, bnbDelta = 0, reason = 'Admin adjustment', adminUser = 'Admin Portal' } = req.body || {};
+    const { usdtDelta = 0, bnbDelta = 0, reason = 'Admin adjustment', adminUser = 'Master Admin' } = req.body || {};
     const norm = (address || '').toLowerCase();
     let user = db.getUser(norm);
     if (!user) {
@@ -412,7 +469,7 @@ app.post('/api/admin/users/:address/adjust-balance', (req: Request, res: Respons
   }
 });
 
-app.post('/api/admin/faucet/credit', (req: Request, res: Response) => {
+app.post('/api/admin/faucet/credit', requireAdminSignature, (req: Request, res: Response) => {
   try {
     const { walletAddress, amount = 100, bnbAmount = 0.05, note = 'Admin Faucet Credit' } = req.body || {};
     const addr = (walletAddress || '').trim();
@@ -438,13 +495,7 @@ app.post('/api/admin/faucet/credit', (req: Request, res: Response) => {
   }
 });
 
-app.get('/api/admin/is-master/:address', (req: Request, res: Response) => {
-  const { address } = req.params;
-  const isMaster = db.isMasterUser(address);
-  res.json({ success: true, isMaster, address });
-});
-
-app.post('/api/admin/users/:address/role', (req: Request, res: Response) => {
+app.post('/api/admin/users/:address/role', requireAdminSignature, (req: Request, res: Response) => {
   const { address } = req.params;
   const { role, adminUser = 'Master Admin' } = req.body;
   if (!['master', 'admin', 'user', 'moderator'].includes(role)) {
@@ -460,9 +511,9 @@ app.post('/api/admin/users/:address/role', (req: Request, res: Response) => {
   res.json({ success: true, user: updated });
 });
 
-app.post('/api/admin/users/:address/status', (req: Request, res: Response) => {
+app.post('/api/admin/users/:address/status', requireAdminSignature, (req: Request, res: Response) => {
   const { address } = req.params;
-  const { status, adminUser = 'Admin Portal' } = req.body;
+  const { status, adminUser = 'Master Admin' } = req.body;
   if (!['active', 'frozen', 'banned'].includes(status)) {
     res.status(400).json({ error: 'Invalid status value' });
     return;
@@ -476,10 +527,10 @@ app.post('/api/admin/users/:address/status', (req: Request, res: Response) => {
   res.json({ user: updated });
 });
 
-app.post('/api/admin/users/:address/hashrate', (req: Request, res: Response) => {
+app.post('/api/admin/users/:address/hashrate', requireAdminSignature, (req: Request, res: Response) => {
   try {
     const { address } = req.params;
-    const { hashrate, reason = 'Admin Override', adminUser = 'Admin Portal' } = req.body || {};
+    const { hashrate, reason = 'Admin Override', adminUser = 'Master Admin' } = req.body || {};
     const norm = (address || '').toLowerCase();
     const result = db.setUserCustomHashrate(norm, hashrate !== undefined ? hashrate : null, reason, adminUser);
     if (result.user) {
@@ -492,14 +543,14 @@ app.post('/api/admin/users/:address/hashrate', (req: Request, res: Response) => 
   }
 });
 
-app.get('/api/admin/nodes', (req: Request, res: Response) => {
+app.get('/api/admin/nodes', requireAdminSignature, (req: Request, res: Response) => {
   const nodes = db.getNodes();
   res.json({ nodes });
 });
 
-app.post('/api/admin/nodes/:id/status', (req: Request, res: Response) => {
+app.post('/api/admin/nodes/:id/status', requireAdminSignature, (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status, adminUser = 'Admin Portal' } = req.body;
+  const { status, adminUser = 'Master Admin' } = req.body;
   const updated = db.updateNodeStatus(id, status, adminUser);
   if (!updated) {
     res.status(404).json({ error: 'Node not found' });
@@ -508,20 +559,20 @@ app.post('/api/admin/nodes/:id/status', (req: Request, res: Response) => {
   res.json({ success: true, node: updated });
 });
 
-app.delete('/api/admin/nodes/:id', (req: Request, res: Response) => {
+app.delete('/api/admin/nodes/:id', requireAdminSignature, (req: Request, res: Response) => {
   const { id } = req.params;
-  const { adminUser = 'Admin Portal' } = req.body;
+  const { adminUser = 'Master Admin' } = req.body;
   const deleted = db.deleteNode(id, adminUser);
   res.json({ success: deleted });
 });
 
-app.get('/api/admin/transactions', (req: Request, res: Response) => {
+app.get('/api/admin/transactions', requireAdminSignature, (req: Request, res: Response) => {
   const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
   const txs = db.getTransactions(undefined, limit);
   res.json({ transactions: txs });
 });
 
-app.get('/api/admin/claims', (req: Request, res: Response) => {
+app.get('/api/admin/claims', requireAdminSignature, (req: Request, res: Response) => {
   try {
     const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
     const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
@@ -534,9 +585,9 @@ app.get('/api/admin/claims', (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/admin/transactions/:id/status', (req: Request, res: Response) => {
+app.post('/api/admin/transactions/:id/status', requireAdminSignature, (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status, adminUser = 'Admin Portal' } = req.body;
+  const { status, adminUser = 'Master Admin' } = req.body;
   const updated = db.updateTransactionStatus(id, status, adminUser);
   if (!updated) {
     res.status(404).json({ error: 'Transaction not found' });
@@ -545,28 +596,31 @@ app.post('/api/admin/transactions/:id/status', (req: Request, res: Response) => 
   res.json({ success: true, transaction: updated });
 });
 
-app.get('/api/admin/referrals', (req: Request, res: Response) => {
+app.get('/api/admin/referrals', requireAdminSignature, (req: Request, res: Response) => {
   const referrals = db.getReferrals();
   res.json({ referrals });
 });
 
 
 app.get('/api/settings', (req: Request, res: Response) => {
+  const s = db.getSettings();
+  // Do not publicly expose masterWalletAddresses list via public settings API
+  const { masterWalletAddresses: _hiddenMasters, ...publicSettings } = s as any;
+  res.json({ success: true, settings: publicSettings });
+});
+
+app.get('/api/admin/settings', requireAdminSignature, (req: Request, res: Response) => {
   res.json({ success: true, settings: db.getSettings() });
 });
 
-app.get('/api/admin/settings', (req: Request, res: Response) => {
-  res.json({ success: true, settings: db.getSettings() });
-});
-
-app.post('/api/admin/settings', (req: Request, res: Response) => {
+app.post('/api/admin/settings', requireAdminSignature, (req: Request, res: Response) => {
   const { adminUser = 'Master Admin', ...settingsPatch } = req.body;
   const updated = db.updateSettings(settingsPatch, adminUser);
   syncDocument('settings', 'global_config', updated).catch(() => {});
   res.json({ success: true, settings: updated });
 });
 
-app.get('/api/admin/audit-logs', (req: Request, res: Response) => {
+app.get('/api/admin/audit-logs', requireAdminSignature, (req: Request, res: Response) => {
   const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
   res.json({ logs: db.getAuditLogs(limit) });
 });
@@ -1134,9 +1188,9 @@ app.get('/api/treasury', async (_req: Request, res: Response) => {
   }
 });
 
-app.post('/api/admin/treasury/update-address', (req: Request, res: Response) => {
+app.post('/api/admin/treasury/update-address', requireAdminSignature, (req: Request, res: Response) => {
   try {
-    const { newAddress, adminUser = 'Admin Portal' } = req.body || {};
+    const { newAddress, adminUser = 'Master Admin' } = req.body || {};
     const result = db.updateTreasuryAddress(newAddress, adminUser);
     if (!result.success) {
       res.status(400).json(result);
@@ -1474,11 +1528,11 @@ app.post('/api/withdrawals/request', (req: Request, res: Response) => {
   }
 });
 
-app.post('/api/admin/withdrawals/:id/approve', (req: Request, res: Response) => {
+app.post('/api/admin/withdrawals/:id/approve', requireAdminSignature, (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { txHash, adminUser } = req.body || {};
-    const result = db.approveWithdrawalRequest(id, txHash, adminUser || 'Admin Dashboard');
+    const result = db.approveWithdrawalRequest(id, txHash, adminUser || 'Master Admin');
 
     if (result.success && result.request) {
       syncDocument('withdrawals', result.request.id, result.request).catch(() => {});
@@ -1493,11 +1547,11 @@ app.post('/api/admin/withdrawals/:id/approve', (req: Request, res: Response) => 
   }
 });
 
-app.post('/api/admin/withdrawals/:id/reject', (req: Request, res: Response) => {
+app.post('/api/admin/withdrawals/:id/reject', requireAdminSignature, (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { reason, adminUser } = req.body || {};
-    const result = db.rejectWithdrawalRequest(id, reason, adminUser || 'Admin Dashboard');
+    const result = db.rejectWithdrawalRequest(id, reason, adminUser || 'Master Admin');
 
     if (result.success && result.request) {
       syncDocument('withdrawals', result.request.id, result.request).catch(() => {});
