@@ -317,6 +317,96 @@ async function getLiveWithdrawalStatusResponse(userAddress: string | null, lang:
   }
 }
 
+// Clean inline rich-text renderer: converts **bold**, *italic*, and `code` without raw markdown symbols
+function renderInlineFormattedText(input: string, keyPrefix: string): React.ReactNode[] {
+  const tokenRegex = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g;
+  const parts = input.split(tokenRegex);
+  return parts.map((part, idx) => {
+    if (!part) return null;
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      const inner = part.slice(2, -2);
+      return (
+        <strong key={`${keyPrefix}-b-${idx}`} className="font-headline font-semibold text-white">
+          {inner}
+        </strong>
+      );
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      const inner = part.slice(1, -1);
+      return (
+        <code
+          key={`${keyPrefix}-c-${idx}`}
+          className="px-1.5 py-0.5 mx-0.5 rounded-md bg-[#05101d] border border-[#1d3a58] text-[#7df4ff] font-mono text-[11.5px]"
+        >
+          {inner}
+        </code>
+      );
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      const inner = part.slice(1, -1);
+      return (
+        <em key={`${keyPrefix}-i-${idx}`} className="italic text-[#9db4cc]">
+          {inner}
+        </em>
+      );
+    }
+    // Strip any stray unmatched ** or ` symbols
+    return <React.Fragment key={`${keyPrefix}-t-${idx}`}>{part.replace(/\*\*/g, '')}</React.Fragment>;
+  });
+}
+
+function renderFormattedMessage(rawText: string): React.ReactNode {
+  const lines = (rawText || '').split('\n');
+  return (
+    <div className="space-y-2 text-[13px] font-body leading-[1.6] text-[#dbe7f6] tracking-[-0.005em]">
+      {lines.map((rawLine, lineIdx) => {
+        const trimmed = rawLine.trim();
+        if (!trimmed) {
+          return <div key={`sp-${lineIdx}`} className="h-1" />;
+        }
+
+        // Handle markdown headings (#, ##, ###) cleanly
+        const headingMatch = trimmed.match(/^#{1,3}\s+(.+)$/);
+        if (headingMatch) {
+          return (
+            <div key={`hd-${lineIdx}`} className="font-headline font-bold text-[14px] text-white pt-1">
+              {renderInlineFormattedText(headingMatch[1], `hd-${lineIdx}`)}
+            </div>
+          );
+        }
+
+        // Handle bullet lines starting with "• " or "- " or "* "
+        const bulletMatch = trimmed.match(/^(?:•|-|\*)\s+(.+)$/);
+        if (bulletMatch) {
+          return (
+            <div key={`bl-${lineIdx}`} className="flex items-start gap-2 pl-1">
+              <span className="mt-[7px] w-1.5 h-1.5 rounded-full bg-[#00F0FF] shrink-0 shadow-[0_0_6px_rgba(0,240,255,0.6)]" />
+              <div className="flex-1">{renderInlineFormattedText(bulletMatch[1], `bl-${lineIdx}`)}</div>
+            </div>
+          );
+        }
+
+        // Handle numbered section lines (e.g. "1. **Title:**")
+        const numberedMatch = trimmed.match(/^(\d+\.)\s+(.+)$/);
+        if (numberedMatch) {
+          return (
+            <div key={`nm-${lineIdx}`} className="flex items-start gap-2 pt-0.5">
+              <span className="font-headline font-bold text-[#D4AF37] shrink-0">{numberedMatch[1]}</span>
+              <div className="flex-1">{renderInlineFormattedText(numberedMatch[2], `nm-${lineIdx}`)}</div>
+            </div>
+          );
+        }
+
+        return (
+          <div key={`ln-${lineIdx}`}>
+            {renderInlineFormattedText(trimmed, `ln-${lineIdx}`)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Professional Hexagonal Neural Core Vector Emblem
 const SpikeAiLogoIcon: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 24 }) => (
   <svg
@@ -415,7 +505,8 @@ export const AiMiningAssistant: React.FC = () => {
   };
 
   const handleCopyText = (id: string, text: string) => {
-    navigator.clipboard?.writeText(text);
+    const cleanText = (text || '').replace(/\*\*/g, '').replace(/`/g, '');
+    navigator.clipboard?.writeText(cleanText);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -607,16 +698,16 @@ export const AiMiningAssistant: React.FC = () => {
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#071322] animate-pulse" />
             </div>
 
-            <div className="relative text-left font-sans">
+            <div className="relative text-left font-body">
               <div className="text-[11px] sm:text-[12px] font-extrabold tracking-wide flex items-center gap-1 sm:gap-1.5 font-headline">
                 <span className="bg-gradient-to-r from-white via-cyan-100 to-[#00F0FF] bg-clip-text text-transparent">
                   AI Guide
                 </span>
-                <span className="text-[8.5px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded-full bg-cyan-950/80 text-[#00F0FF] border border-[#00F0FF]/30 font-mono">
+                <span className="text-[8.5px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded-full bg-cyan-950/80 text-[#00F0FF] border border-[#00F0FF]/30 font-headline font-bold">
                   {language === 'hi' ? 'हिंदी' : 'EN'}
                 </span>
               </div>
-              <div className="hidden sm:flex text-[10px] text-[#94a3b8] group-hover:text-amber-300 transition-colors font-mono items-center gap-1">
+              <div className="hidden sm:flex text-[10px] text-[#94a3b8] group-hover:text-amber-300 transition-colors font-body items-center gap-1">
                 <span>Autonomous Mining Guide</span>
               </div>
             </div>
@@ -626,7 +717,7 @@ export const AiMiningAssistant: React.FC = () => {
 
       {/* Expanded Chat Modal / Window - Full bottom sheet on mobile, floating widget on desktop */}
       {isOpen && (
-        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 z-[80] w-full sm:w-[440px] h-[88dvh] sm:h-[600px] max-h-[92dvh] sm:max-h-[88vh] bg-[#071322]/98 backdrop-blur-2xl border-t sm:border border-[#00F0FF]/40 rounded-t-3xl sm:rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.9),0_0_40px_rgba(0,240,255,0.25)] flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in">
+        <div className="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-6 sm:right-6 z-[80] w-full sm:w-[440px] h-[88dvh] sm:h-[600px] max-h-[92dvh] sm:max-h-[88vh] bg-[#071322]/98 backdrop-blur-2xl border-t sm:border border-[#00F0FF]/40 rounded-t-3xl sm:rounded-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.9),0_0_40px_rgba(0,240,255,0.25)] flex flex-col overflow-hidden transition-all duration-300 animate-in slide-in-from-bottom-5 fade-in font-body">
           {/* Mobile Sheet Handle */}
           <div className="pt-2 pb-1 flex justify-center sm:hidden bg-gradient-to-r from-[#0a1e33] via-[#081829] to-[#06121f]">
             <div className="w-10 h-1 rounded-full bg-slate-600" />
@@ -640,10 +731,10 @@ export const AiMiningAssistant: React.FC = () => {
                 <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#071322] animate-pulse" />
               </div>
               <div>
-                <div className="text-sm font-extrabold text-white font-headline flex items-center gap-2">
+                <div className="text-sm font-extrabold text-white font-headline flex items-center gap-2 tracking-tight">
                   <span>SPIKE Protocol Intelligence</span>
                 </div>
-                <div className="text-[10.5px] text-emerald-400 font-mono flex items-center gap-1.5 mt-0.5">
+                <div className="text-[11px] text-emerald-400 font-body font-medium flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                   <span>Decentralized Knowledge Base • Online</span>
                 </div>
@@ -656,7 +747,7 @@ export const AiMiningAssistant: React.FC = () => {
               <div className="flex items-center bg-[#050e18] p-0.5 rounded-lg border border-[#1b344d]">
                 <button
                   onClick={() => handleLanguageChange('en')}
-                  className={`px-2 py-0.5 text-[10px] font-mono rounded font-bold transition-all ${
+                  className={`px-2 py-0.5 text-[10px] font-headline rounded font-bold transition-all ${
                     language === 'en'
                       ? 'bg-[#00F0FF] text-[#071322] shadow-[0_0_10px_rgba(0,240,255,0.5)]'
                       : 'text-[#94a3b8] hover:text-white'
@@ -667,7 +758,7 @@ export const AiMiningAssistant: React.FC = () => {
                 </button>
                 <button
                   onClick={() => handleLanguageChange('hi')}
-                  className={`px-2 py-0.5 text-[10px] font-mono rounded font-bold transition-all ${
+                  className={`px-2 py-0.5 text-[10px] font-headline rounded font-bold transition-all ${
                     language === 'hi'
                       ? 'bg-[#D4AF37] text-[#071322] shadow-[0_0_10px_rgba(212,175,55,0.5)]'
                       : 'text-[#94a3b8] hover:text-white'
@@ -697,14 +788,14 @@ export const AiMiningAssistant: React.FC = () => {
           </div>
 
           {/* Language Selection Notice Banner */}
-          <div className="px-4 py-1.5 bg-[#050e18] border-b border-[#13283c] flex items-center justify-between text-[10px] font-mono text-[#94a3b8]">
+          <div className="px-4 py-1.5 bg-[#050e18] border-b border-[#13283c] flex items-center justify-between text-[11px] font-body text-[#94a3b8]">
             <span className="flex items-center gap-1.5">
               <span className="text-[#00F0FF]">🌐</span>
               <span>
                 {language === 'hi' ? 'Bhasha: हिंदी / Hinglish (Selected)' : 'Language: English (Selected)'}
               </span>
             </span>
-            <span className="text-[9px] text-[#64748b]">Immutable Knowledge Base</span>
+            <span className="text-[10px] text-[#64748b] font-medium">Immutable Knowledge Base</span>
           </div>
 
           {/* Categorized Executive Prompt Pills */}
@@ -714,7 +805,7 @@ export const AiMiningAssistant: React.FC = () => {
                 key={idx}
                 onClick={() => handleSendMessage(item.query)}
                 disabled={isLoading}
-                className="whitespace-nowrap px-3 py-1 rounded-full text-[10.5px] font-mono bg-[#091b2c] border border-[#1b3a56] text-[#94a3b8] hover:text-[#00F0FF] hover:border-[#00F0FF]/60 hover:bg-[#0c243a] transition-all flex-shrink-0 active:scale-95"
+                className="whitespace-nowrap px-3 py-1 rounded-full text-[11px] font-body font-medium bg-[#091b2c] border border-[#1b3a56] text-[#cbd5e1] hover:text-[#00F0FF] hover:border-[#00F0FF]/60 hover:bg-[#0c243a] transition-all flex-shrink-0 active:scale-95"
               >
                 {item.label}
               </button>
@@ -722,7 +813,7 @@ export const AiMiningAssistant: React.FC = () => {
           </div>
 
           {/* Messages Stream */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs font-sans">
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 font-body">
             {messages.map((m) => {
               const isAssistant = m.sender === 'assistant';
               return (
@@ -739,12 +830,18 @@ export const AiMiningAssistant: React.FC = () => {
                   <div
                     className={`relative max-w-[86%] rounded-2xl p-3.5 leading-relaxed shadow-md ${
                       isAssistant
-                        ? 'bg-[#091b2c]/90 border border-[#1b3a56] text-[#e2e8f0]'
+                        ? 'bg-[#091b2c]/95 border border-[#1b3a56] text-[#dbe7f6]'
                         : 'bg-gradient-to-r from-[#00F0FF]/20 via-[#00A3FF]/20 to-[#0055FF]/20 border border-[#00F0FF]/50 text-white ml-auto'
                     }`}
                   >
-                    <div className="whitespace-pre-line text-xs font-mono leading-relaxed select-text">
-                      {m.text}
+                    <div className="select-text">
+                      {isAssistant ? (
+                        renderFormattedMessage(m.text)
+                      ) : (
+                        <div className="text-[13px] font-body leading-[1.55] text-white">
+                          {m.text}
+                        </div>
+                      )}
                     </div>
 
                     {isAssistant && (m.text.includes('Withdrawal History') || m.text.includes('Withdrawal Status') || m.text.includes('Withdrawal Telemetry')) && (
@@ -753,14 +850,14 @@ export const AiMiningAssistant: React.FC = () => {
                           window.dispatchEvent(new CustomEvent('spike_switch_tab', { detail: { tab: 'withdraw-history' } }));
                           setIsOpen(false);
                         }}
-                        className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-cyan-500/20 to-blue-500/20 border border-amber-400/40 hover:border-amber-400 text-amber-300 hover:text-white font-mono text-[11px] font-bold transition-all shadow-[0_0_15px_rgba(212,175,55,0.15)] active:scale-95 group"
+                        className="mt-3 w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-cyan-500/20 to-blue-500/20 border border-amber-400/40 hover:border-amber-400 text-amber-300 hover:text-white font-headline text-[11.5px] font-bold transition-all shadow-[0_0_15px_rgba(212,175,55,0.15)] active:scale-95 group"
                       >
                         <span className="material-symbols-outlined text-[14px] text-amber-400 group-hover:scale-110 transition-transform">receipt_long</span>
                         <span>{language === 'hi' ? 'Withdrawal History Kholein ➔' : 'Open Withdrawal History ➔'}</span>
                       </button>
                     )}
 
-                    <div className="flex items-center justify-between mt-2 pt-1 border-t border-white/5 text-[9px] font-mono text-[#64748b]">
+                    <div className="flex items-center justify-between mt-2.5 pt-1.5 border-t border-white/5 text-[10px] font-body text-[#64748b]">
                       <span>{m.time}</span>
                       {isAssistant && (
                         <button
@@ -781,7 +878,7 @@ export const AiMiningAssistant: React.FC = () => {
             })}
 
             {isLoading && (
-              <div className="flex items-center gap-2.5 text-[#00F0FF] text-xs font-mono bg-[#091b2c]/80 border border-[#1b3a56] rounded-2xl px-4 py-2.5 w-fit">
+              <div className="flex items-center gap-2.5 text-[#00F0FF] text-xs font-body font-medium bg-[#091b2c]/80 border border-[#1b3a56] rounded-2xl px-4 py-2.5 w-fit">
                 <SpikeAiLogoIcon size={18} className="animate-spin" />
                 <span className="tracking-wide">
                   {language === 'hi' ? 'Knowledge base se process ho raha hai...' : 'Retrieving from protocol knowledge base...'}
@@ -792,12 +889,12 @@ export const AiMiningAssistant: React.FC = () => {
           </div>
 
           {/* Institutional Security Notice Footer */}
-          <div className="px-4 py-1.5 bg-[#050e18] border-t border-[#122538] text-[9.5px] font-mono text-[#64748b] flex items-center justify-between">
+          <div className="px-4 py-1.5 bg-[#050e18] border-t border-[#122538] text-[10px] font-body text-[#64748b] flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[12px] text-amber-400">lock</span>
               <span>Zero-Knowledge Isolation • Confidential Data Strictly Protected</span>
             </span>
-            <span className="text-[#00F0FF] font-bold">BNB Chain</span>
+            <span className="text-[#00F0FF] font-headline font-bold">BNB Chain</span>
           </div>
 
           {/* Prompt Input Form */}
@@ -818,7 +915,7 @@ export const AiMiningAssistant: React.FC = () => {
                   ? 'Cloud Mining, Referral logic, ya Node activation ke baare me poochhein...'
                   : 'Ask about Cloud Mining, Referral logic, or Node activation...'
               }
-              className="flex-1 bg-[#050e18] border border-[#1a3652] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-[#64748b] font-sans focus:outline-none focus:border-[#00F0FF] transition-all"
+              className="flex-1 bg-[#050e18] border border-[#1a3652] rounded-xl px-3.5 py-2.5 text-[13px] text-white placeholder-[#64748b] font-body focus:outline-none focus:border-[#00F0FF] transition-all"
               disabled={isLoading}
             />
             <button
