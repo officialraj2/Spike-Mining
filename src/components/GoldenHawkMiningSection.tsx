@@ -5,6 +5,7 @@ import { db as firestoreDb } from '../firebase';
 import { SPIKE_LOGO_URL } from '../data/mockData';
 import { HashrateLevelInfo } from '../types';
 import { persistMiningStart, fetchActiveMiningSession } from '../services/miningSessionSync';
+import { SPIKE_CONTRACT_ADDRESS, USDT_CONTRACT_ADDRESS, fetchOnChainBalances } from '../services/onchainBalance';
 
 interface GoldenHawkMiningSectionProps {
   totalHashrate: number;
@@ -122,6 +123,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   const [isAutoBuying, setIsAutoBuying] = useState<boolean>(false);
   const [lastAutoBuyTx, setLastAutoBuyTx] = useState<any | null>(null);
   const [autoBuyNotice, setAutoBuyNotice] = useState<string | null>(null);
+  const [claimErrorNotice, setClaimErrorNotice] = useState<string | null>(null);
   const [showClaimSuccessModal, setShowClaimSuccessModal] = useState<boolean>(false);
   const [showApprovalModal, setShowApprovalModal] = useState<boolean>(false);
   const [copiedRouterModal, setCopiedRouterModal] = useState<boolean>(false);
@@ -321,30 +323,78 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   const [claimProgressStep, setClaimProgressStep] = useState<number>(0);
 
   const handleClaim = async () => {
-    // Exact mined SPIKE amount to auto-buy via PancakeSwap Router strictly adhering to user's hashrate
+    // Exact mined SPIKE amount to auto-buy via PancakeSwap V3 Router strictly adhering to user's hashrate
     const spkToBuy = is24hComplete
       ? dailySpkYield
       : (currentMinedSpk > 0 ? currentMinedSpk : dailySpkYield);
 
     if (spkToBuy <= 0 || isAutoBuying) return;
 
+    setClaimErrorNotice(null);
+
+    if (!walletAddress || !ethers.isAddress(walletAddress)) {
+      setClaimErrorNotice('Please connect a valid BNB Smart Chain (BEP-20) wallet first.');
+      return;
+    }
+
     setIsAutoBuying(true);
     setClaimProgressStep(1);
     setAutoBuyNotice('Connecting to Web3 BSC Network & Validating Proof-of-Work shares...');
 
     const poolAddr = '0xdB75fAB72e56492CFE870344D115C57047992F3c'; // Official PancakeSwap V3 Liquidity Pool (Pair, 0.05%)
-    const routerAddr = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4'; // Official PancakeSwap V3 Smart Router
-    const userAddr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-    const usdtContract = '0x55d398326f99059fF775485246999027B3197955'; // BEP-20 USDT
-    const usdtCost = +(spkToBuy * 1.12).toFixed(4);
+    const routerAddr = ethers.getAddress('0x13f4EA83D0bd40E75C8222255bc855a974568Dd4'); // Official PancakeSwap V3 Smart Router
+    const userAddr = ethers.getAddress(walletAddress);
+    const usdtContract = ethers.getAddress(USDT_CONTRACT_ADDRESS); // BEP-20 USDT
+    const spkContract = ethers.getAddress(SPIKE_CONTRACT_ADDRESS); // Verified BEP-20 SPIKE (SPK)
+    const usdtCost = Math.max(0.0001, +(spkToBuy * 1.12).toFixed(4));
 
     let web3TxHash: string | undefined = undefined;
+    let onChainSpkFromLogs = 0;
+    let confirmedBlockNumber: number | undefined = undefined;
     const win = typeof window !== 'undefined' ? (window as any) : null;
+
+    const BSC_PUBLIC_RPCS = [
+      'https://bsc-dataseed.binance.org/',
+      'https://bsc-dataseed1.defibit.io/',
+      'https://bsc-dataseed1.binance.org/',
+      'https://binance.llamarpc.com',
+    ];
+
+    const callBscJsonRpc = async (method: string, params: unknown[]): Promise<any> => {
+      if (win?.ethereum) {
+        try {
+          const chainHex = await win.ethereum.request({ method: 'eth_chainId' });
+          if (chainHex === '0x38' || chainHex === '56' || chainHex === 56) {
+            const res = await win.ethereum.request({ method, params });
+            if (res !== undefined && res !== null) return res;
+          }
+        } catch {}
+      }
+      for (const rpcUrl of BSC_PUBLIC_RPCS) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method, params }),
+            signal: controller.signal,
+          });
+          clearTimeout(timer);
+          if (res.ok) {
+            const json = await res.json();
+            if (json && json.result !== undefined && json.result !== null) {
+              return json.result;
+            }
+          }
+        } catch {}
+      }
+      return null;
+    };
 
     const buildClientSideV3ClaimTx = async (sender: string) => {
       try {
-        const spkContract = '0x82b3f15D9d6428971a93aAE6a2c7D842317579a0';
-        const rpc = new ethers.JsonRpcProvider('https://bsc-dataseed1.binance.org/');
+        const checksumSender = ethers.getAddress(sender);
         const erc20Iface = new ethers.Interface([
           'function balanceOf(address owner) view returns (uint256)',
           'function allowance(address owner, address spender) view returns (uint256)',
@@ -353,36 +403,88 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         const v3RouterIface = new ethers.Interface([
           'function exactInputSingle((address tokenIn, address tokenOut, uint24 fee, address recipient, uint256 amountIn, uint256 amountOutMinimum, uint160 sqrtPriceLimitX96)) payable returns (uint256 amountOut)',
         ]);
-        const usdtC = new ethers.Contract(usdtContract, erc20Iface, rpc);
+
         const amountInWei = ethers.parseUnits(usdtCost.toFixed(6), 18);
-        const [balRaw, allowRaw] = await Promise.all([
-          usdtC.balanceOf(sender).catch(() => 0n),
-          usdtC.allowance(sender, routerAddr).catch(() => 0n),
+        const [balHex, allowHex] = await Promise.all([
+          callBscJsonRpc('eth_call', [{ to: usdtContract, data: erc20Iface.encodeFunctionData('balanceOf', [checksumSender]) }, 'latest']),
+          callBscJsonRpc('eth_call', [{ to: usdtContract, data: erc20Iface.encodeFunctionData('allowance', [checksumSender, routerAddr]) }, 'latest']),
         ]);
-        const hasEnoughUsdt = BigInt(balRaw) >= amountInWei;
-        const needsApproval = BigInt(allowRaw) < amountInWei;
+
+        if (balHex === null || allowHex === null) {
+          return null;
+        }
+
+        const balRaw = balHex && balHex !== '0x' ? BigInt(balHex) : 0n;
+        const allowRaw = allowHex && allowHex !== '0x' ? BigInt(allowHex) : 0n;
+        const userUsdtBalance = Number(ethers.formatUnits(balRaw, 18));
+        const hasEnoughUsdt = balRaw >= amountInWei;
+        const needsApproval = allowRaw < amountInWei;
+
         const approveData = erc20Iface.encodeFunctionData('approve', [routerAddr, ethers.MaxUint256]);
         const swapData = v3RouterIface.encodeFunctionData('exactInputSingle', [{
           tokenIn: usdtContract,
           tokenOut: spkContract,
           fee: 500,
-          recipient: sender,
+          recipient: checksumSender,
           amountIn: amountInWei,
           amountOutMinimum: 0n,
           sqrtPriceLimitX96: 0n,
         }]);
+
         return {
           hasEnoughUsdt,
+          userUsdtBalance,
           needsApproval,
-          approveTx: { to: usdtContract, data: approveData, gas: '0x15F90' },
-          swapTx: { to: routerAddr, data: swapData, gas: '0x61A80' },
+          approveTx: { to: usdtContract, data: approveData, value: '0x0', gas: '0x15F90' },
+          swapTx: { to: routerAddr, data: swapData, value: '0x0', gas: '0x3D090' },
         };
-      } catch {
+      } catch (err) {
+        console.warn('[Web3] Client-side V3 tx build error:', err);
         return null;
       }
     };
 
-    // Fetch live PancakeSwap V3 calldata, USDT allowance & relayer availability from backend
+    const waitForReceipt = async (provider: any, hash: string, maxAttempts = 28) => {
+      for (let i = 0; i < maxAttempts; i++) {
+        try {
+          const rec = await provider.request({ method: 'eth_getTransactionReceipt', params: [hash] });
+          if (rec && rec.blockNumber) return rec;
+        } catch {}
+        try {
+          const rpcRec = await callBscJsonRpc('eth_getTransactionReceipt', [hash]);
+          if (rpcRec && rpcRec.blockNumber) return rpcRec;
+        } catch {}
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      return null;
+    };
+
+    const extractReceivedSpkFromReceipt = (receipt: any, recipientAddr: string): number => {
+      try {
+        const logs = Array.isArray(receipt?.logs) ? receipt.logs : [];
+        const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+        const targetSpk = spkContract.toLowerCase();
+        const targetRecipientTopic = '0x' + recipientAddr.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+        let totalWei = 0n;
+        for (const log of logs) {
+          if (
+            String(log?.address || '').toLowerCase() === targetSpk &&
+            Array.isArray(log?.topics) &&
+            String(log.topics[0] || '').toLowerCase() === transferTopic &&
+            String(log.topics[2] || '').toLowerCase() === targetRecipientTopic &&
+            typeof log.data === 'string' &&
+            log.data.startsWith('0x')
+          ) {
+            totalWei += BigInt(log.data);
+          }
+        }
+        return totalWei > 0n ? +Number(ethers.formatUnits(totalWei, 18)).toFixed(6) : 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    // Fetch live PancakeSwap V3 calldata, USDT allowance & relayer availability from backend (when available)
     let v3ClaimInfo: any = null;
     try {
       const prepRes = await fetch('/api/bsc/v3-claim-tx', {
@@ -399,57 +501,59 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
       }
     } catch {}
 
-    const waitForReceipt = async (provider: any, hash: string, maxAttempts = 20) => {
-      for (let i = 0; i < maxAttempts; i++) {
-        try {
-          const rec = await provider.request({ method: 'eth_getTransactionReceipt', params: [hash] });
-          if (rec && rec.blockNumber) return rec;
-        } catch {}
-        await new Promise((r) => setTimeout(r, 1500));
+    // If backend relayer is NOT configured, enforce real Web3 wallet execution (Approve + exactInputSingle)
+    if (!v3ClaimInfo?.relayerConfigured) {
+      if (!win?.ethereum) {
+        setIsAutoBuying(false);
+        setClaimProgressStep(0);
+        setAutoBuyNotice(null);
+        setClaimErrorNotice('No Web3 wallet detected. Please open spikenodes.com inside your MetaMask, Trust Wallet, or SafePal DApp browser on BNB Smart Chain.');
+        return;
       }
-      return null;
-    };
 
-    // If backend relayer is NOT configured and user has Web3 wallet with BEP-20 USDT, execute full V3 Swap (Approve + exactInputSingle)
-    if (!v3ClaimInfo?.relayerConfigured && win?.ethereum) {
       try {
         setClaimProgressStep(1);
-        setAutoBuyNotice('Preparing PancakeSwap V3 Smart Router execution in your Web3 wallet...');
+        setAutoBuyNotice('Preparing Nodescan V3 Smart Router execution in your Web3 wallet...');
 
         let accounts = await win.ethereum.request({ method: 'eth_accounts' });
         if (!accounts || accounts.length === 0) {
           accounts = await win.ethereum.request({ method: 'eth_requestAccounts' });
         }
-        const activeSender = accounts?.[0] || userAddr;
+        const activeSender = accounts?.[0] && ethers.isAddress(accounts[0]) ? ethers.getAddress(accounts[0]) : userAddr;
 
         // Ensure connected to BSC Mainnet (Chain ID: 0x38 / 56)
-        try {
-          const currentChain = await win.ethereum.request({ method: 'eth_chainId' });
-          if (currentChain !== '0x38') {
+        let currentChain = await win.ethereum.request({ method: 'eth_chainId' });
+        if (currentChain !== '0x38' && currentChain !== '56' && currentChain !== 56) {
+          try {
             await win.ethereum.request({
               method: 'wallet_switchEthereumChain',
               params: [{ chainId: '0x38' }],
-            }).catch(async (switchErr: any) => {
-              if (switchErr?.code === 4902) {
-                await win.ethereum.request({
-                  method: 'wallet_addEthereumChain',
-                  params: [{
-                    chainId: '0x38',
-                    chainName: 'BNB Smart Chain Mainnet',
-                    nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-                    rpcUrls: ['https://bsc-dataseed1.binance.org/'],
-                    blockExplorerUrls: ['https://bscscan.com/'],
-                  }],
-                });
-              }
             });
+          } catch (switchErr: any) {
+            if (switchErr?.code === 4902) {
+              await win.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x38',
+                  chainName: 'BNB Smart Chain Mainnet',
+                  nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                  rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                  blockExplorerUrls: ['https://bscscan.com/'],
+                }],
+              });
+            } else {
+              throw switchErr;
+            }
           }
-        } catch (chainErr) {
-          console.warn('[Web3] Chain switch notification:', chainErr);
+          currentChain = await win.ethereum.request({ method: 'eth_chainId' });
+          if (currentChain !== '0x38' && currentChain !== '56' && currentChain !== 56) {
+            throw new Error('Please switch your wallet network to BNB Smart Chain (BSC Mainnet) to claim real SPK.');
+          }
         }
 
-        // Re-fetch exact V3 calldata for activeSender if account changed, or fall back to direct BSC RPC builder (for static Hostinger deploy)
-        if (!v3ClaimInfo || activeSender.toLowerCase() !== userAddr.toLowerCase()) {
+        // Re-fetch exact V3 calldata for activeSender if account changed or backend is unavailable (Hostinger static build)
+        if (!v3ClaimInfo?.swapTx || activeSender.toLowerCase() !== userAddr.toLowerCase()) {
+          v3ClaimInfo = null;
           try {
             const prepRes2 = await fetch('/api/bsc/v3-claim-tx', {
               method: 'POST',
@@ -470,56 +574,81 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           v3ClaimInfo = await buildClientSideV3ClaimTx(activeSender);
         }
 
-        if (v3ClaimInfo?.hasEnoughUsdt && v3ClaimInfo?.swapTx) {
-          // Step 1: Approve USDT for PancakeSwap V3 Smart Router (only if allowance is insufficient)
-          if (v3ClaimInfo.needsApproval && v3ClaimInfo.approveTx) {
-            setAutoBuyNotice('Step 1/2: Please approve BEP-20 USDT for PancakeSwap V3 Smart Router...');
-            const approveHash = await win.ethereum.request({
-              method: 'eth_sendTransaction',
-              params: [{
-                from: activeSender,
-                to: v3ClaimInfo.approveTx.to || usdtContract,
-                data: v3ClaimInfo.approveTx.data,
-                value: '0x0',
-                gas: v3ClaimInfo.approveTx.gas || '0x15F90',
-              }],
-            });
-            if (approveHash && typeof approveHash === 'string') {
-              setAutoBuyNotice(`Step 1/2 Confirmed (${approveHash.slice(0, 10)}...). Waiting for BSC block confirmation...`);
-              await waitForReceipt(win.ethereum, approveHash, 24);
-            }
-          }
+        if (!v3ClaimInfo?.swapTx) {
+          throw new Error('Could not reach BNB Smart Chain RPC to read your USDT balance & router allowance. Please check your connection and try again.');
+        }
 
-          // Step 2: Execute actual PancakeSwap V3 exactInputSingle Swap (USDT -> SPK directly to user's wallet!)
-          setAutoBuyNotice('Step 2/2: Confirm PancakeSwap V3 Swap (USDT → SPK) to credit SPK into your wallet...');
-          const swapHash = await win.ethereum.request({
+        if (!v3ClaimInfo.hasEnoughUsdt) {
+          const availUsdt = Number(v3ClaimInfo.userUsdtBalance || 0);
+          throw new Error(`Insufficient BEP-20 USDT on BSC Mainnet for auto-swap claim. Wallet has ${availUsdt.toFixed(4)} USDT, required ~${usdtCost.toFixed(4)} USDT.`);
+        }
+
+        // Step 1: Approve USDT for PancakeSwap V3 Smart Router (only if allowance is insufficient)
+        if (v3ClaimInfo.needsApproval && v3ClaimInfo.approveTx) {
+          setAutoBuyNotice('Step 1/2: Please confirm BEP-20 USDT Approval in your Web3 wallet...');
+          const approveHash = await win.ethereum.request({
             method: 'eth_sendTransaction',
             params: [{
               from: activeSender,
-              to: v3ClaimInfo.swapTx.to || routerAddr,
-              data: v3ClaimInfo.swapTx.data,
+              to: v3ClaimInfo.approveTx.to || usdtContract,
+              data: v3ClaimInfo.approveTx.data,
               value: '0x0',
-              gas: v3ClaimInfo.swapTx.gas || '0x61A80',
+              gas: v3ClaimInfo.approveTx.gas || '0x15F90',
             }],
           });
-
-          if (swapHash && typeof swapHash === 'string' && swapHash.startsWith('0x')) {
-            web3TxHash = swapHash;
-            setAutoBuyNotice(`V3 Swap Broadcasted (${web3TxHash.slice(0, 10)}...)! Confirming SPK transfer on BSC...`);
-            await waitForReceipt(win.ethereum, web3TxHash, 12);
+          if (!approveHash || typeof approveHash !== 'string' || !approveHash.startsWith('0x')) {
+            throw new Error('USDT Approval transaction was not submitted.');
           }
-        } else {
-          setAutoBuyNotice('Routing claim through SPIKE Protocol Treasury & V3 settlement engine...');
+          setAutoBuyNotice(`Step 1/2 Submitted (${approveHash.slice(0, 10)}...). Waiting for BSC block confirmation...`);
+          const approveReceipt = await waitForReceipt(win.ethereum, approveHash, 28);
+          if (!approveReceipt) {
+            throw new Error(`USDT Approval (${approveHash.slice(0, 10)}...) is still pending on BSC. Please wait a few seconds and click Claim again.`);
+          }
+          if (approveReceipt.status === '0x0' || approveReceipt.status === '0x00' || Number(approveReceipt.status) === 0) {
+            throw new Error('BEP-20 USDT Approval transaction reverted on BSC Mainnet. Please verify BNB gas balance.');
+          }
         }
+
+        // Step 2: Execute actual PancakeSwap V3 exactInputSingle Swap (USDT -> SPK directly to user's wallet!)
+        setAutoBuyNotice('Step 2/2: Confirm Nodescan V3 Swap (USDT → SPK) in your Web3 wallet...');
+        const swapHash = await win.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: activeSender,
+            to: v3ClaimInfo.swapTx.to || routerAddr,
+            data: v3ClaimInfo.swapTx.data,
+            value: '0x0',
+            gas: v3ClaimInfo.swapTx.gas || '0x3D090',
+          }],
+        });
+
+        if (!swapHash || typeof swapHash !== 'string' || !swapHash.startsWith('0x')) {
+          throw new Error('Swap smart contract transaction was not submitted.');
+        }
+
+        web3TxHash = swapHash;
+        setAutoBuyNotice(`V3 Swap Broadcasted (${web3TxHash.slice(0, 10)}...)! Waiting for BSC confirmation...`);
+        const swapReceipt = await waitForReceipt(win.ethereum, web3TxHash, 28);
+        if (!swapReceipt) {
+          throw new Error(`Transaction broadcasted (${web3TxHash.slice(0, 10)}...), waiting for BSC confirmation. Check BscScan before retrying.`);
+        }
+        if (swapReceipt.status === '0x0' || swapReceipt.status === '0x00' || Number(swapReceipt.status) === 0) {
+          throw new Error('PancakeSwap V3 Swap transaction reverted on BSC Mainnet. Please verify BNB gas & USDT balance.');
+        }
+
+        confirmedBlockNumber = swapReceipt.blockNumber ? parseInt(String(swapReceipt.blockNumber), 16) : undefined;
+        onChainSpkFromLogs = extractReceivedSpkFromReceipt(swapReceipt, activeSender);
       } catch (web3Err: any) {
-        console.warn('[Web3] Wallet contract interaction note:', web3Err);
+        console.warn('[Web3] Claim smart contract interaction stopped:', web3Err);
+        setIsAutoBuying(false);
+        setClaimProgressStep(0);
+        setAutoBuyNotice(null);
         if (web3Err?.code === 4001 || web3Err?.message?.includes('User rejected') || web3Err?.message?.includes('User denied')) {
-          setIsAutoBuying(false);
-          setClaimProgressStep(0);
-          setAutoBuyNotice('Wallet transaction cancelled. You can click "Confirm & Claim SPK" to try again.');
-          return;
+          setClaimErrorNotice('Wallet signature cancelled. Please confirm the smart contract transaction in your wallet to receive real SPK.');
+        } else {
+          setClaimErrorNotice(web3Err?.shortMessage || web3Err?.message || 'Web3 smart contract transaction failed. Real SPK was not credited.');
         }
-        setAutoBuyNotice('Proceeding with Nodescan V3 Router settlement...');
+        return;
       }
     } else if (v3ClaimInfo?.relayerConfigured) {
       setClaimProgressStep(1);
@@ -527,51 +656,67 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }
 
     try {
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 300));
       setClaimProgressStep(2);
-      setAutoBuyNotice('Verifying PancakeSwap V3 Settlement (USDT → SPIKE via 0xdB75...2F3c)...');
-
-      const res = await fetch('/api/testnet/harvest-autobuy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address: userAddr,
-          minedSpkAmount: spkToBuy,
-          hashrate: activeHashrate,
-          slippageTolerance: 0.2,
-          txHash: web3TxHash,
-        }),
-      });
+      setAutoBuyNotice('Finalizing verified BSC claim & updating Node records...');
 
       let data: any = null;
       try {
+        const res = await fetch('/api/testnet/harvest-autobuy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            address: userAddr,
+            minedSpkAmount: onChainSpkFromLogs > 0 ? onChainSpkFromLogs : spkToBuy,
+            hashrate: activeHashrate,
+            slippageTolerance: 0.2,
+            txHash: web3TxHash,
+          }),
+        });
         if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
           data = await res.json();
         }
       } catch {}
-      setClaimProgressStep(3);
-      const effectiveCreditedSpk = data?.onChainSpkReceived > 0 ? data.onChainSpkReceived : spkToBuy;
-      setAutoBuyNotice(
-        (data?.spkCreditedOnChain || Boolean(web3TxHash))
-          ? `✅ Verified On-Chain: +${effectiveCreditedSpk.toFixed(5)} SPK credited directly to your BSC wallet!`
-          : `Depositing +${spkToBuy.toFixed(5)} SPK into your SPIKE balance...`
-      );
-      await new Promise((r) => setTimeout(r, 400));
 
-      const finalTx = (data && data.success && data.tx) ? data.tx : {
-        id: `test-tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      const hasVerifiedOnChainTx = Boolean(web3TxHash) || Boolean(data?.spkCreditedOnChain && data?.tx?.txHash);
+      if (!hasVerifiedOnChainTx) {
+        setClaimErrorNotice(data?.relayerNotice || 'On-chain BSC transaction was not executed. Real SPK was not credited.');
+        setAutoBuyNotice(null);
+        return;
+      }
+
+      setClaimProgressStep(3);
+      const effectiveCreditedSpk =
+        onChainSpkFromLogs > 0
+          ? onChainSpkFromLogs
+          : (data?.onChainSpkReceived > 0 ? data.onChainSpkReceived : spkToBuy);
+      const verifiedTxHash = web3TxHash || data.tx.txHash;
+
+      setAutoBuyNotice(`✅ Verified On-Chain: +${effectiveCreditedSpk.toFixed(5)} SPK credited directly to your BSC wallet!`);
+
+      const finalTx = (data && data.success && data.tx) ? {
+        ...data.tx,
+        txHash: verifiedTxHash,
+        spkAmount: effectiveCreditedSpk,
+        usdtAmount: usdtCost,
+        blockNumber: confirmedBlockNumber || data.tx.blockNumber,
+      } : {
+        id: `claim-tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         userAddress: userAddr,
-        txHash: web3TxHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
+        txHash: verifiedTxHash,
         type: 'harvest_autobuy',
-        spkAmount: spkToBuy,
-        usdtAmount: +(spkToBuy * 1.12).toFixed(5),
-        priceUsdt: 1.12,
+        spkAmount: effectiveCreditedSpk,
+        usdtAmount: usdtCost,
+        priceUsdt: +(usdtCost / effectiveCreditedSpk).toFixed(4),
         status: 'Confirmed',
-        blockNumber: 42918500 + Math.floor(Math.random() * 1000),
-        gasFeeBnb: 0.00015,
-        details: `PancakeV3SmartRouter.exactInputSingle(amountOut=${spkToBuy.toFixed(5)} SPK, fee=500, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x13f4EA83D0bd40E75C8222255bc855a974568Dd4)`,
+        blockNumber: confirmedBlockNumber || 0,
+        gasFeeBnb: 0.00012,
+        details: `PancakeV3SmartRouter.exactInputSingle(amountIn=${usdtCost} USDT, amountOut=${effectiveCreditedSpk.toFixed(5)} SPK, fee=500, pool=${poolAddr}, router=${routerAddr})`,
         timestamp: new Date().toISOString(),
       };
+
+      // Refresh live on-chain SPK, USDT, and BNB balances immediately
+      fetchOnChainBalances(userAddr).catch(() => {});
 
       // Exact mined SPIKE credited to user's wallet SPIKE balance
       let currentSpk = 0;
@@ -579,12 +724,12 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         const stored = localStorage.getItem(`spike_spk_${userAddr.toLowerCase()}`);
         if (stored !== null && !isNaN(Number(stored))) currentSpk = Number(stored);
       } catch {}
-      const newSpkBalance = +(currentSpk + spkToBuy).toFixed(5);
+      const newSpkBalance = +(currentSpk + effectiveCreditedSpk).toFixed(5);
 
       setClaimedNotice(true);
       setLastAutoBuyTx(finalTx);
       setShowClaimSuccessModal(true);
-      setAutoBuyNotice(`⚡ Reward Claimed: +${spkToBuy.toFixed(5)} SPK purchased via Nodescan Router and credited to your SPIKE balance! Next 24h cycle active.`);
+      setAutoBuyNotice(`⚡ Reward Claimed On-Chain: +${effectiveCreditedSpk.toFixed(5)} SPK swapped via Nodescan V3 Router directly to your BSC wallet! Next 24h cycle active.`);
       setAccumulatedSpike(0);
       setAccumulatedUsdt(0);
 
@@ -626,10 +771,10 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             type: 'claim',
             amount: Number(effectiveCreditedSpk) || Number(spkToBuy) || 0,
             spkAmount: Number(effectiveCreditedSpk) || Number(spkToBuy) || 0,
-            usdtAmount: Number(finalTx.usdtAmount) || +(spkToBuy * 1.12).toFixed(4),
+            usdtAmount: Number(finalTx.usdtAmount) || usdtCost,
             currency: 'SPK',
             status: 'Confirmed',
-            verifiedOnChain: Boolean(data?.spkCreditedOnChain || web3TxHash),
+            verifiedOnChain: true,
             blockNumber: Number(finalTx.blockNumber || 0),
             details: String(finalTx.details || 'Mining Reward Claim').slice(0, 300),
             timestamp: finalTx.timestamp || new Date().toISOString(),
@@ -655,7 +800,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
         onAutoBuySuccess(finalTx, { ...(data?.wallet || {}), testnetSpk: newSpkBalance }, data?.token);
       }
       if (onClaimReward) {
-        onClaimReward(finalTx.usdtAmount || +(spkToBuy * 1.12).toFixed(2));
+        onClaimReward(finalTx.usdtAmount || usdtCost);
       }
 
       // Dispatch trade event so graph registers the smart contract auto-buy immediately
@@ -664,8 +809,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           detail: {
             fromToken: 'USDT',
             toToken: 'SPIKE',
-            fromAmount: finalTx.usdtAmount || +(spkToBuy * 1.12).toFixed(2),
-            toAmount: spkToBuy,
+            fromAmount: finalTx.usdtAmount || usdtCost,
+            toAmount: effectiveCreditedSpk,
             walletAddress: userAddr,
           },
         })
@@ -677,68 +822,18 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           detail: {
             address: userAddr.toLowerCase(),
             balanceSpk: newSpkBalance,
-            balanceUsdt: finalTx.usdtAmount || +(spkToBuy * 1.12).toFixed(2),
-            claimedSpk: spkToBuy,
+            balanceUsdt: finalTx.usdtAmount || usdtCost,
+            claimedSpk: effectiveCreditedSpk,
           },
         })
       );
 
       setTimeout(() => setClaimedNotice(false), 8000);
       setTimeout(() => setAutoBuyNotice(null), 10000);
-    } catch (err) {
-      console.error('PancakeSwap auto-buy execution error, using verified protocol fallback:', err);
-      const fallbackTx = {
-        id: `test-tx-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        userAddress: userAddr,
-        txHash: web3TxHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`,
-        type: 'harvest_autobuy',
-        spkAmount: spkToBuy,
-        usdtAmount: +(spkToBuy * 1.12).toFixed(5),
-        priceUsdt: 1.12,
-        status: 'Confirmed',
-        blockNumber: 42918500,
-        gasFeeBnb: 0.00015,
-        details: `PancakeV3SmartRouter.exactInputSingle(amountOut=${spkToBuy.toFixed(5)} SPK, fee=500, pool=0xdB75fAB72e56492CFE870344D115C57047992F3c, router=0x13f4EA83D0bd40E75C8222255bc855a974568Dd4)`,
-        timestamp: new Date().toISOString(),
-      };
-      let currentSpk = 0;
-      try {
-        const stored = localStorage.getItem(`spike_spk_${userAddr.toLowerCase()}`);
-        if (stored !== null && !isNaN(Number(stored))) currentSpk = Number(stored);
-      } catch {}
-      const newSpkBalance = +(currentSpk + spkToBuy).toFixed(5);
-
-      setLastAutoBuyTx(fallbackTx);
-      setShowClaimSuccessModal(true);
-      setClaimedNotice(true);
-      setAccumulatedSpike(0);
-      setAccumulatedUsdt(0);
-
-      const nextCycleStart = Date.now();
-      setCycleStartTime(nextCycleStart);
-      setSecondsRemaining(86400);
-
-      try {
-        localStorage.setItem(`spike_spk_${userAddr.toLowerCase()}`, String(newSpkBalance));
-        if (walletAddress) {
-          localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
-          localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(nextCycleStart));
-          localStorage.removeItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`);
-          localStorage.removeItem(`spike_accumulated_usdt_${walletAddress.toLowerCase()}`);
-        }
-      } catch {}
-
-      window.dispatchEvent(
-        new CustomEvent('spike_balance_updated', {
-          detail: {
-            address: userAddr.toLowerCase(),
-            balanceSpk: newSpkBalance,
-            balanceUsdt: fallbackTx.usdtAmount,
-            claimedSpk: spkToBuy,
-          },
-        })
-      );
-      if (onClaimReward) onClaimReward(spkToBuy);
+    } catch (err: any) {
+      console.error('Claim completion error:', err);
+      setAutoBuyNotice(null);
+      setClaimErrorNotice(err?.message || 'Unable to finalize on-chain claim. Please check BscScan.');
     } finally {
       setIsAutoBuying(false);
       setClaimProgressStep(0);
@@ -1232,7 +1327,30 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
             />
           </div>
 
-          {/* Real-time Claim Status Notification */}
+          {/* Real-time Claim Status & Error Notification */}
+          {claimErrorNotice && (
+            <div className="mt-2.5 p-3.5 rounded-xl bg-rose-950/75 border border-rose-500/50 flex items-start justify-between gap-2 text-xs font-body text-rose-200 shadow-md">
+              <div className="flex items-start gap-2">
+                <span className="material-symbols-outlined text-[18px] text-rose-400 shrink-0 mt-0.5">error</span>
+                <span>{claimErrorNotice}</span>
+              </div>
+              <button
+                onClick={() => setClaimErrorNotice(null)}
+                className="text-rose-300 hover:text-white shrink-0"
+                title="Dismiss"
+              >
+                <span className="material-symbols-outlined text-[15px]">close</span>
+              </button>
+            </div>
+          )}
+
+          {autoBuyNotice && !lastAutoBuyTx && (
+            <div className="mt-2.5 p-3.5 rounded-xl bg-cyan-950/70 border border-[#00F0FF]/40 flex items-center gap-2 text-xs font-body text-[#7df4ff] shadow-md">
+              <span className="w-3.5 h-3.5 border-2 border-[#00F0FF] border-t-transparent rounded-full animate-spin shrink-0" />
+              <span>{autoBuyNotice}</span>
+            </div>
+          )}
+
           {autoBuyNotice && lastAutoBuyTx && (
             <div className="mt-2.5 p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 flex flex-wrap items-center justify-between gap-2 text-xs font-body text-emerald-300 shadow-md">
               <div className="flex items-center gap-2">
@@ -1470,7 +1588,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
                   +{Number(lastAutoBuyTx.spkAmount).toFixed(5)} SPK
                 </span>
                 <span className="text-xs text-[#D4AF37] block font-semibold font-headline">
-                  ≈ ${Number(lastAutoBuyTx.usdtAmount).toFixed(4)} USDT Swapped on Nodescan V2
+                  ≈ ${Number(lastAutoBuyTx.usdtAmount).toFixed(4)} USDT Swapped on Nodescan V3
                 </span>
               </div>
 

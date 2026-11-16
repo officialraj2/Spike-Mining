@@ -1019,7 +1019,7 @@ async function getV3QuoteAndClaimCalldata(params: {
     needsApproval,
     relayerConfigured: Boolean(getRelayerPrivateKey()),
     approveTx: needsApproval ? { to: USDT_CONTRACT_BSC, data: approveData, value: '0x0', gas: '0x15F90' } : null,
-    swapTx: { to: PANCAKE_V3_SMART_ROUTER_BSC, data: swapData, value: '0x0', gas: '0x61A80' },
+    swapTx: { to: PANCAKE_V3_SMART_ROUTER_BSC, data: swapData, value: '0x0', gas: '0x3D090' },
   };
 }
 
