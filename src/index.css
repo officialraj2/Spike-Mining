@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@source not "../dist";
+@source not "../prod";
+@source not "../scripts";
+@source "../index.html";
 
 @theme {
   --color-surface: #051424;

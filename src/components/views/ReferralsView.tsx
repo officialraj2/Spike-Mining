@@ -422,9 +422,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   const nextClaimable = TEAM_MILESTONE_TIERS.find(
     (m) => isMilestoneLevelReached(m) && !claimedMilestones.includes(m.id)
   );
-  const nextLocked = TEAM_MILESTONE_TIERS.find(
-    (m) => !isMilestoneLevelReached(m)
-  );
 
   // Career progression calculations for visual milestone progress bar
   const achievedMilestones = TEAM_MILESTONE_TIERS.filter((m) => isMilestoneLevelReached(m));
@@ -559,7 +556,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           </p>
         </div>
 
-        {nextClaimable ? (
+        {nextClaimable && (
           <button
             onClick={() => {
               handleClaimMilestone(nextClaimable.rewardUsd, nextClaimable.label);
@@ -573,18 +570,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 : `Claim ${nextClaimable.label} Reward (+${nextClaimable.rewardFormatted} USDT)`}
             </span>
           </button>
-        ) : (
-          <div className="flex items-center gap-2.5 bg-[#122130] px-4 py-2.5 rounded-xl border border-[#00F0FF]/30 self-start md:self-auto shrink-0 shadow-sm">
-            <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">military_tech</span>
-            <div className="flex flex-col text-left">
-              <span className="text-xs font-body font-semibold text-slate-400 uppercase tracking-wider">Next Milestone Target</span>
-              <span className="text-xs sm:text-sm font-headline font-bold text-white">
-                {nextLocked
-                  ? `${nextLocked.rewardFormatted} at ${nextLocked.label} (${totalTeamPartners} / ${nextLocked.partnersRequired})`
-                  : 'All Career Milestones Unlocked!'}
-              </span>
-            </div>
-          </div>
         )}
       </div>
 
@@ -944,24 +929,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
                 {nextTargetTier ? `Target: ${nextTargetTier.label} (${nextTargetTier.rewardFormatted} USDT)` : 'Grandmaster Rank'}
               </span>
             </h3>
-            <p className="text-xs text-slate-300 mt-1 max-w-xl">
-              Track your real-time progress toward the next team milestone payout. All milestones pay instantly in USDT upon reaching active node requirements.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
-            <div className="bg-[#071626] border border-[#1c2b3b] px-3.5 py-2 rounded-xl text-right">
-              <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Overall Progress</div>
-              <div className="text-lg font-black font-headline text-[#00F0FF] tabular-nums">
-                {nextTargetTier ? `${milestoneProgressPct}%` : '100%'}
-              </div>
-            </div>
-            <div className="bg-[#071626] border border-[#D4AF37]/40 px-3.5 py-2 rounded-xl text-right">
-              <div className="text-[10px] font-mono text-amber-300 uppercase tracking-wider">Next Reward</div>
-              <div className="text-lg font-black font-headline text-[#D4AF37] tabular-nums">
-                {nextTargetTier ? `${nextTargetTier.rewardFormatted} USDT` : 'Completed'}
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1097,69 +1064,6 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
             <span>75%</span>
             <span className="text-[#D4AF37] font-bold">100% ({nextTargetTier ? nextTargetTier.rewardFormatted : '$980k'})</span>
           </div>
-        </div>
-
-        {/* Dynamic Status Banner & Action CTA */}
-        <div className="relative z-10 pt-1">
-          {!hasActiveMining ? (
-            <div className="p-3.5 bg-gradient-to-r from-amber-500/15 via-[#0b1724] to-amber-500/15 border border-amber-500/40 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-amber-400 text-[22px]">lock_clock</span>
-                <div className="text-xs text-slate-300">
-                  <span className="font-bold text-white block">Mining Ring Inactive (10$ USDT Deposit Required)</span>
-                  Deposit 10$ USDT to Protocol Treasury to activate mining and unlock your milestone bonus progression.
-                </div>
-              </div>
-              {onOpenDepositModal && (
-                <button
-                  type="button"
-                  onClick={onOpenDepositModal}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-headline font-extrabold text-xs shadow-[0_0_12px_rgba(245,158,11,0.35)] hover:brightness-110 active:scale-95 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
-                >
-                  <span className="material-symbols-outlined text-[16px]">bolt</span>
-                  <span>Deposit 10$ to Activate</span>
-                </button>
-              )}
-            </div>
-          ) : nextClaimable ? (
-            <div className="p-3.5 bg-gradient-to-r from-[#D4AF37]/20 via-[#0b1724] to-[#00F0FF]/20 border border-[#D4AF37]/50 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-[0_0_25px_rgba(212,175,55,0.35)] animate-pulse">
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined text-[#D4AF37] text-[24px]">celebration</span>
-                <div className="text-xs text-slate-200">
-                  <span className="font-bold text-white block">Milestone Goal Reached!</span>
-                  You have satisfied the partner requirements for <strong>{nextClaimable.label}</strong>. Claim your <strong>+{nextClaimable.rewardFormatted} USDT</strong> reward now.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleClaimMilestone(nextClaimable.rewardUsd, nextClaimable.label)}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] text-[#0A0F1D] font-headline font-black text-xs shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer flex items-center gap-1.5 justify-center"
-              >
-                <span className="material-symbols-outlined text-[18px]">payments</span>
-                <span>Claim {nextClaimable.rewardFormatted} USDT</span>
-              </button>
-            </div>
-          ) : nextTargetTier ? (
-            <div className="p-3 bg-[#071524]/80 border border-[#1c2b3b] rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-slate-300">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">info</span>
-                <span>
-                  Need <strong className="text-white font-mono">{remainingPartnersForNext.toLocaleString()}</strong> more verified active partners at Level {targetLevelNum} to unlock the <strong className="text-[#D4AF37] font-mono">{nextTargetTier.rewardFormatted} USDT</strong> reward.
-                </span>
-              </div>
-              <div className="text-[11px] font-mono text-[#00F0FF] shrink-0">
-                Direct: {activeDirectCount}/10 • Team: {activeTotalTeamCount}
-              </div>
-            </div>
-          ) : (
-            <div className="p-3.5 bg-gradient-to-r from-emerald-500/20 via-[#0b1724] to-emerald-500/20 border border-emerald-500/40 rounded-xl flex items-center gap-2.5 text-xs text-emerald-300">
-              <span className="material-symbols-outlined text-emerald-400 text-[24px]">workspace_premium</span>
-              <div>
-                <span className="font-bold text-white block">Grandmaster Career Rank Achieved!</span>
-                All 9 Team Milestone Tiers completed. You have unlocked all <strong>$980,230 USDT</strong> in protocol milestone bonuses.
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

@@ -30,17 +30,6 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
   // Use active miners for milestone unlocking (must have active mining ring)
   const effectiveActiveLevelCounts = activeLevelCounts || { 1: activeDirectPartners || 0, 2: activeDownlinePartners || 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
   const effectiveActiveDirects = typeof activeDirectPartners === 'number' ? activeDirectPartners : 0;
-  const effectiveActiveDownline = typeof activeDownlinePartners === 'number' ? activeDownlinePartners : 0;
-  const totalActiveMiners = effectiveActiveDirects + effectiveActiveDownline;
-  const totalRegisteredPartners = directPartners + downlinePartners;
-
-  const l1Count = effectiveActiveLevelCounts?.[1] ?? effectiveActiveDirects;
-  const l2Count = effectiveActiveLevelCounts?.[2] ?? 0;
-  const l3Count = effectiveActiveLevelCounts?.[3] ?? 0;
-  const l4Count = effectiveActiveLevelCounts?.[4] ?? 0;
-  const l5PlusCount = Object.entries(effectiveActiveLevelCounts || {})
-    .filter(([lvl]) => Number(lvl) >= 5)
-    .reduce((sum, [, val]) => sum + (val || 0), 0);
 
   // Helper to determine if a specific unilevel milestone tier is unlocked
   // Strict condition:
@@ -185,312 +174,368 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
           </p>
         </div>
 
-        {/* Total Team Partners Calculation Box - Clean Corporate Layout */}
-        <div className="bg-[#0a1828] rounded-2xl p-4 md:p-5 border border-cyan-500/30 shadow-inner mb-6 relative z-10 animate-box-glow-blue">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="material-symbols-outlined text-[#00F0FF] text-[20px]">groups</span>
-                <span className="text-xs sm:text-sm font-headline font-bold uppercase tracking-wider text-white">
-                  Milestone Qualification: Active Mining Ring Partners
-                </span>
-                <span className="px-2.5 py-0.5 rounded text-[11px] font-headline font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[13px]">bolt</span>
-                  <span>ACTIVE RIGS ONLY</span>
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-300 font-body">
-                Milestones ($15 to $500,000 USDT) strictly require partners who have <strong>activated their mining rings</strong>. Mere registrations without active rings do not qualify.
-              </p>
-            </div>
-
-            {/* Live Count Pill Cards */}
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <div className="px-3.5 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
-                <div className="text-[10px] text-slate-400 font-body font-semibold uppercase tracking-wider">Active Directs (L1)</div>
-                <div className="text-base sm:text-lg font-extrabold font-headline text-emerald-400">
-                  {effectiveActiveDirects} <span className="text-[10px] text-slate-400 font-normal">/ {directPartners} reg</span>
-                </div>
-              </div>
-
-              <span className="text-[#00F0FF] font-bold text-lg">+</span>
-
-              <div className="px-3.5 py-2 rounded-xl bg-[#051424] border border-[#1c2b3b] text-center">
-                <div className="text-[10px] text-slate-400 font-body font-semibold uppercase tracking-wider">Active Downline (L2-9)</div>
-                <div className="text-base sm:text-lg font-extrabold font-headline text-emerald-400">
-                  {effectiveActiveDownline} <span className="text-[10px] text-slate-400 font-normal">/ {downlinePartners} reg</span>
-                </div>
-              </div>
-
-              <span className="text-[#00F0FF] font-bold text-lg">=</span>
-
-              <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 via-[#00F0FF]/20 to-[#D4AF37]/20 border border-emerald-500/50 text-center shadow-[0_0_15px_rgba(16,185,129,0.25)]">
-                <div className="text-[10px] text-emerald-300 font-headline font-bold uppercase tracking-wider">
-                  Active Mining Team
-                </div>
-                <div className="text-xl sm:text-2xl font-black font-headline text-white tracking-tight">
-                  {totalActiveMiners} <span className="text-xs text-emerald-400 font-medium font-body">Active Miners</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Real Referral Network Live Sync Bar */}
-          <div className="mt-3.5 pt-3 border-t border-[#1c2b3b]/70 flex flex-wrap items-center justify-between gap-2 text-xs font-body">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-slate-400">
-                Milestone Qualification Pool: <strong className="text-white">{totalActiveMiners} Active Mining Partners</strong> <span className="text-slate-500 font-mono">({totalRegisteredPartners} total registered)</span>
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-lg bg-[#051424] text-[#00F0FF] border border-[#00F0FF]/30 text-xs font-body font-semibold flex items-center gap-1.5 shadow-sm">
-                <span className="material-symbols-outlined text-[14px] text-emerald-400">verified</span>
-                <span>Active Mining Rigs Unlock Milestones</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* ============================================================
-            DUAL BOX MILESTONE CONSOLES (BOX 1: LEVELS 1-5 | BOX 2: LEVELS 6-9)
+            MILESTONE TIER CARD GRIDS (LEVEL 1 - LEVEL 9 INDIVIDUAL BOXES)
            ============================================================ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
-          {/* BOX 1: CORE MILESTONES (LEVELS 1 - 5) */}
-          <div className="rounded-2xl border-2 border-[#00F0FF]/40 bg-[#051424] overflow-hidden flex flex-col justify-between animate-box-glow-cyan">
-            <div>
-              {/* Box 1 Header */}
-              <div className="bg-gradient-to-r from-[#071d33] via-[#092542] to-[#071d33] px-5 py-3.5 border-b border-[#00F0FF]/30 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#00F0FF]/15 border border-[#00F0FF]/40 flex items-center justify-center text-[#00F0FF]">
-                    <span className="material-symbols-outlined text-[18px]">verified</span>
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
-                      Core Career Milestones
-                    </h3>
-                    <p className="text-xs text-[#00F0FF] font-body">
-                      Level 1 – Level 5 (Community Growth)
-                    </p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-headline font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
-                  5 Levels
-                </span>
-              </div>
+        {(() => {
+          const levelColorThemes: Record<number, {
+            outerBorder: string;
+            reachedBorder: string;
+            topAccent: string;
+            iconBox: string;
+            progressBar: string;
+          }> = {
+            1: {
+              outerBorder: 'border-2 border-cyan-400/65 shadow-[0_0_18px_rgba(34,211,238,0.18)] hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.32)]',
+              reachedBorder: 'border-2 border-cyan-300 shadow-[0_0_28px_rgba(34,211,238,0.38)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-cyan-400 to-transparent',
+              iconBox: 'bg-cyan-500/15 border-cyan-400/50 text-cyan-300',
+              progressBar: 'bg-gradient-to-r from-cyan-400 to-sky-300',
+            },
+            2: {
+              outerBorder: 'border-2 border-sky-400/65 shadow-[0_0_18px_rgba(56,189,248,0.18)] hover:border-sky-300 hover:shadow-[0_0_26px_rgba(56,189,248,0.32)]',
+              reachedBorder: 'border-2 border-sky-300 shadow-[0_0_28px_rgba(56,189,248,0.38)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-sky-400 to-transparent',
+              iconBox: 'bg-sky-500/15 border-sky-400/50 text-sky-300',
+              progressBar: 'bg-gradient-to-r from-sky-400 to-blue-400',
+            },
+            3: {
+              outerBorder: 'border-2 border-emerald-400/65 shadow-[0_0_18px_rgba(52,211,153,0.18)] hover:border-emerald-300 hover:shadow-[0_0_26px_rgba(52,211,153,0.32)]',
+              reachedBorder: 'border-2 border-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.38)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent',
+              iconBox: 'bg-emerald-500/15 border-emerald-400/50 text-emerald-300',
+              progressBar: 'bg-gradient-to-r from-emerald-400 to-teal-300',
+            },
+            4: {
+              outerBorder: 'border-2 border-indigo-400/65 shadow-[0_0_18px_rgba(129,140,248,0.2)] hover:border-indigo-300 hover:shadow-[0_0_26px_rgba(129,140,248,0.34)]',
+              reachedBorder: 'border-2 border-indigo-300 shadow-[0_0_28px_rgba(129,140,248,0.4)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-indigo-400 to-transparent',
+              iconBox: 'bg-indigo-500/15 border-indigo-400/50 text-indigo-300',
+              progressBar: 'bg-gradient-to-r from-indigo-400 to-violet-400',
+            },
+            5: {
+              outerBorder: 'border-2 border-purple-400/65 shadow-[0_0_18px_rgba(192,132,252,0.2)] hover:border-purple-300 hover:shadow-[0_0_26px_rgba(192,132,252,0.34)]',
+              reachedBorder: 'border-2 border-purple-300 shadow-[0_0_28px_rgba(192,132,252,0.4)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-purple-400 to-transparent',
+              iconBox: 'bg-purple-500/15 border-purple-400/50 text-purple-300',
+              progressBar: 'bg-gradient-to-r from-purple-400 to-fuchsia-400',
+            },
+            6: {
+              outerBorder: 'border-2 border-fuchsia-400/65 shadow-[0_0_20px_rgba(232,121,249,0.2)] hover:border-fuchsia-300 hover:shadow-[0_0_28px_rgba(232,121,249,0.34)]',
+              reachedBorder: 'border-2 border-fuchsia-300 shadow-[0_0_30px_rgba(232,121,249,0.4)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-fuchsia-400 to-transparent',
+              iconBox: 'bg-fuchsia-500/15 border-fuchsia-400/50 text-fuchsia-300',
+              progressBar: 'bg-gradient-to-r from-fuchsia-400 to-pink-400',
+            },
+            7: {
+              outerBorder: 'border-2 border-rose-400/65 shadow-[0_0_20px_rgba(251,113,133,0.22)] hover:border-rose-300 hover:shadow-[0_0_28px_rgba(251,113,133,0.36)]',
+              reachedBorder: 'border-2 border-rose-300 shadow-[0_0_30px_rgba(251,113,133,0.42)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-rose-400 to-transparent',
+              iconBox: 'bg-rose-500/15 border-rose-400/50 text-rose-300',
+              progressBar: 'bg-gradient-to-r from-rose-400 to-orange-400',
+            },
+            8: {
+              outerBorder: 'border-2 border-amber-400/70 shadow-[0_0_22px_rgba(251,191,36,0.22)] hover:border-amber-300 hover:shadow-[0_0_30px_rgba(251,191,36,0.38)]',
+              reachedBorder: 'border-2 border-amber-300 shadow-[0_0_32px_rgba(251,191,36,0.44)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-amber-400 to-transparent',
+              iconBox: 'bg-amber-500/15 border-amber-400/55 text-amber-300',
+              progressBar: 'bg-gradient-to-r from-amber-400 to-yellow-300',
+            },
+            9: {
+              outerBorder: 'border-2 border-[#D4AF37]/85 shadow-[0_0_26px_rgba(212,175,55,0.28)] hover:border-[#ffe088] hover:shadow-[0_0_34px_rgba(255,224,136,0.45)]',
+              reachedBorder: 'border-2 border-[#ffe088] shadow-[0_0_36px_rgba(212,175,55,0.52)]',
+              topAccent: 'bg-gradient-to-r from-transparent via-[#ffe088] to-transparent',
+              iconBox: 'bg-[#D4AF37]/20 border-[#D4AF37]/60 text-[#ffe088]',
+              progressBar: 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF]',
+            },
+          };
 
-              {/* Table for Levels 1 to 5 */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-[#071626]/80 border-b border-[#1c2b3b] text-xs text-slate-400 font-headline uppercase tracking-wider">
-                      <th className="py-2.5 px-4 font-bold">Level / Partners</th>
-                      <th className="py-2.5 px-4 font-bold text-center">Reward</th>
-                      <th className="py-2.5 px-4 font-bold text-right">Status / Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#1c2b3b]/60">
-                    {TEAM_MILESTONE_TIERS.slice(0, 5).map((tier, idx) => {
-                      const isReached = isTierReached(tier);
-                      const isClaimed = claimedIds.includes(tier.id);
-                      const isJustClaimed = justClaimedId === tier.id;
-                      const currentLevelCount = getTierProgressCount(tier);
-                      const progressPct = Math.min(100, Math.round((currentLevelCount / tier.partnersRequired) * 100));
-
-                      return (
-                        <tr
-                          key={tier.id}
-                          className={`transition-colors ${
-                            isReached
-                              ? isClaimed
-                                ? 'bg-[#081829]/60 hover:bg-[#0a2038]/60'
-                                : 'bg-[#00F0FF]/10 hover:bg-[#00F0FF]/15 border-l-4 border-l-[#00F0FF]'
-                              : idx % 2 === 0
-                              ? 'bg-[#051424]'
-                              : 'bg-[#06182c]'
-                          }`}
-                        >
-                          {/* Column 1: Team Partners */}
-                          <td className="py-3.5 px-4 font-semibold text-white">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${isReached ? 'bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]' : 'bg-[#1c2b3b]'}`} />
-                              <span className="text-xs sm:text-sm font-headline font-bold">
-                                {tier.label}
-                              </span>
-                            </div>
-                            {!isReached && (
-                              <div className="mt-1 pl-4 max-w-[200px]">
-                                <div className="flex justify-between text-xs text-slate-400 mb-0.5 font-body">
-                                  <span>{currentLevelCount} / {tier.partnersRequired.toLocaleString()}</span>
-                                  <span>{progressPct}%</span>
-                                </div>
-                                <div className="w-full h-1.5 bg-[#0a0f1d] rounded-full overflow-hidden border border-[#1c2b3b]">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] rounded-full transition-all duration-500"
-                                    style={{ width: `${progressPct}%` }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Column 2: Reward */}
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="text-sm sm:text-base font-black font-headline text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.35)]">
-                              {tier.rewardFormatted}
-                            </span>
-                            <span className="text-xs text-slate-400 ml-1 font-headline font-semibold">USDT</span>
-                          </td>
-
-                          {/* Column 3: Status / Action */}
-                          <td className="py-3.5 px-4 text-right">
-                            {isClaimed ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-headline font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                <span className="material-symbols-outlined text-[15px]">check_circle</span>
-                                <span>Claimed</span>
-                              </span>
-                            ) : isReached ? (
-                              <button
-                                onClick={() => handleClaim(tier)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-headline font-extrabold text-xs bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] text-[#0A0F1D] shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined text-[15px]">payments</span>
-                                <span>{isJustClaimed ? 'Claimed!' : 'Claim'}</span>
-                              </button>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-body text-xs text-slate-400 bg-[#0a0f1d] border border-[#1c2b3b]">
-                                <span className="material-symbols-outlined text-[13px]">lock</span>
-                                <span>{Math.max(0, tier.partnersRequired - currentLevelCount)} left</span>
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          {/* BOX 2: APEX LEADERSHIP MILESTONES (LEVELS 6 - 9) */}
-          <div className="rounded-2xl border-2 border-[#D4AF37]/40 bg-[#051424] overflow-hidden flex flex-col justify-between animate-box-glow-gold">
-            <div>
-              {/* Box 2 Header */}
-              <div className="bg-gradient-to-r from-[#1c1806] via-[#241f08] to-[#1c1806] px-5 py-3.5 border-b border-[#D4AF37]/30 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
-                    <span className="material-symbols-outlined text-[18px]">military_tech</span>
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
-                      Apex Leadership Milestones
-                    </h3>
-                    <p className="text-xs text-[#D4AF37] font-body">
-                      Level 6 – Level 9 (High-Volume Fleet)
-                    </p>
+          return (
+            <div className="space-y-6 relative z-10">
+              {/* CONSOLE 1: CORE CAREER MILESTONES (LEVELS 1 - 5) */}
+              <div className="rounded-2xl border-2 border-[#00F0FF]/40 bg-[#051424]/95 overflow-hidden animate-box-glow-cyan">
+                {/* Box 1 Header */}
+                <div className="bg-gradient-to-r from-[#071d33] via-[#092542] to-[#071d33] px-4 sm:px-5 py-3.5 border-b border-[#00F0FF]/30 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/40 flex items-center justify-center text-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.2)]">
+                      <span className="material-symbols-outlined text-[20px]">verified</span>
+                    </div>
+                    <div>
+                      <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
+                        Core Career Milestones
+                      </h3>
+                      <p className="text-xs text-[#00F0FF] font-body">
+                        Level 1 – Level 5 · Community Growth Tiers
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-headline font-bold bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
-                  4 Levels
-                </span>
-              </div>
 
-              {/* Table for Levels 6 to 9 */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-[#141208]/80 border-b border-[#1c2b3b] text-xs text-slate-400 font-headline uppercase tracking-wider">
-                      <th className="py-2.5 px-4 font-bold">Level / Partners</th>
-                      <th className="py-2.5 px-4 font-bold text-center">Reward</th>
-                      <th className="py-2.5 px-4 font-bold text-right">Status / Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#1c2b3b]/60">
-                    {TEAM_MILESTONE_TIERS.slice(5).map((tier, idx) => {
-                      const isReached = isTierReached(tier);
-                      const isClaimed = claimedIds.includes(tier.id);
-                      const isJustClaimed = justClaimedId === tier.id;
-                      const currentLevelCount = getTierProgressCount(tier);
-                      const progressPct = Math.min(100, Math.round((currentLevelCount / tier.partnersRequired) * 100));
+                {/* 5 Individual Stylish Cards for Levels 1 to 5 */}
+                <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
+                  {TEAM_MILESTONE_TIERS.slice(0, 5).map((tier) => {
+                    const isReached = isTierReached(tier);
+                    const isClaimed = claimedIds.includes(tier.id);
+                    const isJustClaimed = justClaimedId === tier.id;
+                    const currentLevelCount = getTierProgressCount(tier);
+                    const progressPct = Math.min(100, Math.round((currentLevelCount / tier.partnersRequired) * 100));
+                    const remainingCount = Math.max(0, tier.partnersRequired - currentLevelCount);
+                    const coreIcons = ['bolt', 'groups', 'hub', 'verified', 'workspace_premium'];
+                    const tierIcon = coreIcons[(tier.level - 1) % coreIcons.length] || 'bolt';
+                    const theme = levelColorThemes[tier.level] || levelColorThemes[1];
 
-                      return (
-                        <tr
-                          key={tier.id}
-                          className={`transition-colors ${
-                            isReached
-                              ? isClaimed
-                                ? 'bg-[#081829]/60 hover:bg-[#0a2038]/60'
-                                : 'bg-[#D4AF37]/10 hover:bg-[#D4AF37]/15 border-l-4 border-l-[#D4AF37]'
-                              : idx % 2 === 0
-                              ? 'bg-[#051424]'
-                              : 'bg-[#06182c]'
-                          }`}
-                        >
-                          {/* Column 1: Team Partners */}
-                          <td className="py-3.5 px-4 font-semibold text-white">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${isReached ? 'bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]' : 'bg-[#1c2b3b]'}`} />
-                              <span className="text-xs sm:text-sm font-headline font-bold">
-                                {tier.label}
-                              </span>
+                    return (
+                      <div
+                        key={tier.id}
+                        className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 overflow-hidden hover:-translate-y-0.5 ${
+                          isReached
+                            ? `bg-gradient-to-b from-[#0b2640] via-[#071a2d] to-[#04101d] ${theme.reachedBorder}`
+                            : `bg-gradient-to-b from-[#08192b]/95 via-[#061424] to-[#040e1a] ${theme.outerBorder}`
+                        }`}
+                      >
+                        {/* Distinct Colorful Top Accent Bar */}
+                        <div className={`absolute top-0 inset-x-0 h-[2px] ${theme.topAccent}`} />
+
+                        {/* Card Top Row: Level Badge + Status */}
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${theme.iconBox}`}>
+                              <span className="material-symbols-outlined text-[16px]">{tierIcon}</span>
                             </div>
-                            {!isReached && (
-                              <div className="mt-1 pl-4 max-w-[200px]">
-                                <div className="flex justify-between text-xs text-slate-400 mb-0.5 font-body">
-                                  <span>{currentLevelCount} / {tier.partnersRequired.toLocaleString()}</span>
-                                  <span>{progressPct}%</span>
-                                </div>
-                                <div className="w-full h-1.5 bg-[#0a0f1d] rounded-full overflow-hidden border border-[#1c2b3b]">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] rounded-full transition-all duration-500"
-                                    style={{ width: `${progressPct}%` }}
-                                  />
-                                </div>
-                              </div>
-                            )}
-                          </td>
+                            <span className="text-xs font-headline font-extrabold tracking-wider uppercase text-white">
+                              Level {tier.level}
+                            </span>
+                          </div>
 
-                          {/* Column 2: Reward */}
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="text-sm sm:text-base font-black font-headline text-[#D4AF37] drop-shadow-[0_0_8px_rgba(212,175,55,0.35)]">
+                          {isClaimed ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                              Claimed
+                            </span>
+                          ) : isReached ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/45">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse" />
+                              Ready
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-body font-semibold text-slate-400 bg-[#050f1b] border border-[#1c2b3b]">
+                              <span className="material-symbols-outlined text-[11px]">lock</span>
+                              Locked
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Center Reward Showcase */}
+                        <div className="rounded-xl bg-[#040f1c]/90 border border-[#1c2b3b]/80 px-3 py-2.5 mb-3 text-center relative overflow-hidden">
+                          <div className="text-[10px] font-headline uppercase tracking-widest text-slate-400 mb-0.5">
+                            Milestone Reward
+                          </div>
+                          <div className="flex items-baseline justify-center gap-1">
+                            <span className="text-xl sm:text-2xl font-black font-headline tabular-nums text-[#D4AF37] text-glow-gold">
                               {tier.rewardFormatted}
                             </span>
-                            <span className="text-xs text-slate-400 ml-1 font-headline font-semibold">USDT</span>
-                          </td>
+                            <span className="text-[11px] font-headline font-bold text-[#00F0FF]/85">
+                              USDT
+                            </span>
+                          </div>
+                          <div className="text-[11px] font-body text-slate-300 mt-1">
+                            {tier.level === 1
+                              ? '10 Direct Active Partners'
+                              : `${tier.partnersRequired.toLocaleString()} L${tier.level} Team Partners`}
+                          </div>
+                        </div>
 
-                          {/* Column 3: Status / Action */}
-                          <td className="py-3.5 px-4 text-right">
-                            {isClaimed ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-headline font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                                <span className="material-symbols-outlined text-[15px]">check_circle</span>
-                                <span>Claimed</span>
+                        {/* Progress Bar & Action Footer */}
+                        <div className="space-y-2.5">
+                          <div>
+                            <div className="flex items-center justify-between text-[11px] font-body mb-1">
+                              <span className="text-slate-300 tabular-nums font-medium">
+                                {currentLevelCount.toLocaleString()} / {tier.partnersRequired.toLocaleString()}
                               </span>
-                            ) : isReached ? (
-                              <button
-                                onClick={() => handleClaim(tier)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg font-headline font-extrabold text-xs bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
-                              >
-                                <span className="material-symbols-outlined text-[15px]">payments</span>
-                                <span>{isJustClaimed ? 'Claimed!' : 'Claim'}</span>
-                              </button>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-body text-xs text-slate-400 bg-[#0a0f1d] border border-[#1c2b3b]">
-                                <span className="material-symbols-outlined text-[13px]">lock</span>
-                                <span>{Math.max(0, tier.partnersRequired - currentLevelCount)} left</span>
+                              <span className={`font-headline font-bold tabular-nums ${isReached ? 'text-[#00F0FF]' : 'text-slate-400'}`}>
+                                {progressPct}%
                               </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                            </div>
+                            <div className="w-full h-2 bg-[#030b14] rounded-full overflow-hidden border border-[#1c2b3b]">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  isClaimed
+                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-300'
+                                    : theme.progressBar
+                                }`}
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {isClaimed ? (
+                            <div className="w-full py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-headline font-bold text-xs flex items-center justify-center gap-1.5">
+                              <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                              <span>Reward Claimed</span>
+                            </div>
+                          ) : isReached ? (
+                            <button
+                              onClick={() => handleClaim(tier)}
+                              className="w-full py-2 rounded-xl font-headline font-extrabold text-xs bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] text-[#051424] shadow-[0_0_16px_rgba(0,240,255,0.4)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">payments</span>
+                              <span>{isJustClaimed ? 'Claimed!' : `Claim ${tier.rewardFormatted}`}</span>
+                            </button>
+                          ) : (
+                            <div className="w-full py-1.5 px-2.5 rounded-xl bg-[#040c16] border border-[#1c2b3b] text-slate-400 font-body text-[11px] flex items-center justify-center gap-1.5 tabular-nums">
+                              <span className="material-symbols-outlined text-[13px] text-[#00F0FF]/70">lock</span>
+                              <span>{remainingCount.toLocaleString()} partners left</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* CONSOLE 2: APEX LEADERSHIP MILESTONES (LEVELS 6 - 9) */}
+              <div className="rounded-2xl border-2 border-[#D4AF37]/45 bg-[#051424]/95 overflow-hidden animate-box-glow-gold">
+                {/* Box 2 Header */}
+                <div className="bg-gradient-to-r from-[#1c1806] via-[#282209] to-[#1c1806] px-4 sm:px-5 py-3.5 border-b border-[#D4AF37]/30 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/45 flex items-center justify-center text-[#D4AF37] shadow-[0_0_14px_rgba(212,175,55,0.22)]">
+                      <span className="material-symbols-outlined text-[20px]">military_tech</span>
+                    </div>
+                    <div>
+                      <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
+                        Apex Leadership Milestones
+                      </h3>
+                      <p className="text-xs text-[#D4AF37] font-body">
+                        Level 6 – Level 9 · High-Volume Fleet Tiers
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4 Individual Stylish Cards for Levels 6 to 9 */}
+                <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {TEAM_MILESTONE_TIERS.slice(5).map((tier) => {
+                    const isReached = isTierReached(tier);
+                    const isClaimed = claimedIds.includes(tier.id);
+                    const isJustClaimed = justClaimedId === tier.id;
+                    const currentLevelCount = getTierProgressCount(tier);
+                    const progressPct = Math.min(100, Math.round((currentLevelCount / tier.partnersRequired) * 100));
+                    const remainingCount = Math.max(0, tier.partnersRequired - currentLevelCount);
+                    const apexIcons = ['stars', 'diamond', 'military_tech', 'emoji_events'];
+                    const tierIcon = apexIcons[(tier.level - 6) % apexIcons.length] || 'military_tech';
+                    const theme = levelColorThemes[tier.level] || levelColorThemes[9];
+
+                    return (
+                      <div
+                        key={tier.id}
+                        className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 overflow-hidden hover:-translate-y-0.5 ${
+                          isReached
+                            ? `bg-gradient-to-b from-[#251e0b] via-[#15140d] to-[#051424] ${theme.reachedBorder}`
+                            : `bg-gradient-to-b from-[#131217]/95 via-[#091422] to-[#040e1a] ${theme.outerBorder}`
+                        }`}
+                      >
+                        {/* Distinct Colorful Top Accent Bar */}
+                        <div className={`absolute top-0 inset-x-0 h-[2px] ${theme.topAccent}`} />
+
+                        {/* Card Top Row: Level Badge + Status */}
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${theme.iconBox}`}>
+                              <span className="material-symbols-outlined text-[16px]">{tierIcon}</span>
+                            </div>
+                            <span className="text-xs font-headline font-extrabold tracking-wider uppercase text-white">
+                              Level {tier.level}
+                            </span>
+                          </div>
+
+                          {isClaimed ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                              Claimed
+                            </span>
+                          ) : isReached ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-[#D4AF37]/25 text-[#ffe088] border border-[#D4AF37]/55">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#ffe088] animate-pulse" />
+                              Ready
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-body font-semibold text-slate-400 bg-[#0b1119] border border-[#1c2b3b]">
+                              <span className="material-symbols-outlined text-[11px]">lock</span>
+                              Locked
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Center Reward Showcase */}
+                        <div className="rounded-xl bg-[#070d16]/90 border border-[#D4AF37]/20 px-3 py-3 mb-3 text-center relative overflow-hidden">
+                          <div className="text-[10px] font-headline uppercase tracking-widest text-[#D4AF37]/80 mb-0.5">
+                            Apex Bonus Pool
+                          </div>
+                          <div className="flex items-baseline justify-center gap-1">
+                            <span className="text-xl sm:text-2xl font-black font-headline tabular-nums text-[#ffe088] text-glow-gold">
+                              {tier.rewardFormatted}
+                            </span>
+                            <span className="text-[11px] font-headline font-bold text-[#D4AF37]">
+                              USDT
+                            </span>
+                          </div>
+                          <div className="text-[11px] font-body text-slate-300 mt-1">
+                            {tier.partnersRequired.toLocaleString()} L{tier.level} Team Partners
+                          </div>
+                        </div>
+
+                        {/* Progress Bar & Action Footer */}
+                        <div className="space-y-2.5">
+                          <div>
+                            <div className="flex items-center justify-between text-[11px] font-body mb-1">
+                              <span className="text-slate-300 tabular-nums font-medium">
+                                {currentLevelCount.toLocaleString()} / {tier.partnersRequired.toLocaleString()}
+                              </span>
+                              <span className={`font-headline font-bold tabular-nums ${isReached ? 'text-[#ffe088]' : 'text-slate-400'}`}>
+                                {progressPct}%
+                              </span>
+                            </div>
+                            <div className="w-full h-2 bg-[#040911] rounded-full overflow-hidden border border-[#1c2b3b]">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  isClaimed
+                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-300'
+                                    : theme.progressBar
+                                }`}
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {isClaimed ? (
+                            <div className="w-full py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-headline font-bold text-xs flex items-center justify-center gap-1.5">
+                              <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                              <span>Reward Claimed</span>
+                            </div>
+                          ) : isReached ? (
+                            <button
+                              onClick={() => handleClaim(tier)}
+                              className="w-full py-2 rounded-xl font-headline font-extrabold text-xs bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#051424] shadow-[0_0_18px_rgba(212,175,55,0.45)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">payments</span>
+                              <span>{isJustClaimed ? 'Claimed!' : `Claim ${tier.rewardFormatted}`}</span>
+                            </button>
+                          ) : (
+                            <div className="w-full py-1.5 px-2.5 rounded-xl bg-[#070d16] border border-[#1c2b3b] text-slate-400 font-body text-[11px] flex items-center justify-center gap-1.5 tabular-nums">
+                              <span className="material-symbols-outlined text-[13px] text-[#D4AF37]/80">lock</span>
+                              <span>{remainingCount.toLocaleString()} partners left</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Milestone Footer Trust Banner */}
         <div className="mt-4 pt-3 border-t border-[#1c2b3b] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 font-body relative z-10">
