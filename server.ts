@@ -1054,10 +1054,11 @@ async function executeBackendOnChainSpkPayout(recipientAddress: string, spkAmoun
 
 // Check on-chain BEP-20 USDT across official protocol deposit wallet and creator reserve
 async function getLiveTreasuryUsdt(): Promise<{ totalUsdt: number; breakdown: Record<string, number> }> {
-  const wallets = [
-    '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7', // Official Protocol Deposit Wallet (10.00 USDT on BSC mainnet)
+  const activeTreasury = db.getTreasuryInfo().treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
+  const wallets = Array.from(new Set([
+    activeTreasury, // Official Protocol Deposit Wallet (10.00 USDT on BSC mainnet)
     '0x3471e07c4d2f7e11c155760a7b386e616b5c3715', // Master Protocol Creator / Reserve
-  ];
+  ]));
   const breakdown: Record<string, number> = {};
   try {
     const balances = await Promise.all(
@@ -1208,7 +1209,7 @@ app.post('/api/deposit/verify-hash', async (req: Request, res: Response) => {
       return;
     }
 
-    const officialWallet = '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
+    const officialWallet = db.getTreasuryInfo().treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
 
     // Query on-chain BSC RPC for real receipt verification
     const onChain = await verifyBscTxReceipt(cleanHash);

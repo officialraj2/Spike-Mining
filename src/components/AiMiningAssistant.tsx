@@ -154,7 +154,7 @@ const SENSITIVE_SECURITY_BLOCKLIST = [
   'passcode',
   'password',
   '0x3471',
-  '0xde7b',
+  '0xd833',
   'database',
   'secret',
   'server.ts',

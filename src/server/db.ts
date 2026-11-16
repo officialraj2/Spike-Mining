@@ -259,7 +259,7 @@ const INITIAL_DATA: DatabaseSchema = {
     maintenanceMode: false,
     stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
     bscContractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-    treasuryWalletAddress: '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+    treasuryWalletAddress: '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
     treasuryBalanceUsdt: 5.0,
     minWithdrawalUsdt: 5.0,
     autoPayoutEnabled: true,
@@ -359,8 +359,12 @@ class PersistentDatabase {
           if (loadedSettings.stratumPoolUrl?.includes('spike.network')) {
             loadedSettings.stratumPoolUrl = 'stratum+tcp://pool.spikenodes.com:443';
           }
-          if (!loadedSettings.treasuryWalletAddress) {
-            loadedSettings.treasuryWalletAddress = '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
+          if (
+            !loadedSettings.treasuryWalletAddress ||
+            loadedSettings.treasuryWalletAddress.toLowerCase() === '0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7' ||
+            loadedSettings.treasuryWalletAddress.toLowerCase() === '0x3471e07c4d2f7e11c155760a7b386e616b5c3715'
+          ) {
+            loadedSettings.treasuryWalletAddress = '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
           }
           if (!loadedSettings.pancakeRouterAddress || loadedSettings.pancakeRouterAddress.toLowerCase() === '0x10ed43c718714eb63d5aa57b78b54704e256024e') {
             loadedSettings.pancakeRouterAddress = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
@@ -1249,7 +1253,7 @@ class PersistentDatabase {
     userAddress: string,
     txHash: string,
     amount = 15,
-    officialWallet = '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+    officialWallet = '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
     customBlockNumber?: number
   ): { success: boolean; user?: DbUser; transaction?: DbTransaction; error?: string } {
     if (!userAddress || !txHash) {
@@ -2035,7 +2039,7 @@ class PersistentDatabase {
         maintenanceMode: false,
         stratumPoolUrl: 'stratum+tcp://pool.spikenodes.com:443',
         bscContractAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
-        treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+        treasuryWalletAddress: '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
         treasuryBalanceUsdt: 5.0,
         minWithdrawalUsdt: 5.0,
         autoPayoutEnabled: true,
@@ -2774,7 +2778,7 @@ class PersistentDatabase {
     }
 
     return {
-      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
       treasuryBalanceUsdt: effectiveTreasury,
       depositsTotal,
       nodeCostsTotal,
@@ -2830,7 +2834,7 @@ class PersistentDatabase {
     }
     const norm = userAddress.toLowerCase();
     const user = this.upsertUser({ address: norm });
-    const officialWallet = this.data.settings.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+    const officialWallet = this.data.settings.treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
     
     // Accumulate in Global Treasury
     const currentTreasury = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
@@ -2945,7 +2949,7 @@ class PersistentDatabase {
     }
     user.lastActive = new Date().toISOString();
 
-    // CREDIT TREASURY WALLET WITH 10 USDT (Treasury address: 0x3471e07c4d2f7e11c155760a7b386e616b5c3715)
+    // CREDIT TREASURY WALLET WITH 10 USDT (Treasury address: 0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF)
     const currentTreasury = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
     this.data.settings.treasuryBalanceUsdt = +(currentTreasury + costUsdt).toFixed(2);
 
@@ -3030,7 +3034,7 @@ class PersistentDatabase {
       spkPrice: token.currentPrice,
       remainingUsdt: user.balanceUsdt,
       treasuryBalanceUsdt: this.data.settings.treasuryBalanceUsdt,
-      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7',
+      treasuryWalletAddress: this.data.settings.treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
       swapTxHash,
       contractTxHash,
     };

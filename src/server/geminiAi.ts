@@ -72,7 +72,7 @@ export function getSmartLocalResponse(message: string): string {
     lower.includes('database') ||
     lower.includes('secret') ||
     lower.includes('0x3471') ||
-    lower.includes('0xde7b')
+    lower.includes('0xd833')
   ) {
     return `🔒 **Institutional Security Protocol:**\n\nSystem credentials, cryptographic master keys, and administrator addresses are strictly segregated under protocol zero-knowledge policies and cannot be disclosed.\n\nMain aapki help **Cloud Mining Architecture, Validator Rig Activation, aur Referral Milestone Analytics** me karne ke liye upalabdh hoon. Kripya mining ya account se judi queries poochhein!`;
   }

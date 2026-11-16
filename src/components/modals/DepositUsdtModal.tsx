@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db as firestoreDb } from '../../firebase';
 
 interface DepositUsdtModalProps {
   isOpen: boolean;
@@ -8,7 +10,7 @@ interface DepositUsdtModalProps {
   onDepositSuccess: (newBalance: number, txHash: string) => void;
 }
 
-export const OFFICIAL_PROTOCOL_WALLET = '0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7';
+export const OFFICIAL_PROTOCOL_WALLET = '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
 export const BSC_USDT_CONTRACT_MAINNET = '0x55d398326f99059fF775485246999027B3197955';
 export const BSC_USDT_CONTRACT_TESTNET = '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd';
 
@@ -42,15 +44,32 @@ export const DepositUsdtModal: React.FC<DepositUsdtModalProps> = ({
 
   // Load protocol destination configuration from backend (kept in backend)
   useEffect(() => {
-    const loadTreasuryConfig = () => {
-      fetch('/api/deposit/config')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.officialWallet) {
+    const loadTreasuryConfig = async () => {
+      let resolved = false;
+      try {
+        const res = await fetch('/api/deposit/config');
+        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
+          const data = await res.json();
+          if (data?.officialWallet && /^0x[a-fA-F0-9]{40}$/.test(data.officialWallet)) {
             setProtocolWallet(data.officialWallet);
+            resolved = true;
           }
-        })
-        .catch(() => {});
+        }
+      } catch {}
+      if (!resolved) {
+        try {
+          const sDoc = await getDoc(doc(firestoreDb, 'settings', 'global'));
+          const fsAddr = sDoc.exists() ? sDoc.data()?.treasuryWalletAddress : '';
+          if (
+            fsAddr &&
+            /^0x[a-fA-F0-9]{40}$/.test(fsAddr) &&
+            fsAddr.toLowerCase() !== '0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7' &&
+            fsAddr.toLowerCase() !== '0x3471e07c4d2f7e11c155760a7b386e616b5c3715'
+          ) {
+            setProtocolWallet(fsAddr);
+          }
+        } catch {}
+      }
     };
     loadTreasuryConfig();
     const handleTreasuryUpdated = (e: any) => {

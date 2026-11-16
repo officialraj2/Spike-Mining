@@ -141,10 +141,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
     treasuryWalletAddress: string;
     treasuryBalanceUsdt: number;
   }>({
-    treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    treasuryWalletAddress: '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
     treasuryBalanceUsdt: 0.0,
   });
-  const [treasuryAddressInput, setTreasuryAddressInput] = useState('0x3471e07c4d2f7e11c155760a7b386e616b5c3715');
+  const [treasuryAddressInput, setTreasuryAddressInput] = useState('0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF');
   const [isSavingTreasury, setIsSavingTreasury] = useState(false);
 
   // Dedicated Hashrate Controller State (Per Image Spec)
@@ -306,7 +306,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       if (treasuryRes && treasuryRes.ok) {
         const tData = await safeJsonParse(treasuryRes);
         if (tData) {
-          const addr = tData.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+          const addr = tData.treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
           const bal = typeof tData.treasuryBalanceUsdt === 'number' ? tData.treasuryBalanceUsdt : 0.0;
           setTreasuryInfo({
             treasuryWalletAddress: addr,
@@ -400,7 +400,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         const effectiveRealtimeTreasury = Math.max(storedTreasuryVal, +(depositsTotal + nodeCostsTotal).toFixed(2));
 
         if (sData?.treasuryWalletAddress || effectiveRealtimeTreasury > 0) {
-          const addr = sData?.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715';
+          const addr = sData?.treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
           setTreasuryAddressInput((prev) => prev || addr);
           setTreasuryInfo((prev) => ({
             treasuryWalletAddress: addr,
@@ -4903,11 +4903,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   <span className="text-[#94a3b8]">Quick Presets:</span>
                   <button
                     type="button"
-                    onClick={() => setTreasuryAddressInput('0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7')}
+                    onClick={() => setTreasuryAddressInput('0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF')}
                     className="px-2 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-[#D4AF37]"
-                    title="Default Protocol Multi-Sig Address"
+                    title="Official Protocol Treasury Wallet"
                   >
-                    Default Multi-Sig (0xDE7B...a4c7)
+                    Official Treasury (0xD833...b6bF)
                   </button>
                   <button
                     type="button"

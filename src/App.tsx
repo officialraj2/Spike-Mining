@@ -1258,7 +1258,7 @@ export default function App() {
     const newTx: RewardTransaction = {
       id: `tx-node-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       txHash: txHashToUse,
-      rewardSource: `Smart Contract Call: Mining Node Activation (${newNode.name}) → Treasury Vault (0x3471...3715)`,
+      rewardSource: `Smart Contract Call: Mining Node Activation (${newNode.name}) → Treasury Vault (0xD833...b6bF)`,
       amount: -costUsdt,
       currency: 'USDT',
       timestamp: 'Just now',
@@ -1301,7 +1301,7 @@ export default function App() {
 
     addToast(
       'Falcon Titan Deployed & Active',
-      `-10.00 USDT deducted via Smart Contract call and credited to Treasury (0x3471...3715). ${newNode.name} is now hashing at 100 VH/s!`,
+      `-10.00 USDT deducted via Smart Contract call and credited to Treasury (0xD833...b6bF). ${newNode.name} is now hashing at 100 VH/s!`,
       'success'
     );
   };

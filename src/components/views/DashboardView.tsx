@@ -158,7 +158,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     totalProjectCostUsdt: number;
   }>({
     treasuryBalanceUsdt: 0.0,
-    treasuryWalletAddress: '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+    treasuryWalletAddress: '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
     depositRequiredUsdt: 10.0,
     miningCostUsdt: 10.0,
     totalProjectCostUsdt: 20.0,
@@ -172,7 +172,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         if (data && data.success) {
           setTreasuryData({
             treasuryBalanceUsdt: typeof data.treasuryBalanceUsdt === 'number' ? data.treasuryBalanceUsdt : 0.0,
-            treasuryWalletAddress: data.treasuryWalletAddress || '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
+            treasuryWalletAddress: data.treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
             depositRequiredUsdt: data.depositRequiredUsdt || 10.0,
             miningCostUsdt: data.miningCostUsdt || 10.0,
             totalProjectCostUsdt: data.totalProjectCostUsdt || 20.0,

@@ -336,7 +336,16 @@ export async function loadFirestoreDataIntoDb(dbInstance: any): Promise<{
       const settingsDoc = await getDoc(doc(firestore, 'settings', 'global'));
       if (settingsDoc.exists()) {
         const sData = settingsDoc.data();
-        dbInstance.data.settings = { ...dbInstance.data.settings, ...sData };
+        const mergedSettings = { ...dbInstance.data.settings, ...sData };
+        const tAddr = String(mergedSettings.treasuryWalletAddress || '').toLowerCase();
+        if (
+          !tAddr ||
+          tAddr === '0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7' ||
+          tAddr === '0x3471e07c4d2f7e11c155760a7b386e616b5c3715'
+        ) {
+          mergedSettings.treasuryWalletAddress = '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
+        }
+        dbInstance.data.settings = mergedSettings;
       }
     } catch {}
 
@@ -573,6 +582,7 @@ export async function purgeNonMasterFirestoreData(masterAddresses: string[]): Pr
       await setDoc(doc(firestore, 'settings', 'global'), {
         maintenanceMode: false,
         treasuryBalanceUsdt: 0,
+        treasuryWalletAddress: '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF',
         _syncedAt: new Date().toISOString(),
       }, { merge: true });
     } catch {}

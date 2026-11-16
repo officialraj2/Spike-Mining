@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db as firestoreDb } from '../../firebase';
 import { MiningNode } from '../../types';
 
 interface DeployNodeModalProps {
@@ -27,17 +29,37 @@ export const DeployNodeModal: React.FC<DeployNodeModalProps> = ({
   const [smartCallStep, setSmartCallStep] = useState<'idle' | 'requesting' | 'broadcasting' | 'confirming'>('idle');
   const [txErrorMessage, setTxErrorMessage] = useState<string | null>(null);
 
-  const [treasuryWallet, setTreasuryWallet] = useState('0xDE7BfCaDE6F9BcC411aC67D970A4618054B8a4c7');
+  const [treasuryWallet, setTreasuryWallet] = useState('0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF');
 
   useEffect(() => {
-    fetch('/api/treasury')
-      .then((r) => r.json())
-      .then((d) => {
-        if (d && d.treasuryWalletAddress) {
-          setTreasuryWallet(d.treasuryWalletAddress);
+    const loadTreasury = async () => {
+      let resolved = false;
+      try {
+        const r = await fetch('/api/treasury');
+        if (r.ok && r.headers.get('content-type')?.includes('application/json')) {
+          const d = await r.json();
+          if (d?.treasuryWalletAddress && /^0x[a-fA-F0-9]{40}$/.test(d.treasuryWalletAddress)) {
+            setTreasuryWallet(d.treasuryWalletAddress);
+            resolved = true;
+          }
         }
-      })
-      .catch(() => {});
+      } catch {}
+      if (!resolved) {
+        try {
+          const sDoc = await getDoc(doc(firestoreDb, 'settings', 'global'));
+          const fsAddr = sDoc.exists() ? sDoc.data()?.treasuryWalletAddress : '';
+          if (
+            fsAddr &&
+            /^0x[a-fA-F0-9]{40}$/.test(fsAddr) &&
+            fsAddr.toLowerCase() !== '0xde7bfcade6f9bcc411ac67d970a4618054b8a4c7' &&
+            fsAddr.toLowerCase() !== '0x3471e07c4d2f7e11c155760a7b386e616b5c3715'
+          ) {
+            setTreasuryWallet(fsAddr);
+          }
+        } catch {}
+      }
+    };
+    loadTreasury();
     const onTreasuryUpdate = (e: any) => {
       if (e?.detail?.treasuryWalletAddress) {
         setTreasuryWallet(e.detail.treasuryWalletAddress);
