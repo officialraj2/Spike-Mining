@@ -13,14 +13,46 @@ interface SwapModalProps {
   onSwapSuccess: (fromToken: string, toToken: string, fromAmount: number, toAmount: number) => void;
 }
 
-interface TokenOption {
-  symbol: string;
-  name: string;
-  balance: number;
-  rateToUsd: number;
-  icon?: string;
-  isSpike?: boolean;
-  contractAddress?: string;
+const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const AUTO_SLIPPAGE_PERCENT = '1.0';
+
+async function waitForReceipt(ethereum: any, txHash: string, maxAttempts = 30): Promise<any> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const receipt = await ethereum.request({
+        method: 'eth_getTransactionReceipt',
+        params: [txHash],
+      });
+      if (receipt && receipt.blockNumber) {
+        return receipt;
+      }
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  return null;
+}
+
+function extractReceivedUsdtFromReceipt(receipt: any, recipientAddress: string): number {
+  if (!receipt || !Array.isArray(receipt.logs)) return 0;
+  const targetUsdt = USDT_CONTRACT_ADDRESS.toLowerCase();
+  const normRecip = (recipientAddress || '').toLowerCase();
+  let total = 0;
+  for (const log of receipt.logs) {
+    if (
+      String(log.address || '').toLowerCase() === targetUsdt &&
+      String(log.topics?.[0] || '').toLowerCase() === ERC20_TRANSFER_TOPIC &&
+      log.topics?.[2]
+    ) {
+      const toAddr = ('0x' + String(log.topics[2]).slice(-40)).toLowerCase();
+      if (!normRecip || toAddr === normRecip) {
+        try {
+          const amtWei = BigInt(log.data || '0x0');
+          total += Number(amtWei) / 1e18;
+        } catch {}
+      }
+    }
+  }
+  return +total.toFixed(6);
 }
 
 export const SwapModal: React.FC<SwapModalProps> = ({
@@ -30,18 +62,15 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   bnbBalance,
   usdtBalance = 0.0,
   walletAddress = '',
-  initialMode = 'sellSpike',
   onSwapSuccess,
 }) => {
-  const [fromTokenSymbol, setFromTokenSymbol] = useState<string>('SPIKE');
-  const [toTokenSymbol, setToTokenSymbol] = useState<string>('USDT');
-  const [fromAmount, setFromAmount] = useState<string>('100');
-  const [slippage, setSlippage] = useState<string>('0.2');
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [fromAmount, setFromAmount] = useState<string>('');
   const [isSwapping, setIsSwapping] = useState<boolean>(false);
   const [swapTxSuccess, setSwapTxSuccess] = useState<string | null>(null);
+  const [swapError, setSwapError] = useState<string | null>(null);
+  const [swapStatusStep, setSwapStatusStep] = useState<string>('');
 
-  // Live on-chain BSC balances (fetched directly from smart contracts / Web3 wallet)
+  // Live on-chain BSC balances strictly from connected Web3 wallet
   const [liveSpikeBalance, setLiveSpikeBalance] = useState<number>(() => {
     if (walletAddress) {
       const cached = localStorage.getItem(`spike_onchain_spk_${walletAddress.toLowerCase()}`);
@@ -67,23 +96,31 @@ export const SwapModal: React.FC<SwapModalProps> = ({
   });
 
   const [isLoadingOnchain, setIsLoadingOnchain] = useState<boolean>(false);
-  const [copiedContract, setCopiedContract] = useState<boolean>(false);
 
-  const copyContract = () => {
-    navigator.clipboard?.writeText(SPIKE_CONTRACT_ADDRESS);
-    setCopiedContract(true);
-    setTimeout(() => setCopiedContract(false), 2000);
-  };
+  // Live Nodescan V3 Pool State & Quoter Output
+  const [liveSpotPrice, setLiveSpotPrice] = useState<number>(0);
+  const [liveExpectedUsdt, setLiveExpectedUsdt] = useState<number>(0);
+  const [isQuoting, setIsQuoting] = useState<boolean>(false);
+  const [quoterVerified, setQuoterVerified] = useState<boolean>(false);
 
-  // Fetch real on-chain balances from BSC smart contract & connected Web3 wallet (MetaMask/TrustWallet)
+  const [confirmedDetails, setConfirmedDetails] = useState<{
+    txHash: string;
+    receivedAmount: number;
+    spentAmount: number;
+    executionRate: number;
+    walletAddress: string;
+  } | null>(null);
+
+  // Query real on-chain BSC Mainnet balances (SPIKE, USDT, BNB)
   const refreshOnChainBalances = useCallback(async () => {
     if (!walletAddress || !walletAddress.startsWith('0x')) {
+      setLiveSpikeBalance(0);
       setLiveUsdtBalance(0);
+      setLiveBnbBalance(0);
       return;
     }
     setIsLoadingOnchain(true);
     try {
-      // 1. Direct Web3 wallet (window.ethereum) query for instant real-time on-chain balance
       const win = typeof window !== 'undefined' ? (window as any) : null;
       let queriedUsdt: number | null = null;
       let queriedSpk: number | null = null;
@@ -92,7 +129,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
       if (win?.ethereum) {
         try {
           const cleanAddr = walletAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-          const dataPayload = '0x70a08231' + cleanAddr; // balanceOf(address)
+          const dataPayload = '0x70a08231' + cleanAddr;
           const [rawUsdt, rawSpk, rawBnb] = await Promise.all([
             win.ethereum.request({
               method: 'eth_call',
@@ -109,23 +146,17 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           ]);
 
           if (rawUsdt && rawUsdt !== '0x') {
-            const bi = BigInt(rawUsdt);
-            queriedUsdt = +(Number(bi) / 1e18).toFixed(4);
+            queriedUsdt = +(Number(BigInt(rawUsdt)) / 1e18).toFixed(4);
           }
           if (rawSpk && rawSpk !== '0x') {
-            const bi = BigInt(rawSpk);
-            queriedSpk = +(Number(bi) / 1e18).toFixed(4);
+            queriedSpk = +(Number(BigInt(rawSpk)) / 1e18).toFixed(4);
           }
           if (rawBnb && rawBnb !== '0x') {
-            const bi = BigInt(rawBnb);
-            queriedBnb = +(Number(bi) / 1e18).toFixed(4);
+            queriedBnb = +(Number(BigInt(rawBnb)) / 1e18).toFixed(4);
           }
-        } catch (ethErr) {
-          console.warn('[SwapModal] window.ethereum direct fetch error:', ethErr);
-        }
+        } catch {}
       }
 
-      // 2. Fetch via on-chain BSC service (backend RPC proxy / public RPC fallback)
       const data = await fetchOnChainBalances(walletAddress);
 
       if (queriedUsdt !== null) {
@@ -138,14 +169,18 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
       if (queriedSpk !== null) {
         setLiveSpikeBalance(queriedSpk);
+        localStorage.setItem(`spike_onchain_spk_${walletAddress.toLowerCase()}`, String(queriedSpk));
       } else if (typeof data.spike === 'number') {
         setLiveSpikeBalance(data.spike);
+        localStorage.setItem(`spike_onchain_spk_${walletAddress.toLowerCase()}`, String(data.spike));
       }
 
       if (queriedBnb !== null) {
         setLiveBnbBalance(queriedBnb);
+        localStorage.setItem(`spike_onchain_bnb_${walletAddress.toLowerCase()}`, String(queriedBnb));
       } else if (typeof data.bnb === 'number') {
         setLiveBnbBalance(data.bnb);
+        localStorage.setItem(`spike_onchain_bnb_${walletAddress.toLowerCase()}`, String(data.bnb));
       }
     } catch (e) {
       console.warn('[SwapModal] On-chain balance fetch notice:', e);
@@ -154,58 +189,86 @@ export const SwapModal: React.FC<SwapModalProps> = ({
     }
   }, [walletAddress]);
 
-  useEffect(() => {
-    if (isOpen) {
-      refreshOnChainBalances();
+  // Fetch live V3 Pool Spot Price & QuoterV2 sell quote
+  const fetchLiveSellQuote = useCallback(async (spkQty: number) => {
+    setIsQuoting(true);
+    try {
+      const qs = new URLSearchParams({
+        address: walletAddress || '',
+        spkAmount: String(spkQty > 0 ? spkQty : 0),
+        slippage: AUTO_SLIPPAGE_PERCENT,
+      });
+      const res = await fetch(`/api/bsc/v3-sell-quote?${qs.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success) {
+          if (typeof data.spotPriceUsdt === 'number' && data.spotPriceUsdt > 0) {
+            setLiveSpotPrice(data.spotPriceUsdt);
+          }
+          if (typeof data.userSpkBalance === 'number' && walletAddress) {
+            setLiveSpikeBalance(data.userSpkBalance);
+            localStorage.setItem(`spike_onchain_spk_${walletAddress.toLowerCase()}`, String(data.userSpkBalance));
+          }
+          if (typeof data.userUsdtBalance === 'number' && walletAddress) {
+            setLiveUsdtBalance(data.userUsdtBalance);
+            localStorage.setItem(`spike_onchain_usdt_${walletAddress.toLowerCase()}`, String(data.userUsdtBalance));
+          }
+          if (typeof data.userBnbBalance === 'number' && walletAddress) {
+            setLiveBnbBalance(data.userBnbBalance);
+            localStorage.setItem(`spike_onchain_bnb_${walletAddress.toLowerCase()}`, String(data.userBnbBalance));
+          }
+          if (spkQty > 0) {
+            setLiveExpectedUsdt(typeof data.expectedUsdtOut === 'number' ? data.expectedUsdtOut : 0);
+            setQuoterVerified(Boolean(data.quoterVerified));
+          } else {
+            setLiveExpectedUsdt(0);
+            setQuoterVerified(false);
+          }
+        }
+      }
+    } catch {
+      // keep existing live price if transient RPC error
+    } finally {
+      setIsQuoting(false);
     }
-  }, [isOpen, refreshOnChainBalances]);
+  }, [walletAddress]);
 
-  // Keep in sync with incoming props
-  useEffect(() => {
-    if (typeof spikeBalance === 'number') setLiveSpikeBalance(spikeBalance);
-  }, [spikeBalance]);
-
-  useEffect(() => {
-    if (typeof usdtBalance === 'number') setLiveUsdtBalance(usdtBalance);
-  }, [usdtBalance]);
-
-  useEffect(() => {
-    if (typeof bnbBalance === 'number') setLiveBnbBalance(bnbBalance);
-  }, [bnbBalance]);
-
-  const [settlementMode, setSettlementMode] = useState<'instant' | 'onchain'>('instant');
-  const [confirmedDetails, setConfirmedDetails] = useState<{
-    txHash: string;
-    receivedAmount: number;
-    spentAmount: number;
-    toToken: string;
-    fromToken: string;
-    walletAddress: string;
-    mode?: string;
-  } | null>(null);
-
-  const [swapStatusStep, setSwapStatusStep] = useState<string>('');
-
-  // Sync mode whenever modal opens - Lock strictly to Sell SPIKE mode
+  // On modal open: reset messages, refresh on-chain balances & live V3 pool rate
   useEffect(() => {
     if (isOpen) {
       setSwapTxSuccess(null);
+      setSwapError(null);
       setConfirmedDetails(null);
-      setFromTokenSymbol('SPIKE');
-      setToTokenSymbol('USDT');
-      // Preset allowable amount based on current SPIKE balance (10% sell limit)
-      const currentSpk = liveSpikeBalance > 0 ? liveSpikeBalance : spikeBalance;
-      const max10 = +(currentSpk * 0.10).toFixed(4);
-      setFromAmount(max10 > 0 ? max10.toString() : '0.1');
+      setSwapStatusStep('');
+      refreshOnChainBalances();
+      fetchLiveSellQuote(0);
     }
-  }, [isOpen, spikeBalance, liveSpikeBalance]);
+  }, [isOpen, refreshOnChainBalances, fetchLiveSellQuote]);
+
+  // Preset 10% max of Web3 wallet SPIKE balance when modal opens or balance updates while empty
+  useEffect(() => {
+    if (isOpen && !fromAmount && liveSpikeBalance > 0) {
+      const max10 = Math.floor(liveSpikeBalance * 0.10 * 10000) / 10000;
+      if (max10 > 0) {
+        setFromAmount(max10.toString());
+      }
+    }
+  }, [isOpen, liveSpikeBalance, fromAmount]);
+
+  // Debounced live QuoterV2 quote whenever amount changes
+  const numericFrom = parseFloat(fromAmount) || 0;
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(() => {
+      fetchLiveSellQuote(numericFrom);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [isOpen, numericFrom, fetchLiveSellQuote]);
 
   // Close on Escape Key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
+      if (e.key === 'Escape' && isOpen) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -225,295 +288,249 @@ export const SwapModal: React.FC<SwapModalProps> = ({
 
   if (!isOpen) return null;
 
-  const tokens: Record<string, TokenOption> = {
-    SPIKE: {
-      symbol: 'SPIKE',
-      name: 'SPIKE Protocol (BEP-20)',
-      balance: liveSpikeBalance,
-      rateToUsd: 1.12, // 1 SPK = 1.12 USDT ($1.00 - $1.20 range)
-      isSpike: true,
-      contractAddress: SPIKE_CONTRACT_ADDRESS,
-    },
-    USDT: {
-      symbol: 'USDT',
-      name: 'Tether USD (BEP-20)',
-      balance: liveUsdtBalance,
-      rateToUsd: 1.0,
-      icon: 'attach_money',
-      contractAddress: USDT_CONTRACT_ADDRESS,
-    },
-    BNB: {
-      symbol: 'BNB',
-      name: 'BNB Smart Chain',
-      balance: liveBnbBalance,
-      rateToUsd: 620.0,
-      icon: 'token',
-    },
-  };
+  // Strict 10% limit calculated exclusively from Web3 wallet on-chain SPIKE balance
+  const maxSellableSpk = Math.floor(liveSpikeBalance * 0.10 * 10000) / 10000;
+  const isExceeding10Percent = liveSpikeBalance > 0 && numericFrom > maxSellableSpk + 1e-6;
+  const hasInsufficientSpk = numericFrom > liveSpikeBalance + 1e-6;
+  const hasNoWalletSpk = liveSpikeBalance <= 0;
 
-  const fromToken = tokens[fromTokenSymbol] || tokens.SPIKE;
-  const toToken = tokens[toTokenSymbol] || tokens.USDT;
+  const estimatedToUsdt = liveExpectedUsdt > 0
+    ? liveExpectedUsdt
+    : (numericFrom > 0 && liveSpotPrice > 0 ? +(numericFrom * liveSpotPrice * 0.9995).toFixed(6) : 0);
+  const effectiveLiveRate = numericFrom > 0 && estimatedToUsdt > 0
+    ? estimatedToUsdt / numericFrom
+    : liveSpotPrice;
 
-  const numericFrom = parseFloat(fromAmount) || 0;
-  const exchangeRate = fromToken.rateToUsd / toToken.rateToUsd;
-  const toAmount = numericFrom * exchangeRate;
-
-  const isSellSpike = true;
-
-  // Strict 10% Sell Limit policy: user can only sell up to 10% of their SPIKE balance (with float tolerance)
-  const activeSpkBal = liveSpikeBalance > 0 ? liveSpikeBalance : spikeBalance;
-  const maxSellableSpk = +(activeSpkBal * 0.10).toFixed(4);
-  const isExceeding10Percent = activeSpkBal > 0 && numericFrom > (maxSellableSpk + 0.001);
-
-  const setPresetMode = (_mode: 'sellSpike' = 'sellSpike') => {
-    setFromTokenSymbol('SPIKE');
-    setToTokenSymbol('USDT');
-    const max10 = +(spikeBalance * 0.10).toFixed(4);
-    setFromAmount(max10 > 0 ? max10.toString() : '0.1');
-  };
-
-  const handleFlipTokens = () => {
-    setFromTokenSymbol(toTokenSymbol);
-    setToTokenSymbol(fromTokenSymbol);
-  };
-
-  const handlePercentage = (pct: number) => {
-    if (isSellSpike) {
-      // Percentage of the 10% maximum sell limit (e.g. 100% of the 10% limit = 10% total balance)
-      const currentSpk = liveSpikeBalance > 0 ? liveSpikeBalance : spikeBalance;
-      const max10 = +(currentSpk * 0.10);
-      const val = (max10 * pct).toFixed(4);
-      setFromAmount(val);
-    } else {
-      const val = (fromToken.balance * pct).toFixed(fromToken.symbol === 'BNB' ? 4 : 2);
-      setFromAmount(val);
-    }
-  };
-
-  // ABI Helper for PancakeSwap V3 Smart Router exactInputSingle
-  const encodePancakeSwapV3SellData = (
-    tokenInAddr: string,
-    tokenOutAddr: string,
-    feeTier: number,
-    recipientAddr: string,
-    amountInBig: bigint,
-    amountOutMinBig: bigint
-  ): string => {
-    const selector = '04e45aaf'; // exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))
-    const tokenIn = tokenInAddr.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-    const tokenOut = tokenOutAddr.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-    const fee = feeTier.toString(16).padStart(64, '0');
-    const recipient = recipientAddr.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-    const amountIn = amountInBig.toString(16).padStart(64, '0');
-    const amountOutMin = amountOutMinBig.toString(16).padStart(64, '0');
-    const sqrtPriceLimit = (0).toString(16).padStart(64, '0');
-    return `0x${selector}${tokenIn}${tokenOut}${fee}${recipient}${amountIn}${amountOutMin}${sqrtPriceLimit}`;
+  const handlePercentage = (pctOfMax10: number) => {
+    setSwapError(null);
+    const val = Math.floor(maxSellableSpk * pctOfMax10 * 10000) / 10000;
+    setFromAmount(val > 0 ? val.toString() : '0');
   };
 
   const handleExecuteSwap = async () => {
-    if (numericFrom <= 0 || numericFrom > fromToken.balance) return;
-    if (isSellSpike && isExceeding10Percent) return;
-
-    setIsSwapping(true);
+    setSwapError(null);
     setSwapTxSuccess(null);
     setConfirmedDetails(null);
 
-    const addr = walletAddress || '0x71C8a914B97e889F12A0987cB32456Fa12349A2';
-    const win = typeof window !== 'undefined' ? (window as any) : null;
-    let onChainTxHash: string | null = null;
-
-    // Nodescan V3 Smart Router on BSC Mainnet matching Liquidity Pool (0xdB75fAB72e56492CFE870344D115C57047992F3c)
-    const PANCAKE_ROUTER_ADDRESS = '0x13f4EA83D0bd40E75C8222255bc855a974568Dd4';
-
-    // 1. ON-CHAIN WEB3 WALLET EXECUTION (When user selects On-Chain Mode)
-    if (settlementMode === 'onchain' && win && win.ethereum) {
-      try {
-        setSwapStatusStep('Connecting to Web3 Wallet (Nodescan V3)...');
-        let userWallet = addr;
-        try {
-          const accountsPromise = win.ethereum.request({ method: 'eth_requestAccounts' });
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Wallet request timeout')), 5000)
-          );
-          const accounts = (await Promise.race([accountsPromise, timeoutPromise])) as string[];
-          if (accounts && accounts[0]) {
-            userWallet = accounts[0];
-          }
-        } catch {}
-
-        // Ensure user is connected to BNB Smart Chain (0x38 or 0x61)
-        try {
-          const chainId = await win.ethereum.request({ method: 'eth_chainId' });
-          if (chainId !== '0x38' && chainId !== '56' && chainId !== 56 && chainId !== '0x61') {
-            await win.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0x38' }],
-            }).catch(() => {});
-          }
-        } catch {}
-
-        const decimals = 18;
-        const amountInBig = BigInt(Math.floor(numericFrom * 10 ** decimals));
-        
-        // CRITICAL FIX: Set amountOutMinBig to 0n so low pool liquidity (~36 USDT) NEVER reverts with PRICE_SLIPPAGE_EXCEEDED!
-        const amountOutMinBig = 0n;
-
-        const cleanSpender = PANCAKE_ROUTER_ADDRESS.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-        const cleanOwner = userWallet.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-
-        const tokenInContract = fromTokenSymbol === 'SPIKE' ? SPIKE_CONTRACT_ADDRESS : USDT_CONTRACT_ADDRESS;
-        const tokenOutContract = toTokenSymbol === 'SPIKE' ? SPIKE_CONTRACT_ADDRESS : USDT_CONTRACT_ADDRESS;
-
-        // Check allowance of source token for Nodescan V3 Smart Router
-        setSwapStatusStep(`Checking Nodescan V3 Allowance for ${fromTokenSymbol}...`);
-        let currentAllowance = 0n;
-        try {
-          const allowData = `0xdd62ed3e${cleanOwner}${cleanSpender}`;
-          const allowHex = await win.ethereum.request({
-            method: 'eth_call',
-            params: [{ to: tokenInContract, data: allowData }, 'latest'],
-          });
-          if (allowHex && allowHex !== '0x') {
-            currentAllowance = BigInt(allowHex);
-          }
-        } catch {}
-
-        // Prompt token approval in wallet if needed
-        if (currentAllowance < amountInBig) {
-          setSwapStatusStep(`Please Approve ${fromTokenSymbol} for Nodescan V3 Router in Wallet...`);
-          const approveData = `0x095ea7b3${cleanSpender}ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff`;
-          await win.ethereum.request({
-            method: 'eth_sendTransaction',
-            params: [{
-              from: userWallet,
-              to: tokenInContract,
-              data: approveData,
-            }],
-          });
-          setSwapStatusStep(`Allowance Approved! Calling Nodescan V3 Router...`);
-        }
-
-        // Call Nodescan V3 Router exactInputSingle with fee tier 500 (0.05%)
-        setSwapStatusStep('Confirm Nodescan Sell in Your Web3 Wallet...');
-        const routerCallData = encodePancakeSwapV3SellData(
-          tokenInContract,
-          tokenOutContract,
-          500, // Nodescan V3 Pool 0xdB75...2F3c Fee Tier (0.05%)
-          userWallet,
-          amountInBig,
-          amountOutMinBig
-        );
-
-        onChainTxHash = await win.ethereum.request({
-          method: 'eth_sendTransaction',
-          params: [{
-            from: userWallet,
-            to: PANCAKE_ROUTER_ADDRESS,
-            data: routerCallData,
-            gas: '0x55730', // 350,000 gas limit for safe execution
-          }],
-        });
-
-        setSwapStatusStep('Transaction Broadcasted to BSC! Settling balances...');
-      } catch (err: any) {
-        console.warn('[SwapModal] Web3 wallet notice:', err?.message || err);
-        if (err?.code === 4001 || err?.message?.includes('User rejected') || err?.message?.includes('User denied')) {
-          setIsSwapping(false);
-          setSwapStatusStep('');
-          return;
-        }
-      }
-    } else {
-      setSwapStatusStep('Executing Instant Protocol Settlement ($1.12 Rate)...');
+    if (!walletAddress || !walletAddress.startsWith('0x')) {
+      setSwapError('Please connect your Web3 wallet (MetaMask / TrustWallet) first.');
+      return;
+    }
+    if (numericFrom <= 0) {
+      setSwapError('Please enter a valid SPIKE amount to swap.');
+      return;
+    }
+    if (hasInsufficientSpk || hasNoWalletSpk) {
+      setSwapError(`Insufficient on-chain SPIKE in Web3 wallet. Available: ${liveSpikeBalance.toFixed(4)} SPK.`);
+      return;
+    }
+    if (isExceeding10Percent) {
+      setSwapError(`10% Sell Limit: Maximum ${maxSellableSpk.toFixed(4)} SPK (10% of your Web3 wallet balance) allowed.`);
+      return;
     }
 
-    // 2. ULTRA-FAST SETTLEMENT VIA PROTOCOL & NODESCAN ROUTER BACKEND ENGINE
-    try {
-      const apiFrom = fromTokenSymbol === 'SPIKE' ? 'SPK' : fromTokenSymbol;
-      const apiTo = toTokenSymbol === 'SPIKE' ? 'SPK' : toTokenSymbol;
+    const win = typeof window !== 'undefined' ? (window as any) : null;
+    if (!win?.ethereum) {
+      setSwapError('Web3 wallet extension not detected. Please open inside MetaMask, TrustWallet, or Binance Web3 browser.');
+      return;
+    }
 
-      const res = await fetch('/api/testnet/swap', {
+    setIsSwapping(true);
+    try {
+      setSwapStatusStep('Connecting to Web3 Wallet (BSC Mainnet)...');
+      let userWallet = walletAddress;
+      const accounts = (await win.ethereum.request({ method: 'eth_requestAccounts' })) as string[];
+      if (accounts && accounts[0]) {
+        userWallet = accounts[0];
+      }
+
+      // Enforce BNB Smart Chain Mainnet (0x38 / Chain ID 56)
+      const chainId = await win.ethereum.request({ method: 'eth_chainId' });
+      if (chainId !== '0x38' && chainId !== '56' && Number(chainId) !== 56) {
+        setSwapStatusStep('Switching Web3 Wallet to BNB Smart Chain Mainnet...');
+        try {
+          await win.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x38' }],
+          });
+        } catch (switchErr: any) {
+          if (switchErr?.code === 4902) {
+            await win.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x38',
+                chainName: 'BNB Smart Chain Mainnet',
+                nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                blockExplorerUrls: ['https://bscscan.com/'],
+              }],
+            });
+          } else {
+            throw new Error('Please switch your Web3 wallet network to BNB Smart Chain Mainnet (BSC) to swap.');
+          }
+        }
+      }
+
+      // Fetch live V3 quote, strict 10% server validation, and calldata
+      setSwapStatusStep('Fetching Live Nodescan V3 Rate & Quote...');
+      const txPrepRes = await fetch('/api/bsc/v3-sell-tx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          address: addr,
-          fromToken: apiFrom,
-          toToken: apiTo,
-          amountIn: numericFrom,
-          txHash: onChainTxHash || undefined,
+          userAddress: userWallet,
+          spkAmount: numericFrom,
+          slippage: Number(AUTO_SLIPPAGE_PERCENT),
         }),
       });
+      const prep = await txPrepRes.json();
+      if (!txPrepRes.ok || !prep?.success || !prep?.swapTx) {
+        throw new Error(prep?.error || 'Unable to prepare Nodescan V3 on-chain swap quote.');
+      }
 
-      const data = await res.json();
-      const finalHash = onChainTxHash || (data.success && data.tx ? data.tx.txHash : `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`);
-      const outReceived = (data.success && data.tx)
-        ? (toTokenSymbol === 'SPIKE' ? (data.tx.spkAmount || data.tx.amount) : (data.tx.usdtAmount || data.tx.amount))
-        : toAmount;
+      // Update live state from verified BSC RPC response
+      const verifiedWalletSpk = Number(prep.userSpkBalance || 0);
+      const verifiedMax10 = Math.floor(verifiedWalletSpk * 0.10 * 10000) / 10000;
+      setLiveSpikeBalance(verifiedWalletSpk);
+      if (typeof prep.userBnbBalance === 'number') setLiveBnbBalance(prep.userBnbBalance);
 
-      setSwapTxSuccess(finalHash);
-      setConfirmedDetails({
-        txHash: finalHash,
-        receivedAmount: outReceived,
-        spentAmount: numericFrom,
-        toToken: toTokenSymbol,
-        fromToken: fromTokenSymbol,
-        walletAddress: addr,
-        mode: settlementMode === 'onchain' ? 'On-Chain Web3 (Nodescan V3)' : 'Instant Protocol Reserve',
+      if (verifiedWalletSpk <= 0 || numericFrom > verifiedWalletSpk + 1e-6) {
+        throw new Error(`Insufficient on-chain SPIKE balance (${verifiedWalletSpk.toFixed(4)} SPK available in Web3 wallet).`);
+      }
+      if (numericFrom > verifiedMax10 + 1e-6) {
+        throw new Error(`10% Web3 Wallet Limit: Max sellable is ${verifiedMax10.toFixed(4)} SPK.`);
+      }
+      if (Number(prep.userBnbBalance || 0) < 0.0001) {
+        throw new Error('Insufficient BNB in your Web3 wallet to cover BSC network gas fees (~0.0003 BNB needed).');
+      }
+
+      // Step 1: Approve SPIKE for Nodescan V3 Smart Router & wait for block confirmation
+      if (prep.needsApproval && prep.approveTx) {
+        setSwapStatusStep('Step 1/2: Confirm SPIKE Token Approval in Web3 Wallet...');
+        const approveHash = await win.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: userWallet,
+            to: prep.approveTx.to,
+            data: prep.approveTx.data,
+            value: '0x0',
+            gas: prep.approveTx.gas || '0x15F90',
+          }],
+        });
+
+        if (!approveHash || typeof approveHash !== 'string' || !approveHash.startsWith('0x')) {
+          throw new Error('SPIKE approval transaction was not submitted.');
+        }
+
+        setSwapStatusStep(`Step 1/2 Waiting for Approval Confirmation (${approveHash.slice(0, 10)}...)...`);
+        const approveReceipt = await waitForReceipt(win.ethereum, approveHash, 30);
+        if (!approveReceipt) {
+          throw new Error(`Approval (${approveHash.slice(0, 10)}...) is still pending on BSC. Please wait a few seconds and click Swap again.`);
+        }
+        if (approveReceipt.status === '0x0' || approveReceipt.status === '0x00' || Number(approveReceipt.status) === 0) {
+          throw new Error('SPIKE token approval transaction reverted on BSC Mainnet.');
+        }
+      }
+
+      // Step 2: Execute Nodescan V3 exactInputSingle (SPIKE -> USDT directly to user's Web3 wallet)
+      setSwapStatusStep('Confirm Nodescan V3 Swap (SPIKE ➔ USDT) in Web3 Wallet...');
+      const swapHash = await win.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: userWallet,
+          to: prep.swapTx.to,
+          data: prep.swapTx.data,
+          value: '0x0',
+          gas: prep.swapTx.gas || '0x55730',
+        }],
       });
-      onSwapSuccess(fromTokenSymbol, toTokenSymbol, numericFrom, outReceived);
 
-      // Trigger global trade & balance events for live graph and dashboard sync
+      if (!swapHash || typeof swapHash !== 'string' || !swapHash.startsWith('0x')) {
+        throw new Error('On-chain swap transaction was not submitted.');
+      }
+
+      setSwapStatusStep(`Swap Broadcasted (${swapHash.slice(0, 10)}...)! Waiting for BSC Block Confirmation...`);
+      const swapReceipt = await waitForReceipt(win.ethereum, swapHash, 30);
+      if (!swapReceipt) {
+        throw new Error(`Swap broadcasted (${swapHash.slice(0, 10)}...), still confirming on BSC. Check BscScan before retrying.`);
+      }
+      if (swapReceipt.status === '0x0' || swapReceipt.status === '0x00' || Number(swapReceipt.status) === 0) {
+        throw new Error('On-chain Nodescan V3 swap reverted on BSC Mainnet. Please check BNB gas or pool liquidity.');
+      }
+
+      // Parse exact USDT credited to the user's Web3 wallet from confirmed BSC receipt logs
+      const onChainUsdtReceived = extractReceivedUsdtFromReceipt(swapReceipt, userWallet);
+      const finalUsdtOut = onChainUsdtReceived > 0 ? onChainUsdtReceived : Number(prep.expectedUsdtOut || estimatedToUsdt);
+
+      // Sync verified on-chain swap receipt with backend ledger & Firestore
+      setSwapStatusStep('Syncing Verified On-Chain Receipt...');
+      try {
+        const res = await fetch('/api/testnet/swap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            address: userWallet,
+            fromToken: 'SPK',
+            toToken: 'USDT',
+            amountIn: numericFrom,
+            txHash: swapHash,
+            onChainSpkBalanceBefore: verifiedWalletSpk,
+          }),
+        });
+        const syncData = await res.json();
+        if (!res.ok) {
+          console.warn('[SwapModal] Ledger sync notice:', syncData?.error);
+        }
+      } catch {}
+
+      const execRate = numericFrom > 0 && finalUsdtOut > 0 ? finalUsdtOut / numericFrom : (prep.spotPriceUsdt || liveSpotPrice);
+      setSwapTxSuccess(swapHash);
+      setConfirmedDetails({
+        txHash: swapHash,
+        receivedAmount: finalUsdtOut,
+        spentAmount: numericFrom,
+        executionRate: execRate,
+        walletAddress: userWallet,
+      });
+
+      onSwapSuccess('SPIKE', 'USDT', numericFrom, finalUsdtOut);
+
       try {
         window.dispatchEvent(new CustomEvent('spike_trade_executed', {
           detail: {
-            fromToken: fromTokenSymbol,
-            toToken: toTokenSymbol,
+            fromToken: 'SPIKE',
+            toToken: 'USDT',
             fromAmount: numericFrom,
-            toAmount: outReceived,
-            walletAddress: addr,
-          },
-        }));
-        window.dispatchEvent(new CustomEvent('spike_balance_updated', {
-          detail: {
-            address: addr,
-            balanceSpk: Math.max(0, (liveSpikeBalance || spikeBalance) - numericFrom),
-            balanceUsdt: (liveUsdtBalance || usdtBalance) + outReceived,
+            toAmount: finalUsdtOut,
+            walletAddress: userWallet,
+            txHash: swapHash,
           },
         }));
       } catch {}
 
-      refreshOnChainBalances();
-    } catch {
-      const fallbackHash = onChainTxHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      setSwapTxSuccess(fallbackHash);
-      setConfirmedDetails({
-        txHash: fallbackHash,
-        receivedAmount: toAmount,
-        spentAmount: numericFrom,
-        toToken: toTokenSymbol,
-        fromToken: fromTokenSymbol,
-        walletAddress: addr,
-        mode: settlementMode === 'onchain' ? 'On-Chain Web3 (PancakeSwap V3)' : 'Instant Protocol Reserve',
-      });
-      onSwapSuccess(fromTokenSymbol, toTokenSymbol, numericFrom, toAmount);
-      refreshOnChainBalances();
+      await refreshOnChainBalances();
+      fetchLiveSellQuote(0);
+    } catch (err: any) {
+      if (err?.code === 4001 || err?.message?.includes('User rejected') || err?.message?.includes('User denied')) {
+        setSwapError('Wallet signature cancelled. On-chain swap was not executed.');
+      } else {
+        setSwapError(err?.shortMessage || err?.message || 'On-chain Web3 swap failed. No tokens were swapped.');
+      }
     } finally {
       setIsSwapping(false);
       setSwapStatusStep('');
     }
   };
 
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 select-none">
-      {/* Clickable Backdrop to close on click outside */}
+      {/* Clickable Backdrop */}
       <div
         className="fixed inset-0 bg-[#020b17]/85 backdrop-blur-md transition-opacity animate-fade-in"
         onClick={onClose}
         aria-label="Close dialog backdrop"
       />
 
-      {/* Main Modal Card (All-screen responsive with vertical scroll and sticky header) */}
+      {/* Main Modal Card */}
       <div
         onClick={(e) => e.stopPropagation()}
         className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl bg-gradient-to-b from-[#0d2238] via-[#091728] to-[#040e1b] border-2 border-[#D4AF37]/60 shadow-[0_0_60px_rgba(212,175,55,0.3)] text-white z-10 overflow-hidden animate-in zoom-in-95 duration-200"
@@ -521,47 +538,27 @@ export const SwapModal: React.FC<SwapModalProps> = ({
         aria-modal="true"
         aria-labelledby="swap-modal-title"
       >
-        {/* Ambient Top Glow */}
         <div className="absolute -top-20 -left-20 w-64 h-64 bg-[#D4AF37]/20 rounded-full blur-[80px] pointer-events-none" />
         <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-[#00F0FF]/20 rounded-full blur-[80px] pointer-events-none" />
 
-        {/* ============================================================
-            STICKY MODAL HEADER WITH PROMINENT ALL-SCREEN CLOSE BUTTON
-           ============================================================ */}
+        {/* Sticky Modal Header */}
         <div className="shrink-0 px-4 sm:px-6 py-4 border-b border-[#1c2b3b]/90 bg-[#0d2238]/95 backdrop-blur-sm flex items-center justify-between z-20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-[#D4AF37] to-[#f59e0b] text-[#0A0F1D] flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.5)]">
-              <span className="material-symbols-outlined text-[22px] sm:text-[24px] font-bold">
-                swap_horiz
-              </span>
+              <span className="material-symbols-outlined text-[22px] sm:text-[24px] font-bold">swap_horiz</span>
             </div>
             <div>
               <h3 id="swap-modal-title" className="text-base sm:text-lg font-extrabold font-headline text-white flex items-center gap-2">
-                <span>SPIKE DEX Swap</span>
+                <span>SPIKE Web3 DEX Swap</span>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-body font-bold">
-                  BEP-20
+                  BSC On-Chain
                 </span>
               </h3>
-              <p className="text-xs text-slate-300 font-body mt-0.5">Instant Decentralized Settlement</p>
+              <p className="text-xs text-slate-300 font-body mt-0.5">Nodescan V3 · Live Pool Settlement</p>
             </div>
           </div>
 
-          {/* Action buttons on header: Settings + PROMINENT CLOSE BUTTON */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
-                showSettings
-                  ? 'bg-[#1c2b3b] border-[#00F0FF] text-[#00F0FF]'
-                  : 'bg-[#122130] border-[#1c2b3b] text-slate-400 hover:text-white'
-              }`}
-              title="Slippage & Protocol Settings"
-              aria-label="Settings"
-            >
-              <span className="material-symbols-outlined text-[20px]">tune</span>
-            </button>
-
-            {/* High-Affordance All-Screen Close Button */}
             <button
               onClick={onClose}
               className="group flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#1a2b3d] hover:bg-red-500/20 text-[#cbd5e1] hover:text-red-400 border border-[#2d4257] hover:border-red-500/40 shadow-md transition-all active:scale-95 cursor-pointer"
@@ -576,161 +573,27 @@ export const SwapModal: React.FC<SwapModalProps> = ({
           </div>
         </div>
 
-        {/* ============================================================
-            SCROLLABLE CONTENT BODY (Fits any screen height safely)
-           ============================================================ */}
+        {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
-          {/* Dedicated Sell SPIKE Protocol Header Banner */}
-          <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-[#D4AF37]/15 via-[#f59e0b]/10 to-[#00F0FF]/10 border border-[#D4AF37]/35 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#f59e0b] text-[#0A0F1D] flex items-center justify-center font-bold shadow-[0_0_12px_rgba(212,175,55,0.4)] shrink-0">
-                <span className="material-symbols-outlined text-[20px]">currency_exchange</span>
-              </div>
-              <div>
-                <span className="text-sm font-headline font-bold text-white tracking-wide block">
-                  Sell SPIKE ➔ Receive USDT
-                </span>
-                <span className="text-xs text-slate-300 font-body">
-                  Nodescan V3 Pool (0xdB75...2F3c) · 10% Daily Protection
-                </span>
-              </div>
-            </div>
-            <span className="text-xs px-2.5 py-1 rounded-full font-headline font-bold bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] whitespace-nowrap">
-              10% Max Daily
-            </span>
-          </div>
 
-          {/* Settlement Mode Switcher: Instant Protocol Settlement vs On-Chain Web3 */}
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-[#061423] border border-[#1c2b3b]">
-              <button
-                type="button"
-                onClick={() => setSettlementMode('instant')}
-                className={`py-2.5 px-3 text-xs sm:text-sm font-headline font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  settlementMode === 'instant'
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-[#0A0F1D] shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                    : 'text-slate-400 hover:text-white bg-[#0a1829]/50'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[18px] font-bold">bolt</span>
-                <span className="truncate">Instant Protocol (100% Fast)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setSettlementMode('onchain')}
-                className={`py-2.5 px-3 text-xs sm:text-sm font-headline font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                  settlementMode === 'onchain'
-                    ? 'bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.4)]'
-                    : 'text-slate-400 hover:text-white bg-[#0a1829]/50'
-                }`}
-              >
-                <span className="material-symbols-outlined text-[18px] font-bold">account_balance_wallet</span>
-                <span className="truncate">Web3 Wallet (Nodescan V3)</span>
-              </button>
-            </div>
-
-            {/* Mode Guidance & Liquidity Helper Banner */}
-            {settlementMode === 'instant' ? (
-              <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/35 text-xs font-body text-emerald-300 flex items-center gap-2.5 leading-relaxed">
-                <span className="material-symbols-outlined text-emerald-400 text-[20px] shrink-0">verified</span>
-                <span>
-                  <strong>Guaranteed Fill:</strong> Sells directly against the platform treasury reserve at guaranteed <strong>$1.12 / SPK</strong>. Zero gas fees, zero revert errors, instant USDT settlement.
-                </span>
-              </div>
-            ) : (
-              <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/35 text-xs font-body text-amber-300 flex items-start gap-2.5 leading-relaxed">
-                <span className="material-symbols-outlined text-amber-400 text-[20px] shrink-0 mt-0.5">info</span>
-                <div className="space-y-0.5">
-                  <div className="font-semibold text-white">
-                    Nodescan V3 Router: Submits via your connected wallet (MetaMask / TrustWallet).
-                  </div>
-                  <div className="text-xs text-slate-300 font-body">
-                    Current on-chain pool (0xdB75...2F3c) has ~36.05 USDT liquidity. Router slippage check is adapted so transaction will not revert.
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Official BEP-20 Contract & On-Chain Pool Bar */}
-          <div className="p-3 rounded-xl bg-[#061423] border border-[#1c2b3b] flex flex-wrap items-center justify-between gap-2.5 text-xs font-body">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                </span>
-                <span className="text-slate-400 font-medium">SPIKE:</span>
-                <span className="text-[#00F0FF] font-mono font-bold" title={SPIKE_CONTRACT_ADDRESS}>
-                  0xc213...9267
-                </span>
-                <button
-                  type="button"
-                  onClick={copyContract}
-                  className="px-2 py-1 rounded bg-[#122130] hover:bg-[#1c2b3b] text-slate-200 hover:text-white border border-[#1c2b3b] text-xs flex items-center gap-1 transition-all cursor-pointer"
-                  title="Copy SPIKE Smart Contract Address"
-                >
-                  <span className="material-symbols-outlined text-[13px]">
-                    {copiedContract ? 'check' : 'content_copy'}
-                  </span>
-                  <span>{copiedContract ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-
-              {/* Official Nodescan Liquidity Pool Contract */}
-              <div className="flex items-center gap-2 border-l border-[#1c2b3b] pl-3">
-                <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
-                <span className="text-slate-400 font-medium">Pool:</span>
-                <span className="text-[#D4AF37] font-mono font-bold" title="0xdB75fAB72e56492CFE870344D115C57047992F3c">
-                  0xdB75...2F3c
-                </span>
-                <a
-                  href="https://bscscan.com/address/0xdB75fAB72e56492CFE870344D115C57047992F3c"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-slate-400 hover:text-[#D4AF37] flex items-center gap-0.5 text-xs transition-colors"
-                  title="View Nodescan Liquidity Pool on BscScan"
-                >
-                  <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Slippage Settings Panel */}
-          {showSettings && (
-            <div className="p-3.5 rounded-2xl bg-[#061423] border border-[#00F0FF]/30 space-y-2 animate-fade-in shadow-inner">
-              <div className="text-xs text-[#94a3b8] font-mono flex items-center justify-between">
-                <span>Slippage Tolerance</span>
-                <span className="text-[#00F0FF] font-bold">{slippage}%</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {['0.1', '0.5', '1.0'].map((val) => (
-                  <button
-                    key={val}
-                    onClick={() => setSlippage(val)}
-                    className={`flex-1 py-1.5 text-xs font-mono rounded-xl border transition-all ${
-                      slippage === val
-                        ? 'bg-[#00F0FF]/25 border-[#00F0FF] text-[#00F0FF] font-bold shadow-[0_0_10px_rgba(0,240,255,0.3)]'
-                        : 'bg-[#122130] border-[#1c2b3b] text-[#94a3b8] hover:text-white'
-                    }`}
-                  >
-                    {val}%
-                  </button>
-                ))}
+          {/* Error Banner */}
+          {swapError && (
+            <div className="p-3.5 rounded-2xl bg-red-950/50 border border-red-500/50 text-red-200 text-xs flex items-start gap-2.5">
+              <span className="material-symbols-outlined text-red-400 text-[20px] shrink-0 mt-0.5">error</span>
+              <div className="space-y-0.5">
+                <div className="font-bold text-red-300">On-Chain Swap Notice</div>
+                <div className="leading-relaxed">{swapError}</div>
               </div>
             </div>
           )}
 
-          {/* Success Transaction Banner & Nodescan Receipt */}
+          {/* Success Transaction Receipt */}
           {swapTxSuccess && (
             <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-[#061e1b] border-2 border-emerald-500/50 text-white text-xs space-y-2.5 animate-fade-in shadow-[0_0_25px_rgba(16,185,129,0.2)]">
               <div className="flex items-center justify-between gap-2 border-b border-emerald-500/30 pb-2">
                 <div className="flex items-center gap-2 text-emerald-400 font-headline font-bold text-sm">
-                  <span className="material-symbols-outlined text-emerald-400 text-[22px]">
-                    check_circle
-                  </span>
-                  <span>Nodescan Settlement Confirmed!</span>
+                  <span className="material-symbols-outlined text-emerald-400 text-[22px]">check_circle</span>
+                  <span>On-Chain BSC Swap Confirmed!</span>
                 </div>
                 <a
                   href={`https://bscscan.com/tx/${swapTxSuccess}`}
@@ -746,15 +609,21 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               {confirmedDetails && (
                 <div className="space-y-1.5 font-body text-xs">
                   <div className="flex items-center justify-between text-[#cbd5e1]">
-                    <span className="text-slate-400">Nodescan Route:</span>
+                    <span className="text-slate-400">Swapped On-Chain:</span>
                     <span className="text-white font-bold font-mono">
-                      {confirmedDetails.fromToken} ➔ Nodescan Pool (0xdB75...2F3c) ➔ {confirmedDetails.toToken}
+                      {confirmedDetails.spentAmount.toFixed(4)} SPK ➔ {confirmedDetails.receivedAmount.toFixed(4)} USDT
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[#cbd5e1]">
+                    <span className="text-slate-400">Live Execution Rate:</span>
+                    <span className="text-[#D4AF37] font-mono font-bold">
+                      1 SPK = ${confirmedDetails.executionRate.toFixed(4)} USDT
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Credited to Wallet:</span>
+                    <span className="text-slate-400">Credited to Web3 Wallet:</span>
                     <span className="text-emerald-400 font-extrabold text-sm font-headline">
-                      +{Number(confirmedDetails.receivedAmount).toFixed(2)} {confirmedDetails.toToken}
+                      +{Number(confirmedDetails.receivedAmount).toFixed(4)} USDT
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-[#94a3b8]">
@@ -772,32 +641,34 @@ export const SwapModal: React.FC<SwapModalProps> = ({
             </div>
           )}
 
-          {/* ============================================================
-              SWAP FORM INPUTS
-             ============================================================ */}
+          {/* SWAP FORM INPUTS */}
           <div className="space-y-2">
-            {/* FROM TOKEN CARD */}
-            <div className="p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] hover:border-[#D4AF37]/40 transition-all">
+            {/* FROM TOKEN CARD (Web3 Wallet SPIKE) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-b from-[#0b1f36] via-[#071525] to-[#05101d] border border-[#D4AF37]/50 shadow-[0_0_24px_rgba(212,175,55,0.18),inset_0_1px_0_rgba(212,175,55,0.2)] hover:border-[#D4AF37]/75 hover:shadow-[0_0_30px_rgba(212,175,55,0.28)] transition-all">
               <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-2 font-body">
                 <span className="font-medium text-[#cbd5e1] flex items-center gap-1.5">
-                  <span>You Pay</span>
-                  {fromToken.contractAddress && (
-                    <span className="px-2 py-0.5 text-xs rounded font-body font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      BEP-20 Live
-                    </span>
-                  )}
+                  <span>You Sell (From Web3 Wallet)</span>
+                  <span className="px-2 py-0.5 text-xs rounded font-body font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    BEP-20 On-Chain
+                  </span>
                 </span>
                 <span className="font-semibold flex items-center gap-1.5">
-                  <span className="text-slate-400">Available:</span>
-                  <span className="text-white font-bold font-mono">
-                    {Number(fromToken.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {fromToken.symbol}
+                  <span className="text-slate-400">Wallet SPK:</span>
+                  <span className="text-white font-bold font-mono tabular-nums">
+                    {isLoadingOnchain
+                      ? 'Checking...'
+                      : `${liveSpikeBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} SPK`}
                   </span>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); refreshOnChainBalances(); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      refreshOnChainBalances();
+                      fetchLiveSellQuote(numericFrom);
+                    }}
                     disabled={isLoadingOnchain}
-                    title="Refresh on-chain balance"
-                    className="text-[#00F0FF] hover:text-white p-0.5 rounded transition-transform active:rotate-180"
+                    title="Refresh live Web3 wallet balance & V3 pool price"
+                    className="text-[#00F0FF] hover:text-white p-0.5 rounded transition-transform active:rotate-180 cursor-pointer"
                   >
                     <span className={`material-symbols-outlined text-[15px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>
                   </button>
@@ -808,89 +679,78 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                 <input
                   type="number"
                   value={fromAmount}
-                  onChange={(e) => setFromAmount(e.target.value)}
-                  placeholder="0.0"
+                  onChange={(e) => {
+                    setSwapError(null);
+                    setFromAmount(e.target.value);
+                  }}
+                  placeholder="0.00"
                   min="0"
                   step="any"
                   className="w-full bg-transparent text-2xl sm:text-3xl font-extrabold font-headline text-white placeholder-slate-600 focus:outline-none tabular-nums"
                 />
 
-                {/* Token Indicator */}
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#122130] border border-[#1c2b3b] shrink-0 shadow-sm">
-                  {fromToken.isSpike ? (
-                    <img
-                      src={SPIKE_LOGO_URL}
-                      alt="SPIKE"
-                      className="w-6 h-6 object-contain"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : fromToken.symbol === 'BNB' ? (
-                    <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
-                      BNB
-                    </div>
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
-                      $
-                    </div>
-                  )}
-                  <span className="font-extrabold font-headline text-sm sm:text-base">{fromToken.symbol}</span>
+                  <img
+                    src={SPIKE_LOGO_URL}
+                    alt="SPIKE"
+                    className="w-6 h-6 object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="font-extrabold font-headline text-sm sm:text-base">SPIKE</span>
                 </div>
               </div>
 
-              {/* Quick Percentage Chips */}
+              {/* 10% Web3 Wallet Limit Notice & Percentage Chips */}
               <div className="flex flex-col gap-2 pt-2.5 mt-2 border-t border-[#1c2b3b]/60">
-                {isSellSpike && (
-                  <div className={`p-2.5 rounded-xl text-xs font-body flex items-center justify-between ${
-                    isExceeding10Percent
-                      ? 'bg-red-950/40 border border-red-500/50 text-red-400'
-                      : 'bg-[#D4AF37]/10 border border-[#D4AF37]/35 text-[#D4AF37]'
-                  }`}>
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <span className="material-symbols-outlined text-[16px]">
-                        {isExceeding10Percent ? 'warning' : 'security'}
-                      </span>
-                      <span>
-                        {isExceeding10Percent
-                          ? `Exceeds 10% limit: Maximum sellable is ${maxSellableSpk.toFixed(2)} SPK`
-                          : `10% Sell Limit Policy: Max ${maxSellableSpk.toFixed(2)} SPK allowed`}
-                      </span>
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded font-bold font-headline bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37]">
-                      10% Max
+                <div className={`p-2.5 rounded-xl text-xs font-body flex items-center justify-between gap-2 ${
+                  isExceeding10Percent || hasInsufficientSpk
+                    ? 'bg-red-950/40 border border-red-500/50 text-red-400'
+                    : 'bg-[#D4AF37]/10 border border-[#D4AF37]/35 text-[#D4AF37]'
+                }`}>
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <span className="material-symbols-outlined text-[16px]">
+                      {isExceeding10Percent || hasInsufficientSpk ? 'warning' : 'security'}
+                    </span>
+                    <span>
+                      {hasNoWalletSpk
+                        ? 'Your connected Web3 wallet currently holds 0.00 SPK.'
+                        : isExceeding10Percent
+                          ? `Exceeds 10% limit: Max ${maxSellableSpk.toFixed(4)} SPK allowed from wallet`
+                          : `10% Web3 Wallet Limit: Max ${maxSellableSpk.toFixed(4)} SPK sellable`}
                     </span>
                   </div>
-                )}
+                  <span className="text-xs px-2 py-0.5 rounded font-bold font-headline bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] shrink-0">
+                    10% Max
+                  </span>
+                </div>
 
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-[#94a3b8] font-body font-medium">
-                    ≈ ${(numericFrom * fromToken.rateToUsd).toFixed(2)} USD
+                    {liveSpotPrice > 0 ? `≈ $${(numericFrom * liveSpotPrice).toFixed(4)} Live Value` : 'Fetching live value...'}
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {[
+                      { label: '2.5%', pct: 0.25, title: '2.5% of Web3 Wallet SPIKE' },
+                      { label: '5.0%', pct: 0.50, title: '5.0% of Web3 Wallet SPIKE' },
+                      { label: '7.5%', pct: 0.75, title: '7.5% of Web3 Wallet SPIKE' },
+                    ].map((btn) => (
+                      <button
+                        key={btn.label}
+                        type="button"
+                        onClick={() => handlePercentage(btn.pct)}
+                        disabled={maxSellableSpk <= 0}
+                        className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-xs text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-body font-semibold transition-colors cursor-pointer disabled:opacity-40"
+                        title={btn.title}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
                     <button
-                      onClick={() => handlePercentage(0.25)}
-                      className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-xs text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-body font-semibold transition-colors cursor-pointer"
-                      title="Sell 2.5% of SPIKE Balance"
-                    >
-                      2.5%
-                    </button>
-                    <button
-                      onClick={() => handlePercentage(0.5)}
-                      className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-xs text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-body font-semibold transition-colors cursor-pointer"
-                      title="Sell 5% of SPIKE Balance"
-                    >
-                      5.0%
-                    </button>
-                    <button
-                      onClick={() => handlePercentage(0.75)}
-                      className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-xs text-[#94a3b8] hover:text-white border border-[#1c2b3b] font-body font-semibold transition-colors cursor-pointer"
-                      title="Sell 7.5% of SPIKE Balance"
-                    >
-                      7.5%
-                    </button>
-                    <button
+                      type="button"
                       onClick={() => handlePercentage(1.0)}
-                      className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-xs text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-headline transition-colors cursor-pointer"
-                      title="Sell Maximum Allowable 10% of SPIKE Balance"
+                      disabled={maxSellableSpk <= 0}
+                      className="px-3 py-1 rounded-lg bg-gradient-to-r from-[#D4AF37]/20 to-[#f59e0b]/20 hover:from-[#D4AF37]/40 hover:to-[#f59e0b]/40 text-xs text-[#D4AF37] font-bold border border-[#D4AF37]/40 font-headline transition-colors cursor-pointer disabled:opacity-40"
+                      title="Sell Maximum Allowable 10% of Web3 Wallet SPIKE Balance"
                     >
                       10% (MAX)
                     </button>
@@ -899,166 +759,123 @@ export const SwapModal: React.FC<SwapModalProps> = ({
               </div>
             </div>
 
-            {/* SWAP ROUTE DIRECTION (SPIKE ➔ USDT) */}
+            {/* SWAP ROUTE DIRECTION */}
             <div className="flex items-center justify-center -my-2.5 relative z-10">
               <div
-                className="w-10 h-10 rounded-full bg-[#122130] border-2 border-[#D4AF37] text-[#D4AF37] flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.4)]"
-                title="Nodescan Liquidity Route: Sell SPIKE ➔ Receive USDT"
+                className="w-10 h-10 rounded-full bg-[#122130] border-2 border-[#D4AF37] text-[#D4AF37] flex items-center justify-center shadow-[0_0_16px_rgba(212,175,55,0.45)]"
+                title="Nodescan V3 On-Chain Route: Sell SPIKE ➔ Receive USDT"
               >
-                <span className="material-symbols-outlined text-[20px] font-bold">
-                  arrow_downward
-                </span>
+                <span className="material-symbols-outlined text-[20px] font-bold">arrow_downward</span>
               </div>
             </div>
 
-            {/* TO TOKEN CARD */}
-            <div className="p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] hover:border-[#00F0FF]/40 transition-all">
+            {/* TO TOKEN CARD (USDT credited directly to Web3 Wallet) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-b from-[#092036] via-[#071627] to-[#05101d] border border-[#00F0FF]/45 shadow-[0_0_24px_rgba(0,240,255,0.16),inset_0_1px_0_rgba(0,240,255,0.2)] hover:border-[#00F0FF]/70 hover:shadow-[0_0_30px_rgba(0,240,255,0.26)] transition-all">
               <div className="flex items-center justify-between text-xs text-[#94a3b8] mb-2 font-body">
                 <span className="font-medium text-[#cbd5e1] flex items-center gap-1.5">
-                  <span>You Receive (Estimated)</span>
-                  {toToken.contractAddress && (
-                    <span className="px-2 py-0.5 text-xs rounded font-body font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                      BEP-20 Live
-                    </span>
-                  )}
+                  <span>You Receive (Live V3 Quote)</span>
+                  <span className="px-2 py-0.5 text-xs rounded font-body font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    {quoterVerified ? 'QuoterV2 Live' : 'Pool Live'}
+                  </span>
                 </span>
                 <span className="font-semibold flex items-center gap-1.5">
                   <span className="text-slate-400 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span>Web3 Wallet USDT:</span>
+                    <span>Wallet USDT:</span>
                   </span>
                   <span className="text-white font-bold font-mono tabular-nums">
                     {walletAddress
-                      ? (isLoadingOnchain
-                          ? 'Checking BSC...'
-                          : `${Number(toToken.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} USDT`)
+                      ? isLoadingOnchain
+                        ? 'Checking BSC...'
+                        : `${liveUsdtBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} USDT`
                       : '0.00 USDT'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); refreshOnChainBalances(); }}
-                    disabled={isLoadingOnchain}
-                    title="Refresh on-chain Web3 wallet USDT balance from BSC"
-                    className="text-[#00F0FF] hover:text-white p-0.5 rounded transition-transform active:rotate-180"
-                  >
-                    <span className={`material-symbols-outlined text-[15px] ${isLoadingOnchain ? 'animate-spin' : ''}`}>sync</span>
-                  </button>
                 </span>
               </div>
 
               <div className="flex items-center justify-between gap-3">
-                <div className="text-2xl sm:text-3xl font-extrabold font-headline text-[#00F0FF] tabular-nums">
-                  {toAmount > 0 ? toAmount.toFixed(toToken.symbol === 'BNB' ? 4 : 2) : '0.00'}
+                <div className="text-2xl sm:text-3xl font-extrabold font-headline text-emerald-400 tabular-nums truncate">
+                  {isQuoting && numericFrom > 0
+                    ? '...'
+                    : estimatedToUsdt > 0
+                      ? estimatedToUsdt.toFixed(4)
+                      : '0.0000'}
                 </div>
 
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#122130] border border-[#1c2b3b] shrink-0 shadow-sm">
-                  {toToken.isSpike ? (
-                    <img
-                      src={SPIKE_LOGO_URL}
-                      alt="SPIKE"
-                      className="w-6 h-6 object-contain"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : toToken.symbol === 'BNB' ? (
-                    <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">
-                      BNB
-                    </div>
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
-                      $
-                    </div>
-                  )}
-                  <span className="font-extrabold font-headline text-sm sm:text-base">{toToken.symbol}</span>
+                  <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                    $
+                  </div>
+                  <span className="font-extrabold font-headline text-sm sm:text-base">USDT</span>
                 </div>
-              </div>
-
-              <div className="text-xs text-[#94a3b8] font-body mt-2.5 pt-2.5 border-t border-[#1c2b3b]/60 flex items-center justify-between flex-wrap gap-2">
-                <span className="font-medium">≈ ${(toAmount * toToken.rateToUsd).toFixed(2)} USD</span>
-                <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">verified</span>
-                  Zero Protocol Slippage Loss
-                </span>
               </div>
             </div>
           </div>
 
-          {/* TELEMETRY & ROUTE ACCORDION */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-[#061423] border border-[#1c2b3b] space-y-2.5 text-xs text-[#94a3b8] font-body">
+          {/* TELEMETRY & ON-CHAIN ROUTE */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-[#081c30] to-[#05111f] border border-emerald-400/40 shadow-[0_0_22px_rgba(16,185,129,0.16),inset_0_1px_0_rgba(16,185,129,0.16)] space-y-2.5 text-xs text-[#94a3b8] font-body">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-slate-400 font-medium">Payout Wallet</span>
+              <span className="text-slate-400 font-medium">Settlement Wallet (USDT Credit)</span>
               <span className="font-mono text-emerald-400 text-xs font-semibold truncate max-w-[240px]">
-                {walletAddress ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)} (Your Personal Wallet)` : 'Connected Personal Wallet'}
+                {walletAddress ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)} (Your Web3 Wallet)` : 'Not Connected'}
               </span>
             </div>
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-slate-400 font-medium">Exchange Rate</span>
+              <span className="text-slate-400 font-medium">Live V3 Pool Rate</span>
               <span className="font-mono text-white text-xs font-semibold">
-                1 {fromToken.symbol} ≈ {exchangeRate.toFixed(4)} {toToken.symbol}
+                {effectiveLiveRate > 0 ? `1 SPIKE ≈ ${effectiveLiveRate.toFixed(6)} USDT` : 'Fetching live BSC rate...'}
               </span>
             </div>
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-slate-400 font-medium">Network Gas Fee</span>
-              <span className="font-mono text-emerald-400 text-xs font-semibold">~$0.04 (BNB Chain)</span>
+              <span className="text-slate-400 font-medium">Wallet BNB (Gas)</span>
+              <span className={`font-mono text-xs font-semibold ${liveBnbBalance >= 0.0002 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {liveBnbBalance.toFixed(4)} BNB {liveBnbBalance < 0.0002 ? '(Low Gas)' : '(Ready)'}
+              </span>
             </div>
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-slate-400 font-medium">Price Impact</span>
-              <span className="font-mono text-[#00F0FF] text-xs font-semibold">&lt; 0.01%</span>
-            </div>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-slate-400 font-medium">Liquidity Route</span>
+              <span className="text-slate-400 font-medium">On-Chain Liquidity Route</span>
               <span className="font-mono text-white text-xs truncate max-w-[240px]">
-                {fromToken.symbol} ➔ Nodescan Pool (0xdB75...2F3c) ➔ {toToken.symbol}
+                SPIKE ➔ Nodescan V3 (0xdB75...2F3c) ➔ USDT
               </span>
             </div>
           </div>
         </div>
 
-        {/* ============================================================
-            STICKY MODAL FOOTER WITH DUAL ACTION BUTTONS (SWAP + CLOSE)
-           ============================================================ */}
+        {/* Sticky Modal Footer */}
         <div className="shrink-0 px-4 sm:px-6 py-4 border-t border-[#1c2b3b]/90 bg-[#0d2238]/95 backdrop-blur-sm space-y-2.5 z-20">
           <div className="flex items-center gap-3">
-            {/* Secondary Close Button for Effortless Mobile Thumb Reach */}
             <button
+              type="button"
               onClick={onClose}
               className="py-3.5 px-5 rounded-2xl font-headline font-bold text-xs sm:text-sm bg-[#122130] hover:bg-[#1c2b3b] text-[#cbd5e1] hover:text-white border border-[#2d4257] transition-all shrink-0 active:scale-95 cursor-pointer"
             >
               Cancel
             </button>
 
-            {/* Primary Swap Button */}
             <button
+              type="button"
               onClick={handleExecuteSwap}
-              disabled={isSwapping || numericFrom <= 0 || numericFrom > fromToken.balance || isExceeding10Percent}
-              className={`flex-1 py-3.5 px-4 rounded-2xl font-headline font-extrabold text-xs sm:text-sm text-[#0A0F1D] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.98] cursor-pointer ${
-                settlementMode === 'instant'
-                  ? 'bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 hover:from-emerald-300 hover:to-teal-200 shadow-[0_0_25px_rgba(16,185,129,0.45)]'
-                  : 'bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] shadow-[0_0_25px_rgba(212,175,55,0.45)]'
-              }`}
+              disabled={isSwapping || numericFrom <= 0 || hasNoWalletSpk || hasInsufficientSpk || isExceeding10Percent}
+              className="flex-1 py-3.5 px-4 rounded-2xl font-headline font-extrabold text-xs sm:text-sm text-[#0A0F1D] bg-gradient-to-r from-[#D4AF37] to-[#f59e0b] hover:from-[#ffe088] hover:to-[#D4AF37] shadow-[0_0_25px_rgba(212,175,55,0.45)] transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
             >
               {isSwapping ? (
                 <>
                   <span className="w-4 h-4 border-2 border-[#0A0F1D] border-t-transparent rounded-full animate-spin" />
-                  <span className="truncate">{swapStatusStep || (settlementMode === 'instant' ? 'Executing Instant Protocol Settlement...' : 'Executing Nodescan Router Sell...')}</span>
+                  <span className="truncate">{swapStatusStep || 'Executing Web3 On-Chain Swap...'}</span>
                 </>
-              ) : numericFrom > fromToken.balance ? (
-                <span>Insufficient SPIKE Balance</span>
+              ) : hasNoWalletSpk ? (
+                <span>0.00 SPK in Web3 Wallet</span>
+              ) : hasInsufficientSpk ? (
+                <span>Insufficient Web3 Wallet SPIKE</span>
               ) : isExceeding10Percent ? (
-                <span>Exceeds 10% Limit (Max {maxSellableSpk.toFixed(2)} SPK)</span>
+                <span>Exceeds 10% Limit (Max {maxSellableSpk.toFixed(4)} SPK)</span>
               ) : numericFrom <= 0 ? (
-                <span>Enter SPK Amount to Sell</span>
-              ) : settlementMode === 'instant' ? (
-                <>
-                  <span className="material-symbols-outlined text-[20px] font-bold">bolt</span>
-                  <span>
-                    Instant Sell {numericFrom} SPK ➔ Get {toAmount.toFixed(2)} USDT ($1.12 Rate)
-                  </span>
-                </>
+                <span>Enter SPK Amount to Swap</span>
               ) : (
                 <>
                   <span className="material-symbols-outlined text-[20px] font-bold">account_balance_wallet</span>
                   <span>
-                    Web3 Sell {numericFrom} SPK via Nodescan V3 ➔ Get {toAmount.toFixed(2)} USDT
+                    Swap {numericFrom} SPK On-Chain ➔ ~{estimatedToUsdt.toFixed(4)} USDT
                   </span>
                 </>
               )}

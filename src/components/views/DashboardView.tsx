@@ -197,7 +197,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     };
   }, []);
 
-  // Load live testnet data from backend
+  // Load live testnet & V3 pool data from backend + on-chain wallet SPIKE balance
+  const [onChainSpkBalance, setOnChainSpkBalance] = useState<number>(() => {
+    try {
+      if (walletAddress) {
+        const cached = localStorage.getItem(`spike_onchain_spk_${walletAddress.toLowerCase()}`);
+        if (cached !== null && !isNaN(Number(cached))) return Number(cached);
+      }
+    } catch {}
+    return 0;
+  });
+
+  useEffect(() => {
+    const onBalUpdated = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail && typeof detail.spike === 'number') {
+        setOnChainSpkBalance(detail.spike);
+      }
+    };
+    window.addEventListener('spike_onchain_balances_updated', onBalUpdated);
+    return () => window.removeEventListener('spike_onchain_balances_updated', onBalUpdated);
+  }, []);
+
   useEffect(() => {
     const fetchTestnetData = async () => {
       try {
@@ -208,7 +229,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         ]);
         if (tokenRes.ok) {
           const tData = await tokenRes.json();
-          if (tData.token) setSpikeTokenInfo(tData.token);
+          if (tData.token) {
+            const livePrice = tData.v3Pool?.onChainPriceUsdt > 0
+              ? Number(tData.v3Pool.onChainPriceUsdt)
+              : tData.token.currentPrice;
+            setSpikeTokenInfo({ ...tData.token, currentPrice: livePrice });
+          }
         }
         if (walletRes.ok) {
           const wData = await walletRes.json();
@@ -801,16 +827,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <div>
               <div className="text-3xl lg:text-[40px] leading-tight font-extrabold font-headline text-white mb-0.5 tabular-nums tracking-tight flex items-baseline gap-2">
-                <span>{(testnetWallet?.testnetSpk ?? 0.0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span>{(onChainSpkBalance > 0 ? onChainSpkBalance : (testnetWallet?.testnetSpk ?? 0.0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 <span className="text-lg lg:text-xl text-[#D4AF37] font-semibold tracking-normal font-headline">SPK</span>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-body mb-2">
                 <span className="text-emerald-400 font-bold font-mono">
-                  ≈ ${(((testnetWallet?.testnetSpk ?? 0.0)) * (spikeTokenInfo?.currentPrice || 1.12)).toFixed(2)} USDT
+                  ≈ ${(((onChainSpkBalance > 0 ? onChainSpkBalance : (testnetWallet?.testnetSpk ?? 0.0))) * (spikeTokenInfo?.currentPrice || 0.8583)).toFixed(2)} USDT
                 </span>
                 <span className="text-[#475569]">•</span>
                 <span className="text-slate-400 font-medium">
-                  1 SPK = ${(spikeTokenInfo?.currentPrice || 1.12).toFixed(4)}
+                  1 SPK = ${(spikeTokenInfo?.currentPrice || 0.8583).toFixed(4)}
                 </span>
               </div>
               <div className="flex items-center gap-2.5 mt-2">
@@ -821,9 +847,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     }
                   }}
                   className="text-xs text-[#D4AF37] hover:underline font-headline font-bold flex items-center gap-1 transition-all group/btn cursor-pointer"
-                  title="Open Nodescan Sell Route: Sell up to 10% of your SPIKE balance for USDT"
+                  title="Open Web3 On-Chain DEX Swap: Sell up to 10% of your Web3 wallet SPIKE balance for USDT at live rate"
                 >
-                  <span>Swap Now (10% Sell Limit)</span>
+                  <span>Web3 Swap Now (10% Limit)</span>
                   <span className="material-symbols-outlined text-[15px] group-hover/btn:translate-x-0.5 transition-transform">
                     arrow_forward
                   </span>

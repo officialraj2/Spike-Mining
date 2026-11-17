@@ -682,11 +682,13 @@ app.post('/api/faucet/claim', (req: Request, res: Response) => {
 const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const ERC20_APPROVAL_TOPIC = '0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925';
 
-// BSC RPC on-chain transaction verifier (verifies actual SPK Transfer logs vs Approval-only txs)
+// BSC RPC on-chain transaction verifier (verifies actual SPK & USDT Transfer logs vs Approval-only txs)
 async function verifyBscTxReceipt(txHash?: string, expectedRecipient?: string): Promise<{
   verifiedOnChain: boolean;
   spkCreditedOnChain: boolean;
   onChainSpkReceived: number;
+  onChainUsdtReceived: number;
+  onChainSpkSpent: number;
   isApprovalOnly: boolean;
   blockNumber?: number;
   status?: 'Success' | 'Failed' | 'Pending';
@@ -694,7 +696,15 @@ async function verifyBscTxReceipt(txHash?: string, expectedRecipient?: string): 
   gasFeeBnb?: number;
 }> {
   if (!txHash || typeof txHash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(txHash.trim())) {
-    return { verifiedOnChain: false, spkCreditedOnChain: false, onChainSpkReceived: 0, isApprovalOnly: false, status: 'Pending' };
+    return {
+      verifiedOnChain: false,
+      spkCreditedOnChain: false,
+      onChainSpkReceived: 0,
+      onChainUsdtReceived: 0,
+      onChainSpkSpent: 0,
+      isApprovalOnly: false,
+      status: 'Pending',
+    };
   }
 
   const rpcs = [
@@ -729,6 +739,8 @@ async function verifyBscTxReceipt(txHash?: string, expectedRecipient?: string): 
 
           const logs: any[] = Array.isArray(receipt.logs) ? receipt.logs : [];
           let onChainSpkReceived = 0;
+          let onChainUsdtReceived = 0;
+          let onChainSpkSpent = 0;
           let transferCount = 0;
           let approvalCount = 0;
           const normRecip = expectedRecipient ? expectedRecipient.toLowerCase() : null;
@@ -740,12 +752,26 @@ async function verifyBscTxReceipt(txHash?: string, expectedRecipient?: string): 
             } else if (topic0 === ERC20_TRANSFER_TOPIC) {
               transferCount++;
               const logAddr = String(log.address || '').toLowerCase();
-              if (logAddr === SPIKE_CONTRACT_BSC.toLowerCase() && log.topics?.[2]) {
-                const toAddr = ('0x' + String(log.topics[2]).slice(-40)).toLowerCase();
-                if (!normRecip || toAddr === normRecip) {
+              const fromAddr = log.topics?.[1] ? ('0x' + String(log.topics[1]).slice(-40)).toLowerCase() : '';
+              const toAddr = log.topics?.[2] ? ('0x' + String(log.topics[2]).slice(-40)).toLowerCase() : '';
+              if (logAddr === SPIKE_CONTRACT_BSC.toLowerCase()) {
+                if (toAddr && (!normRecip || toAddr === normRecip)) {
                   try {
                     const amtWei = BigInt(log.data || '0x0');
                     onChainSpkReceived += Number(ethers.formatUnits(amtWei, 18));
+                  } catch {}
+                }
+                if (fromAddr && normRecip && fromAddr === normRecip) {
+                  try {
+                    const amtWei = BigInt(log.data || '0x0');
+                    onChainSpkSpent += Number(ethers.formatUnits(amtWei, 18));
+                  } catch {}
+                }
+              } else if (logAddr === USDT_CONTRACT_BSC.toLowerCase() && toAddr) {
+                if (!normRecip || toAddr === normRecip) {
+                  try {
+                    const amtWei = BigInt(log.data || '0x0');
+                    onChainUsdtReceived += Number(ethers.formatUnits(amtWei, 18));
                   } catch {}
                 }
               }
@@ -759,6 +785,8 @@ async function verifyBscTxReceipt(txHash?: string, expectedRecipient?: string): 
             verifiedOnChain: status === 'Success',
             spkCreditedOnChain,
             onChainSpkReceived: +onChainSpkReceived.toFixed(6),
+            onChainUsdtReceived: +onChainUsdtReceived.toFixed(6),
+            onChainSpkSpent: +onChainSpkSpent.toFixed(6),
             isApprovalOnly,
             blockNumber: blockNum,
             status,
@@ -772,7 +800,15 @@ async function verifyBscTxReceipt(txHash?: string, expectedRecipient?: string): 
     }
   }
 
-  return { verifiedOnChain: false, spkCreditedOnChain: false, onChainSpkReceived: 0, isApprovalOnly: false, status: 'Pending' };
+  return {
+    verifiedOnChain: false,
+    spkCreditedOnChain: false,
+    onChainSpkReceived: 0,
+    onChainUsdtReceived: 0,
+    onChainSpkSpent: 0,
+    isApprovalOnly: false,
+    status: 'Pending',
+  };
 }
 
 // ============================================================
@@ -1020,6 +1056,126 @@ async function getV3QuoteAndClaimCalldata(params: {
     relayerConfigured: Boolean(getRelayerPrivateKey()),
     approveTx: needsApproval ? { to: USDT_CONTRACT_BSC, data: approveData, value: '0x0', gas: '0x15F90' } : null,
     swapTx: { to: PANCAKE_V3_SMART_ROUTER_BSC, data: swapData, value: '0x0', gas: '0x3D090' },
+  };
+}
+
+async function getV3SellQuoteAndCalldata(params: {
+  userAddress: string;
+  spkAmount: number;
+  slippagePercent?: number;
+}) {
+  const { userAddress, spkAmount = 0, slippagePercent = 1.0 } = params;
+  const erc20Iface = new ethers.Interface(ERC20_ABI);
+  const routerIface = new ethers.Interface(V3_SMART_ROUTER_ABI);
+  const quoterIface = new ethers.Interface(V3_QUOTER_V2_ABI);
+
+  const validUser = ethers.isAddress(userAddress)
+    ? ethers.getAddress(userAddress)
+    : '0x0000000000000000000000000000000000000000';
+
+  const pool = await fetchLiveV3PoolState().catch(() => null);
+  const spotPriceUsdt = pool?.onChainPriceUsdt && pool.onChainPriceUsdt > 0 ? pool.onChainPriceUsdt : 0;
+  const poolUsdtReserve = pool?.token0?.reserve ?? 0;
+  const poolSpkReserve = pool?.token1?.reserve ?? 0;
+
+  let userSpkBalance = 0;
+  let userUsdtBalance = 0;
+  let userBnbBalance = 0;
+  let currentAllowanceWei = 0n;
+
+  if (validUser !== '0x0000000000000000000000000000000000000000') {
+    const [spkHex, usdtHex, bnbHex, allowHex] = await Promise.all([
+      callBscRpcNode('eth_call', [{ to: SPIKE_CONTRACT_BSC, data: erc20Iface.encodeFunctionData('balanceOf', [validUser]) }, 'latest']),
+      callBscRpcNode('eth_call', [{ to: USDT_CONTRACT_BSC, data: erc20Iface.encodeFunctionData('balanceOf', [validUser]) }, 'latest']),
+      callBscRpcNode('eth_getBalance', [validUser, 'latest']),
+      callBscRpcNode('eth_call', [{ to: SPIKE_CONTRACT_BSC, data: erc20Iface.encodeFunctionData('allowance', [validUser, PANCAKE_V3_SMART_ROUTER_BSC]) }, 'latest']),
+    ]);
+    if (spkHex && spkHex !== '0x') userSpkBalance = +Number(ethers.formatUnits(BigInt(spkHex), 18)).toFixed(6);
+    if (usdtHex && usdtHex !== '0x') userUsdtBalance = +Number(ethers.formatUnits(BigInt(usdtHex), 18)).toFixed(6);
+    if (bnbHex && bnbHex !== '0x') userBnbBalance = +Number(ethers.formatUnits(BigInt(bnbHex), 18)).toFixed(6);
+    if (allowHex && allowHex !== '0x') currentAllowanceWei = BigInt(allowHex);
+  }
+
+  const maxSellableSpk = Math.floor(userSpkBalance * 0.10 * 1_000_000) / 1_000_000;
+  const safeSpkIn = spkAmount > 0 ? +spkAmount.toFixed(6) : 0;
+  const amountInWei = safeSpkIn > 0 ? ethers.parseUnits(safeSpkIn.toFixed(6), 18) : 0n;
+
+  let quotedUsdtOutWei = 0n;
+  let expectedUsdtOut = safeSpkIn > 0 && spotPriceUsdt > 0 ? +(safeSpkIn * spotPriceUsdt * 0.9995).toFixed(6) : 0;
+  let quoterVerified = false;
+  let liquidityWarning: string | null = null;
+
+  if (amountInWei > 0n) {
+    try {
+      const qData = quoterIface.encodeFunctionData('quoteExactInputSingle', [[
+        SPIKE_CONTRACT_BSC,
+        USDT_CONTRACT_BSC,
+        amountInWei,
+        PANCAKE_V3_FEE_TIER,
+        0n,
+      ]]);
+      const qHex = await callBscRpcNode('eth_call', [{ to: PANCAKE_V3_QUOTER_V2_BSC, data: qData }, 'latest']);
+      if (qHex && qHex !== '0x') {
+        const [outWei] = quoterIface.decodeFunctionResult('quoteExactInputSingle', qHex);
+        quotedUsdtOutWei = BigInt(outWei);
+        expectedUsdtOut = +Number(ethers.formatUnits(quotedUsdtOutWei, 18)).toFixed(6);
+        quoterVerified = true;
+      } else {
+        liquidityWarning = 'Live V3 Quoter could not quote this amount against current pool liquidity.';
+      }
+    } catch {
+      liquidityWarning = 'Pool liquidity may be too low for this trade size on PancakeSwap V3.';
+    }
+  }
+
+  if (poolUsdtReserve > 0 && expectedUsdtOut > poolUsdtReserve) {
+    liquidityWarning = `Requested swap (~$${expectedUsdtOut.toFixed(2)}) exceeds live V3 pool USDT reserve ($${poolUsdtReserve.toFixed(2)}).`;
+  }
+
+  const clampedSlippage = Math.min(10, Math.max(0.1, Number(slippagePercent) || 1.0));
+  const slippageBps = Math.round(clampedSlippage * 100);
+  const amountOutMinWei = quotedUsdtOutWei > 0n
+    ? (quotedUsdtOutWei * BigInt(10000 - slippageBps)) / 10000n
+    : 0n;
+  const minUsdtOut = +Number(ethers.formatUnits(amountOutMinWei, 18)).toFixed(6);
+  const effectiveRate = safeSpkIn > 0 && expectedUsdtOut > 0 ? +(expectedUsdtOut / safeSpkIn).toFixed(6) : spotPriceUsdt;
+
+  const needsApproval = amountInWei > 0n && currentAllowanceWei < amountInWei;
+  const approveData = erc20Iface.encodeFunctionData('approve', [PANCAKE_V3_SMART_ROUTER_BSC, ethers.MaxUint256]);
+  const swapData = amountInWei > 0n
+    ? routerIface.encodeFunctionData('exactInputSingle', [[
+        SPIKE_CONTRACT_BSC,
+        USDT_CONTRACT_BSC,
+        PANCAKE_V3_FEE_TIER,
+        validUser,
+        amountInWei,
+        amountOutMinWei,
+        0n,
+      ]])
+    : '0x';
+
+  return {
+    poolAddress: PANCAKE_V3_POOL_BSC,
+    routerAddress: PANCAKE_V3_SMART_ROUTER_BSC,
+    feeTier: PANCAKE_V3_FEE_TIER,
+    spotPriceUsdt,
+    effectiveRate,
+    spkIn: safeSpkIn,
+    expectedUsdtOut,
+    minUsdtOut,
+    quoterVerified,
+    liquidityWarning,
+    poolUsdtReserve,
+    poolSpkReserve,
+    userSpkBalance,
+    userUsdtBalance,
+    userBnbBalance,
+    maxSellableSpk,
+    exceedsTenPercentLimit: userSpkBalance > 0 && safeSpkIn > maxSellableSpk + 1e-6,
+    hasEnoughSpk: userSpkBalance >= safeSpkIn && safeSpkIn > 0,
+    needsApproval,
+    approveTx: needsApproval ? { to: SPIKE_CONTRACT_BSC, data: approveData, value: '0x0', gas: '0x15F90' } : null,
+    swapTx: amountInWei > 0n ? { to: PANCAKE_V3_SMART_ROUTER_BSC, data: swapData, value: '0x0', gas: '0x55730' } : null,
   };
 }
 
@@ -1742,6 +1898,36 @@ app.post('/api/bsc/v3-claim-tx', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/bsc/v3-sell-quote', async (req: Request, res: Response) => {
+  try {
+    const userAddress = String(req.query.address || '');
+    const spkAmount = Number(req.query.spkAmount || 0);
+    const slippage = Number(req.query.slippage || 1.0);
+    const quote = await getV3SellQuoteAndCalldata({
+      userAddress,
+      spkAmount,
+      slippagePercent: slippage,
+    });
+    res.json({ success: true, ...quote });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to compute V3 sell quote' });
+  }
+});
+
+app.post('/api/bsc/v3-sell-tx', async (req: Request, res: Response) => {
+  try {
+    const { userAddress = '', spkAmount = 0, slippage = 1.0 } = req.body || {};
+    const quote = await getV3SellQuoteAndCalldata({
+      userAddress: String(userAddress),
+      spkAmount: Number(spkAmount) || 0,
+      slippagePercent: Number(slippage) || 1.0,
+    });
+    res.json({ success: true, ...quote });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err?.message || 'Failed to build V3 sell swap calldata' });
+  }
+});
+
 app.get('/api/testnet/spike/info', async (req: Request, res: Response) => {
   try {
     const token = db.getTestnetSpikeToken();
@@ -1851,6 +2037,8 @@ app.post('/api/testnet/harvest-autobuy', async (req: Request, res: Response) => 
           verifiedOnChain: true,
           spkCreditedOnChain: true,
           onChainSpkReceived: relayerResult.spkSent || numAmount,
+          onChainUsdtReceived: 0,
+          onChainSpkSpent: 0,
           isApprovalOnly: false,
           blockNumber: relayerResult.blockNumber,
           status: 'Success',
@@ -1926,11 +2114,37 @@ app.post('/api/testnet/harvest-autobuy', async (req: Request, res: Response) => 
 
 app.post('/api/testnet/swap', async (req: Request, res: Response) => {
   try {
-    const { address, fromToken, toToken, amountIn, txHash } = req.body;
+    const { address, fromToken, toToken, amountIn, txHash, onChainSpkBalanceBefore } = req.body;
+    const isRealOnChainSell = fromToken === 'SPK' && toToken === 'USDT';
+
     const [receiptInfo, v3Pool] = await Promise.all([
-      verifyBscTxReceipt(txHash),
+      verifyBscTxReceipt(txHash, address),
       fetchLiveV3PoolState().catch(() => null),
     ]);
+
+    if (isRealOnChainSell) {
+      if (!txHash || typeof txHash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(txHash.trim())) {
+        res.status(400).json({
+          success: false,
+          error: 'Real on-chain BSC transaction hash is required for Web3 DEX swap.',
+        });
+        return;
+      }
+      if (receiptInfo.status === 'Failed') {
+        res.status(400).json({
+          success: false,
+          error: 'On-chain PancakeSwap V3 transaction reverted on BSC Mainnet.',
+        });
+        return;
+      }
+      if (receiptInfo.isApprovalOnly) {
+        res.status(400).json({
+          success: false,
+          error: 'Transaction was only token Approval. Please confirm the PancakeSwap V3 swap transaction.',
+        });
+        return;
+      }
+    }
 
     const result = db.executeTestnetSwap(
       address,
@@ -1942,6 +2156,10 @@ app.post('/api/testnet/swap', async (req: Request, res: Response) => {
         verifiedOnChain: receiptInfo.verifiedOnChain,
         blockNumber: receiptInfo.blockNumber,
         gasFeeBnb: receiptInfo.gasFeeBnb,
+        livePoolPrice: v3Pool?.onChainPriceUsdt,
+        onChainUsdtReceived: receiptInfo.onChainUsdtReceived,
+        onChainSpkSpent: receiptInfo.onChainSpkSpent,
+        onChainSpkBalanceBefore: Number(onChainSpkBalanceBefore) || undefined,
       }
     );
     if (!result.success) {
@@ -1967,7 +2185,7 @@ app.post('/api/testnet/swap', async (req: Request, res: Response) => {
       } : undefined,
     });
   } catch (err: any) {
-    res.status(500).json({ success: false, error: err?.message || 'Server error executing testnet swap' });
+    res.status(500).json({ success: false, error: err?.message || 'Server error executing on-chain swap' });
   }
 });
 

@@ -1648,30 +1648,28 @@ export default function App() {
     toAmount: number
   ) => {
     if (fromToken === 'SPIKE' && toToken === 'USDT') {
-      // Selling SPIKE: USDT is credited directly to connected user's personal wallet!
-      const newBal = +(walletBalance + toAmount).toFixed(2);
-      setWalletBalance(newBal);
+      // Real on-chain Web3 swap: USDT is credited directly into the user's personal Web3 wallet on BSC
       if (walletAddress) {
         const norm = walletAddress.toLowerCase();
-        localStorage.setItem(`spike_bal_${norm}`, newBal.toFixed(2));
-        window.dispatchEvent(
-          new CustomEvent('spike_balance_updated', {
-            detail: { address: norm, balanceUsdt: newBal },
+        fetchOnChainBalances(norm)
+          .then((b) => {
+            if (typeof b.spike === 'number') setWalletSpk(b.spike);
+            if (typeof b.usdt === 'number') setWalletOnchainUsdt(b.usdt);
+            if (typeof b.bnb === 'number' && b.bnb > 0) setWalletBNB(b.bnb);
           })
-        );
+          .catch(() => {});
       }
       const shortAddr = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'your connected wallet';
       addToast(
-        'Nodescan Sell Executed',
-        `+${toAmount.toFixed(2)} USDT directly credited into your personal Web3 wallet (${shortAddr})!`,
+        'On-Chain Web3 Swap Confirmed',
+        `+${toAmount.toFixed(4)} USDT credited directly into your Web3 wallet (${shortAddr})!`,
         'success'
       );
     } else if (fromToken === 'USDT' && toToken === 'SPIKE') {
-      // Buying SPIKE with USDT:
       setWalletBalance((prev) => Math.max(0, +(prev - fromAmount).toFixed(2)));
       addToast(
         'SPIKE Purchased',
-        `+${toAmount.toFixed(2)} SPK added via Nodescan!`,
+        `+${toAmount.toFixed(2)} SPK added via Nodescan V3!`,
         'success'
       );
     } else if (fromToken === 'SPIKE') {

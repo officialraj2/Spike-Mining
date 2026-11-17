@@ -2583,6 +2583,9 @@ class PersistentDatabase {
       blockNumber?: number;
       gasFeeBnb?: number;
       livePoolPrice?: number;
+      onChainUsdtReceived?: number;
+      onChainSpkSpent?: number;
+      onChainSpkBalanceBefore?: number;
     }
   ): {
     success: boolean;
@@ -2687,72 +2690,82 @@ class PersistentDatabase {
       this.save();
       return { success: true, wallet, token, tx, routerAddress, pairAddress, poolVersion: 'PancakeSwap V3', feeTier: 500 };
     } else {
-      // Selling SPK for USDT: ENFORCE 10% MAX SELL LIMIT WITH FLOAT TOLERANCE
+      // Selling SPK for USDT on-chain: ENFORCE 10% MAX SELL LIMIT AGAINST WEB3 WALLET BALANCE
       const norm = (address || '').toLowerCase();
       const existingUser = this.data.users.find((u) => u.address.toLowerCase() === norm);
 
-      if (existingUser && typeof existingUser.balanceSpk === 'number' && existingUser.balanceSpk > wallet.testnetSpk) {
-        wallet.testnetSpk = existingUser.balanceSpk;
-      }
+      const effectiveSpkSpent = onChainMeta?.onChainSpkSpent && onChainMeta.onChainSpkSpent > 0
+        ? onChainMeta.onChainSpkSpent
+        : numIn;
 
-      const effectiveSpkBal = Math.max(wallet.testnetSpk, existingUser?.balanceSpk || 0, existingUser?.totalMined || 0);
-      const maxAllowedSell = +(effectiveSpkBal * 0.10).toFixed(4);
+      const onChainBefore = onChainMeta?.onChainSpkBalanceBefore && onChainMeta.onChainSpkBalanceBefore > 0
+        ? onChainMeta.onChainSpkBalanceBefore
+        : 0;
+      const effectiveSpkBal = Math.max(onChainBefore, wallet.testnetSpk, existingUser?.balanceSpk || 0);
+      const maxAllowedSell = Math.floor(effectiveSpkBal * 0.10 * 10000) / 10000;
 
-      if (effectiveSpkBal > 0 && numIn > maxAllowedSell + 0.005 && numIn > 0.10) {
+      if (!onChainMeta?.verifiedOnChain && effectiveSpkBal > 0 && effectiveSpkSpent > maxAllowedSell + 0.0005) {
         return {
           success: false,
           wallet,
           token,
           tx: null as any,
-          error: `10% Max Daily Sell Limit: You can only sell up to ${maxAllowedSell} SPK (10% of your ${effectiveSpkBal.toFixed(2)} SPK balance) at this time.`,
+          error: `10% Max Sell Limit: You can only sell up to ${maxAllowedSell} SPK (10% of your ${effectiveSpkBal.toFixed(4)} SPK Web3 wallet balance).`,
         };
       }
 
-      if (wallet.testnetSpk < numIn && effectiveSpkBal >= numIn) {
-        wallet.testnetSpk = effectiveSpkBal;
+      const liveRate = onChainMeta?.livePoolPrice && onChainMeta.livePoolPrice > 0
+        ? Number(onChainMeta.livePoolPrice.toFixed(6))
+        : (token.currentPrice > 0 ? Number(token.currentPrice.toFixed(6)) : 0.8583);
+
+      const amountOut = onChainMeta?.onChainUsdtReceived && onChainMeta.onChainUsdtReceived > 0
+        ? Number(onChainMeta.onChainUsdtReceived.toFixed(6))
+        : Number((effectiveSpkSpent * V3_FEE_MULTIPLIER * liveRate).toFixed(6));
+
+      const executionPrice = effectiveSpkSpent > 0 && amountOut > 0
+        ? Number((amountOut / effectiveSpkSpent).toFixed(6))
+        : liveRate;
+
+      const updatedSpkBal = onChainBefore > 0
+        ? Math.max(0, Number((onChainBefore - effectiveSpkSpent).toFixed(4)))
+        : Math.max(0, Number((wallet.testnetSpk - effectiveSpkSpent).toFixed(4)));
+
+      wallet.testnetSpk = updatedSpkBal;
+      if (onChainMeta?.verifiedOnChain) {
+        wallet.testnetUsdt = Number(((wallet.testnetUsdt || 0) + amountOut).toFixed(4));
       }
 
-      if (wallet.testnetSpk < numIn && effectiveSpkBal < numIn) {
-        wallet.testnetSpk = Math.max(numIn, 10.0);
-      }
-
-      const netAmountIn = numIn * V3_FEE_MULTIPLIER;
-      const guaranteedRate = 1.12;
-      const amountOut = Number((netAmountIn * guaranteedRate).toFixed(4));
-
-      wallet.testnetSpk = Math.max(0, Number((wallet.testnetSpk - numIn).toFixed(4)));
-      wallet.testnetUsdt = Number((wallet.testnetUsdt + amountOut).toFixed(2));
-
-      token.poolSpkReserve += numIn;
-      token.poolUsdtReserve = Math.max(100, token.poolUsdtReserve - amountOut);
-      token.currentPrice = guaranteedRate;
-      token.volume24h += numIn;
+      token.poolSpkReserve += effectiveSpkSpent;
+      token.poolUsdtReserve = Math.max(0, Number((token.poolUsdtReserve - amountOut).toFixed(4)));
+      token.currentPrice = liveRate;
+      token.volume24h += effectiveSpkSpent;
       token.buyPressure = Math.max(70, token.buyPressure - 0.2);
 
       if (existingUser) {
-        existingUser.balanceSpk = Math.max(0, Number(((existingUser.balanceSpk || 0) - numIn).toFixed(4)));
-        existingUser.balanceUsdt = Number(((existingUser.balanceUsdt || 0) + amountOut).toFixed(2));
+        existingUser.balanceSpk = updatedSpkBal;
+        // Real on-chain swap sends USDT directly to the user's Web3 wallet on BSC Mainnet;
+        // do NOT double-credit internal platform claimable balanceUsdt.
         existingUser.lastActive = new Date().toISOString();
       }
 
-      const txHash = customTxHash || `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      const txHash = customTxHash || '';
       const tx: DbTestnetTx = {
         id: `test-tx-${Date.now()}`,
         userAddress: wallet.address,
         txHash,
         type: 'swap_sell',
-        spkAmount: numIn,
+        spkAmount: effectiveSpkSpent,
         usdtAmount: amountOut,
-        priceUsdt: guaranteedRate,
-        status: 'Confirmed',
-        blockNumber: onChainMeta?.blockNumber || (42918500 + (this.data.testnetTransactions?.length || 0)),
+        priceUsdt: executionPrice,
+        status: onChainMeta?.verifiedOnChain ? 'Confirmed' : 'Pending',
+        blockNumber: onChainMeta?.blockNumber ?? 0,
         gasFeeBnb: onChainMeta?.gasFeeBnb ?? 0.00015,
         poolVersion: 'PancakeSwap V3',
         feeTier: 500,
         routerAddress,
         pairAddress,
         verifiedOnChain: Boolean(onChainMeta?.verifiedOnChain),
-        details: `PancakeV3SmartRouter.exactInputSingle(${numIn} SPK -> ${amountOut} USDT, fee=500 [0.05%], pool=${pairAddress}, router=${routerAddress})`,
+        details: `PancakeV3SmartRouter.exactInputSingle(${effectiveSpkSpent} SPK -> ${amountOut} USDT @ $${executionPrice}/SPK, fee=500 [0.05%], pool=${pairAddress}, router=${routerAddress})`,
         timestamp: new Date().toISOString(),
       };
 

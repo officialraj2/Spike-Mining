@@ -633,7 +633,7 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
           throw new Error(`Transaction broadcasted (${web3TxHash.slice(0, 10)}...), waiting for BSC confirmation. Check BscScan before retrying.`);
         }
         if (swapReceipt.status === '0x0' || swapReceipt.status === '0x00' || Number(swapReceipt.status) === 0) {
-          throw new Error('PancakeSwap V3 Swap transaction reverted on BSC Mainnet. Please verify BNB gas & USDT balance.');
+          throw new Error('Nodescan V3 Swap transaction reverted on BSC Mainnet. Please verify BNB gas & USDT balance.');
         }
 
         confirmedBlockNumber = swapReceipt.blockNumber ? parseInt(String(swapReceipt.blockNumber), 16) : undefined;
