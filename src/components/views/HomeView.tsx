@@ -3,10 +3,12 @@ import { SPIKE_LOGO_URL, SPIKE_TOKEN_METRICS } from '../../data/mockData';
 import { TabType } from '../../types';
 import { SparkleShatterMedallion } from '../SparkleShatterMedallion';
 
+import { SPIKE_CONTRACT_ADDRESS } from '../../services/onchainBalance';
+
 const HERO_PHRASES = [
   'Decentralized Technology',
   'Autonomous Mining Nodes',
-  'Stratum 10X Hardware',
+  'Falcon Titan 100 VH/s',
   'High-Yield BSC Infrastructure',
 ];
 
@@ -35,17 +37,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onCopyText: _onCopyText,
   onClaimReferralRewards: _onClaimReferralRewards,
 }) => {
-  // Calculator state (starts at 0.30 TH/s which corresponds to the $15 starter activation package)
-  const [calcHashrate, setCalcHashrate] = useState<number>(0.30);
-  const [activationTier, setActivationTier] = useState<number>(15);
+  // Calculator state: Single $10 Mining Model = 100 VH/s per node (1 SPK in 60 Days = 0.01667 SPK/day)
+  const [calcHashrate, setCalcHashrate] = useState<number>(100);
+  const [nodeCountPreset, setNodeCountPreset] = useState<number>(1);
 
-  // Proportional reward calculations according to the official formula
-  // Base daily yield factor
-  const dailySpikeReward = (calcHashrate / 0.30) * 1.5; // SPIKE tokens mined daily
+  // Official protocol emission math: dailySpkYield = effectiveHashrate / 6000
+  const dailySpikeReward = calcHashrate / 6000;
   const dailyUsdtRef = dailySpikeReward * SPIKE_TOKEN_METRICS.initialReferencePrice; // At $1 reference
   const dailyUsdtSwapTarget = dailySpikeReward * SPIKE_TOKEN_METRICS.swapThresholdPrice; // At $5 Swap Threshold
   const monthlySpikeReward = dailySpikeReward * 30;
   const annualSpikeReward = dailySpikeReward * 365;
+  const daysPerSpk = calcHashrate > 0 ? 6000 / calcHashrate : 60;
 
   // Handle protected actions (Dashboard, Mining, Staking)
   const handleProtectedAction = (tab: TabType) => {
@@ -56,9 +58,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     }
   };
 
-  const handleTierSelect = (usdAmount: number, ths: number) => {
-    setActivationTier(usdAmount);
-    setCalcHashrate(ths);
+  const handleNodePresetSelect = (nodes: number, vhs: number) => {
+    setNodeCountPreset(nodes);
+    setCalcHashrate(vhs);
   };
 
   // Dynamic Letter-by-Letter Typewriter Animation for Hero Headline
@@ -113,12 +115,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
           {/* Hero Left Content */}
           <div className="lg:col-span-7 space-y-6 sm:space-y-7 pt-2 sm:pt-0">
-            {/* HUD / System Labels from Official Whitepaper */}
+            {/* Protocol Status Badge */}
             <div className="inline-flex max-w-full flex-nowrap items-center gap-1 min-[360px]:gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#122130]/95 border border-[#00F0FF]/50 text-[9px] min-[360px]:text-[10px] min-[410px]:text-[11px] sm:text-xs font-mono text-[#00F0FF] shadow-[0_0_18px_rgba(0,240,255,0.25)] whitespace-nowrap overflow-x-auto scrollbar-none">
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#00F0FF] animate-pulse shrink-0"></span>
-              <span className="font-bold tracking-wide shrink-0 text-white">STATOR</span>
+              <span className="font-bold tracking-wide shrink-0 text-white">FALCON TITAN</span>
               <span className="text-[#94a3b8]/60 shrink-0">|</span>
-              <span className="text-[#D4AF37] font-semibold shrink-0">Gear 7-38 270</span>
+              <span className="text-[#D4AF37] font-semibold shrink-0">$10 Node · 100 VH/s</span>
               <span className="text-[#94a3b8]/60 shrink-0">|</span>
               <span className="text-[#7df4ff] shrink-0 font-medium whitespace-nowrap">
                 SPIKE BEP-20 · BNB Smart Chain
@@ -202,11 +204,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </button>
             </div>
 
-            {/* Quick Proof Trust Line from Whitepaper Foundation */}
+            {/* Quick Proof Trust Line */}
             <div className="pt-2 flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-[#94a3b8] font-mono border-t border-[#1c2b3b]/60">
               <span className="flex items-center gap-1 text-[#00F0FF]">
                 <span className="material-symbols-outlined text-[15px]">electric_bolt</span>
-                Activation from $15
+                $10 Node Activation
               </span>
               <span>·</span>
               <span className="flex items-center gap-1 text-[#D4AF37]">
@@ -348,14 +350,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 />
               </div>
 
-              {/* Floating Stat Badge 1: Global Hashrate */}
+              {/* Floating Stat Badge 1: Active Hashrate */}
               <div className="absolute -bottom-4 -left-4 bg-[#0a0f1d]/95 backdrop-blur-md border border-[#00F0FF]/50 rounded-xl p-3 shadow-2xl flex items-center gap-3 z-30 animate-float-delayed">
                 <div className="w-8 h-8 rounded-lg bg-[#00F0FF]/15 text-[#00F0FF] flex items-center justify-center">
                   <span className="material-symbols-outlined text-[18px]">speed</span>
                 </div>
                 <div>
-                  <div className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-wider">Global Hashrate</div>
-                  <div className="text-sm font-bold font-headline text-white tabular-nums">{totalHashrate.toFixed(2)} TH/s Active</div>
+                  <div className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-wider">
+                    {totalHashrate > 0 ? 'Active Hashrate' : 'Node Hashrate'}
+                  </div>
+                  <div className="text-sm font-bold font-headline text-white tabular-nums">
+                    {totalHashrate > 0 ? `${totalHashrate.toFixed(0)} VH/s Active` : '100 VH/s / $10 Node'}
+                  </div>
                 </div>
               </div>
 
@@ -438,7 +444,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
           <div>
             <span className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-[#00F0FF]">
-              Page 4 &amp; 5 Protocols
+              Mining Architecture
             </span>
             <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-white tracking-tight mt-1">
               What Is Mining? Understanding Digital Mining
@@ -514,7 +520,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </p>
             </div>
             <div className="mt-4 pt-3 border-t border-[#1c2b3b] text-[11px] font-mono text-[#00F0FF]">
-              Participation from $15
+              Fixed $10 Node Model · 100 VH/s
             </div>
           </div>
         </div>
@@ -523,7 +529,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <div className="p-6 sm:p-8 rounded-3xl bg-[#122130] border border-[#1c2b3b] shadow-xl">
           <div className="max-w-2xl mb-6">
             <span className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-[#D4AF37]">
-              Page 5: What Is Cloud Mining?
+              Cloud Infrastructure
             </span>
             <h3 className="text-xl sm:text-2xl font-bold font-headline text-white mt-1">
               Mining Without Owning Mining Hardware
@@ -567,7 +573,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <ul className="space-y-2 text-xs text-[#d4e4fa]">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  <strong>Hash Rate:</strong> Instant computational power assignment from $15
+                  <strong>Hash Rate:</strong> Instant 100 VH/s allocation per $10 Falcon Titan node
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
@@ -575,7 +581,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  <strong>Digital Rewards:</strong> Automated daily distribution according to rulebook
+                  <strong>Digital Rewards:</strong> Automated 24-hour mining cycles with proportional SPK yield
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
@@ -586,11 +592,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        {/* Page 9: What is Hash Rate & Operational Protocol */}
+        {/* What is Hash Rate & Operational Protocol */}
         <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0d1d2c] via-[#122130] to-[#0a0f1d] border border-[#00F0FF]/30 shadow-xl space-y-6">
           <div className="max-w-2xl">
             <span className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-[#00F0FF]">
-              Page 9: Your Digital Mining Power
+              Digital Mining Power
             </span>
             <h3 className="text-xl sm:text-2xl font-bold font-headline text-white mt-1">
               What Is Hash Rate?
@@ -607,10 +613,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {[
-                { step: '01', title: 'ACTIVATE', desc: 'Select hashrate allocation starting from $15', glow: 'animate-box-glow-cyan' },
-                { step: '02', title: 'ASSIGN', desc: 'Computational power assigned to validator node', glow: 'animate-box-glow-purple' },
-                { step: '03', title: 'PROCESS', desc: 'ASIC cluster processes cryptographic blocks', glow: 'animate-box-glow-amber' },
-                { step: '04', title: 'DISTRIBUTE', desc: 'Proportional rewards distributed to wallet', glow: 'animate-box-glow-emerald' },
+                { step: '01', title: 'ACTIVATE', desc: 'Deploy your $10 Falcon Titan node (100 VH/s base)', glow: 'animate-box-glow-cyan' },
+                { step: '02', title: 'ASSIGN', desc: 'Computational power assigned to BSC validator node', glow: 'animate-box-glow-purple' },
+                { step: '03', title: 'PROCESS', desc: 'ASIC cluster runs autonomous 24-hour mining cycles', glow: 'animate-box-glow-amber' },
+                { step: '04', title: 'DISTRIBUTE', desc: 'Proportional SPK rewards settled directly to wallet', glow: 'animate-box-glow-emerald' },
               ].map((item, idx) => (
                 <div key={idx} className={`p-4 rounded-xl bg-[#0a0f1d] border relative ${item.glow}`}>
                   <span className="text-[10px] font-mono text-[#00F0FF] font-bold">PHASE {item.step}</span>
@@ -629,13 +635,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <section className="space-y-6">
         <div className="text-center max-w-xl mx-auto space-y-2">
           <span className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-[#D4AF37]">
-            Page 6: The 5-Step Process
+            The 5-Step Process
           </span>
           <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-white tracking-tight">
             How SPIKE Works: The Mining Journey
           </h2>
           <p className="text-xs text-[#94a3b8]">
-            Activate Your Hash Rate. Start Mining. Step Into the SPIKE Ecosystem.
+            Activate Your $10 Node. Start Mining. Step Into the SPIKE Ecosystem.
           </p>
         </div>
 
@@ -644,7 +650,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {
               step: '1',
               title: 'Activate',
-              desc: 'Start with Hash Rate activation from $15. Choose your computational scale.',
+              desc: 'Deploy a $10 Falcon Titan node (100 VH/s) directly from your BEP-20 wallet.',
               icon: 'power_settings_new',
               color: 'text-[#00F0FF]',
               glow: 'animate-box-glow-cyan',
@@ -652,7 +658,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {
               step: '2',
               title: 'Mine',
-              desc: "Mining begins according to the platform's defined mechanical rules.",
+              desc: 'Autonomous 24-hour Stratum SHA-256 cycles run seamlessly on remote clusters.',
               icon: 'settings_suggest',
               color: 'text-[#7df4ff]',
               glow: 'animate-box-glow-blue',
@@ -660,7 +666,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {
               step: '3',
               title: 'Accumulate',
-              desc: 'SPIKE is distributed according to applicable proportional mining rules.',
+              desc: 'Earn daily SPK yields — boost up to 857 VH/s (7 days/SPK) with team referrals.',
               icon: 'savings',
               color: 'text-[#D4AF37]',
               glow: 'animate-box-glow-gold',
@@ -668,15 +674,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {
               step: '4',
               title: 'Track',
-              desc: 'Monitor real-time blockchain telemetry, difficulty index and market activity.',
+              desc: 'Monitor real-time node telemetry, cycle countdowns, and Nodescan V3 market depth.',
               icon: 'monitoring',
               color: 'text-[#00F0FF]',
               glow: 'animate-box-glow-purple',
             },
             {
               step: '5',
-              title: 'Utility',
-              desc: 'As platform develops, SPIKE connects with ecosystem utilities & staking.',
+              title: 'Settle & Swap',
+              desc: 'Harvest mined SPK on-chain, unlock team milestones, or swap SPIKE to USDT.',
               icon: 'hub',
               color: 'text-emerald-400',
               glow: 'animate-box-glow-emerald',
@@ -715,7 +721,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
             <div>
               <span className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-[#00F0FF]">
-                Page 7: Token Foundation
+                Tokenomics Foundation
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-white tracking-tight mt-1">
                 The SPIKE Token: Engineered for a Scalable Digital Ecosystem
@@ -770,11 +776,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        {/* The $5 Swap Threshold Section (Page 8) */}
+        {/* The $5 Swap Threshold Section */}
         <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0d1d2c] via-[#122130] to-[#0a0f1d] border border-[#D4AF37]/40 shadow-xl space-y-6">
           <div className="max-w-2xl">
             <span className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-[#D4AF37]">
-              Page 8: Roadmap &amp; Liquidity Framework
+              Roadmap &amp; Liquidity Framework
             </span>
             <h3 className="text-xl sm:text-2xl font-bold font-headline text-white mt-1">
               The $5 Swap Threshold: From Market Price to Swap
@@ -829,12 +835,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        {/* Page 10: The SPIKE Mining Engine & Mathematical Emission Formula */}
+        {/* The SPIKE Mining Engine & Mathematical Emission Formula */}
         <div className="p-6 sm:p-8 rounded-3xl bg-[#122130] border border-[#1c2b3b] shadow-xl space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
               <span className="text-xs font-mono font-semibold uppercase tracking-[0.16em] text-[#00F0FF]">
-                Page 10: Dynamic Hash-Rate Reward Architecture
+                Dynamic Hash-Rate Reward Architecture
               </span>
               <h3 className="text-xl sm:text-2xl font-bold font-headline text-white mt-1">
                 The SPIKE Mining Engine: Mathematical Formulation
@@ -883,39 +889,39 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        {/* Interactive Hash Rate Yield Calculator (Starting from $15 Activation) */}
+        {/* Interactive Hash Rate Yield Calculator ($10 Single Node Model) */}
         <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-[#122130] to-[#0d1d2c] border border-[#00F0FF]/30 shadow-xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-5 space-y-4">
               <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.16em] text-[#00F0FF]">
-                Simulate Your Cloud Allocation
+                Single $10 Mining Model · 100 VH/s Base
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-white tracking-tight">
                 Hash Rate Yield Simulator
               </h2>
               <p className="text-xs text-[#94a3b8] leading-relaxed">
-                Select an activation package (from $15 starter) or drag custom computational hashrate to view daily, monthly and annual projections.
+                Every Falcon Titan node activates at <strong className="text-white">$10 USDT (100 VH/s)</strong> and mines 1 SPK in 60 days. Scale output by deploying multiple $10 nodes or boosting velocity through referrals.
               </p>
 
               {/* Quick Preset Buttons */}
               <div className="space-y-1.5 pt-1">
-                <div className="text-[11px] font-mono text-[#94a3b8]">Quick Activation Tiers:</div>
+                <div className="text-[11px] font-mono text-[#94a3b8]">Simulate $10 Node Scaling:</div>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { usd: 15, ths: 0.30, label: '$15 Starter' },
-                    { usd: 75, ths: 1.50, label: '$75 Standard' },
-                    { usd: 250, ths: 5.00, label: '$250 Cluster' },
-                  ].map((tier) => (
+                    { nodes: 1, vhs: 100, label: '1 Node ($10)' },
+                    { nodes: 5, vhs: 500, label: '5 Nodes ($50)' },
+                    { nodes: 10, vhs: 1000, label: '10 Nodes ($100)' },
+                  ].map((preset) => (
                     <button
-                      key={tier.usd}
-                      onClick={() => handleTierSelect(tier.usd, tier.ths)}
+                      key={preset.nodes}
+                      onClick={() => handleNodePresetSelect(preset.nodes, preset.vhs)}
                       className={`py-2 px-2 rounded-xl text-xs font-mono font-semibold transition-all border ${
-                        activationTier === tier.usd && calcHashrate === tier.ths
+                        nodeCountPreset === preset.nodes && calcHashrate === preset.vhs
                           ? 'bg-[#00F0FF]/20 border-[#00F0FF] text-[#00F0FF]'
                           : 'bg-[#0a0f1d] border-[#1c2b3b] text-[#94a3b8] hover:text-white'
                       }`}
                     >
-                      {tier.label}
+                      {preset.label}
                     </button>
                   ))}
                 </div>
@@ -925,24 +931,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="space-y-2 pt-2">
                 <div className="flex justify-between text-xs text-[#94a3b8] font-mono">
                   <span>Effective Hash Rate:</span>
-                  <span className="text-[#00F0FF] font-bold text-base">{calcHashrate.toFixed(2)} TH/s</span>
+                  <span className="text-[#00F0FF] font-bold text-base">
+                    {calcHashrate.toFixed(0)} VH/s <span className="text-xs text-[#D4AF37]">({daysPerSpk.toFixed(1)}d / SPK)</span>
+                  </span>
                 </div>
                 <input
                   type="range"
-                  min="0.30"
-                  max="10.00"
-                  step="0.10"
+                  min="100"
+                  max="1000"
+                  step="100"
                   value={calcHashrate}
                   onChange={(e) => {
-                    setCalcHashrate(parseFloat(e.target.value));
-                    setActivationTier(0);
+                    const val = parseFloat(e.target.value);
+                    setCalcHashrate(val);
+                    setNodeCountPreset(Math.round(val / 100));
                   }}
                   className="w-full accent-[#00F0FF] cursor-pointer h-2 bg-[#0a0f1d] rounded-lg"
                 />
                 <div className="flex justify-between text-[10px] text-[#94a3b8]/70 font-mono">
-                  <span>0.30 TH/s ($15)</span>
-                  <span>5.00 TH/s</span>
-                  <span>10.00 TH/s</span>
+                  <span>100 VH/s ($10)</span>
+                  <span>500 VH/s ($50)</span>
+                  <span>1,000 VH/s ($100)</span>
                 </div>
               </div>
 
@@ -958,7 +967,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   className="w-full py-3.5 rounded-xl bg-[#00F0FF] text-[#0A0F1D] font-headline font-bold text-xs hover:bg-[#7df4ff] transition-all flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(0,240,255,0.35)]"
                 >
                   <span className="material-symbols-outlined text-[16px]">rocket_launch</span>
-                  <span>{isWalletConnected ? 'Activate Hash Rate Allocation' : 'Connect Wallet to Activate ($15)'}</span>
+                  <span>{isWalletConnected ? 'Deploy $10 Mining Node' : 'Connect Wallet to Activate ($10)'}</span>
                 </button>
               </div>
             </div>
@@ -968,31 +977,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col justify-between">
                 <div className="text-[11px] text-[#94a3b8] font-mono uppercase">Daily Distribution</div>
                 <div className="text-3xl font-extrabold font-headline text-[#00F0FF] my-2 tabular-nums tracking-tight">
-                  +{dailySpikeReward.toFixed(2)}
+                  +{dailySpikeReward.toFixed(4)}
                 </div>
-                <div className="text-[11px] text-[#D4AF37] font-mono">SPIKE Daily</div>
+                <div className="text-[11px] text-[#D4AF37] font-mono">SPIKE / 24h Cycle</div>
                 <div className="text-[10px] text-[#94a3b8] mt-1 font-mono pt-2 border-t border-[#1c2b3b]">
-                  ≈ ${dailyUsdtRef.toFixed(2)} at $1 Ref<br />
-                  <span className="text-emerald-400">≈ ${dailyUsdtSwapTarget.toFixed(2)} at $5 Swap</span>
+                  ≈ ${dailyUsdtRef.toFixed(3)} at $1 Ref<br />
+                  <span className="text-emerald-400">≈ ${dailyUsdtSwapTarget.toFixed(3)} at $5 Swap</span>
                 </div>
               </div>
 
               <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col justify-between">
                 <div className="text-[11px] text-[#94a3b8] font-mono uppercase">30-Day Mining</div>
                 <div className="text-3xl font-extrabold font-headline text-[#D4AF37] my-2 tabular-nums tracking-tight">
-                  +{monthlySpikeReward.toFixed(1)}
+                  +{monthlySpikeReward.toFixed(2)}
                 </div>
                 <div className="text-[11px] text-[#D4AF37] font-mono">SPIKE / Month</div>
                 <div className="text-[10px] text-[#94a3b8] mt-1 font-mono pt-2 border-t border-[#1c2b3b]">
-                  ≈ ${(monthlySpikeReward * 1).toFixed(0)} at $1 Ref<br />
-                  <span className="text-emerald-400">≈ ${(monthlySpikeReward * 5).toFixed(0)} at $5 Swap</span>
+                  ≈ ${(monthlySpikeReward * 1).toFixed(2)} at $1 Ref<br />
+                  <span className="text-emerald-400">≈ ${(monthlySpikeReward * 5).toFixed(2)} at $5 Swap</span>
                 </div>
               </div>
 
               <div className="p-5 rounded-2xl bg-[#0a0f1d] border border-[#1c2b3b] text-center flex flex-col justify-between">
                 <div className="text-[11px] text-[#94a3b8] font-mono uppercase">Annual Yield</div>
                 <div className="text-3xl font-extrabold font-headline text-white my-2 tabular-nums tracking-tight">
-                  +{annualSpikeReward.toFixed(0)}
+                  +{annualSpikeReward.toFixed(2)}
                 </div>
                 <div className="text-[11px] text-emerald-400 font-mono">SPIKE / Year</div>
                 <div className="text-[10px] text-[#94a3b8] mt-1 font-mono pt-2 border-t border-[#1c2b3b]">
@@ -1049,7 +1058,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
             CertiK Audit
           </button>
           <span>·</span>
-          <span className="text-[#00F0FF] cursor-pointer hover:underline">BscScan Verified</span>
+          <a
+            href={`https://bscscan.com/token/${SPIKE_CONTRACT_ADDRESS}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#00F0FF] cursor-pointer hover:underline"
+          >
+            BscScan Verified
+          </a>
           <span>·</span>
           <span>BEP-20 Max 50,000,000 SPIKE</span>
         </div>

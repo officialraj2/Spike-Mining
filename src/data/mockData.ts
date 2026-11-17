@@ -9,7 +9,7 @@ export const SPIKE_TOKEN_METRICS = {
   marketPair: 'SPIKE / USDT',
   initialReferencePrice: 1.0,
   swapThresholdPrice: 5.0,
-  minActivationUsd: 15,
+  minActivationUsd: 10,
   maxMiningPool: 50_000_000,
 };
 
