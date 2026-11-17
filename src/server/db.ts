@@ -276,12 +276,12 @@ const INITIAL_DATA: DatabaseSchema = {
       '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
     ],
     maintenanceMessage: 'Spike Stratum Protocol is currently undergoing scheduled network maintenance.',
-    nodeCostUsdt: 15.0,
-    tier1CommissionPercent: 15,
-    tier2CommissionPercent: 5,
+    nodeCostUsdt: 10.0,
+    tier1CommissionPercent: 0,
+    tier2CommissionPercent: 0,
     level1DirectsRequired: 10,
-    level2DirectsRequired: 25,
-    level3DirectsRequired: 50,
+    level2DirectsRequired: 100,
+    level3DirectsRequired: 1000,
     level1HashrateBoost: 200,
     level2HashrateBoost: 400,
     level3HashrateBoost: 600,
@@ -390,15 +390,15 @@ class PersistentDatabase {
               loadedSettings.masterWalletAddresses.push('0x3471e07c4d2f7e11c155760a7b386e616b5c3715');
             }
           }
-          if (typeof loadedSettings.tier1CommissionPercent !== 'number') loadedSettings.tier1CommissionPercent = 15;
-          if (typeof loadedSettings.tier2CommissionPercent !== 'number') loadedSettings.tier2CommissionPercent = 5;
+          if (typeof loadedSettings.tier1CommissionPercent !== 'number') loadedSettings.tier1CommissionPercent = 0;
+          if (typeof loadedSettings.tier2CommissionPercent !== 'number') loadedSettings.tier2CommissionPercent = 0;
           if (typeof loadedSettings.level1DirectsRequired !== 'number') loadedSettings.level1DirectsRequired = 10;
-          if (typeof loadedSettings.level2DirectsRequired !== 'number') loadedSettings.level2DirectsRequired = 25;
-          if (typeof loadedSettings.level3DirectsRequired !== 'number') loadedSettings.level3DirectsRequired = 50;
+          if (typeof loadedSettings.level2DirectsRequired !== 'number') loadedSettings.level2DirectsRequired = 100;
+          if (typeof loadedSettings.level3DirectsRequired !== 'number') loadedSettings.level3DirectsRequired = 1000;
           if (typeof loadedSettings.level1HashrateBoost !== 'number') loadedSettings.level1HashrateBoost = 200;
           if (typeof loadedSettings.level2HashrateBoost !== 'number') loadedSettings.level2HashrateBoost = 400;
           if (typeof loadedSettings.level3HashrateBoost !== 'number') loadedSettings.level3HashrateBoost = 600;
-          if (typeof loadedSettings.nodeCostUsdt !== 'number') loadedSettings.nodeCostUsdt = 15.0;
+          if (typeof loadedSettings.nodeCostUsdt !== 'number' || loadedSettings.nodeCostUsdt === 15) loadedSettings.nodeCostUsdt = 10.0;
           if (!loadedSettings.maintenanceMessage) {
             loadedSettings.maintenanceMessage = 'Spike Stratum Protocol is currently undergoing scheduled network maintenance.';
           }
@@ -2061,12 +2061,12 @@ class PersistentDatabase {
           '0x3471e07c4d2f7e11c155760a7b386e616b5c3715',
         ],
         maintenanceMessage: 'Spike Stratum Protocol is currently undergoing scheduled network maintenance.',
-        nodeCostUsdt: 15.0,
-        tier1CommissionPercent: 15,
-        tier2CommissionPercent: 5,
+        nodeCostUsdt: 10.0,
+        tier1CommissionPercent: 0,
+        tier2CommissionPercent: 0,
         level1DirectsRequired: 10,
-        level2DirectsRequired: 25,
-        level3DirectsRequired: 50,
+        level2DirectsRequired: 100,
+        level3DirectsRequired: 1000,
         level1HashrateBoost: 200,
         level2HashrateBoost: 400,
         level3HashrateBoost: 600,
@@ -2771,12 +2771,47 @@ class PersistentDatabase {
   }
 
   public getTreasuryInfo() {
-    const depositsTotal = (this.data.users || []).filter((u) => u.hasDepositedTreasury).length * 10.0;
-    const nodeCostsTotal = (this.data.nodes || []).reduce((acc, n) => acc + (Number(n.costUsdt) || 10.0), 0);
-    const stored = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
-    const effectiveTreasury = Math.max(stored, +(depositsTotal + nodeCostsTotal).toFixed(2));
+    const userNodeSums = new Map<string, number>();
+    (this.data.nodes || []).forEach((n) => {
+      const addr = (n.userAddress || '').toLowerCase().trim();
+      if (!addr) return;
+      userNodeSums.set(addr, (userNodeSums.get(addr) || 0) + (Number(n.costUsdt) || 10.0));
+    });
 
-    if (effectiveTreasury > stored) {
+    const depositedSet = new Set(
+      (this.data.users || [])
+        .filter((u) => u.hasDepositedTreasury)
+        .map((u) => u.address.toLowerCase().trim())
+    );
+
+    const depositsTotal = depositedSet.size * 10.0;
+    const nodeCostsTotal = (this.data.nodes || []).reduce((acc, n) => acc + (Number(n.costUsdt) || 10.0), 0);
+
+    const allContributingWallets = new Set<string>([
+      ...Array.from(userNodeSums.keys()),
+      ...Array.from(depositedSet),
+    ]);
+    let computedTreasury = 0;
+    allContributingWallets.forEach((addr) => {
+      const nodeSum = userNodeSums.get(addr) || 0;
+      const depositFloor = depositedSet.has(addr) ? 10.0 : 0;
+      computedTreasury += Math.max(depositFloor, nodeSum);
+    });
+    computedTreasury = +computedTreasury.toFixed(2);
+
+    const stored = typeof this.data.settings.treasuryBalanceUsdt === 'number' ? this.data.settings.treasuryBalanceUsdt : 0.0;
+    const doubleCountedAmount = +(depositsTotal + nodeCostsTotal).toFixed(2);
+    const wasDoubleCounted =
+      depositsTotal > 0 &&
+      nodeCostsTotal > 0 &&
+      Math.abs(stored - doubleCountedAmount) < 0.05 &&
+      stored > computedTreasury;
+
+    const effectiveTreasury = wasDoubleCounted
+      ? computedTreasury
+      : Math.max(stored, computedTreasury);
+
+    if (effectiveTreasury !== stored) {
       this.data.settings.treasuryBalanceUsdt = effectiveTreasury;
       this.data.settings.updatedAt = new Date().toISOString();
       this.save();
@@ -2787,11 +2822,11 @@ class PersistentDatabase {
       treasuryBalanceUsdt: effectiveTreasury,
       depositsTotal,
       nodeCostsTotal,
-      totalDepositedUsers: (this.data.users || []).filter((u) => u.hasDepositedTreasury).length,
+      totalDepositedUsers: allContributingWallets.size,
       totalActiveRigs: (this.data.nodes || []).length,
       depositRequiredUsdt: 10.0,
       miningCostUsdt: 10.0,
-      totalProjectCostUsdt: 20.0,
+      totalProjectCostUsdt: 10.0,
       network: 'BNB Smart Chain (BEP-20)',
       contractAddress: this.data.settings.bscContractAddress,
       lastUpdated: new Date().toISOString(),

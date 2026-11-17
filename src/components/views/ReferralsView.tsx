@@ -57,6 +57,7 @@ interface ReferralsViewProps {
   onOpenVerificationModal?: (code?: string) => void;
   hasActiveMining?: boolean;
   onOpenDepositModal?: () => void;
+  readOnly?: boolean;
 }
 
 export const ReferralsView: React.FC<ReferralsViewProps> = ({
@@ -69,6 +70,7 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
   onOpenVerificationModal,
   hasActiveMining = false,
   onOpenDepositModal,
+  readOnly = false,
 }) => {
   const normAddr = walletAddress ? walletAddress.toLowerCase() : '';
   const shortAddr = walletAddress ? walletAddress.slice(2, 8).toUpperCase() : 'USER';
@@ -76,14 +78,14 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
 
   // Automatically register and sync this connected wallet as an active sponsor on the backend
   useEffect(() => {
-    if (walletAddress && walletAddress.startsWith('0x')) {
+    if (!readOnly && walletAddress && walletAddress.startsWith('0x')) {
       fetch('/api/referrals/sync-sponsor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address: walletAddress, referralCode: refCode }),
       }).catch(() => {});
     }
-  }, [walletAddress, refCode]);
+  }, [walletAddress, refCode, readOnly]);
 
   // Official Production Referral Link (spikenodes.com - 100% Live, SSL Secured)
   const productionRefLink = walletAddress
@@ -873,22 +875,25 @@ export const ReferralsView: React.FC<ReferralsViewProps> = ({
           <div className="mt-4 pt-3 border-t border-[#1c2b3b]">
             <button
               type="button"
-              disabled={availableToWithdraw <= 0}
+              disabled={readOnly || availableToWithdraw <= 0}
               onClick={() => {
-                if (availableToWithdraw <= 0) return;
+                if (readOnly || availableToWithdraw <= 0) return;
                 setWithdrawAmount(String(availableToWithdraw));
                 setWithdrawAddress(walletAddress || '');
                 setIsWithdrawModalOpen(true);
               }}
+              title={readOnly ? 'Disabled in Admin Cross-Verify Read-Only Mode' : undefined}
               className={`w-full py-2.5 px-3 rounded-xl font-headline font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-                availableToWithdraw > 0
+                !readOnly && availableToWithdraw > 0
                   ? 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF] hover:from-[#ffe088] hover:to-[#7df4ff] text-[#0A0F1D] shadow-[0_0_15px_rgba(212,175,55,0.35)] active:scale-95 cursor-pointer'
                   : 'bg-[#1c2b3b]/60 text-[#64748b] border border-[#1c2b3b] cursor-not-allowed opacity-80'
               }`}
             >
               <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
               <span>
-                {availableToWithdraw > 0
+                {readOnly
+                  ? `Read-Only Preview (${availableToWithdraw.toFixed(2)} USDT Available)`
+                  : availableToWithdraw > 0
                   ? `Withdraw Rewards (${availableToWithdraw.toFixed(2)} USDT)`
                   : pendingAmount > 0
                   ? `Withdrawal In Review ($${pendingAmount.toFixed(2)} USDT)`

@@ -16,6 +16,7 @@ import {
   getAdminAuthHeaders,
   isMasterWalletHashMatch,
 } from '../../services/adminAuth';
+import { TEAM_MILESTONE_TIERS } from '../../data/mockData';
 
 // Safe JSON parser helper to prevent "Unexpected end of JSON input" errors
 async function safeJsonParse(res: Response): Promise<any> {
@@ -31,25 +32,21 @@ async function safeJsonParse(res: Response): Promise<any> {
 interface AdminViewProps {
   onNotify?: (title: string, message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
   onNavigateTab: (tab: 'dashboard' | 'mining-nodes' | 'referrals' | 'home') => void;
+  onInspectUserPanel?: (walletAddress: string, initialTab?: 'dashboard' | 'mining-nodes' | 'referrals' | 'withdraw-history') => void;
   isAdmin?: boolean;
   isMasterUser?: boolean;
   currentWallet?: string;
   onUnlockAdmin?: () => void;
-  network?: string;
-  onNetworkChange?: (net: string) => void;
-  onOpenTestnetModal?: () => void;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({
   onNotify,
   onNavigateTab,
+  onInspectUserPanel,
   isAdmin = false,
   isMasterUser = false,
   currentWallet = '',
   onUnlockAdmin,
-  network = 'BSC Testnet',
-  onNetworkChange,
-  onOpenTestnetModal,
 }) => {
   // Backend state
   const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
@@ -65,7 +62,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const isEffectiveMaster = Boolean(isAdmin && isMasterUser);
 
   const [activeSubTab, setActiveSubTab] = useState<
-    'master' | 'overview' | 'claims' | 'withdrawals' | 'faucet' | 'domain' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
+    'master' | 'overview' | 'claims' | 'withdrawals' | 'users' | 'nodes' | 'transactions' | 'settings' | 'database'
   >(isMasterUser ? 'master' : 'overview');
 
   // Admin Claim Tracker State
@@ -110,25 +107,50 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const [userSearch, setUserSearch] = useState('');
   const [nodeFilter, setNodeFilter] = useState<'all' | 'mining' | 'idle' | 'stopped'>('all');
 
+  // Cross-Verify User Panel Inspector State
+  const [inspectWalletInput, setInspectWalletInput] = useState('');
+  const [inspectTargetTab, setInspectTargetTab] = useState<'dashboard' | 'mining-nodes' | 'referrals' | 'withdraw-history'>('dashboard');
+  const [inspectInputError, setInspectInputError] = useState<string | null>(null);
+
+  const handleInspectWalletSubmit = (overrideAddress?: string, overrideTab?: 'dashboard' | 'mining-nodes' | 'referrals' | 'withdraw-history') => {
+    const raw = (overrideAddress ?? inspectWalletInput).trim();
+    const match = raw.match(/0x[a-fA-F0-9]{40}/);
+    const cleanAddr = match ? match[0] : raw;
+    if (!/^0x[a-fA-F0-9]{40}$/.test(cleanAddr)) {
+      setInspectInputError('Valid 42-character BEP-20 wallet address (0x...) paste karein.');
+      onNotify?.('Invalid Wallet Address', 'Please paste a valid 0x... BEP-20 wallet address.', 'warning');
+      return;
+    }
+    setInspectInputError(null);
+    onInspectUserPanel?.(cleanAddr, overrideTab ?? inspectTargetTab);
+  };
+
+  const handlePasteInspectWallet = async () => {
+    try {
+      if (navigator?.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        const trimmed = (text || '').trim();
+        const match = trimmed.match(/0x[a-fA-F0-9]{40}/);
+        const extracted = match ? match[0] : trimmed;
+        if (extracted) {
+          setInspectWalletInput(extracted);
+          setInspectInputError(null);
+          onNotify?.('Address Pasted', `${extracted.slice(0, 8)}...${extracted.slice(-6)} ready to inspect.`, 'info');
+        } else {
+          onNotify?.('Clipboard Empty', 'Clipboard me koi wallet address nahi mila.', 'warning');
+        }
+      }
+    } catch {
+      onNotify?.('Paste Shortcut', 'Please use Ctrl+V / Long-press Paste inside the wallet input box.', 'info');
+    }
+  };
+
   // Adjust Balance Modal
   const [adjustModalUser, setAdjustModalUser] = useState<AdminUser | null>(null);
   const [adjustAmount, setAdjustAmount] = useState<number>(50);
   const [adjustType, setAdjustType] = useState<'credit' | 'debit'>('credit');
   const [adjustReason, setAdjustReason] = useState<string>('Operational liquidity top-up');
   const [syncingFirebase, setSyncingFirebase] = useState<boolean>(false);
-
-  // Dedicated Admin Testnet Faucet & Wallet Credit Console State
-  const [faucetAddress, setFaucetAddress] = useState('');
-  const [faucetAmount, setFaucetAmount] = useState<number>(100);
-  const [faucetBnb, setFaucetBnb] = useState<number>(0.05);
-  const [faucetNote, setFaucetNote] = useState('Admin Testnet Faucet Node Activation Grant');
-  const [isCreditingFaucet, setIsCreditingFaucet] = useState(false);
-  const [faucetSuccessMsg, setFaucetSuccessMsg] = useState<{
-    address: string;
-    creditedUsdt: number;
-    creditedBnb: number;
-    newBalance: number;
-  } | null>(null);
 
   // Settings form state
   const [settingsForm, setSettingsForm] = useState<Partial<AdminSettings>>({});
@@ -392,18 +414,42 @@ export const AdminView: React.FC<AdminViewProps> = ({
         setSettings((prev) => prev || sData);
         setSettingsForm((prev) => (Object.keys(prev).length > 0 ? prev : sData));
 
-        // Real-Time Dynamic Inflow Accumulation ($10 per user deposit + $10 per node activation)
-        const depositsTotal = loadedUsers.filter((u) => u.hasDepositedTreasury).length * 10.0;
+        // Real-Time Dynamic Inflow Accumulation (deduplicated: $10 deposit + node per wallet = $10 per node activation)
+        const userNodeSums = new Map<string, number>();
+        loadedNodes.forEach((n) => {
+          const addr = (n.userAddress || '').toLowerCase().trim();
+          if (!addr) return;
+          userNodeSums.set(addr, (userNodeSums.get(addr) || 0) + (Number(n.costUsdt) || 10.0));
+        });
+        const depositedSet = new Set(
+          loadedUsers.filter((u) => u.hasDepositedTreasury).map((u) => u.address.toLowerCase().trim())
+        );
+        const depositsTotal = depositedSet.size * 10.0;
         const nodeCostsTotal = loadedNodes.reduce((acc, n) => acc + (Number(n.costUsdt) || 10.0), 0);
+        const allContributing = new Set<string>([...Array.from(userNodeSums.keys()), ...Array.from(depositedSet)]);
+        let deduplicatedTreasury = 0;
+        allContributing.forEach((addr) => {
+          deduplicatedTreasury += Math.max(depositedSet.has(addr) ? 10.0 : 0, userNodeSums.get(addr) || 0);
+        });
+        deduplicatedTreasury = +deduplicatedTreasury.toFixed(2);
+
         const storedTreasuryVal = typeof sData?.treasuryBalanceUsdt === 'number' ? sData.treasuryBalanceUsdt : 0;
-        const effectiveRealtimeTreasury = Math.max(storedTreasuryVal, +(depositsTotal + nodeCostsTotal).toFixed(2));
+        const doubleCountedVal = +(depositsTotal + nodeCostsTotal).toFixed(2);
+        const wasDoubleCounted =
+          depositsTotal > 0 &&
+          nodeCostsTotal > 0 &&
+          Math.abs(storedTreasuryVal - doubleCountedVal) < 0.05 &&
+          storedTreasuryVal > deduplicatedTreasury;
+        const effectiveRealtimeTreasury = wasDoubleCounted
+          ? deduplicatedTreasury
+          : Math.max(storedTreasuryVal, deduplicatedTreasury);
 
         if (sData?.treasuryWalletAddress || effectiveRealtimeTreasury > 0) {
           const addr = sData?.treasuryWalletAddress || '0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF';
           setTreasuryAddressInput((prev) => prev || addr);
           setTreasuryInfo((prev) => ({
             treasuryWalletAddress: addr,
-            treasuryBalanceUsdt: Math.max(prev.treasuryBalanceUsdt, effectiveRealtimeTreasury),
+            treasuryBalanceUsdt: apiSuccess ? prev.treasuryBalanceUsdt : effectiveRealtimeTreasury,
           }));
         }
       }
@@ -471,14 +517,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
         if (prev && apiSuccess) return prev;
         const uCount = fsUsersSnap && !fsUsersSnap.empty ? fsUsersSnap.size : 1;
         const nCount = fsNodesSnap && !fsNodesSnap.empty ? fsNodesSnap.size : 0;
+        const computedUserReserves = loadedUsers.reduce((sum, u) => sum + (Number(u.balanceUsdt) || 0), 0);
         const sData = fsSettingsDoc && fsSettingsDoc.exists() ? fsSettingsDoc.data() : null;
         return {
           totalUsers: uCount,
           activeNodes: nCount,
           totalNodes: nCount,
-          totalHashrate: nCount > 0 ? nCount * 100 : 347.7,
+          totalHashrate: nCount > 0 ? nCount * 100 : 0,
           totalMinedUsdt: 0,
-          totalUserBalance: 0,
+          totalUserBalance: +computedUserReserves.toFixed(2),
           totalTransactions: fsTxsSnap ? fsTxsSnap.size : 0,
           dbSizeKb: 65,
           lastSaved: new Date().toISOString(),
@@ -518,9 +565,35 @@ export const AdminView: React.FC<AdminViewProps> = ({
             setTreasuryAddressInput((prev) => prev || data.treasuryWalletAddress);
           }
           if (typeof data?.treasuryBalanceUsdt === 'number') {
+            const rawFsBal = Number(data.treasuryBalanceUsdt);
+            const userNodeSums = new Map<string, number>();
+            nodes.forEach((n) => {
+              const addr = (n.userAddress || '').toLowerCase().trim();
+              if (!addr) return;
+              userNodeSums.set(addr, (userNodeSums.get(addr) || 0) + (Number(n.costUsdt) || 10.0));
+            });
+            const depositedSet = new Set(
+              users.filter((u) => u.hasDepositedTreasury).map((u) => u.address.toLowerCase().trim())
+            );
+            const depositsTotal = depositedSet.size * 10.0;
+            const nodeCostsTotal = nodes.reduce((acc, n) => acc + (Number(n.costUsdt) || 10.0), 0);
+            const allContributing = new Set<string>([...Array.from(userNodeSums.keys()), ...Array.from(depositedSet)]);
+            let deduplicated = 0;
+            allContributing.forEach((addr) => {
+              deduplicated += Math.max(depositedSet.has(addr) ? 10.0 : 0, userNodeSums.get(addr) || 0);
+            });
+            deduplicated = +deduplicated.toFixed(2);
+            const doubleCountedVal = +(depositsTotal + nodeCostsTotal).toFixed(2);
+            const isStaleDoubleCount =
+              depositsTotal > 0 &&
+              nodeCostsTotal > 0 &&
+              Math.abs(rawFsBal - doubleCountedVal) < 0.05 &&
+              rawFsBal > deduplicated;
+            const safeBal = isStaleDoubleCount ? deduplicated : Math.max(rawFsBal, deduplicated);
+
             setTreasuryInfo((prev) => ({
               ...prev,
-              treasuryBalanceUsdt: Math.max(prev.treasuryBalanceUsdt, Number(data.treasuryBalanceUsdt)),
+              treasuryBalanceUsdt: safeBal,
               treasuryWalletAddress: data.treasuryWalletAddress || prev.treasuryWalletAddress,
             }));
           }
@@ -529,18 +602,26 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       unsubNodes = onSnapshot(collection(firestoreDb, 'nodes'), (snap) => {
         if (!snap.empty) {
-          let nodeCostSum = 0;
+          const userNodeSums = new Map<string, number>();
           snap.forEach((d) => {
-            nodeCostSum += Number(d.data().costUsdt) || 10.0;
+            const nd = d.data();
+            const addr = (nd.userAddress || '').toLowerCase().trim();
+            if (!addr) return;
+            userNodeSums.set(addr, (userNodeSums.get(addr) || 0) + (Number(nd.costUsdt) || 10.0));
           });
-          setTreasuryInfo((prev) => {
-            const currentDeposits = users.filter((u) => u.hasDepositedTreasury).length * 10.0;
-            const liveSum = +(currentDeposits + nodeCostSum).toFixed(2);
-            return {
-              ...prev,
-              treasuryBalanceUsdt: Math.max(prev.treasuryBalanceUsdt, liveSum),
-            };
+          const depositedSet = new Set(
+            users.filter((u) => u.hasDepositedTreasury).map((u) => u.address.toLowerCase().trim())
+          );
+          const allContributing = new Set<string>([...Array.from(userNodeSums.keys()), ...Array.from(depositedSet)]);
+          let liveSum = 0;
+          allContributing.forEach((addr) => {
+            liveSum += Math.max(depositedSet.has(addr) ? 10.0 : 0, userNodeSums.get(addr) || 0);
           });
+          liveSum = +liveSum.toFixed(2);
+          setTreasuryInfo((prev) => ({
+            ...prev,
+            treasuryBalanceUsdt: liveSum > 0 ? liveSum : prev.treasuryBalanceUsdt,
+          }));
         }
       });
     } catch (e) {
@@ -551,7 +632,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
       unsubSettings?.();
       unsubNodes?.();
     };
-  }, [users]);
+  }, [isAdmin, users, nodes]);
 
   // Handle balance adjustment in backend DB
   const handleExecuteAdjustBalance = async () => {
@@ -721,113 +802,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
   };
 
-  // Dedicated handler for the Admin Testnet Faucet & Wallet Credit Console
-  const handleExecuteAdminFaucet = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const addr = faucetAddress.trim();
-    if (!addr.startsWith('0x') || addr.length < 10) {
-      onNotify?.('Invalid Address', 'Please paste a valid BEP-20 wallet address starting with 0x.', 'warning');
-      return;
-    }
-    if (faucetAmount <= 0) {
-      onNotify?.('Invalid Amount', 'Please enter a positive USDT credit amount.', 'warning');
-      return;
-    }
-
-    setIsCreditingFaucet(true);
-    setFaucetSuccessMsg(null);
-    const normAddr = addr.toLowerCase();
-
-    // Determine target user and new balance
-    const existingUser = users.find((u) => u.address.toLowerCase() === normAddr);
-    const prevUsdt = existingUser ? existingUser.balanceUsdt : 0;
-    const prevBnb = existingUser ? existingUser.balanceBnb : 0.005;
-    const newUsdt = +(prevUsdt + faucetAmount).toFixed(2);
-    const newBnb = +(prevBnb + faucetBnb).toFixed(4);
-
-    // Update in-memory state right away
-    setUsers((prev) => {
-      const idx = prev.findIndex((u) => u.address.toLowerCase() === normAddr);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = {
-          ...updated[idx],
-          balanceUsdt: newUsdt,
-          balanceBnb: newBnb,
-          lastActive: new Date().toISOString(),
-        };
-        return updated;
-      }
-      return [
-        {
-          address: addr,
-          balanceUsdt: newUsdt,
-          balanceBnb: newBnb,
-          totalMined: 0,
-          referralCode: `SPK-${addr.slice(2, 8).toUpperCase()}`,
-          referredBy: null,
-          role: 'user',
-          status: 'active',
-          createdAt: new Date().toISOString(),
-          lastActive: new Date().toISOString(),
-          notes: faucetNote || 'Direct Testnet Credit',
-        },
-        ...prev,
-      ];
-    });
-
-    // 1. Broadcast local balance update to any connected wallet on this device / tabs
-    try {
-      localStorage.setItem(`spike_bal_${normAddr}`, String(newUsdt));
-      localStorage.setItem(`spike_bnb_${normAddr}`, String(newBnb));
-      const activeWallet = localStorage.getItem('spike_wallet_address');
-      if (activeWallet && activeWallet.toLowerCase() === normAddr) {
-        localStorage.setItem('spike_balance_usdt', String(newUsdt));
-        localStorage.setItem('spike_balance_bnb', String(newBnb));
-      }
-      window.dispatchEvent(
-        new CustomEvent('spike_balance_updated', {
-          detail: { address: normAddr, balanceUsdt: newUsdt, balanceBnb: newBnb },
-        })
-      );
-    } catch {}
-
-    // 3. Post to backend API if express server is running
-    try {
-      const res = await fetch('/api/admin/faucet/credit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
-        body: JSON.stringify({
-          walletAddress: addr,
-          amount: faucetAmount,
-          bnbAmount: faucetBnb,
-          note: faucetNote,
-        }),
-      });
-      const data = await safeJsonParse(res);
-      if (data?.user?.balanceUsdt && typeof data.user.balanceUsdt === 'number') {
-        fetchAllData(true);
-      }
-    } catch {
-      // Backend offline or running purely static Firebase - already saved to Firestore & state
-    }
-
-    setFaucetSuccessMsg({
-      address: addr,
-      creditedUsdt: faucetAmount,
-      creditedBnb: faucetBnb,
-      newBalance: newUsdt,
-    });
-
-    onNotify?.(
-      'USDT Credited Successfully',
-      `+${faucetAmount} USDT credited to ${addr.slice(0, 6)}...${addr.slice(-4)}. New Balance: ${newUsdt} USDT. Real-time Firebase synced!`,
-      'success'
-    );
-
-    setIsCreditingFaucet(false);
-  };
-
   // Handle User Status toggle
   const handleToggleUserStatus = async (user: AdminUser) => {
     const nextStatus = user.status === 'active' ? 'frozen' : 'active';
@@ -927,7 +901,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
         onNotify?.(
           'Project-Wide Settings Live!',
-          'All mining parameters, referral percentages, hashrate tiers and sponsor rules are now saved and active project-wide!',
+          'All $10 mining protocol parameters and milestone settings are now saved and active project-wide!',
           'success'
         );
         fetchAllData(true);
@@ -1007,39 +981,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
     } catch {}
   };
 
-  // Handle Founder Welcome Package Grant (100 USDT + 0.1 BNB + 200 VH/s boost)
-  const handleGrantFounderPackage = async (address: string) => {
-    try {
-      await fetch('/api/admin/faucet/credit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
-        body: JSON.stringify({
-          walletAddress: address,
-          amount: 100,
-          bnbAmount: 0.1,
-          note: 'Founder Welcome Package Grant',
-        }),
-      });
-      await fetch(`/api/admin/users/${address.toLowerCase()}/hashrate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
-        body: JSON.stringify({
-          hashrate: 200,
-          reason: 'Founder Welcome Grant (Level 1 Boost)',
-          adminUser: currentWallet || 'Master User',
-        }),
-      });
-      onNotify?.(
-        'Package Granted',
-        `Credited 100 USDT, 0.1 BNB & 200 VH/s speed to ${address.slice(0, 8)}...!`,
-        'success'
-      );
-      fetchAllData(true);
-    } catch {
-      onNotify?.('Error', 'Failed to grant founder package', 'error');
-    }
-  };
-
   // Dedicated Handler: Update Official Protocol Treasury Wallet Address
   const handleUpdateTreasuryAddress = async (overrideAddress?: string) => {
     const target = (overrideAddress || treasuryAddressInput).trim();
@@ -1083,26 +1024,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
       onNotify?.('Error', err?.message || 'Network request failed', 'error');
     } finally {
       setIsSavingTreasury(false);
-    }
-  };
-
-  // Handle Database Reset
-  const handleResetDatabase = async () => {
-    if (!window.confirm('Are you sure you want to re-seed the backend database with default baseline state?')) {
-      return;
-    }
-    try {
-      const res = await fetch('/api/db/reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAdminAuthHeaders() },
-        body: JSON.stringify({ adminAddress: currentWallet || 'Master Admin' }),
-      });
-      if (res.ok) {
-        onNotify?.('Database Reset', 'Database re-seeded successfully', 'info');
-        fetchAllData();
-      }
-    } catch {
-      onNotify?.('Error', 'Reset failed', 'error');
     }
   };
 
@@ -1294,7 +1215,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 DATABASE ONLINE · ACID ENGINE
               </span>
               <span className="text-xs text-[#94a3b8] font-mono">
-                Storage: {metrics?.dbSizeKb || 4} KB (.data/spike_database.json)
+                Storage: {metrics?.dbSizeKb || 4} KB · Cloud Firestore Sync
               </span>
             </div>
 
@@ -1302,7 +1223,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               SPIKE Protocol Administration & Backend Engine
             </h1>
             <p className="text-sm text-[#94a3b8] max-w-2xl leading-relaxed">
-              Full control center for real-time wallet balances, ASIC rig fleet overclocking, BSC transaction logs,
+              Full control center for real-time wallet balances, node fleet parameters, BSC transaction logs,
               referral commission trees, and persistent server database.
             </p>
           </div>
@@ -1312,29 +1233,18 @@ export const AdminView: React.FC<AdminViewProps> = ({
             {/* Direct Link Copier */}
             <button
               onClick={copyAdminLink}
-              className="px-4 py-2.5 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] border border-[#00F0FF]/30 hover:border-[#00F0FF] text-xs font-mono font-semibold transition-all flex items-center gap-2 shadow-sm"
+              className="px-4 py-2.5 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] border border-[#00F0FF]/30 hover:border-[#00F0FF] text-xs font-mono font-semibold transition-all flex items-center gap-2 shadow-sm cursor-pointer"
               title="Copy direct URL to open Admin Panel anywhere"
             >
               <span className="material-symbols-outlined text-[18px]">link</span>
-              <span>Copy Direct Link (?tab=admin)</span>
+              <span>Copy Admin Link</span>
             </button>
-
-            {/* Direct Project ZIP Downloader for Hostinger/VPS */}
-            <a
-              href="/download-project-zip"
-              download="spikenodes-full-project.zip"
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#FFE088] text-[#0A0F1D] font-headline font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(212,175,55,0.4)] hover:scale-105 active:scale-95 cursor-pointer"
-              title="Download entire codebase & database as a clean ZIP archive for Hostinger / VPS deployment"
-            >
-              <span className="material-symbols-outlined text-[18px]">folder_zip</span>
-              <span>Download Project ZIP</span>
-            </a>
 
             {/* Refresh */}
             <button
               onClick={() => fetchAllData()}
               disabled={isRefreshing}
-              className="p-2.5 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#d4e4fa] border border-[#1c2b3b] transition-all disabled:opacity-50"
+              className="p-2.5 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#d4e4fa] border border-[#1c2b3b] transition-all disabled:opacity-50 cursor-pointer"
               title="Refresh Live Data"
             >
               <span className={`material-symbols-outlined text-[20px] ${isRefreshing ? 'animate-spin' : ''}`}>
@@ -1352,16 +1262,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
               <span className="material-symbols-outlined text-[18px]">download</span>
               <span>Backup JSON</span>
             </a>
-
-            {/* Re-seed / Reset DB */}
-            <button
-              onClick={handleResetDatabase}
-              className="px-3.5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-mono font-semibold transition-all flex items-center gap-1.5"
-              title="Reset Database to Fresh Demo State"
-            >
-              <span className="material-symbols-outlined text-[18px]">restart_alt</span>
-              <span>Re-seed DB</span>
-            </button>
           </div>
         </div>
       </div>
@@ -1401,10 +1301,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <span className="material-symbols-outlined text-[18px] text-emerald-400">speed</span>
           </div>
           <div className="text-2xl font-extrabold text-white font-headline">
-            {metrics ? metrics.totalHashrate : 347.7}{' '}
-            <span className="text-xs text-[#00F0FF] font-semibold">TH/s</span>
+            {metrics ? metrics.totalHashrate : 0}{' '}
+            <span className="text-xs text-[#00F0FF] font-semibold">VH/s</span>
           </div>
-          <div className="text-[11px] text-[#00F0FF] font-mono mt-1">Locked @ Turbo 10X</div>
+          <div className="text-[11px] text-[#00F0FF] font-mono mt-1">Active Protocol Pool</div>
         </div>
 
         {/* Card 4: Total USDT Mined */}
@@ -1414,7 +1314,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <span className="material-symbols-outlined text-[18px] text-amber-400">payments</span>
           </div>
           <div className="text-2xl font-extrabold text-white font-headline">
-            ${metrics ? metrics.totalMinedUsdt.toFixed(1) : '4,892.4'}
+            ${metrics ? metrics.totalMinedUsdt.toFixed(1) : '0.0'}
           </div>
           <div className="text-[11px] text-amber-400/90 font-mono mt-1">All User Epochs</div>
         </div>
@@ -1426,9 +1326,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
             <span className="material-symbols-outlined text-[18px] text-purple-400">account_balance_wallet</span>
           </div>
           <div className="text-2xl font-extrabold text-white font-headline">
-            ${metrics ? metrics.totalUserBalance.toFixed(1) : '2,210.2'}
+            ${metrics ? metrics.totalUserBalance.toFixed(1) : '0.0'}
           </div>
-          <div className="text-[11px] text-[#94a3b8] font-mono mt-1">Pending In-App</div>
+          <div className="text-[11px] text-[#94a3b8] font-mono mt-1">User In-App Balances</div>
         </div>
 
         {/* Card 6: Official Protocol Treasury Vault (Company Reserve) - Real-Time Accumulation */}
@@ -1450,10 +1350,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
           <div className="text-[10px] text-amber-300 font-mono mt-1 flex items-center justify-between">
             <span className="flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Real-Time Accumulated</span>
+              <span>{users.filter((u) => u.hasDepositedTreasury).length} Active × $10</span>
             </span>
             <span className="text-[8.5px] text-cyan-300 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/40 font-mono">
-              $5 Dep + $10 Rings
+              $10 Node Model
             </span>
           </div>
         </div>
@@ -1472,6 +1372,132 @@ export const AdminView: React.FC<AdminViewProps> = ({
       </div>
 
       {/* ============================================================
+          CROSS-VERIFY USER PANEL INSPECTOR (PASTE ANY WALLET)
+         ============================================================ */}
+      {onInspectUserPanel && (
+        <div className="bg-gradient-to-r from-[#0d1d2c] via-[#10253a] to-[#0d1d2c] rounded-2xl p-4 sm:p-5 border border-[#00F0FF]/35 shadow-[0_0_24px_rgba(0,240,255,0.08)] space-y-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/35 flex items-center justify-center text-[#00F0FF] shrink-0">
+                <span className="material-symbols-outlined text-[22px]">manage_search</span>
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm sm:text-base font-bold font-headline text-white">
+                    Cross-Verify User Panel
+                  </h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
+                    READ-ONLY INSPECTOR
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-[#94a3b8]">
+                  Kisi bhi user ka 0x... wallet address paste karein aur uska live Dashboard, Mining Nodes, Referrals &amp; Withdrawal History cross-verify karein.
+                </p>
+              </div>
+            </div>
+
+            {users.length > 0 && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-mono text-[#94a3b8] uppercase hidden sm:inline">Quick Pick:</span>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setInspectWalletInput(e.target.value);
+                      setInspectInputError(null);
+                    }
+                  }}
+                  className="bg-[#071322] border border-[#1c2b3b] rounded-xl px-3 py-1.5 text-xs font-mono text-[#00F0FF] focus:outline-none focus:border-[#00F0FF] max-w-[220px]"
+                >
+                  <option value="">Select registered wallet...</option>
+                  {users.slice(0, 50).map((u) => (
+                    <option key={u.address} value={u.address}>
+                      {u.address.slice(0, 8)}...{u.address.slice(-6)} (${Number(u.balanceUsdt || 0).toFixed(2)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleInspectWalletSubmit();
+            }}
+            className="flex flex-col md:flex-row items-stretch md:items-center gap-2.5"
+          >
+            <div className="relative flex-1 flex items-center">
+              <span className="material-symbols-outlined absolute left-3 text-[18px] text-[#00F0FF]/70 pointer-events-none">
+                account_balance_wallet
+              </span>
+              <input
+                type="text"
+                value={inspectWalletInput}
+                onChange={(e) => {
+                  setInspectWalletInput(e.target.value);
+                  if (inspectInputError) setInspectInputError(null);
+                }}
+                placeholder="Paste BEP-20 wallet address (0x...)"
+                className="w-full bg-[#071322] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl pl-10 pr-24 py-2.5 text-xs sm:text-sm font-mono text-white placeholder-[#94a3b8]/50 focus:outline-none"
+              />
+              <div className="absolute right-2 flex items-center gap-1">
+                {inspectWalletInput && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectWalletInput('');
+                      setInspectInputError(null);
+                    }}
+                    className="p-1 rounded-lg text-[#94a3b8] hover:text-white hover:bg-[#1c2b3b] transition-colors cursor-pointer"
+                    title="Clear"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">close</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handlePasteInspectWallet}
+                  className="px-2 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] border border-[#00F0FF]/30 text-[11px] font-mono font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  title="Paste from Clipboard"
+                >
+                  <span className="material-symbols-outlined text-[14px]">content_paste</span>
+                  <span>Paste</span>
+                </button>
+              </div>
+            </div>
+
+            <select
+              value={inspectTargetTab}
+              onChange={(e) => setInspectTargetTab(e.target.value as typeof inspectTargetTab)}
+              className="bg-[#071322] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-3 py-2.5 text-xs font-mono text-white focus:outline-none"
+              title="Initial User View"
+            >
+              <option value="dashboard">View: Dashboard</option>
+              <option value="mining-nodes">View: Mining Nodes</option>
+              <option value="referrals">View: Referrals &amp; Team</option>
+              <option value="withdraw-history">View: Withdrawal History</option>
+            </select>
+
+            <button
+              type="submit"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#38bdf8] hover:brightness-110 text-[#051424] font-headline font-black text-xs uppercase tracking-wider shadow-[0_0_18px_rgba(0,240,255,0.3)] flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0"
+            >
+              <span className="material-symbols-outlined text-[18px]">visibility</span>
+              <span>Open User Panel</span>
+            </button>
+          </form>
+
+          {inspectInputError && (
+            <div className="text-xs font-mono text-amber-400 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[15px]">error_outline</span>
+              <span>{inspectInputError}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ============================================================
           NAVIGATION TABS FOR ADMIN CONSOLE
          ============================================================ */}
       <div className="flex items-center gap-2 overflow-x-auto border-b border-[#1c2b3b] pb-2 scrollbar-none">
@@ -1488,8 +1514,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
               : undefined,
             count: withdrawalRequests.length,
           },
-          { id: 'faucet', label: 'Testnet Faucet & Wallet Credit', icon: 'science', badge: 'FAUCET' },
-          { id: 'domain', label: 'Domain & Sublinks (spikenodes.com)', icon: 'language', badge: 'PRO' },
           { id: 'users', label: 'User & Wallet Management', icon: 'manage_accounts', count: users.length },
           { id: 'nodes', label: 'Fleet & Rig Controller', icon: 'developer_board', count: nodes.length },
           { id: 'transactions', label: 'Ledger & Transactions', icon: 'receipt_long', count: transactions.length },
@@ -1561,7 +1585,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   Master User Project Control Center
                 </h2>
                 <p className="text-xs sm:text-sm text-[#94a3b8] max-w-2xl leading-relaxed">
-                  Aapka master wallet address <code className="text-[#D4AF37] font-bold font-mono">0x3471e07c4d2f7e11c155760a7b386e616b5c3715</code> protocol ke root engine se linked hai. Yha se aap jo bhi mining parameters, referral percentages, hashrate rules ya balances update karenge, wo <strong className="text-white">poore project me sabhi users ke liye instantly apply ho jayenge</strong>.
+                  Aapka master wallet <code className="text-[#D4AF37] font-bold font-mono">{currentWallet ? `${currentWallet.slice(0, 8)}...${currentWallet.slice(-6)}` : 'Authorized Root Session'}</code> protocol ke root engine se linked hai. Yha se aap jo bhi protocol parameters, node pricing, maintenance controls ya user balances update karenge, wo <strong className="text-white">poore project me sabhi users ke liye instantly apply ho jayenge</strong>.
                 </p>
               </div>
 
@@ -1635,104 +1659,53 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
           {/* Section 1 & Section 2 Two-Column Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Control Column 1: Global Mining Parameters & Yields */}
+            {/* Control Column 1: $10 Mining Model & Core Parameters */}
             <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-5">
               <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
                 <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
                   <span className="material-symbols-outlined text-[#00F0FF]">speed</span>
-                  <span>Global Mining Parameters &amp; Hashrate Rules</span>
+                  <span>$10 Mining Model &amp; Core Parameters</span>
                 </h3>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30">
-                  REAL-TIME FORMULAS
+                  REAL MODEL SPECS
                 </span>
               </div>
 
               <div className="space-y-4 text-xs font-mono">
-                {/* Stratum Turbo Multiplier */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[#94a3b8]">Stratum Turbo Overclock Multiplier</label>
-                    <span className="text-[#00F0FF] font-bold">{settingsForm.turboMultiplier || 10}X</span>
+                {/* Base Fresh User Output Summary */}
+                <div className="p-4 rounded-xl bg-[#122130] border border-[#00F0FF]/25 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#94a3b8]">Base Fresh User Speed (0 Referrals)</span>
+                    <span className="text-emerald-400 font-bold">100 VH/s</span>
                   </div>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={settingsForm.turboMultiplier || 10}
-                    onChange={(e) =>
-                      setSettingsForm((prev) => ({ ...prev, turboMultiplier: Number(e.target.value) }))
-                    }
-                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
-                  />
-                  <span className="text-[10px] text-[#94a3b8] mt-1 block">
-                    Mining rigs fleet wide overclock profile. Default: 10X.
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#94a3b8]">Base Mining Output</span>
+                    <span className="text-white font-bold">1 SPK / 60 Days (~0.01667 SPK / 24h)</span>
+                  </div>
+                  <div className="pt-1 border-t border-[#1c2b3b] text-[10px] text-emerald-400">
+                    Active Formula: <code className="text-white">Required Hashrate = 100 × (60 / Target Days)</code>
+                  </div>
                 </div>
 
-                {/* Base Hashrate for Fresh Users */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[#94a3b8]">Base Fresh User Hashrate (0 Referrals)</label>
-                    <span className="text-emerald-400 font-bold">
-                      100 VH/s (60 Days per SPK)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number"
-                      step="5"
-                      min="10"
-                      max="1000"
-                      value={settingsForm.level1HashrateBoost ? (settingsForm.level1HashrateBoost / 2) : 100}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        setSettingsForm((prev) => ({
-                          ...prev,
-                          baseHashrateTh: +(val / 80).toFixed(2),
-                        }));
-                      }}
-                      className="flex-1 bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
-                    />
-                    <span className="text-[#00F0FF] font-bold">VH/s</span>
-                  </div>
-                  <span className="text-[10px] text-emerald-400 mt-1 block">
-                    Formula: <code className="text-white">Required Hashrate = 100 × (60 / Target Days)</code>
-                  </span>
-                </div>
-
-                {/* Daily Reward SPK & Daily Yield */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Activation Fee, Cycle & Min Withdrawal */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[#94a3b8] mb-1">24h Claim Reward Yield (SPK)</label>
+                    <label className="block text-[#94a3b8] mb-1">Node Activation (USDT)</label>
                     <input
                       type="number"
                       step="1"
-                      value={settingsForm.dailyRewardSpk || 35.0}
+                      min="1"
+                      value={settingsForm.nodeCostUsdt ?? 10.0}
                       onChange={(e) =>
-                        setSettingsForm((prev) => ({ ...prev, dailyRewardSpk: Number(e.target.value) }))
+                        setSettingsForm((prev) => ({ ...prev, nodeCostUsdt: Number(e.target.value) }))
                       }
                       className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
                     />
+                    <span className="text-[10px] text-[#94a3b8] mt-1 block">Standard: $10 USDT</span>
                   </div>
 
                   <div>
-                    <label className="block text-[#94a3b8] mb-1">Daily Yield ROI (%)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={settingsForm.dailyYieldPercent || 3.88}
-                      onChange={(e) =>
-                        setSettingsForm((prev) => ({ ...prev, dailyYieldPercent: Number(e.target.value) }))
-                      }
-                      className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
-                    />
-                  </div>
-                </div>
-
-                {/* Mining Cycle Duration & Rig Deployment Cost */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[#94a3b8] mb-1">Mining Cycle Duration (Hours)</label>
+                    <label className="block text-[#94a3b8] mb-1">Mining Cycle (Hours)</label>
                     <input
                       type="number"
                       min="1"
@@ -1743,195 +1716,82 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       }
                       className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
                     />
+                    <span className="text-[10px] text-[#94a3b8] mt-1 block">Standard: 24 Hours</span>
                   </div>
 
                   <div>
-                    <label className="block text-[#94a3b8] mb-1">Hardware Node Price (USDT)</label>
+                    <label className="block text-[#94a3b8] mb-1">Min Withdrawal (USDT)</label>
                     <input
                       type="number"
                       step="1"
-                      value={settingsForm.nodeCostUsdt || 15.0}
+                      min="1"
+                      value={settingsForm.minWithdrawalUsdt ?? 5.0}
                       onChange={(e) =>
-                        setSettingsForm((prev) => ({ ...prev, nodeCostUsdt: Number(e.target.value) }))
+                        setSettingsForm((prev) => ({ ...prev, minWithdrawalUsdt: Number(e.target.value) }))
                       }
                       className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#00F0FF]"
                     />
+                    <span className="text-[10px] text-[#94a3b8] mt-1 block">Standard: $5 USDT</span>
                   </div>
-                </div>
-
-                {/* Fast Testnet Cycle Toggle */}
-                <div className="flex items-center justify-between p-3 rounded-xl bg-[#122130] border border-[#1c2b3b]">
-                  <div>
-                    <div className="font-bold text-white">Testnet Fast 1-Minute Cycle Mode</div>
-                    <div className="text-[10px] text-[#94a3b8]">
-                      Enables fast 60-second reward accrual for testing harvest cycles instantly.
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={!!settingsForm.testnetFastCycleEnabled}
-                    onChange={(e) =>
-                      setSettingsForm((prev) => ({ ...prev, testnetFastCycleEnabled: e.target.checked }))
-                    }
-                    className="w-5 h-5 rounded accent-[#00F0FF] cursor-pointer"
-                  />
                 </div>
               </div>
             </div>
 
-            {/* Control Column 2: Team Referral Percentages & Sponsor Rules */}
+            {/* Control Column 2: Active Hashrate Tiers, Milestones & Emergency Control */}
             <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-5">
               <div className="flex items-center justify-between border-b border-[#1c2b3b] pb-3">
                 <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
                   <span className="material-symbols-outlined text-[#D4AF37]">groups</span>
-                  <span>Team Referral Percentages &amp; Sponsor Rules</span>
+                  <span>Hashrate Boost &amp; Career Milestone Rules</span>
                 </h3>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30">
-                  TIER DISTRIBUTION
+                  ACTIVE ENGINE
                 </span>
               </div>
 
               <div className="space-y-4 text-xs font-mono">
-                {/* Commission Percentages */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[#94a3b8] mb-1">
-                      Tier 1 Direct Referral Commission (%)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="1"
-                        max="50"
-                        value={settingsForm.tier1CommissionPercent || 15}
-                        onChange={(e) =>
-                          setSettingsForm((prev) => ({ ...prev, tier1CommissionPercent: Number(e.target.value) }))
-                        }
-                        className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#D4AF37]"
-                      />
-                      <span className="text-[#D4AF37] font-bold">%</span>
-                    </div>
-                    <span className="text-[10px] text-[#94a3b8] mt-1 block">Immediate direct sponsor bonus</span>
+                {/* Active Hashrate Boost Tiers (Read-Only Verified Engine Rules) */}
+                <div className="space-y-2">
+                  <div className="text-[#94a3b8] font-bold text-[11px]">
+                    Live Hashrate Boost Tiers (Per-User Auto-Calculated):
                   </div>
-
-                  <div>
-                    <label className="block text-[#94a3b8] mb-1">
-                      Tier 2 Indirect Referral Commission (%)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="25"
-                        value={settingsForm.tier2CommissionPercent || 5}
-                        onChange={(e) =>
-                          setSettingsForm((prev) => ({ ...prev, tier2CommissionPercent: Number(e.target.value) }))
-                        }
-                        className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-3.5 py-2 text-white font-mono focus:outline-none focus:border-[#D4AF37]"
-                      />
-                      <span className="text-[#D4AF37] font-bold">%</span>
-                    </div>
-                    <span className="text-[10px] text-[#94a3b8] mt-1 block">Secondary network bonus</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {HASHRATE_LEVEL_TIERS.map((tier) => (
+                      <div
+                        key={tier.level}
+                        className="p-2.5 rounded-xl bg-[#122130] border border-[#1c2b3b] flex items-center justify-between gap-2"
+                      >
+                        <div>
+                          <div className="text-white font-bold text-[11px]">{tier.level}</div>
+                          <div className="text-[10px] text-[#94a3b8]">{tier.directs}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-emerald-400 font-bold">{tier.hashrate} VH/s</div>
+                          <div className="text-[10px] text-[#00F0FF]">{tier.targetDays}d / SPK</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Level Milestones Table Configuration */}
-                <div className="space-y-2.5 pt-1">
-                  <div className="text-[#94a3b8] font-bold text-[11px]">
-                    Sponsor Hashrate Upgrade Thresholds (Milestone System):
+                {/* 9-Tier Fixed Milestone Bonuses Summary */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#94a3b8] font-bold text-[11px]">
+                      9-Tier Fixed USDT Career Milestones:
+                    </span>
+                    <span className="text-[10px] text-[#D4AF37]">No % Commission</span>
                   </div>
-
-                  {/* Level 1 Config */}
-                  <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00F0FF]/15 text-[#00F0FF]">
-                        Level 1
+                  <div className="flex flex-wrap gap-1.5">
+                    {TEAM_MILESTONE_TIERS.map((m) => (
+                      <span
+                        key={m.id}
+                        className="px-2 py-1 rounded-lg bg-[#122130] border border-[#D4AF37]/25 text-[10px] text-[#94a3b8]"
+                      >
+                        L{m.level} ({m.partnersRequired.toLocaleString()}):{' '}
+                        <strong className="text-[#D4AF37]">{m.rewardFormatted}</strong>
                       </span>
-                      <span className="text-[#94a3b8]">Directs:</span>
-                      <input
-                        type="number"
-                        value={settingsForm.level1DirectsRequired || 10}
-                        onChange={(e) =>
-                          setSettingsForm((prev) => ({ ...prev, level1DirectsRequired: Number(e.target.value) }))
-                        }
-                        className="w-16 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-white text-center"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#94a3b8]">Boost:</span>
-                      <input
-                        type="number"
-                        value={settingsForm.level1HashrateBoost || 200}
-                        onChange={(e) =>
-                          setSettingsForm((prev) => ({ ...prev, level1HashrateBoost: Number(e.target.value) }))
-                        }
-                        className="w-20 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-emerald-400 font-bold text-center"
-                      />
-                      <span className="text-[#00F0FF]">VH/s</span>
-                      <span className="text-[10px] text-[#94a3b8]">(30d target)</span>
-                    </div>
-                  </div>
-
-                  {/* Level 2 Config */}
-                  <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00F0FF]/15 text-[#00F0FF]">
-                        Level 2
-                      </span>
-                      <span className="text-[#94a3b8]">Directs:</span>
-                      <input
-                        type="number"
-                        value={settingsForm.level2DirectsRequired || 25}
-                        onChange={(e) =>
-                          setSettingsForm((prev) => ({ ...prev, level2DirectsRequired: Number(e.target.value) }))
-                        }
-                        className="w-16 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-white text-center"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#94a3b8]">Boost:</span>
-                      <input
-                        type="number"
-                        value={settingsForm.level2HashrateBoost || 400}
-                        onChange={(e) =>
-                          setSettingsForm((prev) => ({ ...prev, level2HashrateBoost: Number(e.target.value) }))
-                        }
-                        className="w-20 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-emerald-400 font-bold text-center"
-                      />
-                      <span className="text-[#00F0FF]">VH/s</span>
-                      <span className="text-[10px] text-[#94a3b8]">(15d target)</span>
-                    </div>
-                  </div>
-
-                  {/* Level 3 Config */}
-                  <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#00F0FF]/15 text-[#00F0FF]">
-                        Level 3
-                      </span>
-                      <span className="text-[#94a3b8]">Directs:</span>
-                      <input
-                        type="number"
-                        value={settingsForm.level3DirectsRequired || 50}
-                        onChange={(e) =>
-                          setSettingsForm((prev) => ({ ...prev, level3DirectsRequired: Number(e.target.value) }))
-                        }
-                        className="w-16 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-white text-center"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#94a3b8]">Boost:</span>
-                      <input
-                        type="number"
-                        value={settingsForm.level3HashrateBoost || 600}
-                        onChange={(e) =>
-                          setSettingsForm((prev) => ({ ...prev, level3HashrateBoost: Number(e.target.value) }))
-                        }
-                        className="w-20 bg-[#071322] border border-[#1c2b3b] rounded px-2 py-1 text-emerald-400 font-bold text-center"
-                      />
-                      <span className="text-[#00F0FF]">VH/s</span>
-                      <span className="text-[10px] text-[#94a3b8]">(10d target)</span>
-                    </div>
+                    ))}
                   </div>
                 </div>
 
@@ -2067,15 +1927,17 @@ export const AdminView: React.FC<AdminViewProps> = ({
                           {/* Action Buttons */}
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {/* Founder Grant */}
-                              <button
-                                type="button"
-                                onClick={() => handleGrantFounderPackage(u.address)}
-                                className="px-2 py-1 rounded bg-gradient-to-r from-[#D4AF37]/20 to-[#00F0FF]/20 hover:from-[#D4AF37]/30 hover:to-[#00F0FF]/30 text-[#D4AF37] border border-[#D4AF37]/40 text-[10px] font-bold transition-all"
-                                title="Grant 100 USDT, 0.1 BNB & 200 VH/s boost"
-                              >
-                                + Founder Grant
-                              </button>
+                              {onInspectUserPanel && (
+                                <button
+                                  type="button"
+                                  onClick={() => onInspectUserPanel(u.address, 'dashboard')}
+                                  className="px-2 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold flex items-center gap-1 cursor-pointer"
+                                  title="Open User Panel (Cross-Verify)"
+                                >
+                                  <span className="material-symbols-outlined text-[12px]">visibility</span>
+                                  <span>Panel</span>
+                                </button>
+                              )}
 
                               {/* Adjust */}
                               <button
@@ -2167,31 +2029,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* Dedicated Testnet Faucet Quick Card */}
-                <button
-                  onClick={() => setActiveSubTab('faucet')}
-                  className="p-4 rounded-xl bg-gradient-to-r from-[#00F0FF]/15 via-[#122130] to-[#D4AF37]/15 hover:from-[#00F0FF]/25 hover:to-[#D4AF37]/25 border border-[#00F0FF]/40 text-left transition-all group sm:col-span-2 shadow-sm"
-                >
-                  <div className="flex items-center justify-between text-[#00F0FF] mb-2">
-                    <span className="text-sm font-bold flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[20px] text-[#00F0FF]">science</span>
-                      <span>Testnet Faucet: Credit USDT to Any Wallet Address</span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/40 font-bold">
-                        DIRECT CREDIT
-                      </span>
-                    </span>
-                    <span className="material-symbols-outlined text-[20px] text-[#00F0FF] group-hover:translate-x-1 transition-transform">
-                      arrow_forward
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#94a3b8] leading-relaxed">
-                    Kisi bhi user ka BEP-20 wallet address paste karke turant temporary testnet USDT aur gas fee BNB credit karein taaki user dApp me jakar node purchase &amp; mining test kar sake.
-                  </p>
-                </button>
-
                 <button
                   onClick={() => setActiveSubTab('users')}
-                  className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group"
+                  className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group cursor-pointer"
                 >
                   <div className="flex items-center justify-between text-[#00F0FF] mb-2">
                     <span className="text-sm font-bold">Manage Wallet Balances</span>
@@ -2200,43 +2040,43 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-[#94a3b8]">
-                    Credit USDT/BNB to any wallet, inspect referral ties, freeze suspicious accounts.
+                    Credit or debit USDT, inspect referral ties, adjust mining speeds, or freeze accounts.
                   </p>
                 </button>
 
                 <button
-                  onClick={() => setActiveSubTab('nodes')}
-                  className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group"
+                  onClick={() => setActiveSubTab('withdrawals')}
+                  className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group cursor-pointer"
                 >
                   <div className="flex items-center justify-between text-[#D4AF37] mb-2">
-                    <span className="text-sm font-bold">Rig Fleet Telemetry</span>
+                    <span className="text-sm font-bold">Withdrawal Requests</span>
                     <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">
                       arrow_forward
                     </span>
                   </div>
                   <p className="text-xs text-[#94a3b8]">
-                    Inspect active stratum connections, restart rigs, force turbo clocking across validator pool.
+                    Review milestone reward payout requests, verify BEP-20 destination, and approve payouts.
                   </p>
                 </button>
 
                 <button
-                  onClick={() => setActiveSubTab('transactions')}
-                  className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group"
+                  onClick={() => setActiveSubTab('claims')}
+                  className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group cursor-pointer"
                 >
                   <div className="flex items-center justify-between text-emerald-400 mb-2">
-                    <span className="text-sm font-bold">Verify Pending Claims</span>
+                    <span className="text-sm font-bold">Audit User Claims</span>
                     <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">
                       arrow_forward
                     </span>
                   </div>
                   <p className="text-xs text-[#94a3b8]">
-                    Review payout transactions, verify BSC transaction hashes, mark payouts confirmed.
+                    Inspect user claim history, verify BSC transaction hashes, and export date-filtered CSV logs.
                   </p>
                 </button>
 
                 <button
                   onClick={() => setActiveSubTab('settings')}
-                  className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group"
+                  className="p-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-left transition-all group cursor-pointer"
                 >
                   <div className="flex items-center justify-between text-purple-400 mb-2">
                     <span className="text-sm font-bold">Configure Protocol Yield</span>
@@ -2245,7 +2085,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     </span>
                   </div>
                   <p className="text-xs text-[#94a3b8]">
-                    Adjust daily ROI %, stratum pool host URL, contract address, or toggle emergency maintenance.
+                    Update Treasury wallet address, contract settings, or toggle emergency maintenance mode.
                   </p>
                 </button>
               </div>
@@ -2366,15 +2206,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               <div className="space-y-3 text-xs font-mono">
                 <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#122130] border border-[#1c2b3b]">
                   <span className="text-[#94a3b8]">Engine:</span>
-                  <span className="text-emerald-400 font-bold">Node.js ACID JSON File Engine</span>
-                </div>
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#122130] border border-[#1c2b3b]">
-                  <span className="text-[#94a3b8]">File Path:</span>
-                  <span className="text-white text-[11px]">.data/spike_database.json</span>
-                </div>
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#122130] border border-[#1c2b3b]">
-                  <span className="text-[#94a3b8]">Backup File:</span>
-                  <span className="text-white text-[11px]">.data/spike_database.bak.json</span>
+                  <span className="text-emerald-400 font-bold">Cloud Firestore + ACID Sync</span>
                 </div>
                 <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#122130] border border-[#1c2b3b]">
                   <span className="text-[#94a3b8]">Last Auto-Save:</span>
@@ -2400,37 +2232,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
                 <button
                   onClick={() => onNavigateTab('dashboard')}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-white text-xs font-mono font-medium transition-all text-center flex items-center justify-center gap-2"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-white text-xs font-mono font-medium transition-all text-center flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[16px]">visibility</span>
                   Switch to User Dashboard
                 </button>
-              </div>
-            </div>
-
-            {/* Live Stratum Pool Status */}
-            <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-3">
-              <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#00F0FF]">lan</span>
-                Stratum Pool Status
-              </h3>
-              <div className="text-xs font-mono space-y-2 text-[#94a3b8]">
-                <div className="flex justify-between">
-                  <span>Host:</span>
-                  <span className="text-white">pool.spikenodes.com:443</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Protocol:</span>
-                  <span className="text-[#00F0FF]">Stratum v1 (TLS Enabled)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Algorithm:</span>
-                  <span className="text-[#D4AF37]">SHA-256 (BSC Sublayer)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Difficulty:</span>
-                  <span className="text-white">1,048,576 (Auto VarDiff)</span>
-                </div>
               </div>
             </div>
           </div>
@@ -2711,6 +2517,17 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 >
                                   <span className="material-symbols-outlined text-[13px]">content_copy</span>
                                 </button>
+                                {onInspectUserPanel && item.userAddress && /^0x[a-fA-F0-9]{40}$/.test(item.userAddress) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onInspectUserPanel(item.userAddress, 'withdraw-history')}
+                                    className="px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer"
+                                    title="Open User Panel (Cross-Verify Withdrawals & Referrals)"
+                                  >
+                                    <span className="material-symbols-outlined text-[12px]">visibility</span>
+                                    <span>Panel</span>
+                                  </button>
+                                )}
                               </div>
                             </td>
 
@@ -2870,693 +2687,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </div>
             );
           })()}
-        </div>
-      )}
-
-      {/* ============================================================
-          TAB CONTENT: ADMIN TESTNET FAUCET & WALLET BALANCE CREDIT CONSOLE
-         ============================================================ */}
-      {activeSubTab === 'faucet' && (
-        <div className="space-y-6">
-          {/* Main Faucet Header Card */}
-          <div className="rounded-2xl bg-gradient-to-r from-[#0d1d2c] via-[#0f2438] to-[#0a1827] border-2 border-[#00F0FF]/40 p-6 md:p-8 shadow-[0_0_30px_rgba(0,240,255,0.15)] relative overflow-hidden">
-            <div className="relative z-10 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#00F0FF] text-[#0A0F1D] flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,240,255,0.4)]">
-                  <span className="material-symbols-outlined text-[16px]">science</span>
-                  ADMIN TESTNET FAUCET
-                </span>
-                <span className="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
-                  REAL-TIME DATABASE FUNDING
-                </span>
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-mono text-emerald-400 bg-emerald-950/50 border border-emerald-500/40">
-                  Centralized in Admin Panel
-                </span>
-              </div>
-
-              <h2 className="text-2xl sm:text-3xl font-extrabold font-headline text-white tracking-tight">
-                Direct Wallet Balance Injector &amp; Testnet Faucet
-              </h2>
-              <p className="text-xs sm:text-sm text-[#94a3b8] max-w-2xl leading-relaxed">
-                Home page aur Dashboard se testing buttons remove kar diye gaye hain. Jab bhi kisi user ke testnet faucet me temporary USDT dalne hon, aap yahan admin me aakar uska BEP-20 wallet address paste karke turant USDT credit kar sakte hain. Database real-time sync hoga aur user turant node deploy kar sakega.
-              </p>
-
-              {/* Network Switcher & QA Studio Bar (Centralized from Header into Admin) */}
-              <div className="pt-2 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 bg-[#122130] border border-[#1c2b3b] px-3 py-1.5 rounded-xl text-xs">
-                  <span className="text-[#94a3b8]">Active Chain:</span>
-                  <span className="font-mono text-[#00F0FF] font-bold flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-pulse" />
-                    {network}
-                  </span>
-                  {onNetworkChange && (
-                    <div className="flex gap-1 ml-2 pl-2 border-l border-[#1c2b3b]">
-                      <button
-                        type="button"
-                        onClick={() => onNetworkChange('BSC Testnet')}
-                        className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
-                          network === 'BSC Testnet'
-                            ? 'bg-[#00F0FF] text-black font-bold'
-                            : 'text-[#94a3b8] hover:text-white'
-                        }`}
-                      >
-                        BSC Testnet
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onNetworkChange('BNB Smart Chain')}
-                        className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
-                          network === 'BNB Smart Chain'
-                            ? 'bg-[#D4AF37] text-black font-bold'
-                            : 'text-[#94a3b8] hover:text-white'
-                        }`}
-                      >
-                        Mainnet
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {onOpenTestnetModal && (
-                  <button
-                    type="button"
-                    onClick={onOpenTestnetModal}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-headline font-bold bg-[#1c2b3b] hover:bg-[#25384d] text-[#00F0FF] border border-[#00F0FF]/40 transition-all shadow-sm"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">terminal</span>
-                    <span>Open Web3 Testnet &amp; Smart Contract Tools</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left: Faucet Injector Form (7 cols) */}
-            <div className="lg:col-span-7 bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-6 space-y-5 shadow-xl">
-              <div className="flex items-center justify-between pb-3 border-b border-[#1c2b3b]">
-                <div className="flex items-center gap-2 text-white font-bold font-headline text-base">
-                  <span className="material-symbols-outlined text-[#00F0FF]">account_balance_wallet</span>
-                  <span>Fund Recipient Wallet</span>
-                </div>
-                <span className="text-xs text-[#94a3b8] font-mono">BEP-20 (BSC Sublayer)</span>
-              </div>
-
-              <form onSubmit={handleExecuteAdminFaucet} className="space-y-4">
-                {/* Wallet Address Input */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-headline font-semibold text-white">
-                      Recipient Wallet Address (0x...)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            const clip = await navigator.clipboard.readText();
-                            if (clip && clip.startsWith('0x')) {
-                              setFaucetAddress(clip.trim());
-                              onNotify?.('Pasted', 'Wallet address pasted from clipboard', 'info');
-                            } else {
-                              onNotify?.('Clipboard Notice', 'No valid 0x address found in clipboard. Please paste manually.', 'info');
-                            }
-                          } catch {
-                            onNotify?.('Paste Notice', 'Please press Ctrl+V to paste the address.', 'info');
-                          }
-                        }}
-                        className="text-[11px] text-[#00F0FF] hover:underline font-mono flex items-center gap-1 cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-[13px]">content_paste</span>
-                        <span>Paste Address</span>
-                      </button>
-                      {faucetAddress && (
-                        <button
-                          type="button"
-                          onClick={() => setFaucetAddress('')}
-                          className="text-[11px] text-rose-400 hover:underline font-mono cursor-pointer"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={faucetAddress}
-                    onChange={(e) => setFaucetAddress(e.target.value)}
-                    placeholder="e.g. 0x8a923bf410de882... (Paste user wallet address here)"
-                    className="w-full bg-[#122130] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-4 py-3 text-white text-xs sm:text-sm font-mono placeholder-[#94a3b8]/50 focus:outline-none focus:ring-1 focus:ring-[#00F0FF] transition-all"
-                  />
-
-                  {/* Quick-Pick Registered Wallets */}
-                  {users.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <div className="text-[10px] text-[#94a3b8] font-mono uppercase tracking-wider">
-                        Quick Select Registered Users:
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                        {users.slice(0, 8).map((u) => (
-                          <button
-                            key={u.address}
-                            type="button"
-                            onClick={() => setFaucetAddress(u.address)}
-                            className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-all flex items-center gap-1 border ${
-                              faucetAddress.toLowerCase() === u.address.toLowerCase()
-                                ? 'bg-[#00F0FF]/20 text-[#00F0FF] border-[#00F0FF]/50 font-bold'
-                                : 'bg-[#122130] text-[#94a3b8] hover:text-white border-[#1c2b3b]'
-                            }`}
-                          >
-                            <span>{u.address.slice(0, 6)}...{u.address.slice(-4)}</span>
-                            <span className="text-[#D4AF37]">(${u.balanceUsdt.toFixed(0)})</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Amount USDT Selection */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-headline font-semibold text-white">
-                      USDT Credit Amount
-                    </label>
-                    <span className="text-[11px] text-[#00F0FF] font-mono font-bold">
-                      +{faucetAmount} USDT
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-2">
-                    {[
-                      { amt: 15, label: '+15 (Starter)' },
-                      { amt: 50, label: '+50' },
-                      { amt: 75, label: '+75 (Standard)' },
-                      { amt: 100, label: '+100' },
-                      { amt: 250, label: '+250 (Enterprise)' },
-                      { amt: 500, label: '+500' },
-                    ].map((p) => (
-                      <button
-                        key={p.amt}
-                        type="button"
-                        onClick={() => setFaucetAmount(p.amt)}
-                        className={`py-2 px-1 rounded-xl text-xs font-mono font-semibold transition-all border text-center ${
-                          faucetAmount === p.amt
-                            ? 'bg-[#00F0FF] text-[#0A0F1D] border-[#00F0FF] font-bold shadow-[0_0_12px_rgba(0,240,255,0.35)]'
-                            : 'bg-[#122130] text-[#94a3b8] hover:text-white border-[#1c2b3b]'
-                        }`}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    value={faucetAmount}
-                    onChange={(e) => setFaucetAmount(Math.max(1, Number(e.target.value)))}
-                    className="w-full bg-[#122130] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-4 py-2.5 text-white text-xs font-mono focus:outline-none"
-                    placeholder="Or enter custom USDT amount..."
-                  />
-                </div>
-
-                {/* Gas Fee BNB Support */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-headline font-semibold text-white mb-1.5">
-                      BNB Gas Fee Credit
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setFaucetBnb(0.05)}
-                        className={`flex-1 py-2 rounded-xl text-xs font-mono font-semibold border ${
-                          faucetBnb === 0.05
-                            ? 'bg-[#D4AF37] text-black border-[#ffe088] font-bold'
-                            : 'bg-[#122130] text-[#94a3b8] border-[#1c2b3b]'
-                        }`}
-                      >
-                        +0.05 BNB (Recommended)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setFaucetBnb(0)}
-                        className={`py-2 px-3 rounded-xl text-xs font-mono border ${
-                          faucetBnb === 0
-                            ? 'bg-[#D4AF37] text-black border-[#ffe088] font-bold'
-                            : 'bg-[#122130] text-[#94a3b8] border-[#1c2b3b]'
-                        }`}
-                      >
-                        0 BNB
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-headline font-semibold text-white mb-1.5">
-                      Memo / Transaction Note
-                    </label>
-                    <input
-                      type="text"
-                      value={faucetNote}
-                      onChange={(e) => setFaucetNote(e.target.value)}
-                      placeholder="e.g. Admin Testnet Faucet Node Activation Grant"
-                      className="w-full bg-[#122130] border border-[#1c2b3b] focus:border-[#00F0FF] rounded-xl px-3 py-2 text-white text-xs font-mono focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Submit Action Button */}
-                <button
-                  type="submit"
-                  disabled={isCreditingFaucet}
-                  className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#00F0FF] via-[#38e8f8] to-[#D4AF37] hover:brightness-110 text-[#0A0F1D] font-headline font-extrabold text-sm shadow-[0_0_25px_rgba(0,240,255,0.4)] transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
-                >
-                  {isCreditingFaucet ? (
-                    <>
-                      <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
-                      <span>Injecting Balance into Database...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined text-[20px]">send</span>
-                      <span>Credit +{faucetAmount} USDT to Recipient Wallet</span>
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* Success Notification Box */}
-              {faucetSuccessMsg && (
-                <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/50 text-xs font-mono space-y-2 animate-in fade-in duration-300">
-                  <div className="flex items-center gap-2 text-emerald-400 font-bold">
-                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                    <span>Testnet Funds Credited &amp; Synchronized!</span>
-                  </div>
-                  <div className="space-y-1 text-[#d4e4fa]">
-                    <div>
-                      Target Address: <span className="text-white font-bold break-all">{faucetSuccessMsg.address}</span>
-                    </div>
-                    <div>
-                      Credited: <span className="text-emerald-400 font-bold">+{faucetSuccessMsg.creditedUsdt} USDT</span>
-                      {faucetSuccessMsg.creditedBnb > 0 && <span> and +{faucetSuccessMsg.creditedBnb} BNB</span>}
-                    </div>
-                    <div>
-                      New Available Balance: <span className="text-[#D4AF37] font-bold">${faucetSuccessMsg.newBalance.toFixed(2)} USDT</span>
-                    </div>
-                    <div className="text-[11px] text-[#94a3b8] pt-1">
-                      User can now deploy their node on the dApp immediately with this balance.
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right: Quick Instructions & Faucet Audit (5 cols) */}
-            <div className="lg:col-span-5 space-y-5">
-              <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-5 space-y-4 shadow-xl">
-                <div className="flex items-center gap-2 text-[#D4AF37] font-bold font-headline text-sm">
-                  <span className="material-symbols-outlined text-[18px]">info</span>
-                  <span>How Admin Faucet Works</span>
-                </div>
-                <div className="text-xs text-[#94a3b8] space-y-2.5 leading-relaxed">
-                  <div className="flex gap-2">
-                    <span className="w-5 h-5 rounded-full bg-[#122130] text-[#00F0FF] flex items-center justify-center shrink-0 font-bold text-[10px]">1</span>
-                    <span>User apna dApp kholta hai aur wallet connect karta hai (0 nodes / 0 balance dikhta hai).</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="w-5 h-5 rounded-full bg-[#122130] text-[#00F0FF] flex items-center justify-center shrink-0 font-bold text-[10px]">2</span>
-                    <span>Aap admin panel ke is section me aakar uska wallet address paste karke <strong>100 USDT</strong> credit karte hain.</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="w-5 h-5 rounded-full bg-[#122130] text-[#00F0FF] flex items-center justify-center shrink-0 font-bold text-[10px]">3</span>
-                    <span>User ke wallet me balance instantly 100 USDT show hota hai, fir wo 15 USDT se node deploy karke real-time mining shuru kar leta hai.</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Faucet & Adjustment Logs */}
-              <div className="bg-[#0d1d2c] border border-[#1c2b3b] rounded-2xl p-5 space-y-3 shadow-xl">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold font-headline text-white flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[#00F0FF] text-[16px]">history</span>
-                    <span>Recent Balance Adjustments</span>
-                  </div>
-                  <span className="text-[10px] text-[#94a3b8] font-mono">Live Audit Logs</span>
-                </div>
-
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {transactions
-                    .filter((t) => t.rewardSource?.includes('Faucet') || t.rewardSource?.includes('Admin') || t.amount > 0)
-                    .slice(0, 6)
-                    .map((tx, idx) => (
-                      <div key={`${tx.id || 'tx'}-${idx}`} className="p-2.5 rounded-xl bg-[#122130] border border-[#1c2b3b] text-xs font-mono flex items-center justify-between">
-                        <div className="truncate mr-2">
-                          <div className="text-white font-semibold truncate">{tx.rewardSource}</div>
-                          <div className="text-[10px] text-[#94a3b8] truncate">{tx.txHash}</div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <div className="text-emerald-400 font-bold font-mono">+{tx.amount.toFixed(2)} USDT</div>
-                          <div className="text-[9px] text-[#94a3b8]">{tx.timestamp}</div>
-                        </div>
-                      </div>
-                    ))}
-                  {transactions.length === 0 && (
-                    <div className="text-xs text-[#94a3b8] text-center py-4">No adjustment history yet.</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ============================================================
-          TAB CONTENT: DOMAIN & SUBLINKS ARCHITECTURE (spikenodes.com)
-         ============================================================ */}
-      {activeSubTab === 'domain' && (
-        <div className="space-y-6">
-          {/* Main Domain Status Banner */}
-          <div className="rounded-2xl bg-gradient-to-r from-[#0d1d2c] via-[#102235] to-[#0d1d2c] border-2 border-[#00F0FF]/40 p-6 md:p-8 shadow-[0_0_35px_rgba(0,240,255,0.12)]">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-[#00F0FF] text-[#0A0F1D] flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,240,255,0.4)]">
-                    <span className="material-symbols-outlined text-[16px]">verified</span>
-                    PRIMARY DOMAIN
-                  </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    SSL / TLS ACTIVE (HTTPS)
-                  </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-medium bg-[#1c2b3b] text-[#94a3b8] border border-[#1c2b3b]">
-                    ROUTING READY
-                  </span>
-                </div>
-
-                <div className="flex items-baseline gap-3">
-                  <h2 className="text-3xl md:text-4xl font-extrabold font-headline text-white tracking-tight">
-                    spikenodes.com
-                  </h2>
-                </div>
-
-                <p className="text-sm text-[#94a3b8] max-w-2xl leading-relaxed">
-                  Aapka official domain <strong className="text-white">spikenodes.com</strong> backend aur frontend ke sath
-                  puri tarah adjust ho chuka hai. Saare internal navigation links, referrals, stratum pools, aur API
-                  sublinks is domain ke relative paths aur canonical URLs ke sath sync hain.
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap lg:flex-col gap-2.5 shrink-0">
-                <button
-                  onClick={() => copyAdminLink('home')}
-                  className="px-4 py-2.5 rounded-xl bg-[#00F0FF] hover:bg-[#7df4ff] text-[#0A0F1D] font-bold text-xs font-mono transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(0,240,255,0.3)] cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">content_copy</span>
-                  <span>Copy Root URL (spikenodes.com)</span>
-                </button>
-                <button
-                  onClick={() => copyAdminLink('admin')}
-                  className="px-4 py-2.5 rounded-xl bg-[#D4AF37]/20 hover:bg-[#D4AF37]/30 text-[#D4AF37] border border-[#D4AF37]/40 font-bold text-xs font-mono transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <span className="material-symbols-outlined text-[18px]">link</span>
-                  <span>Copy Admin URL (?tab=admin)</span>
-                </button>
-                <a
-                  href="/api/domain/config"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2.5 rounded-xl bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] border border-[#1c2b3b] font-bold text-xs font-mono transition-all flex items-center gap-2 text-center justify-center"
-                >
-                  <span className="material-symbols-outlined text-[18px]">api</span>
-                  <span>Inspect Domain JSON API</span>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Sublinks & Routing Directory */}
-          <div className="bg-[#0d1d2c] rounded-2xl border border-[#1c2b3b] overflow-hidden shadow-sm">
-            <div className="p-5 border-b border-[#1c2b3b] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#00F0FF]">account_tree</span>
-                  Sublinks &amp; Page URLs Mapping (spikenodes.com)
-                </h3>
-                <p className="text-xs text-[#94a3b8] mt-0.5">
-                  Ye sabhi primary and sublinks live domain par perfectly mapped hain:
-                </p>
-              </div>
-              <span className="px-3 py-1 rounded-full bg-[#122130] text-[#00F0FF] text-xs font-mono font-semibold border border-[#00F0FF]/25">
-                8 Active Routes
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs font-mono">
-                <thead className="bg-[#091522] text-[#94a3b8] border-b border-[#1c2b3b]">
-                  <tr>
-                    <th className="p-3.5 pl-5">Module / Feature</th>
-                    <th className="p-3.5">Internal Path</th>
-                    <th className="p-3.5">Full Canonical URL</th>
-                    <th className="p-3.5">Access Type</th>
-                    <th className="p-3.5 text-right pr-5">Quick Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1c2b3b]/60">
-                  {[
-                    {
-                      title: 'Public Portal / Landing',
-                      icon: 'home',
-                      path: '/',
-                      tab: 'home',
-                      fullUrl: 'https://spikenodes.com/',
-                      badge: 'Public',
-                      badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-                      desc: 'Home page with live hashrate telemetry & package calculator',
-                    },
-                    {
-                      title: 'User Mining Dashboard',
-                      icon: 'dashboard',
-                      path: '/?tab=dashboard',
-                      tab: 'dashboard',
-                      fullUrl: 'https://spikenodes.com/?tab=dashboard',
-                      badge: 'Wallet Auth',
-                      badgeColor: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-                      desc: 'Personal mining dashboard, live charts, earnings & claim center',
-                    },
-                    {
-                      title: 'Mining Nodes & Hardware Fleet',
-                      icon: 'dns',
-                      path: '/?tab=mining-nodes',
-                      tab: 'mining-nodes',
-                      fullUrl: 'https://spikenodes.com/?tab=mining-nodes',
-                      badge: 'Wallet Auth',
-                      badgeColor: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-                      desc: 'Dedicated ASIC rigs, overclock profiles, fan speed & stratum logs',
-                    },
-                    {
-                      title: 'Affiliate & Referral System',
-                      icon: 'groups',
-                      path: '/?tab=referrals',
-                      tab: 'referrals',
-                      fullUrl: 'https://spikenodes.com/?tab=referrals',
-                      badge: 'Wallet Auth',
-                      badgeColor: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-                      desc: 'Multi-tier rewards, direct referral link generator & milestones',
-                    },
-                    {
-                      title: 'Core Admin Panel (Protected)',
-                      icon: 'shield_person',
-                      path: '/?tab=admin',
-                      tab: 'admin',
-                      fullUrl: 'https://spikenodes.com/?tab=admin',
-                      badge: 'ROOT Admin',
-                      badgeColor: 'text-[#D4AF37] bg-[#D4AF37]/15 border-[#D4AF37]/40',
-                      desc: 'Database console, wallet balance adjustments & fleet control',
-                    },
-                    {
-                      title: 'Backend Database Health API',
-                      icon: 'health_and_safety',
-                      path: '/api/health',
-                      tab: null,
-                      fullUrl: 'https://spikenodes.com/api/health',
-                      badge: 'REST API',
-                      badgeColor: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
-                      desc: 'JSON uptime, storage status, table counts & memory footprint',
-                    },
-                    {
-                      title: 'Database Backup Export',
-                      icon: 'download',
-                      path: '/api/db/export',
-                      tab: null,
-                      fullUrl: 'https://spikenodes.com/api/db/export',
-                      badge: 'Download',
-                      badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-                      desc: 'Direct atomic JSON database backup file download',
-                    },
-                  ].map((route) => (
-                    <tr key={route.path} className="hover:bg-[#122130]/60 transition-colors">
-                      <td className="p-3.5 pl-5">
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-[18px] text-[#00F0FF]">{route.icon}</span>
-                          <div>
-                            <span className="font-bold text-white text-xs">{route.title}</span>
-                            <span className="block text-[10px] text-[#94a3b8]">{route.desc}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-3.5 text-[#00F0FF] font-semibold">{route.path}</td>
-                      <td className="p-3.5 text-white/90 truncate max-w-xs">{route.fullUrl}</td>
-                      <td className="p-3.5">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${route.badgeColor}`}>
-                          {route.badge}
-                        </span>
-                      </td>
-                      <td className="p-3.5 pr-5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => {
-                              if (navigator?.clipboard?.writeText) {
-                                navigator.clipboard.writeText(route.fullUrl);
-                                onNotify?.('URL Copied', route.fullUrl, 'success');
-                              }
-                            }}
-                            className="p-1.5 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] border border-[#1c2b3b] hover:border-[#00F0FF]/40 transition-all cursor-pointer"
-                            title="Copy full URL"
-                          >
-                            <span className="material-symbols-outlined text-[16px]">content_copy</span>
-                          </button>
-                          {route.tab && (
-                            <button
-                              onClick={() => onNavigateTab(route.tab as any)}
-                              className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-white hover:text-[#00F0FF] border border-[#1c2b3b] transition-all text-[11px] flex items-center gap-1 cursor-pointer"
-                              title="Test navigate inside app"
-                            >
-                              <span>Open</span>
-                              <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
-                            </button>
-                          )}
-                          {!route.tab && (
-                            <a
-                              href={route.path}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1 rounded-lg bg-[#122130] hover:bg-[#1c2b3b] text-white hover:text-[#00F0FF] border border-[#1c2b3b] transition-all text-[11px] flex items-center gap-1"
-                            >
-                              <span>API</span>
-                              <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Subdomains & Infrastructure Endpoints */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-[#0d1d2c] p-5 rounded-2xl border border-[#1c2b3b] space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono text-[#94a3b8]">
-                <span>Stratum Pool Server</span>
-                <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">lan</span>
-              </div>
-              <div className="text-sm font-bold font-mono text-white break-all">
-                pool.spikenodes.com:443
-              </div>
-              <p className="text-[10px] text-[#94a3b8] leading-relaxed">
-                ASIC rig Stratum v1 listener over TLS with automatic vardiff and zero orphan block rate.
-              </p>
-            </div>
-
-            <div className="bg-[#0d1d2c] p-5 rounded-2xl border border-[#1c2b3b] space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono text-[#94a3b8]">
-                <span>REST API Gateway</span>
-                <span className="material-symbols-outlined text-purple-400 text-[18px]">api</span>
-              </div>
-              <div className="text-sm font-bold font-mono text-white break-all">
-                api.spikenodes.com
-              </div>
-              <p className="text-[10px] text-[#94a3b8] leading-relaxed">
-                Express backend endpoint serving /api/user, /api/nodes, /api/admin, and real-time database state.
-              </p>
-            </div>
-
-            <div className="bg-[#0d1d2c] p-5 rounded-2xl border border-[#1c2b3b] space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono text-[#94a3b8]">
-                <span>Validator RPC Sublayer</span>
-                <span className="material-symbols-outlined text-emerald-400 text-[18px]">hub</span>
-              </div>
-              <div className="text-sm font-bold font-mono text-white break-all">
-                rpc.spikenodes.com
-              </div>
-              <p className="text-[10px] text-[#94a3b8] leading-relaxed">
-                Direct RPC connector validating on BSC smart contract with instant epoch rewards claim.
-              </p>
-            </div>
-
-            <div className="bg-[#0d1d2c] p-5 rounded-2xl border border-[#1c2b3b] space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono text-[#94a3b8]">
-                <span>Knowledgebase & Docs</span>
-                <span className="material-symbols-outlined text-amber-400 text-[18px]">menu_book</span>
-              </div>
-              <div className="text-sm font-bold font-mono text-white break-all">
-                docs.spikenodes.com
-              </div>
-              <p className="text-[10px] text-[#94a3b8] leading-relaxed">
-                Complete mining rig guide, smart contract addresses, referral plan breakdown, and API references.
-              </p>
-            </div>
-          </div>
-
-          {/* DNS Records Guide for spikenodes.com */}
-          <div className="bg-[#0d1d2c] rounded-2xl p-6 border border-[#1c2b3b] space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold font-headline text-white flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#D4AF37]">dns</span>
-                Domain DNS Records Reference (spikenodes.com)
-              </h3>
-              <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
-                DNS Ready
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
-              <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] space-y-1">
-                <div className="text-[#94a3b8] flex justify-between">
-                  <span>Record: <strong>A</strong></span>
-                  <span className="text-emerald-400">Host: @</span>
-                </div>
-                <div className="text-white font-bold truncate">Server IP / Edge CDN</div>
-                <div className="text-[10px] text-[#94a3b8]">Points spikenodes.com to live app</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] space-y-1">
-                <div className="text-[#94a3b8] flex justify-between">
-                  <span>Record: <strong>CNAME</strong></span>
-                  <span className="text-emerald-400">Host: www</span>
-                </div>
-                <div className="text-white font-bold truncate">spikenodes.com</div>
-                <div className="text-[10px] text-[#94a3b8]">Redirects www.spikenodes.com to root</div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#122130] border border-[#1c2b3b] space-y-1">
-                <div className="text-[#94a3b8] flex justify-between">
-                  <span>Record: <strong>CNAME</strong></span>
-                  <span className="text-emerald-400">Host: pool</span>
-                </div>
-                <div className="text-white font-bold truncate">stratum.spikenodes.com</div>
-                <div className="text-[10px] text-[#94a3b8]">Directs ASIC hashrate to Stratum engine</div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
@@ -3845,6 +2975,18 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {onInspectUserPanel && (
+                            <button
+                              type="button"
+                              onClick={() => onInspectUserPanel(user.address, 'dashboard')}
+                              className="px-2 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer"
+                              title="Open User Panel (Cross-Verify)"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">visibility</span>
+                              Panel
+                            </button>
+                          )}
+
                           <button
                             onClick={() => {
                               setHashrateModalUser(user);
@@ -4385,6 +3527,17 @@ export const AdminView: React.FC<AdminViewProps> = ({
                                 >
                                   <span className="material-symbols-outlined text-[14px]">content_copy</span>
                                 </button>
+                                {onInspectUserPanel && /^0x[a-fA-F0-9]{40}$/.test(claim.userAddress) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onInspectUserPanel(claim.userAddress, 'dashboard')}
+                                    className="px-1.5 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold flex items-center gap-0.5 cursor-pointer"
+                                    title="Open User Panel"
+                                  >
+                                    <span className="material-symbols-outlined text-[12px]">visibility</span>
+                                    <span>Panel</span>
+                                  </button>
+                                )}
                               </div>
                             </td>
                             <td className="p-3.5 text-right text-emerald-400 font-bold tabular-nums whitespace-nowrap">
@@ -4464,16 +3617,28 @@ export const AdminView: React.FC<AdminViewProps> = ({
                             })}
                           </td>
                           <td className="p-3.5 text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setClaimSearchQuery(w.address);
-                                setClaimViewMode('logs');
-                              }}
-                              className="px-2.5 py-1 rounded bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] text-[11px] border border-[#1c2b3b] cursor-pointer"
-                            >
-                              View Logs
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {onInspectUserPanel && /^0x[a-fA-F0-9]{40}$/.test(w.address) && (
+                                <button
+                                  type="button"
+                                  onClick={() => onInspectUserPanel(w.address, 'dashboard')}
+                                  className="px-2 py-1 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-[11px] border border-emerald-500/30 cursor-pointer flex items-center gap-1"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">visibility</span>
+                                  <span>Panel</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setClaimSearchQuery(w.address);
+                                  setClaimViewMode('logs');
+                                }}
+                                className="px-2.5 py-1 rounded bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] text-[11px] border border-[#1c2b3b] cursor-pointer"
+                              >
+                                View Logs
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -4560,58 +3725,22 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </h3>
 
             <div className="space-y-4 text-xs font-mono">
-              <div>
-                <label className="block text-[#94a3b8] mb-1">
-                  Turbo Overclock Multiplier (Locked Standard)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={settingsForm.turboMultiplier || 10}
-                  onChange={(e) =>
-                    setSettingsForm((prev) => ({ ...prev, turboMultiplier: Number(e.target.value) }))
-                  }
-                  className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#00F0FF]"
-                />
-                <span className="text-[10px] text-[#94a3b8] mt-1 block">
-                  Current Turbo multiplier applied to ASIC mining nodes (Default: 10X).
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-[#94a3b8] mb-1">
-                  Base Hashrate Per $5 Mining Node (TH/s)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="20"
-                    step="0.05"
-                    value={settingsForm.baseHashrateTh || 1.25}
-                    onChange={(e) =>
-                      setSettingsForm((prev) => ({ ...prev, baseHashrateTh: Number(e.target.value) }))
-                    }
-                    className="flex-1 accent-[#00F0FF] cursor-pointer"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#94a3b8] mb-1">Node Activation Price (USDT)</label>
                   <input
                     type="number"
-                    step="0.05"
-                    value={settingsForm.baseHashrateTh || 1.25}
+                    step="1"
+                    min="1"
+                    value={settingsForm.nodeCostUsdt ?? 10.0}
                     onChange={(e) =>
-                      setSettingsForm((prev) => ({ ...prev, baseHashrateTh: Number(e.target.value) }))
+                      setSettingsForm((prev) => ({ ...prev, nodeCostUsdt: Number(e.target.value) }))
                     }
-                    className="w-24 bg-[#122130] border border-[#1c2b3b] rounded-xl px-3 py-1.5 text-white font-mono text-center focus:outline-none focus:border-[#00F0FF]"
+                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#00F0FF]"
                   />
-                  <span className="text-[#00F0FF] font-bold">TH/s</span>
+                  <span className="text-[10px] text-[#94a3b8] mt-1 block">Standard $10 USDT activation</span>
                 </div>
-                <span className="text-[10px] text-emerald-400 mt-1 block">
-                  Admin-controlled hashrate allocated to users upon $5 treasury deposit.
-                </span>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[#94a3b8] mb-1">Mining Cycle Duration (Hours)</label>
                   <input
@@ -4625,20 +3754,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#00F0FF]"
                   />
                   <span className="text-[10px] text-[#94a3b8] mt-1 block">Standard 24-hour cycle</span>
-                </div>
-
-                <div>
-                  <label className="block text-[#94a3b8] mb-1">24h Claim Reward Yield (SPIKE)</label>
-                  <input
-                    type="number"
-                    step="1"
-                    value={settingsForm.dailyRewardSpk || 35.0}
-                    onChange={(e) =>
-                      setSettingsForm((prev) => ({ ...prev, dailyRewardSpk: Number(e.target.value) }))
-                    }
-                    className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2 text-white focus:outline-none focus:border-[#00F0FF]"
-                  />
-                  <span className="text-[10px] text-[#94a3b8] mt-1 block">Amount auto-bought via PancakeSwap</span>
                 </div>
               </div>
 
@@ -4670,19 +3785,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 <span className="text-[10px] text-[#D4AF37] mt-1 block">
                   Official PancakeSwap AMM Liquidity Pool pair (0xdB75fAB72e56492CFE870344D115C57047992F3c) for SPIKE/USDT swaps &amp; mining claims.
                 </span>
-              </div>
-
-              <div>
-                <label className="block text-[#94a3b8] mb-1">Daily Yield ROI (%)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={settingsForm.dailyYieldPercent || 3.88}
-                  onChange={(e) =>
-                    setSettingsForm((prev) => ({ ...prev, dailyYieldPercent: Number(e.target.value) }))
-                  }
-                  className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-[#00F0FF]"
-                />
               </div>
 
               <div>
@@ -4721,7 +3823,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   className="w-full bg-[#122130] border border-[#1c2b3b] rounded-xl px-4 py-2.5 text-white font-mono focus:outline-none focus:border-[#D4AF37]"
                 />
                 <span className="text-[10px] text-amber-300/80 mt-1 block">
-                  Official company vault for all worldwide $10 USDT Step 1 deposits. Non-claimable by users.
+                  Official company vault for all worldwide $10 USDT mining node activations. Non-claimable by users.
                 </span>
               </div>
 
@@ -4803,7 +3905,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   <li className="flex items-start gap-1.5">
                     <span className="text-[#00F0FF]">1.</span>
                     <span>
-                      <strong className="text-white">Worldwide Inflow:</strong> All users worldwide deposit their Step 1 ($10 USDT Protocol Entry Fee) directly to this address.
+                      <strong className="text-white">Worldwide Inflow:</strong> All users worldwide activate their $10 USDT Falcon Titan mining node directly through this address.
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
@@ -4815,7 +3917,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   <li className="flex items-start gap-1.5">
                     <span className="text-[#00F0FF]">3.</span>
                     <span>
-                      <strong className="text-white">Mining Activation Gate:</strong> Treasury wallet me fund aane ke baad hi mining activation (Step 2: $10 USDT) proceed hoti hai.
+                      <strong className="text-white">Mining Activation Gate:</strong> Treasury wallet me $10 USDT verification ke baad user ka mining node instant activate hota hai.
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
@@ -4868,22 +3970,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
                 {/* Preset Chips */}
                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
-                  <span className="text-[#94a3b8]">Quick Presets:</span>
+                  <span className="text-[#94a3b8]">Quick Preset:</span>
                   <button
                     type="button"
                     onClick={() => setTreasuryAddressInput('0xD833e2f6fC850cFe3B39F49e34F9231f0AB2b6bF')}
-                    className="px-2 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-[#D4AF37]"
+                    className="px-2 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-[#D4AF37] cursor-pointer"
                     title="Official Protocol Treasury Wallet"
                   >
                     Official Treasury (0xD833...b6bF)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTreasuryAddressInput('0x96F86413D8E5d15ecE42E136CC8112c01b9A7306')}
-                    className="px-2 py-0.5 rounded bg-[#122130] hover:bg-[#1c2b3b] border border-[#1c2b3b] text-[#00F0FF]"
-                    title="BSC Testnet SPIKE Token Deployer Contract"
-                  >
-                    SPIKE Testnet (0x96F8...7306)
                   </button>
                 </div>
 

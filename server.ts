@@ -1131,20 +1131,20 @@ async function getLiveTreasuryUsdt(): Promise<{ totalUsdt: number; breakdown: Re
 
 app.get('/api/deposit/config', async (_req: Request, res: Response) => {
   try {
+    const preStored = typeof db.getSettings().treasuryBalanceUsdt === 'number' ? db.getSettings().treasuryBalanceUsdt : 0;
+    const treasury = db.getTreasuryInfo();
     const live = await getLiveTreasuryUsdt();
-    const currentStored = typeof db.getSettings().treasuryBalanceUsdt === 'number' ? db.getSettings().treasuryBalanceUsdt : 0;
-    const effectiveUsdt = Math.max(currentStored, live.totalUsdt);
-    if (effectiveUsdt > currentStored) {
+    const effectiveUsdt = Math.max(treasury.treasuryBalanceUsdt, live.totalUsdt);
+    if (effectiveUsdt !== preStored || effectiveUsdt !== treasury.treasuryBalanceUsdt) {
       db.updateTreasuryBalance(effectiveUsdt);
       syncDocument('settings', 'global', db.getSettings()).catch(() => {});
     }
-    const treasury = db.getTreasuryInfo();
     res.json({
       success: true,
       officialWallet: treasury.treasuryWalletAddress,
       amount: 10,
       miningActivationCost: 10,
-      totalProjectCost: 20,
+      totalProjectCost: 10,
       network: 'BNB Smart Chain (BEP-20)',
       autoVerify: true,
       treasuryBalanceUsdt: effectiveUsdt,
@@ -1157,7 +1157,7 @@ app.get('/api/deposit/config', async (_req: Request, res: Response) => {
       officialWallet: treasury.treasuryWalletAddress,
       amount: 10,
       miningActivationCost: 10,
-      totalProjectCost: 20,
+      totalProjectCost: 10,
       network: 'BNB Smart Chain (BEP-20)',
       autoVerify: true,
       treasuryBalanceUsdt: treasury.treasuryBalanceUsdt,
@@ -1167,10 +1167,11 @@ app.get('/api/deposit/config', async (_req: Request, res: Response) => {
 
 app.get('/api/treasury', async (_req: Request, res: Response) => {
   try {
+    const preStored = typeof db.getSettings().treasuryBalanceUsdt === 'number' ? db.getSettings().treasuryBalanceUsdt : 0;
+    const treasury = db.getTreasuryInfo();
     const live = await getLiveTreasuryUsdt();
-    const currentStored = typeof db.getSettings().treasuryBalanceUsdt === 'number' ? db.getSettings().treasuryBalanceUsdt : 0;
-    const effectiveUsdt = Math.max(currentStored, live.totalUsdt);
-    if (effectiveUsdt > currentStored) {
+    const effectiveUsdt = Math.max(treasury.treasuryBalanceUsdt, live.totalUsdt);
+    if (effectiveUsdt !== preStored || effectiveUsdt !== treasury.treasuryBalanceUsdt) {
       db.updateTreasuryBalance(effectiveUsdt);
       syncDocument('settings', 'global', db.getSettings()).catch(() => {});
     }

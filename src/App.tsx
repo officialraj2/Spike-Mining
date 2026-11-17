@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { db as firestoreDb } from './firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, getDoc, getDocs, collection } from 'firebase/firestore';
 import { TabType, MiningNode, RewardTransaction, ToastMessage, HashrateLevelInfo, AdminSettings } from './types';
 import { INITIAL_NODES, INITIAL_REWARDS } from './data/mockData';
 import { Sidebar } from './components/Sidebar';
@@ -255,6 +255,271 @@ export default function App() {
 
   const isMasterUser = Boolean(verifiedAdminSession);
   const isAdmin = Boolean(verifiedAdminSession);
+
+  // Admin Cross-Verify User Panel Inspector State (100% isolated from Admin's walletAddress)
+  const [inspectedWallet, setInspectedWallet] = useState<string | null>(null);
+  const [isLoadingInspected, setIsLoadingInspected] = useState<boolean>(false);
+  const [inspectedData, setInspectedData] = useState<{
+    address: string;
+    nodes: MiningNode[];
+    rewards: RewardTransaction[];
+    balanceUsdt: number;
+    balanceBnb: number;
+    balanceSpk: number;
+    onchainUsdt: number;
+    dailyEarnings: number;
+    referralStats: any;
+    hashrateInfo: HashrateLevelInfo | null;
+    hasActivatedMining: boolean;
+    isRootWallet: boolean;
+    userFoundInDb: boolean;
+  } | null>(null);
+
+  const isInspectMode = Boolean(
+    isAdmin &&
+    inspectedWallet &&
+    activeTab !== 'admin' &&
+    activeTab !== 'home' &&
+    activeTab !== 'roadmap'
+  );
+
+  // Read-only loader for inspected user wallet (never mutates target user's DB/localStorage state)
+  useEffect(() => {
+    if (!isAdmin || !inspectedWallet || !/^0x[a-fA-F0-9]{40}$/.test(inspectedWallet)) {
+      setInspectedData(null);
+      setIsLoadingInspected(false);
+      return;
+    }
+
+    let cancelled = false;
+    const targetAddr = inspectedWallet.trim();
+    const norm = targetAddr.toLowerCase();
+
+    setIsLoadingInspected(true);
+    setInspectedData({
+      address: targetAddr,
+      nodes: [],
+      rewards: [],
+      balanceUsdt: 0,
+      balanceBnb: 0,
+      balanceSpk: 0,
+      onchainUsdt: 0,
+      dailyEarnings: 0,
+      referralStats: {
+        directPartners: 0,
+        downlinePartners: 0,
+        totalPartners: 0,
+        totalCommissions: 0,
+        referrals: [],
+      },
+      hashrateInfo: null,
+      hasActivatedMining: false,
+      isRootWallet: false,
+      userFoundInDb: false,
+    });
+
+    (async () => {
+      try {
+        const [
+          apiUserRes,
+          apiRefRes,
+          onchainRes,
+          fsUserSnap,
+          fsRefData,
+          miningSession,
+          fsNodesSnap,
+          fsTxSnap,
+        ] = await Promise.all([
+          fetch(`/api/user/${targetAddr}`)
+            .then((r) => (r.ok && !r.headers.get('content-type')?.includes('text/html') ? r.json() : null))
+            .catch(() => null),
+          fetch(`/api/referrals/stats/${targetAddr}`)
+            .then((r) => (r.ok && !r.headers.get('content-type')?.includes('text/html') ? r.json() : null))
+            .catch(() => null),
+          fetchOnChainBalances(norm).catch(() => ({ usdt: 0, bnb: 0, spike: 0 })),
+          getDoc(doc(firestoreDb, 'users', norm)).catch(() => null),
+          getReferralsFromFirestore(norm).catch(() => null),
+          fetchActiveMiningSession(norm).catch(() => null),
+          getDocs(collection(firestoreDb, 'nodes')).catch(() => null),
+          getDocs(collection(firestoreDb, 'transactions')).catch(() => null),
+        ]);
+
+        if (cancelled) return;
+
+        const apiUser = apiUserRes?.user || null;
+        const fsUser = fsUserSnap && fsUserSnap.exists() ? fsUserSnap.data() : null;
+        const userFoundInDb = Boolean(apiUser || fsUser);
+
+        // Merge nodes from API & Firestore
+        let mergedNodes: MiningNode[] = Array.isArray(apiUserRes?.nodes) ? [...apiUserRes.nodes] : [];
+        if (fsNodesSnap && !fsNodesSnap.empty) {
+          const seenNodeIds = new Set(mergedNodes.map((n) => n.id));
+          fsNodesSnap.forEach((docSnap) => {
+            const d = docSnap.data() as any;
+            if ((d.userAddress || '').toLowerCase() === norm && !seenNodeIds.has(d.id || docSnap.id)) {
+              mergedNodes.push({ ...d, id: d.id || docSnap.id });
+              seenNodeIds.add(d.id || docSnap.id);
+            }
+          });
+        }
+
+        const hasActivatedMining = Boolean(
+          apiUser?.hasActivatedMining ||
+          apiUser?.hasDepositedTreasury ||
+          fsUser?.hasActivatedMining ||
+          fsUser?.hasDepositedTreasury ||
+          apiUserRes?.miningStatus?.is24hActive ||
+          miningSession?.active ||
+          mergedNodes.some((n) => n.status === 'mining')
+        );
+
+        if (mergedNodes.length === 0 && hasActivatedMining) {
+          const cycleStart =
+            Number(apiUserRes?.miningStatus?.cycleStartTime) ||
+            Number(apiUser?.miningCycleStartTime) ||
+            Number(miningSession?.startTime) ||
+            Date.now();
+          mergedNodes = [
+            {
+              id: `spk-node-${cycleStart}-${norm.slice(2, 6)}`,
+              name: 'SPIKE ASIC Rig #1',
+              region: 'US-East (Stratum Cluster)',
+              status: 'mining',
+              hashrate: miningSession?.hashrateVh || apiUserRes?.hashrateInfo?.hashrate || 100,
+              temperature: 64,
+              shareAcceptance: 99.98,
+              fanSpeed: 75,
+              powerUsage: 1400,
+              uptimeDays: 1,
+              algorithm: 'SHA-256 (Stratum)',
+              logs: [
+                '24-Hour Mining Cycle Active [Cross-Verify Snapshot]',
+                'Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443',
+              ],
+              userAddress: targetAddr,
+            },
+          ];
+        }
+
+        // Merge transactions from API & Firestore
+        let mergedRewards: RewardTransaction[] = Array.isArray(apiUserRes?.transactions)
+          ? [...apiUserRes.transactions]
+          : [];
+        if (fsTxSnap && !fsTxSnap.empty) {
+          const seenTxIds = new Set(mergedRewards.map((t) => t.id));
+          fsTxSnap.forEach((docSnap) => {
+            const d = docSnap.data() as any;
+            if ((d.userAddress || '').toLowerCase() === norm && !seenTxIds.has(d.id || docSnap.id)) {
+              mergedRewards.push({
+                id: d.id || docSnap.id,
+                txHash: d.txHash || '',
+                rewardSource: d.rewardSource || d.details || d.type || 'Protocol Ledger',
+                amount: Number(d.amount || 0),
+                currency: d.currency || 'USDT',
+                timestamp: d.timestamp || d.createdAt || '',
+                status: d.status || 'Confirmed',
+              });
+              seenTxIds.add(d.id || docSnap.id);
+            }
+          });
+        }
+
+        // Merge Referral Stats
+        let mergedRefStats: any =
+          apiRefRes?.stats ||
+          apiUserRes?.referralStats || {
+            directPartners: 0,
+            downlinePartners: 0,
+            totalPartners: 0,
+            totalCommissions: 0,
+            referrals: [],
+          };
+        if (fsRefData && (fsRefData.directPartners > 0 || fsRefData.downlinePartners > 0)) {
+          mergedRefStats = {
+            ...mergedRefStats,
+            directPartners: Math.max(mergedRefStats?.directPartners || 0, fsRefData.directPartners),
+            downlinePartners: Math.max(mergedRefStats?.downlinePartners || 0, fsRefData.downlinePartners),
+            totalPartners: Math.max(mergedRefStats?.totalPartners || 0, fsRefData.totalPartners),
+            activeDirectPartners:
+              typeof mergedRefStats?.activeDirectPartners === 'number'
+                ? mergedRefStats.activeDirectPartners
+                : fsRefData.activeDirectPartners || 0,
+            activeDownlinePartners:
+              typeof mergedRefStats?.activeDownlinePartners === 'number'
+                ? mergedRefStats.activeDownlinePartners
+                : fsRefData.activeDownlinePartners || 0,
+            activeTotalPartners:
+              typeof mergedRefStats?.activeTotalPartners === 'number'
+                ? mergedRefStats.activeTotalPartners
+                : fsRefData.activeTotalPartners || 0,
+            levelCounts: fsRefData.levelCounts || mergedRefStats?.levelCounts,
+            activeLevelCounts: mergedRefStats?.activeLevelCounts || fsRefData.activeLevelCounts,
+            referrals:
+              Array.isArray(mergedRefStats?.referrals) && mergedRefStats.referrals.length >= fsRefData.referrals.length
+                ? mergedRefStats.referrals
+                : fsRefData.referrals,
+          };
+        }
+
+        const effectiveUsdt =
+          typeof fsUser?.balanceUsdt === 'number'
+            ? fsUser.balanceUsdt
+            : typeof apiUser?.balanceUsdt === 'number'
+            ? apiUser.balanceUsdt
+            : typeof onchainRes?.usdt === 'number'
+            ? onchainRes.usdt
+            : 0;
+
+        const effectiveBnb =
+          typeof onchainRes?.bnb === 'number' && onchainRes.bnb > 0
+            ? onchainRes.bnb
+            : typeof fsUser?.balanceBnb === 'number'
+            ? fsUser.balanceBnb
+            : typeof apiUser?.balanceBnb === 'number'
+            ? apiUser.balanceBnb
+            : 0;
+
+        const effectiveSpk = Math.max(
+          typeof onchainRes?.spike === 'number' ? onchainRes.spike : 0,
+          typeof apiUser?.balanceSpk === 'number' ? apiUser.balanceSpk : 0,
+          typeof fsUser?.balanceSpk === 'number' ? fsUser.balanceSpk : 0
+        );
+
+        const activeMining = mergedNodes.filter((n) => n.status === 'mining');
+        const calculatedYield = activeMining.reduce((acc, n) => acc + n.hashrate * 39, 0);
+
+        const targetIsMaster = Boolean(
+          isMasterWalletHashMatch(targetAddr, globalSettings?.masterWalletAddresses) ||
+          apiUser?.role === 'master' ||
+          fsUser?.role === 'master'
+        );
+
+        setInspectedData({
+          address: targetAddr,
+          nodes: mergedNodes,
+          rewards: mergedRewards,
+          balanceUsdt: effectiveUsdt,
+          balanceBnb: effectiveBnb,
+          balanceSpk: effectiveSpk,
+          onchainUsdt: typeof onchainRes?.usdt === 'number' ? onchainRes.usdt : 0,
+          dailyEarnings: +calculatedYield.toFixed(2),
+          referralStats: mergedRefStats,
+          hashrateInfo: apiUserRes?.hashrateInfo || null,
+          hasActivatedMining,
+          isRootWallet: targetIsMaster,
+          userFoundInDb,
+        });
+      } catch (err) {
+        console.warn('[App] Cross-Verify load note:', err);
+      } finally {
+        if (!cancelled) setIsLoadingInspected(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inspectedWallet, isAdmin, globalSettings]);
 
   // Real-time synchronization of project-wide global settings
   useEffect(() => {
@@ -518,11 +783,23 @@ export default function App() {
   // Update browser URL query param whenever activeTab changes
   const handleTabChange = (tab: TabType) => {
     if (tab === 'swap') {
+      if (isInspectMode) {
+        addToast(
+          'Read-Only Cross-Verify Mode',
+          'Swap modal is disabled while inspecting another user wallet.',
+          'warning'
+        );
+        return;
+      }
       setIsSwapModalOpen(true);
       return;
     }
+    if (tab === 'admin') {
+      setInspectedWallet(null);
+      setInspectedData(null);
+    }
     setActiveTab(tab);
-    if (tab === 'referrals' && walletAddress) {
+    if (tab === 'referrals' && walletAddress && !(isAdmin && inspectedWallet)) {
       fetch(`/api/referrals/stats/${walletAddress}`)
         .then((r) => r.json())
         .then((d) => {
@@ -2053,6 +2330,8 @@ export default function App() {
   const handleDisconnectWallet = () => {
     setIsWalletConnected(false);
     setWalletAddress('');
+    setInspectedWallet(null);
+    setInspectedData(null);
     walletAddressRef.current = '';
     isWalletConnectedRef.current = false;
     setNodes([]);
@@ -2091,9 +2370,170 @@ export default function App() {
     }, 80);
   };
 
+  const handleInspectUserPanel = (
+    targetWallet: string,
+    initialTab: 'dashboard' | 'mining-nodes' | 'referrals' | 'withdraw-history' = 'dashboard'
+  ) => {
+    if (!isAdmin) {
+      addToast('Admin Session Required', 'Please unlock Master Admin authentication first.', 'warning');
+      return;
+    }
+    const clean = targetWallet.trim();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(clean)) {
+      addToast('Invalid Address', 'Please enter a valid 42-character BEP-20 wallet address (0x...).', 'error');
+      return;
+    }
+    setInspectedWallet(clean);
+    handleTabChange(initialTab);
+    addToast(
+      'Cross-Verify Mode Active',
+      `Inspecting user panel for ${clean.slice(0, 6)}...${clean.slice(-4)} (Read-Only).`,
+      'info'
+    );
+  };
+
+  const handleExitInspectMode = () => {
+    setInspectedWallet(null);
+    setInspectedData(null);
+    handleTabChange('admin');
+  };
+
+  const blockInspectMutation = (actionName: string) => {
+    addToast(
+      'Read-Only Cross-Verify Mode',
+      `"${actionName}" is disabled while inspecting wallet ${inspectedWallet?.slice(0, 6)}...${inspectedWallet?.slice(-4)}.`,
+      'warning'
+    );
+  };
+
+  const renderInspectBanner = () => {
+    if (!isInspectMode || !inspectedWallet) return null;
+    const inspectTabs: Array<{ id: 'dashboard' | 'mining-nodes' | 'referrals' | 'withdraw-history'; label: string; icon: string }> = [
+      { id: 'dashboard', label: 'Dashboard', icon: 'space_dashboard' },
+      { id: 'mining-nodes', label: 'Mining Nodes', icon: 'dns' },
+      { id: 'referrals', label: 'Referrals', icon: 'groups' },
+      { id: 'withdraw-history', label: 'Withdrawals', icon: 'receipt_long' },
+    ];
+
+    return (
+      <div className="mb-5 rounded-2xl bg-gradient-to-r from-[#0b1f33] via-[#102942] to-[#1a1506] border-2 border-[#00F0FF]/50 shadow-[0_0_28px_rgba(0,240,255,0.18)] p-3.5 sm:p-4 space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/40 flex items-center justify-center text-[#00F0FF] shrink-0">
+              <span className="material-symbols-outlined text-[22px]">manage_search</span>
+            </div>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-[#00F0FF] text-[#051424] uppercase tracking-wider">
+                  CROSS-VERIFY MODE · READ-ONLY
+                </span>
+                {isLoadingInspected ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    <span>Loading Wallet Snapshot...</span>
+                  </span>
+                ) : inspectedData?.userFoundInDb ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Registered in DB
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-700/60 text-slate-300 border border-slate-600">
+                    Unregistered / Fresh Wallet
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className="font-mono text-xs sm:text-sm font-bold text-white break-all">
+                  {inspectedWallet}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(inspectedWallet)}
+                  className="p-1 rounded bg-[#122130] hover:bg-[#1c2b3b] text-[#00F0FF] border border-[#1c2b3b] cursor-pointer"
+                  title="Copy Inspected Wallet Address"
+                >
+                  <span className="material-symbols-outlined text-[14px]">content_copy</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleExitInspectMode}
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#ffe088] hover:brightness-110 text-[#0A0F1D] font-headline font-black text-xs uppercase tracking-wider shadow-[0_0_18px_rgba(212,175,55,0.35)] flex items-center justify-center gap-1.5 transition-all cursor-pointer shrink-0"
+          >
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            <span>Back to Admin Panel</span>
+          </button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-[#1c2b3b]/80">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            {inspectTabs.map((t) => {
+              const isCurrent = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleTabChange(t.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-headline font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                    isCurrent
+                      ? 'bg-[#00F0FF] text-[#051424] shadow-[0_0_12px_rgba(0,240,255,0.35)]'
+                      : 'bg-[#071322] text-[#94a3b8] hover:text-white border border-[#1c2b3b]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[15px]">{t.icon}</span>
+                  <span>{t.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+            <span className="px-2 py-1 rounded bg-[#071322] border border-[#1c2b3b] text-white">
+              USDT: <strong className="text-[#00F0FF]">${(inspectedData?.balanceUsdt ?? 0).toFixed(2)}</strong>
+            </span>
+            <span className="px-2 py-1 rounded bg-[#071322] border border-[#1c2b3b] text-white">
+              BNB: <strong className="text-amber-400">{(inspectedData?.balanceBnb ?? 0).toFixed(4)}</strong>
+            </span>
+            <span className="px-2 py-1 rounded bg-[#071322] border border-[#1c2b3b] text-white">
+              SPK: <strong className="text-emerald-400">{(inspectedData?.balanceSpk ?? 0).toFixed(2)}</strong>
+            </span>
+            <span className="px-2 py-1 rounded bg-[#071322] border border-[#1c2b3b] text-white">
+              Nodes: <strong className="text-[#D4AF37]">{inspectedData?.nodes.length ?? 0}</strong>
+            </span>
+            <span className="px-2 py-1 rounded bg-[#071322] border border-[#1c2b3b] text-white">
+              Team: <strong className="text-purple-300">{inspectedData?.referralStats?.totalPartners ?? 0}</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Render the current view content
   const renderCurrentView = () => {
-    const totalHashrate = nodes
+    const viewWalletAddress = isInspectMode && inspectedWallet ? inspectedWallet : walletAddress;
+    const viewNodes = isInspectMode ? (inspectedData?.nodes || []) : nodes;
+    const viewRewards = isInspectMode ? (inspectedData?.rewards || []) : rewards;
+    const viewWalletBalance = isInspectMode ? (inspectedData?.balanceUsdt ?? 0) : walletBalance;
+    const viewWalletBNB = isInspectMode ? (inspectedData?.balanceBnb ?? 0) : walletBNB;
+    const viewDailyEarnings = isInspectMode ? (inspectedData?.dailyEarnings ?? 0) : dailyEarnings;
+    const viewHashrateInfo = isInspectMode ? (inspectedData?.hashrateInfo ?? null) : hashrateInfo;
+    const viewReferralStats = isInspectMode
+      ? (inspectedData?.referralStats || {
+          directPartners: 0,
+          downlinePartners: 0,
+          totalPartners: 0,
+          totalCommissions: 0,
+          referrals: [],
+        })
+      : referralStats;
+    const viewIsRootWallet = isInspectMode ? Boolean(inspectedData?.isRootWallet) : Boolean(isMasterUser || isAdmin);
+    const viewKey = isInspectMode && inspectedWallet ? `inspect-${inspectedWallet.toLowerCase()}` : 'self';
+
+    const totalHashrate = viewNodes
       .filter((n) => n.status === 'mining')
       .reduce((acc, curr) => acc + curr.hashrate, 0);
 
@@ -2157,85 +2597,109 @@ export default function App() {
       case 'dashboard':
         currentComponent = (
           <DashboardView
-            nodes={nodes}
-            rewards={rewards}
-            walletBalance={walletBalance}
-            walletBNB={walletBNB}
-            dailyEarnings={dailyEarnings}
-            onRestartNode={handleRestartNode}
-            onStopNode={handleStopNode}
-            onStartNode={handleStartNode}
-            onOpenDeployModal={() => setIsDeployModalOpen(true)}
-            onOpenClaimModal={() => setIsClaimModalOpen(true)}
+            key={viewKey}
+            nodes={viewNodes}
+            rewards={viewRewards}
+            walletBalance={viewWalletBalance}
+            walletBNB={viewWalletBNB}
+            dailyEarnings={viewDailyEarnings}
+            onRestartNode={isInspectMode ? () => blockInspectMutation('Restart Node') : handleRestartNode}
+            onStopNode={isInspectMode ? () => blockInspectMutation('Pause Node') : handleStopNode}
+            onStartNode={isInspectMode ? () => blockInspectMutation('Start Node') : handleStartNode}
+            onOpenDeployModal={isInspectMode ? () => blockInspectMutation('Deploy Node') : () => setIsDeployModalOpen(true)}
+            onOpenClaimModal={isInspectMode ? () => blockInspectMutation('Claim Rewards') : () => setIsClaimModalOpen(true)}
             onOpenAuditModal={() => setIsAuditModalOpen(true)}
-            onOpenSwapModal={handleOpenSwapModal}
-            onOpenDepositModal={() => setIsDepositModalOpen(true)}
-            onSwapSuccess={handleSwapSuccess}
+            onOpenSwapModal={isInspectMode ? () => blockInspectMutation('Swap Tokens') : handleOpenSwapModal}
+            onOpenDepositModal={isInspectMode ? () => blockInspectMutation('10 USDT Deposit') : () => setIsDepositModalOpen(true)}
+            onSwapSuccess={isInspectMode ? () => blockInspectMutation('Execute Swap') : handleSwapSuccess}
             onCopyText={copyToClipboard}
-            walletAddress={walletAddress}
-            hashrateInfo={hashrateInfo}
-            isRootWallet={isMasterUser || isAdmin}
+            walletAddress={viewWalletAddress}
+            hashrateInfo={viewHashrateInfo}
+            isRootWallet={viewIsRootWallet}
             onNavigateToReferrals={() => handleTabChange('referrals')}
-            onClaimReferralBonus={(amt) => {
-              setWalletBalance((prev) => {
-                const updated = +(prev + amt).toFixed(2);
-                try {
-                  if (walletAddress) {
-                    localStorage.setItem(`spike_bal_${walletAddress.toLowerCase()}`, String(updated));
+            onClaimReferralBonus={
+              isInspectMode
+                ? () => blockInspectMutation('Claim Mining Harvest')
+                : (amt) => {
+                    setWalletBalance((prev) => {
+                      const updated = +(prev + amt).toFixed(2);
+                      try {
+                        if (walletAddress) {
+                          localStorage.setItem(`spike_bal_${walletAddress.toLowerCase()}`, String(updated));
+                        }
+                      } catch {}
+                      return updated;
+                    });
+                    addToast('Commission Claimed', `+${amt.toFixed(2)} USDT added to balance.`, 'success');
                   }
-                } catch {}
-                return updated;
-              });
-              addToast('Commission Claimed', `+${amt.toFixed(2)} USDT added to balance.`, 'success');
-            }}
+            }
           />
         );
         break;
       case 'mining-nodes':
         currentComponent = (
           <MiningNodesView
-            nodes={nodes}
-            hashrateInfo={hashrateInfo}
-            onRestartNode={handleRestartNode}
-            onStopNode={handleStopNode}
-            onStartNode={handleStartNode}
-            onOpenDeployModal={() => setIsDeployModalOpen(true)}
-            onOpenDepositModal={() => setIsDepositModalOpen(true)}
+            key={viewKey}
+            nodes={viewNodes}
+            hashrateInfo={viewHashrateInfo}
+            onRestartNode={isInspectMode ? () => blockInspectMutation('Restart Node') : handleRestartNode}
+            onStopNode={isInspectMode ? () => blockInspectMutation('Stop Node') : handleStopNode}
+            onStartNode={isInspectMode ? () => blockInspectMutation('Start Node') : handleStartNode}
+            onOpenDeployModal={isInspectMode ? () => blockInspectMutation('Deploy Node') : () => setIsDeployModalOpen(true)}
+            onOpenDepositModal={isInspectMode ? () => blockInspectMutation('10 USDT Deposit') : () => setIsDepositModalOpen(true)}
             onNavigateToReferrals={() => handleTabChange('referrals')}
-            onResetToFreshUser={handleResetToFreshUser}
-            onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
+            onResetToFreshUser={isInspectMode ? () => blockInspectMutation('Reset Session') : handleResetToFreshUser}
+            onOpenTestnetModal={isInspectMode ? () => blockInspectMutation('QA Controls') : () => setIsTestnetModalOpen(true)}
           />
         );
         break;
       case 'referrals':
-        const userHasActiveMining = Boolean(
-          isMasterUser ||
-          isAdmin ||
-          nodes.some((n) => n.status === 'mining') ||
-          (walletAddress && localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true')
-        );
+        const userHasActiveMining = isInspectMode
+          ? Boolean(inspectedData?.hasActivatedMining || viewNodes.some((n) => n.status === 'mining'))
+          : Boolean(
+              isMasterUser ||
+              isAdmin ||
+              nodes.some((n) => n.status === 'mining') ||
+              (walletAddress && localStorage.getItem(`spike_mining_active_${walletAddress.toLowerCase()}`) === 'true')
+            );
 
         currentComponent = (
           <ReferralsView
-            walletAddress={walletAddress}
-            hashrateInfo={hashrateInfo}
+            key={viewKey}
+            walletAddress={viewWalletAddress}
+            hashrateInfo={viewHashrateInfo}
             onCopyText={copyToClipboard}
-            onClaimReferralRewards={handleClaimReferralMilestone}
-            referralStats={referralStats}
-            onBindSponsor={handleBindSponsor}
-            onOpenVerificationModal={(code) => {
-              setReferralCodeToVerify(code || '');
-              setIsReferralModalOpen(true);
-            }}
+            onClaimReferralRewards={
+              isInspectMode ? () => blockInspectMutation('Claim Milestone Reward') : handleClaimReferralMilestone
+            }
+            referralStats={viewReferralStats}
+            onBindSponsor={
+              isInspectMode
+                ? async () => {
+                    blockInspectMutation('Bind Sponsor');
+                    return false;
+                  }
+                : handleBindSponsor
+            }
+            onOpenVerificationModal={
+              isInspectMode
+                ? () => blockInspectMutation('Sponsor Verification')
+                : (code) => {
+                    setReferralCodeToVerify(code || '');
+                    setIsReferralModalOpen(true);
+                  }
+            }
             hasActiveMining={userHasActiveMining}
-            onOpenDepositModal={() => setIsDepositModalOpen(true)}
+            onOpenDepositModal={isInspectMode ? () => blockInspectMutation('10 USDT Deposit') : () => setIsDepositModalOpen(true)}
+            readOnly={isInspectMode}
           />
         );
         break;
       case 'withdraw-history':
         currentComponent = (
           <WithdrawalHistoryView
-            walletAddress={walletAddress}
+            key={viewKey}
+            walletAddress={viewWalletAddress}
             onNavigateToReferrals={() => handleTabChange('referrals')}
             onCopyText={copyToClipboard}
           />
@@ -2251,12 +2715,10 @@ export default function App() {
           <AdminView
             onNotify={addToast}
             onNavigateTab={handleTabChange}
+            onInspectUserPanel={handleInspectUserPanel}
             isAdmin={isAdmin}
             isMasterUser={isMasterUser}
             currentWallet={walletAddress}
-            network={network}
-            onNetworkChange={setNetwork}
-            onOpenTestnetModal={() => setIsTestnetModalOpen(true)}
             onUnlockAdmin={() => {
               setAdminAuthTick((t) => t + 1);
             }}
@@ -2268,7 +2730,7 @@ export default function App() {
     }
 
     return (
-      <ErrorBoundary fallbackTitle="View Render Recovery" resetKey={activeTab}>
+      <ErrorBoundary fallbackTitle="View Render Recovery" resetKey={`${activeTab}-${viewKey}`}>
         <Suspense fallback={<ViewSkeleton />}>
           {currentComponent}
         </Suspense>
@@ -2325,7 +2787,7 @@ export default function App() {
               network={network}
               onNetworkChange={setNetwork}
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={handleTabChange}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               onOpenAuditModal={() => setIsAuditModalOpen(true)}
@@ -2341,6 +2803,7 @@ export default function App() {
 
           {/* Scrollable Viewport Content */}
           <div className="flex-1 overflow-y-auto pt-16 px-3.5 pb-6">
+            {renderInspectBanner()}
             {renderCurrentView()}
           </div>
 
@@ -2348,7 +2811,7 @@ export default function App() {
           <MobileBottomNav
             activeTab={activeTab}
             onTabChange={handleTabChange}
-            nodeCount={nodes.length}
+            nodeCount={isInspectMode ? (inspectedData?.nodes.length || 0) : nodes.length}
             isWalletConnected={isWalletConnected}
             onOpenLogin={() => setIsConnectModalOpen(true)}
             onNavigateHomeSection={handleNavigateHomeSection}
@@ -2468,7 +2931,7 @@ export default function App() {
         <Sidebar
           activeTab={activeTab}
           onTabChange={handleTabChange}
-          nodeCount={nodes.length}
+          nodeCount={isInspectMode ? (inspectedData?.nodes.length || 0) : nodes.length}
           onOpenSwapModal={() => setIsSwapModalOpen(true)}
           isAdmin={isAdmin || isMasterWalletEligible}
           isMasterUser={isMasterUser}
@@ -2505,6 +2968,7 @@ export default function App() {
 
         {/* Main Content Viewport */}
         <main className={`flex-1 pt-20 sm:pt-24 md:pt-28 px-4 sm:px-6 md:px-8 ${activeTab === 'home' ? 'max-w-7xl mx-auto w-full' : 'max-w-7xl w-full mx-auto'} pb-28 md:pb-12`}>
+          {renderInspectBanner()}
           {renderCurrentView()}
         </main>
       </div>
@@ -2513,7 +2977,7 @@ export default function App() {
       <MobileBottomNav
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        nodeCount={nodes.length}
+        nodeCount={isInspectMode ? (inspectedData?.nodes.length || 0) : nodes.length}
         isWalletConnected={isWalletConnected}
         onOpenLogin={() => setIsConnectModalOpen(true)}
         onNavigateHomeSection={handleNavigateHomeSection}
