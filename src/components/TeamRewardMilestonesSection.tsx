@@ -138,34 +138,34 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
       )}
 
       {/* ============================================================
-          MAIN SPIKE TEAM-BASED REWARD PROGRAM CONSOLE (FROM ATTACHED PHOTO)
+          STANDALONE HEADER CARD: SPIKE TEAM-BASED REWARD PROGRAM
          ============================================================ */}
-      <div className="bg-gradient-to-b from-[#071626] via-[#051424] to-[#040d18] rounded-2xl p-5 md:p-7 border-2 border-[#00F0FF]/40 shadow-[0_0_35px_rgba(0,240,255,0.18)] relative overflow-hidden">
-        {/* Ambient Corner Accents */}
-        <div className="absolute top-0 left-0 w-24 h-24 border-t-2 border-l-2 border-[#00F0FF] rounded-tl-2xl pointer-events-none" />
-        <div className="absolute top-0 right-0 w-24 h-24 border-t-2 border-r-2 border-[#00F0FF] rounded-tr-2xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 border-b-2 border-l-2 border-[#00F0FF] rounded-bl-2xl pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-24 h-24 border-b-2 border-r-2 border-[#00F0FF] rounded-br-2xl pointer-events-none" />
+      <div className="bg-gradient-to-b from-[#071626] via-[#051424] to-[#040d18] rounded-2xl px-5 py-6 md:px-7 md:py-7 border border-[#00F0FF]/25 shadow-[0_10px_30px_rgba(0,0,0,0.45)] relative overflow-hidden">
+        {/* Subtle Corner Accents */}
+        <div className="absolute top-0 left-0 w-16 h-16 border-t border-l border-[#00F0FF]/45 rounded-tl-2xl pointer-events-none" />
+        <div className="absolute top-0 right-0 w-16 h-16 border-t border-r border-[#00F0FF]/45 rounded-tr-2xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-16 h-16 border-b border-l border-[#D4AF37]/35 rounded-bl-2xl pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-16 h-16 border-b border-r border-[#D4AF37]/35 rounded-br-2xl pointer-events-none" />
 
         {/* Brand & Section Header */}
-        <div className="text-center space-y-1 mb-6 relative z-10">
+        <div className="text-center space-y-1.5 relative z-10">
           <div className="flex items-center justify-center gap-2 mb-1">
             <img
               src={SPIKE_LOGO_URL}
               alt="SPIKE"
               onError={(e) => { e.currentTarget.src = '/spike_logo.png'; }}
-              className="w-7 h-7 object-contain drop-shadow-[0_0_10px_rgba(212,175,55,0.8)]"
+              className="w-7 h-7 object-contain drop-shadow-[0_0_8px_rgba(212,175,55,0.55)]"
             />
             <span className="text-xl md:text-2xl font-black font-headline tracking-[0.2em] text-[#D4AF37]">
               SPIKE
             </span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black font-headline text-white tracking-tight drop-shadow-[0_2px_15px_rgba(0,240,255,0.35)]">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black font-headline text-white tracking-tight">
             BUILD THE TEAM. UNLOCK THE REWARD.
           </h2>
 
-          <div className="inline-block px-4 py-1 rounded-full bg-gradient-to-r from-[#00F0FF]/20 via-[#00F0FF]/10 to-[#00F0FF]/20 border border-[#00F0FF]/40 text-[#00F0FF] font-headline font-extrabold text-sm sm:text-base tracking-wider uppercase mt-1">
+          <div className="inline-block px-4 py-1 rounded-full bg-gradient-to-r from-[#00F0FF]/15 via-[#00F0FF]/10 to-[#00F0FF]/15 border border-[#00F0FF]/35 text-[#00F0FF] font-headline font-extrabold text-sm sm:text-base tracking-wider uppercase mt-1">
             SPIKE TEAM-BASED REWARD PROGRAM
           </div>
 
@@ -174,381 +174,8 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
           </p>
         </div>
 
-        {/* ============================================================
-            MILESTONE TIER CARD GRIDS (LEVEL 1 - LEVEL 9 INDIVIDUAL BOXES)
-           ============================================================ */}
-        {(() => {
-          const levelColorThemes: Record<number, {
-            outerBorder: string;
-            reachedBorder: string;
-            topAccent: string;
-            iconBox: string;
-            progressBar: string;
-            rewardBoxGlow: string;
-          }> = {
-            1: {
-              outerBorder: 'border-2 border-cyan-400/65 shadow-[0_0_18px_rgba(34,211,238,0.18)] hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.32)]',
-              reachedBorder: 'border-2 border-cyan-300 shadow-[0_0_28px_rgba(34,211,238,0.38)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-cyan-400 to-transparent',
-              iconBox: 'bg-cyan-500/15 border-cyan-400/50 text-cyan-300',
-              progressBar: 'bg-gradient-to-r from-cyan-400 to-sky-300',
-              rewardBoxGlow: 'border-cyan-400/45 shadow-[0_0_14px_rgba(34,211,238,0.22),inset_0_0_10px_rgba(34,211,238,0.06)] group-hover:border-cyan-300/75 group-hover:shadow-[0_0_18px_rgba(34,211,238,0.34)]',
-            },
-            2: {
-              outerBorder: 'border-2 border-sky-400/65 shadow-[0_0_18px_rgba(56,189,248,0.18)] hover:border-sky-300 hover:shadow-[0_0_26px_rgba(56,189,248,0.32)]',
-              reachedBorder: 'border-2 border-sky-300 shadow-[0_0_28px_rgba(56,189,248,0.38)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-sky-400 to-transparent',
-              iconBox: 'bg-sky-500/15 border-sky-400/50 text-sky-300',
-              progressBar: 'bg-gradient-to-r from-sky-400 to-blue-400',
-              rewardBoxGlow: 'border-sky-400/45 shadow-[0_0_14px_rgba(56,189,248,0.22),inset_0_0_10px_rgba(56,189,248,0.06)] group-hover:border-sky-300/75 group-hover:shadow-[0_0_18px_rgba(56,189,248,0.34)]',
-            },
-            3: {
-              outerBorder: 'border-2 border-emerald-400/65 shadow-[0_0_18px_rgba(52,211,153,0.18)] hover:border-emerald-300 hover:shadow-[0_0_26px_rgba(52,211,153,0.32)]',
-              reachedBorder: 'border-2 border-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.38)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent',
-              iconBox: 'bg-emerald-500/15 border-emerald-400/50 text-emerald-300',
-              progressBar: 'bg-gradient-to-r from-emerald-400 to-teal-300',
-              rewardBoxGlow: 'border-emerald-400/45 shadow-[0_0_14px_rgba(52,211,153,0.22),inset_0_0_10px_rgba(52,211,153,0.06)] group-hover:border-emerald-300/75 group-hover:shadow-[0_0_18px_rgba(52,211,153,0.34)]',
-            },
-            4: {
-              outerBorder: 'border-2 border-indigo-400/65 shadow-[0_0_18px_rgba(129,140,248,0.2)] hover:border-indigo-300 hover:shadow-[0_0_26px_rgba(129,140,248,0.34)]',
-              reachedBorder: 'border-2 border-indigo-300 shadow-[0_0_28px_rgba(129,140,248,0.4)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-indigo-400 to-transparent',
-              iconBox: 'bg-indigo-500/15 border-indigo-400/50 text-indigo-300',
-              progressBar: 'bg-gradient-to-r from-indigo-400 to-violet-400',
-              rewardBoxGlow: 'border-indigo-400/45 shadow-[0_0_14px_rgba(129,140,248,0.24),inset_0_0_10px_rgba(129,140,248,0.06)] group-hover:border-indigo-300/75 group-hover:shadow-[0_0_18px_rgba(129,140,248,0.36)]',
-            },
-            5: {
-              outerBorder: 'border-2 border-purple-400/65 shadow-[0_0_18px_rgba(192,132,252,0.2)] hover:border-purple-300 hover:shadow-[0_0_26px_rgba(192,132,252,0.34)]',
-              reachedBorder: 'border-2 border-purple-300 shadow-[0_0_28px_rgba(192,132,252,0.4)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-purple-400 to-transparent',
-              iconBox: 'bg-purple-500/15 border-purple-400/50 text-purple-300',
-              progressBar: 'bg-gradient-to-r from-purple-400 to-fuchsia-400',
-              rewardBoxGlow: 'border-purple-400/45 shadow-[0_0_14px_rgba(192,132,252,0.24),inset_0_0_10px_rgba(192,132,252,0.06)] group-hover:border-purple-300/75 group-hover:shadow-[0_0_18px_rgba(192,132,252,0.36)]',
-            },
-            6: {
-              outerBorder: 'border-2 border-fuchsia-400/65 shadow-[0_0_20px_rgba(232,121,249,0.2)] hover:border-fuchsia-300 hover:shadow-[0_0_28px_rgba(232,121,249,0.34)]',
-              reachedBorder: 'border-2 border-fuchsia-300 shadow-[0_0_30px_rgba(232,121,249,0.4)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-fuchsia-400 to-transparent',
-              iconBox: 'bg-fuchsia-500/15 border-fuchsia-400/50 text-fuchsia-300',
-              progressBar: 'bg-gradient-to-r from-fuchsia-400 to-pink-400',
-              rewardBoxGlow: 'border-fuchsia-400/45 shadow-[0_0_14px_rgba(232,121,249,0.24),inset_0_0_10px_rgba(232,121,249,0.06)] group-hover:border-fuchsia-300/75 group-hover:shadow-[0_0_18px_rgba(232,121,249,0.36)]',
-            },
-            7: {
-              outerBorder: 'border-2 border-rose-400/65 shadow-[0_0_20px_rgba(251,113,133,0.22)] hover:border-rose-300 hover:shadow-[0_0_28px_rgba(251,113,133,0.36)]',
-              reachedBorder: 'border-2 border-rose-300 shadow-[0_0_30px_rgba(251,113,133,0.42)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-rose-400 to-transparent',
-              iconBox: 'bg-rose-500/15 border-rose-400/50 text-rose-300',
-              progressBar: 'bg-gradient-to-r from-rose-400 to-orange-400',
-              rewardBoxGlow: 'border-rose-400/45 shadow-[0_0_14px_rgba(251,113,133,0.24),inset_0_0_10px_rgba(251,113,133,0.06)] group-hover:border-rose-300/75 group-hover:shadow-[0_0_18px_rgba(251,113,133,0.36)]',
-            },
-            8: {
-              outerBorder: 'border-2 border-amber-400/70 shadow-[0_0_22px_rgba(251,191,36,0.22)] hover:border-amber-300 hover:shadow-[0_0_30px_rgba(251,191,36,0.38)]',
-              reachedBorder: 'border-2 border-amber-300 shadow-[0_0_32px_rgba(251,191,36,0.44)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-amber-400 to-transparent',
-              iconBox: 'bg-amber-500/15 border-amber-400/55 text-amber-300',
-              progressBar: 'bg-gradient-to-r from-amber-400 to-yellow-300',
-              rewardBoxGlow: 'border-amber-400/50 shadow-[0_0_15px_rgba(251,191,36,0.25),inset_0_0_10px_rgba(251,191,36,0.07)] group-hover:border-amber-300/80 group-hover:shadow-[0_0_20px_rgba(251,191,36,0.38)]',
-            },
-            9: {
-              outerBorder: 'border-2 border-[#D4AF37]/85 shadow-[0_0_26px_rgba(212,175,55,0.28)] hover:border-[#ffe088] hover:shadow-[0_0_34px_rgba(255,224,136,0.45)]',
-              reachedBorder: 'border-2 border-[#ffe088] shadow-[0_0_36px_rgba(212,175,55,0.52)]',
-              topAccent: 'bg-gradient-to-r from-transparent via-[#ffe088] to-transparent',
-              iconBox: 'bg-[#D4AF37]/20 border-[#D4AF37]/60 text-[#ffe088]',
-              progressBar: 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF]',
-              rewardBoxGlow: 'border-[#D4AF37]/60 shadow-[0_0_16px_rgba(212,175,55,0.28),inset_0_0_12px_rgba(212,175,55,0.08)] group-hover:border-[#ffe088]/85 group-hover:shadow-[0_0_22px_rgba(255,224,136,0.42)]',
-            },
-          };
-
-          return (
-            <div className="space-y-6 relative z-10">
-              {/* CONSOLE 1: CORE CAREER MILESTONES (LEVELS 1 - 5) */}
-              <div className="rounded-2xl border-2 border-[#00F0FF]/40 bg-[#051424]/95 overflow-hidden animate-box-glow-cyan">
-                {/* Box 1 Header */}
-                <div className="bg-gradient-to-r from-[#071d33] via-[#092542] to-[#071d33] px-4 sm:px-5 py-3.5 border-b border-[#00F0FF]/30 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/40 flex items-center justify-center text-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.2)]">
-                      <span className="material-symbols-outlined text-[20px]">verified</span>
-                    </div>
-                    <div>
-                      <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
-                        Core Career Milestones
-                      </h3>
-                      <p className="text-xs text-[#00F0FF] font-body">
-                        Level 1 – Level 5 · Community Growth Tiers
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5 Individual Stylish Cards for Levels 1 to 5 */}
-                <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
-                  {TEAM_MILESTONE_TIERS.slice(0, 5).map((tier) => {
-                    const isReached = isTierReached(tier);
-                    const isClaimed = claimedIds.includes(tier.id);
-                    const isJustClaimed = justClaimedId === tier.id;
-                    const currentLevelCount = getTierProgressCount(tier);
-                    const progressPct = Math.min(100, Math.round((currentLevelCount / tier.partnersRequired) * 100));
-                    const remainingCount = Math.max(0, tier.partnersRequired - currentLevelCount);
-                    const coreIcons = ['bolt', 'groups', 'hub', 'verified', 'workspace_premium'];
-                    const tierIcon = coreIcons[(tier.level - 1) % coreIcons.length] || 'bolt';
-                    const theme = levelColorThemes[tier.level] || levelColorThemes[1];
-
-                    return (
-                      <div
-                        key={tier.id}
-                        className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 overflow-hidden hover:-translate-y-0.5 ${
-                          isReached
-                            ? `bg-gradient-to-b from-[#0b2640] via-[#071a2d] to-[#04101d] ${theme.reachedBorder}`
-                            : `bg-gradient-to-b from-[#08192b]/95 via-[#061424] to-[#040e1a] ${theme.outerBorder}`
-                        }`}
-                      >
-                        {/* Distinct Colorful Top Accent Bar */}
-                        <div className={`absolute top-0 inset-x-0 h-[2px] ${theme.topAccent}`} />
-
-                        {/* Card Top Row: Level Badge + Status */}
-                        <div className="flex items-center justify-between gap-2 mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${theme.iconBox}`}>
-                              <span className="material-symbols-outlined text-[16px]">{tierIcon}</span>
-                            </div>
-                            <span className="text-xs font-headline font-extrabold tracking-wider uppercase text-white">
-                              Level {tier.level}
-                            </span>
-                          </div>
-
-                          {isClaimed ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                              <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                              Claimed
-                            </span>
-                          ) : isReached ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/45">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse" />
-                              Ready
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-body font-semibold text-slate-400 bg-[#050f1b] border border-[#1c2b3b]">
-                              <span className="material-symbols-outlined text-[11px]">lock</span>
-                              Locked
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Center Reward Showcase */}
-                        <div className={`rounded-xl bg-[#040f1c]/90 border px-3 py-2.5 mb-3 text-center relative overflow-hidden transition-all duration-300 ${theme.rewardBoxGlow}`}>
-                          <div className="text-[10px] font-headline uppercase tracking-widest text-slate-400 mb-0.5">
-                            Milestone Reward
-                          </div>
-                          <div className="flex items-baseline justify-center gap-1">
-                            <span className="text-xl sm:text-2xl font-black font-headline tabular-nums text-[#D4AF37] text-glow-gold">
-                              {tier.rewardFormatted}
-                            </span>
-                            <span className="text-[11px] font-headline font-bold text-[#00F0FF]/85">
-                              USDT
-                            </span>
-                          </div>
-                          <div className="text-[11px] font-body text-slate-300 mt-1">
-                            {tier.level === 1
-                              ? '10 Direct Active Partners'
-                              : `${tier.partnersRequired.toLocaleString()} L${tier.level} Team Partners`}
-                          </div>
-                        </div>
-
-                        {/* Progress Bar & Action Footer */}
-                        <div className="space-y-2.5">
-                          <div>
-                            <div className="flex items-center justify-between text-[11px] font-body mb-1">
-                              <span className="text-slate-300 tabular-nums font-medium">
-                                {currentLevelCount.toLocaleString()} / {tier.partnersRequired.toLocaleString()}
-                              </span>
-                              <span className={`font-headline font-bold tabular-nums ${isReached ? 'text-[#00F0FF]' : 'text-slate-400'}`}>
-                                {progressPct}%
-                              </span>
-                            </div>
-                            <div className="w-full h-2 bg-[#030b14] rounded-full overflow-hidden border border-[#1c2b3b]">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  isClaimed
-                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-300'
-                                    : theme.progressBar
-                                }`}
-                                style={{ width: `${progressPct}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          {isClaimed ? (
-                            <div className="w-full py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-headline font-bold text-xs flex items-center justify-center gap-1.5">
-                              <span className="material-symbols-outlined text-[15px]">check_circle</span>
-                              <span>Reward Claimed</span>
-                            </div>
-                          ) : isReached ? (
-                            <button
-                              onClick={() => handleClaim(tier)}
-                              className="w-full py-2 rounded-xl font-headline font-extrabold text-xs bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] text-[#051424] shadow-[0_0_16px_rgba(0,240,255,0.4)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                            >
-                              <span className="material-symbols-outlined text-[16px]">payments</span>
-                              <span>{isJustClaimed ? 'Claimed!' : `Claim ${tier.rewardFormatted}`}</span>
-                            </button>
-                          ) : (
-                            <div className="w-full py-1.5 px-2.5 rounded-xl bg-[#040c16] border border-[#1c2b3b] text-slate-400 font-body text-[11px] flex items-center justify-center gap-1.5 tabular-nums">
-                              <span className="material-symbols-outlined text-[13px] text-[#00F0FF]/70">lock</span>
-                              <span>{remainingCount.toLocaleString()} partners left</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* CONSOLE 2: APEX LEADERSHIP MILESTONES (LEVELS 6 - 9) */}
-              <div className="rounded-2xl border-2 border-[#D4AF37]/45 bg-[#051424]/95 overflow-hidden animate-box-glow-gold">
-                {/* Box 2 Header */}
-                <div className="bg-gradient-to-r from-[#1c1806] via-[#282209] to-[#1c1806] px-4 sm:px-5 py-3.5 border-b border-[#D4AF37]/30 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/45 flex items-center justify-center text-[#D4AF37] shadow-[0_0_14px_rgba(212,175,55,0.22)]">
-                      <span className="material-symbols-outlined text-[20px]">military_tech</span>
-                    </div>
-                    <div>
-                      <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
-                        Apex Leadership Milestones
-                      </h3>
-                      <p className="text-xs text-[#D4AF37] font-body">
-                        Level 6 – Level 9 · High-Volume Fleet Tiers
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4 Individual Stylish Cards for Levels 6 to 9 */}
-                <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {TEAM_MILESTONE_TIERS.slice(5).map((tier) => {
-                    const isReached = isTierReached(tier);
-                    const isClaimed = claimedIds.includes(tier.id);
-                    const isJustClaimed = justClaimedId === tier.id;
-                    const currentLevelCount = getTierProgressCount(tier);
-                    const progressPct = Math.min(100, Math.round((currentLevelCount / tier.partnersRequired) * 100));
-                    const remainingCount = Math.max(0, tier.partnersRequired - currentLevelCount);
-                    const apexIcons = ['stars', 'diamond', 'military_tech', 'emoji_events'];
-                    const tierIcon = apexIcons[(tier.level - 6) % apexIcons.length] || 'military_tech';
-                    const theme = levelColorThemes[tier.level] || levelColorThemes[9];
-
-                    return (
-                      <div
-                        key={tier.id}
-                        className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 overflow-hidden hover:-translate-y-0.5 ${
-                          isReached
-                            ? `bg-gradient-to-b from-[#251e0b] via-[#15140d] to-[#051424] ${theme.reachedBorder}`
-                            : `bg-gradient-to-b from-[#131217]/95 via-[#091422] to-[#040e1a] ${theme.outerBorder}`
-                        }`}
-                      >
-                        {/* Distinct Colorful Top Accent Bar */}
-                        <div className={`absolute top-0 inset-x-0 h-[2px] ${theme.topAccent}`} />
-
-                        {/* Card Top Row: Level Badge + Status */}
-                        <div className="flex items-center justify-between gap-2 mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${theme.iconBox}`}>
-                              <span className="material-symbols-outlined text-[16px]">{tierIcon}</span>
-                            </div>
-                            <span className="text-xs font-headline font-extrabold tracking-wider uppercase text-white">
-                              Level {tier.level}
-                            </span>
-                          </div>
-
-                          {isClaimed ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                              <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                              Claimed
-                            </span>
-                          ) : isReached ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-[#D4AF37]/25 text-[#ffe088] border border-[#D4AF37]/55">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#ffe088] animate-pulse" />
-                              Ready
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-body font-semibold text-slate-400 bg-[#0b1119] border border-[#1c2b3b]">
-                              <span className="material-symbols-outlined text-[11px]">lock</span>
-                              Locked
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Center Reward Showcase */}
-                        <div className={`rounded-xl bg-[#070d16]/90 border px-3 py-3 mb-3 text-center relative overflow-hidden transition-all duration-300 ${theme.rewardBoxGlow}`}>
-                          <div className="text-[10px] font-headline uppercase tracking-widest text-[#D4AF37]/80 mb-0.5">
-                            Apex Bonus Pool
-                          </div>
-                          <div className="flex items-baseline justify-center gap-1">
-                            <span className="text-xl sm:text-2xl font-black font-headline tabular-nums text-[#ffe088] text-glow-gold">
-                              {tier.rewardFormatted}
-                            </span>
-                            <span className="text-[11px] font-headline font-bold text-[#D4AF37]">
-                              USDT
-                            </span>
-                          </div>
-                          <div className="text-[11px] font-body text-slate-300 mt-1">
-                            {tier.partnersRequired.toLocaleString()} L{tier.level} Team Partners
-                          </div>
-                        </div>
-
-                        {/* Progress Bar & Action Footer */}
-                        <div className="space-y-2.5">
-                          <div>
-                            <div className="flex items-center justify-between text-[11px] font-body mb-1">
-                              <span className="text-slate-300 tabular-nums font-medium">
-                                {currentLevelCount.toLocaleString()} / {tier.partnersRequired.toLocaleString()}
-                              </span>
-                              <span className={`font-headline font-bold tabular-nums ${isReached ? 'text-[#ffe088]' : 'text-slate-400'}`}>
-                                {progressPct}%
-                              </span>
-                            </div>
-                            <div className="w-full h-2 bg-[#040911] rounded-full overflow-hidden border border-[#1c2b3b]">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  isClaimed
-                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-300'
-                                    : theme.progressBar
-                                }`}
-                                style={{ width: `${progressPct}%` }}
-                              />
-                            </div>
-                          </div>
-
-                          {isClaimed ? (
-                            <div className="w-full py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-headline font-bold text-xs flex items-center justify-center gap-1.5">
-                              <span className="material-symbols-outlined text-[15px]">check_circle</span>
-                              <span>Reward Claimed</span>
-                            </div>
-                          ) : isReached ? (
-                            <button
-                              onClick={() => handleClaim(tier)}
-                              className="w-full py-2 rounded-xl font-headline font-extrabold text-xs bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#051424] shadow-[0_0_18px_rgba(212,175,55,0.45)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                            >
-                              <span className="material-symbols-outlined text-[16px]">payments</span>
-                              <span>{isJustClaimed ? 'Claimed!' : `Claim ${tier.rewardFormatted}`}</span>
-                            </button>
-                          ) : (
-                            <div className="w-full py-1.5 px-2.5 rounded-xl bg-[#070d16] border border-[#1c2b3b] text-slate-400 font-body text-[11px] flex items-center justify-center gap-1.5 tabular-nums">
-                              <span className="material-symbols-outlined text-[13px] text-[#D4AF37]/80">lock</span>
-                              <span>{remainingCount.toLocaleString()} partners left</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Milestone Footer Trust Banner */}
-        <div className="mt-4 pt-3 border-t border-[#1c2b3b] flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 font-body relative z-10">
+        {/* Header Bottom Info Strip */}
+        <div className="mt-5 pt-3.5 border-t border-[#1c2b3b]/90 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 font-body relative z-10">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[#00F0FF] text-[18px]">verified</span>
             <span>Non-custodial BEP-20 smart contract payouts settled in liquid USDT</span>
@@ -559,6 +186,379 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
           </div>
         </div>
       </div>
+
+      {/* ============================================================
+          MILESTONE TIER CARD GRIDS (STANDALONE BOXES, CALM BORDERS)
+         ============================================================ */}
+      {(() => {
+        const levelColorThemes: Record<number, {
+          outerBorder: string;
+          reachedBorder: string;
+          topAccent: string;
+          iconBox: string;
+          progressBar: string;
+          rewardBoxGlow: string;
+        }> = {
+          1: {
+            outerBorder: 'border border-cyan-400/50 shadow-[0_4px_16px_rgba(34,211,238,0.1)] hover:border-cyan-300/80 hover:shadow-[0_6px_20px_rgba(34,211,238,0.2)]',
+            reachedBorder: 'border border-cyan-300/85 shadow-[0_4px_20px_rgba(34,211,238,0.22)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-cyan-400/80 to-transparent',
+            iconBox: 'bg-cyan-500/15 border-cyan-400/45 text-cyan-300',
+            progressBar: 'bg-gradient-to-r from-cyan-400 to-sky-300',
+            rewardBoxGlow: 'border-cyan-400/35 shadow-[0_0_10px_rgba(34,211,238,0.14),inset_0_0_8px_rgba(34,211,238,0.04)] group-hover:border-cyan-300/65',
+          },
+          2: {
+            outerBorder: 'border border-sky-400/50 shadow-[0_4px_16px_rgba(56,189,248,0.1)] hover:border-sky-300/80 hover:shadow-[0_6px_20px_rgba(56,189,248,0.2)]',
+            reachedBorder: 'border border-sky-300/85 shadow-[0_4px_20px_rgba(56,189,248,0.22)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-sky-400/80 to-transparent',
+            iconBox: 'bg-sky-500/15 border-sky-400/45 text-sky-300',
+            progressBar: 'bg-gradient-to-r from-sky-400 to-blue-400',
+            rewardBoxGlow: 'border-sky-400/35 shadow-[0_0_10px_rgba(56,189,248,0.14),inset_0_0_8px_rgba(56,189,248,0.04)] group-hover:border-sky-300/65',
+          },
+          3: {
+            outerBorder: 'border border-emerald-400/50 shadow-[0_4px_16px_rgba(52,211,153,0.1)] hover:border-emerald-300/80 hover:shadow-[0_6px_20px_rgba(52,211,153,0.2)]',
+            reachedBorder: 'border border-emerald-300/85 shadow-[0_4px_20px_rgba(52,211,153,0.22)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-emerald-400/80 to-transparent',
+            iconBox: 'bg-emerald-500/15 border-emerald-400/45 text-emerald-300',
+            progressBar: 'bg-gradient-to-r from-emerald-400 to-teal-300',
+            rewardBoxGlow: 'border-emerald-400/35 shadow-[0_0_10px_rgba(52,211,153,0.14),inset_0_0_8px_rgba(52,211,153,0.04)] group-hover:border-emerald-300/65',
+          },
+          4: {
+            outerBorder: 'border border-indigo-400/50 shadow-[0_4px_16px_rgba(129,140,248,0.12)] hover:border-indigo-300/80 hover:shadow-[0_6px_20px_rgba(129,140,248,0.22)]',
+            reachedBorder: 'border border-indigo-300/85 shadow-[0_4px_20px_rgba(129,140,248,0.24)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-indigo-400/80 to-transparent',
+            iconBox: 'bg-indigo-500/15 border-indigo-400/45 text-indigo-300',
+            progressBar: 'bg-gradient-to-r from-indigo-400 to-violet-400',
+            rewardBoxGlow: 'border-indigo-400/35 shadow-[0_0_10px_rgba(129,140,248,0.15),inset_0_0_8px_rgba(129,140,248,0.04)] group-hover:border-indigo-300/65',
+          },
+          5: {
+            outerBorder: 'border border-purple-400/50 shadow-[0_4px_16px_rgba(192,132,252,0.12)] hover:border-purple-300/80 hover:shadow-[0_6px_20px_rgba(192,132,252,0.22)]',
+            reachedBorder: 'border border-purple-300/85 shadow-[0_4px_20px_rgba(192,132,252,0.24)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-purple-400/80 to-transparent',
+            iconBox: 'bg-purple-500/15 border-purple-400/45 text-purple-300',
+            progressBar: 'bg-gradient-to-r from-purple-400 to-fuchsia-400',
+            rewardBoxGlow: 'border-purple-400/35 shadow-[0_0_10px_rgba(192,132,252,0.15),inset_0_0_8px_rgba(192,132,252,0.04)] group-hover:border-purple-300/65',
+          },
+          6: {
+            outerBorder: 'border border-fuchsia-400/50 shadow-[0_4px_16px_rgba(232,121,249,0.12)] hover:border-fuchsia-300/80 hover:shadow-[0_6px_20px_rgba(232,121,249,0.22)]',
+            reachedBorder: 'border border-fuchsia-300/85 shadow-[0_4px_20px_rgba(232,121,249,0.24)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-fuchsia-400/80 to-transparent',
+            iconBox: 'bg-fuchsia-500/15 border-fuchsia-400/45 text-fuchsia-300',
+            progressBar: 'bg-gradient-to-r from-fuchsia-400 to-pink-400',
+            rewardBoxGlow: 'border-fuchsia-400/35 shadow-[0_0_10px_rgba(232,121,249,0.15),inset_0_0_8px_rgba(232,121,249,0.04)] group-hover:border-fuchsia-300/65',
+          },
+          7: {
+            outerBorder: 'border border-rose-400/50 shadow-[0_4px_16px_rgba(251,113,133,0.12)] hover:border-rose-300/80 hover:shadow-[0_6px_20px_rgba(251,113,133,0.22)]',
+            reachedBorder: 'border border-rose-300/85 shadow-[0_4px_20px_rgba(251,113,133,0.24)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-rose-400/80 to-transparent',
+            iconBox: 'bg-rose-500/15 border-rose-400/45 text-rose-300',
+            progressBar: 'bg-gradient-to-r from-rose-400 to-orange-400',
+            rewardBoxGlow: 'border-rose-400/35 shadow-[0_0_10px_rgba(251,113,133,0.15),inset_0_0_8px_rgba(251,113,133,0.04)] group-hover:border-rose-300/65',
+          },
+          8: {
+            outerBorder: 'border border-amber-400/55 shadow-[0_4px_16px_rgba(251,191,36,0.12)] hover:border-amber-300/85 hover:shadow-[0_6px_20px_rgba(251,191,36,0.24)]',
+            reachedBorder: 'border border-amber-300/85 shadow-[0_4px_22px_rgba(251,191,36,0.26)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-amber-400/80 to-transparent',
+            iconBox: 'bg-amber-500/15 border-amber-400/50 text-amber-300',
+            progressBar: 'bg-gradient-to-r from-amber-400 to-yellow-300',
+            rewardBoxGlow: 'border-amber-400/40 shadow-[0_0_10px_rgba(251,191,36,0.16),inset_0_0_8px_rgba(251,191,36,0.05)] group-hover:border-amber-300/70',
+          },
+          9: {
+            outerBorder: 'border border-[#D4AF37]/65 shadow-[0_4px_18px_rgba(212,175,55,0.15)] hover:border-[#ffe088]/85 hover:shadow-[0_6px_22px_rgba(255,224,136,0.26)]',
+            reachedBorder: 'border border-[#ffe088]/90 shadow-[0_4px_24px_rgba(212,175,55,0.3)]',
+            topAccent: 'bg-gradient-to-r from-transparent via-[#ffe088]/85 to-transparent',
+            iconBox: 'bg-[#D4AF37]/20 border-[#D4AF37]/55 text-[#ffe088]',
+            progressBar: 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF]',
+            rewardBoxGlow: 'border-[#D4AF37]/45 shadow-[0_0_12px_rgba(212,175,55,0.18),inset_0_0_8px_rgba(212,175,55,0.05)] group-hover:border-[#ffe088]/75',
+          },
+        };
+
+        return (
+          <>
+            {/* CONSOLE 1: CORE CAREER MILESTONES (LEVELS 1 - 5) — STANDALONE BOX */}
+            <div className="rounded-2xl border border-[#00F0FF]/55 bg-[#051424]/95 shadow-[0_0_26px_rgba(0,240,255,0.18),0_10px_30px_rgba(0,0,0,0.45)] overflow-hidden">
+              {/* Box 1 Header */}
+              <div className="bg-gradient-to-r from-[#071d33] via-[#092542] to-[#071d33] px-4 sm:px-5 py-3.5 border-b border-[#00F0FF]/25 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#00F0FF]/15 border border-[#00F0FF]/35 flex items-center justify-center text-[#00F0FF]">
+                    <span className="material-symbols-outlined text-[20px]">verified</span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
+                      Core Career Milestones
+                    </h3>
+                    <p className="text-xs text-[#00F0FF] font-body">
+                      Level 1 – Level 5 · Community Growth Tiers
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5 Individual Stylish Cards for Levels 1 to 5 */}
+              <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
+                {TEAM_MILESTONE_TIERS.slice(0, 5).map((tier) => {
+                  const isReached = isTierReached(tier);
+                  const isClaimed = claimedIds.includes(tier.id);
+                  const isJustClaimed = justClaimedId === tier.id;
+                  const currentLevelCount = getTierProgressCount(tier);
+                  const progressPct = Math.min(100, Math.round((currentLevelCount / tier.partnersRequired) * 100));
+                  const remainingCount = Math.max(0, tier.partnersRequired - currentLevelCount);
+                  const coreIcons = ['bolt', 'groups', 'hub', 'verified', 'workspace_premium'];
+                  const tierIcon = coreIcons[(tier.level - 1) % coreIcons.length] || 'bolt';
+                  const theme = levelColorThemes[tier.level] || levelColorThemes[1];
+
+                  return (
+                    <div
+                      key={tier.id}
+                      className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 overflow-hidden hover:-translate-y-0.5 ${
+                        isReached
+                          ? `bg-gradient-to-b from-[#0b2640] via-[#071a2d] to-[#04101d] ${theme.reachedBorder}`
+                          : `bg-gradient-to-b from-[#08192b]/95 via-[#061424] to-[#040e1a] ${theme.outerBorder}`
+                      }`}
+                    >
+                      {/* Distinct Colorful Top Accent Bar */}
+                      <div className={`absolute top-0 inset-x-0 h-[2px] ${theme.topAccent}`} />
+
+                      {/* Card Top Row: Level Badge + Status */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${theme.iconBox}`}>
+                            <span className="material-symbols-outlined text-[16px]">{tierIcon}</span>
+                          </div>
+                          <span className="text-xs font-headline font-extrabold tracking-wider uppercase text-white">
+                            Level {tier.level}
+                          </span>
+                        </div>
+
+                        {isClaimed ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                            Claimed
+                          </span>
+                        ) : isReached ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-[#00F0FF]/20 text-[#00F0FF] border border-[#00F0FF]/45">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-pulse" />
+                            Ready
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-body font-semibold text-slate-400 bg-[#050f1b] border border-[#1c2b3b]">
+                            <span className="material-symbols-outlined text-[11px]">lock</span>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Center Reward Showcase */}
+                      <div className={`rounded-xl bg-[#040f1c]/90 border px-3 py-2.5 mb-3 text-center relative overflow-hidden transition-all duration-300 ${theme.rewardBoxGlow}`}>
+                        <div className="text-[10px] font-headline uppercase tracking-widest text-slate-400 mb-0.5">
+                          Milestone Reward
+                        </div>
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-xl sm:text-2xl font-black font-headline tabular-nums text-[#D4AF37]">
+                            {tier.rewardFormatted}
+                          </span>
+                          <span className="text-[11px] font-headline font-bold text-[#00F0FF]/85">
+                            USDT
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-body text-slate-300 mt-1">
+                          {tier.level === 1
+                            ? '10 Direct Active Partners'
+                            : `${tier.partnersRequired.toLocaleString()} L${tier.level} Team Partners`}
+                        </div>
+                      </div>
+
+                      {/* Progress Bar & Action Footer */}
+                      <div className="space-y-2.5">
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] font-body mb-1">
+                            <span className="text-slate-300 tabular-nums font-medium">
+                              {currentLevelCount.toLocaleString()} / {tier.partnersRequired.toLocaleString()}
+                            </span>
+                            <span className={`font-headline font-bold tabular-nums ${isReached ? 'text-[#00F0FF]' : 'text-slate-400'}`}>
+                              {progressPct}%
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-[#030b14] rounded-full overflow-hidden border border-[#1c2b3b]">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isClaimed
+                                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-300'
+                                  : theme.progressBar
+                              }`}
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {isClaimed ? (
+                          <div className="w-full py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-headline font-bold text-xs flex items-center justify-center gap-1.5">
+                            <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                            <span>Reward Claimed</span>
+                          </div>
+                        ) : isReached ? (
+                          <button
+                            onClick={() => handleClaim(tier)}
+                            className="w-full py-2 rounded-xl font-headline font-extrabold text-xs bg-gradient-to-r from-[#00F0FF] to-[#D4AF37] text-[#051424] shadow-[0_0_16px_rgba(0,240,255,0.3)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">payments</span>
+                            <span>{isJustClaimed ? 'Claimed!' : `Claim ${tier.rewardFormatted}`}</span>
+                          </button>
+                        ) : (
+                          <div className="w-full py-1.5 px-2.5 rounded-xl bg-[#040c16] border border-[#1c2b3b] text-slate-400 font-body text-[11px] flex items-center justify-center gap-1.5 tabular-nums">
+                            <span className="material-symbols-outlined text-[13px] text-[#00F0FF]/70">lock</span>
+                            <span>{remainingCount.toLocaleString()} partners left</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* CONSOLE 2: APEX LEADERSHIP MILESTONES (LEVELS 6 - 9) — STANDALONE BOX */}
+            <div className="rounded-2xl border border-[#D4AF37]/60 bg-[#051424]/95 shadow-[0_0_26px_rgba(212,175,55,0.2),0_10px_30px_rgba(0,0,0,0.45)] overflow-hidden">
+              {/* Box 2 Header */}
+              <div className="bg-gradient-to-r from-[#1c1806] via-[#282209] to-[#1c1806] px-4 sm:px-5 py-3.5 border-b border-[#D4AF37]/25 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37]">
+                    <span className="material-symbols-outlined text-[20px]">military_tech</span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold font-headline text-white tracking-wide">
+                      Apex Leadership Milestones
+                    </h3>
+                    <p className="text-xs text-[#D4AF37] font-body">
+                      Level 6 – Level 9 · High-Volume Fleet Tiers
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 Individual Stylish Cards for Levels 6 to 9 */}
+              <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {TEAM_MILESTONE_TIERS.slice(5).map((tier) => {
+                  const isReached = isTierReached(tier);
+                  const isClaimed = claimedIds.includes(tier.id);
+                  const isJustClaimed = justClaimedId === tier.id;
+                  const currentLevelCount = getTierProgressCount(tier);
+                  const progressPct = Math.min(100, Math.round((currentLevelCount / tier.partnersRequired) * 100));
+                  const remainingCount = Math.max(0, tier.partnersRequired - currentLevelCount);
+                  const apexIcons = ['stars', 'diamond', 'military_tech', 'emoji_events'];
+                  const tierIcon = apexIcons[(tier.level - 6) % apexIcons.length] || 'military_tech';
+                  const theme = levelColorThemes[tier.level] || levelColorThemes[9];
+
+                  return (
+                    <div
+                      key={tier.id}
+                      className={`group relative rounded-2xl p-4 flex flex-col justify-between transition-all duration-300 overflow-hidden hover:-translate-y-0.5 ${
+                        isReached
+                          ? `bg-gradient-to-b from-[#251e0b] via-[#15140d] to-[#051424] ${theme.reachedBorder}`
+                          : `bg-gradient-to-b from-[#131217]/95 via-[#091422] to-[#040e1a] ${theme.outerBorder}`
+                      }`}
+                    >
+                      {/* Distinct Colorful Top Accent Bar */}
+                      <div className={`absolute top-0 inset-x-0 h-[2px] ${theme.topAccent}`} />
+
+                      {/* Card Top Row: Level Badge + Status */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center border ${theme.iconBox}`}>
+                            <span className="material-symbols-outlined text-[16px]">{tierIcon}</span>
+                          </div>
+                          <span className="text-xs font-headline font-extrabold tracking-wider uppercase text-white">
+                            Level {tier.level}
+                          </span>
+                        </div>
+
+                        {isClaimed ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                            Claimed
+                          </span>
+                        ) : isReached ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-headline font-bold uppercase tracking-wide bg-[#D4AF37]/25 text-[#ffe088] border border-[#D4AF37]/55">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#ffe088] animate-pulse" />
+                            Ready
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-body font-semibold text-slate-400 bg-[#0b1119] border border-[#1c2b3b]">
+                            <span className="material-symbols-outlined text-[11px]">lock</span>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Center Reward Showcase */}
+                      <div className={`rounded-xl bg-[#070d16]/90 border px-3 py-3 mb-3 text-center relative overflow-hidden transition-all duration-300 ${theme.rewardBoxGlow}`}>
+                        <div className="text-[10px] font-headline uppercase tracking-widest text-[#D4AF37]/80 mb-0.5">
+                          Apex Bonus Pool
+                        </div>
+                        <div className="flex items-baseline justify-center gap-1">
+                          <span className="text-xl sm:text-2xl font-black font-headline tabular-nums text-[#ffe088]">
+                            {tier.rewardFormatted}
+                          </span>
+                          <span className="text-[11px] font-headline font-bold text-[#D4AF37]">
+                            USDT
+                          </span>
+                        </div>
+                        <div className="text-[11px] font-body text-slate-300 mt-1">
+                          {tier.partnersRequired.toLocaleString()} L{tier.level} Team Partners
+                        </div>
+                      </div>
+
+                      {/* Progress Bar & Action Footer */}
+                      <div className="space-y-2.5">
+                        <div>
+                          <div className="flex items-center justify-between text-[11px] font-body mb-1">
+                            <span className="text-slate-300 tabular-nums font-medium">
+                              {currentLevelCount.toLocaleString()} / {tier.partnersRequired.toLocaleString()}
+                            </span>
+                            <span className={`font-headline font-bold tabular-nums ${isReached ? 'text-[#ffe088]' : 'text-slate-400'}`}>
+                              {progressPct}%
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-[#040911] rounded-full overflow-hidden border border-[#1c2b3b]">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                isClaimed
+                                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-300'
+                                  : theme.progressBar
+                              }`}
+                              style={{ width: `${progressPct}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {isClaimed ? (
+                          <div className="w-full py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-headline font-bold text-xs flex items-center justify-center gap-1.5">
+                            <span className="material-symbols-outlined text-[15px]">check_circle</span>
+                            <span>Reward Claimed</span>
+                          </div>
+                        ) : isReached ? (
+                          <button
+                            onClick={() => handleClaim(tier)}
+                            className="w-full py-2 rounded-xl font-headline font-extrabold text-xs bg-gradient-to-r from-[#D4AF37] to-[#ffe088] text-[#051424] shadow-[0_0_16px_rgba(212,175,55,0.32)] hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">payments</span>
+                            <span>{isJustClaimed ? 'Claimed!' : `Claim ${tier.rewardFormatted}`}</span>
+                          </button>
+                        ) : (
+                          <div className="w-full py-1.5 px-2.5 rounded-xl bg-[#070d16] border border-[#1c2b3b] text-slate-400 font-body text-[11px] flex items-center justify-center gap-1.5 tabular-nums">
+                            <span className="material-symbols-outlined text-[13px] text-[#D4AF37]/80">lock</span>
+                            <span>{remainingCount.toLocaleString()} partners left</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 };
