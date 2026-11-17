@@ -13,8 +13,8 @@ const files = fs.readdirSync(distAssetsDir).filter((f) => f.endsWith('.js'));
 
 let obfuscatedCount = 0;
 for (const file of files) {
-  // Keep large third-party vendor bundles (React, Firebase, Ethers) untouched for speed and stability
-  if (file.startsWith('vendor-')) {
+  // Keep large third-party vendor bundles and rolldown runtime helpers untouched for speed and stability
+  if (file.startsWith('vendor-') || file.startsWith('rolldown-runtime-')) {
     continue;
   }
 
@@ -26,7 +26,7 @@ for (const file of files) {
     controlFlowFlattening: false,
     deadCodeInjection: false,
     debugProtection: false,
-    disableConsoleOutput: true,
+    disableConsoleOutput: false,
     identifierNamesGenerator: 'hexadecimal',
     log: false,
     numbersToExpressions: true,
@@ -43,7 +43,7 @@ for (const file of files) {
     stringArrayShuffle: true,
     stringArrayWrappersCount: 2,
     stringArrayWrappersType: 'function',
-    transformObjectKeys: true,
+    transformObjectKeys: false,
     unicodeEscapeSequence: false,
   });
 

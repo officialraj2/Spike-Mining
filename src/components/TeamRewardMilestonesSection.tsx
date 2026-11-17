@@ -184,6 +184,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
             topAccent: string;
             iconBox: string;
             progressBar: string;
+            rewardBoxGlow: string;
           }> = {
             1: {
               outerBorder: 'border-2 border-cyan-400/65 shadow-[0_0_18px_rgba(34,211,238,0.18)] hover:border-cyan-300 hover:shadow-[0_0_26px_rgba(34,211,238,0.32)]',
@@ -191,6 +192,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-cyan-400 to-transparent',
               iconBox: 'bg-cyan-500/15 border-cyan-400/50 text-cyan-300',
               progressBar: 'bg-gradient-to-r from-cyan-400 to-sky-300',
+              rewardBoxGlow: 'border-cyan-400/45 shadow-[0_0_14px_rgba(34,211,238,0.22),inset_0_0_10px_rgba(34,211,238,0.06)] group-hover:border-cyan-300/75 group-hover:shadow-[0_0_18px_rgba(34,211,238,0.34)]',
             },
             2: {
               outerBorder: 'border-2 border-sky-400/65 shadow-[0_0_18px_rgba(56,189,248,0.18)] hover:border-sky-300 hover:shadow-[0_0_26px_rgba(56,189,248,0.32)]',
@@ -198,6 +200,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-sky-400 to-transparent',
               iconBox: 'bg-sky-500/15 border-sky-400/50 text-sky-300',
               progressBar: 'bg-gradient-to-r from-sky-400 to-blue-400',
+              rewardBoxGlow: 'border-sky-400/45 shadow-[0_0_14px_rgba(56,189,248,0.22),inset_0_0_10px_rgba(56,189,248,0.06)] group-hover:border-sky-300/75 group-hover:shadow-[0_0_18px_rgba(56,189,248,0.34)]',
             },
             3: {
               outerBorder: 'border-2 border-emerald-400/65 shadow-[0_0_18px_rgba(52,211,153,0.18)] hover:border-emerald-300 hover:shadow-[0_0_26px_rgba(52,211,153,0.32)]',
@@ -205,6 +208,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-emerald-400 to-transparent',
               iconBox: 'bg-emerald-500/15 border-emerald-400/50 text-emerald-300',
               progressBar: 'bg-gradient-to-r from-emerald-400 to-teal-300',
+              rewardBoxGlow: 'border-emerald-400/45 shadow-[0_0_14px_rgba(52,211,153,0.22),inset_0_0_10px_rgba(52,211,153,0.06)] group-hover:border-emerald-300/75 group-hover:shadow-[0_0_18px_rgba(52,211,153,0.34)]',
             },
             4: {
               outerBorder: 'border-2 border-indigo-400/65 shadow-[0_0_18px_rgba(129,140,248,0.2)] hover:border-indigo-300 hover:shadow-[0_0_26px_rgba(129,140,248,0.34)]',
@@ -212,6 +216,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-indigo-400 to-transparent',
               iconBox: 'bg-indigo-500/15 border-indigo-400/50 text-indigo-300',
               progressBar: 'bg-gradient-to-r from-indigo-400 to-violet-400',
+              rewardBoxGlow: 'border-indigo-400/45 shadow-[0_0_14px_rgba(129,140,248,0.24),inset_0_0_10px_rgba(129,140,248,0.06)] group-hover:border-indigo-300/75 group-hover:shadow-[0_0_18px_rgba(129,140,248,0.36)]',
             },
             5: {
               outerBorder: 'border-2 border-purple-400/65 shadow-[0_0_18px_rgba(192,132,252,0.2)] hover:border-purple-300 hover:shadow-[0_0_26px_rgba(192,132,252,0.34)]',
@@ -219,6 +224,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-purple-400 to-transparent',
               iconBox: 'bg-purple-500/15 border-purple-400/50 text-purple-300',
               progressBar: 'bg-gradient-to-r from-purple-400 to-fuchsia-400',
+              rewardBoxGlow: 'border-purple-400/45 shadow-[0_0_14px_rgba(192,132,252,0.24),inset_0_0_10px_rgba(192,132,252,0.06)] group-hover:border-purple-300/75 group-hover:shadow-[0_0_18px_rgba(192,132,252,0.36)]',
             },
             6: {
               outerBorder: 'border-2 border-fuchsia-400/65 shadow-[0_0_20px_rgba(232,121,249,0.2)] hover:border-fuchsia-300 hover:shadow-[0_0_28px_rgba(232,121,249,0.34)]',
@@ -226,6 +232,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-fuchsia-400 to-transparent',
               iconBox: 'bg-fuchsia-500/15 border-fuchsia-400/50 text-fuchsia-300',
               progressBar: 'bg-gradient-to-r from-fuchsia-400 to-pink-400',
+              rewardBoxGlow: 'border-fuchsia-400/45 shadow-[0_0_14px_rgba(232,121,249,0.24),inset_0_0_10px_rgba(232,121,249,0.06)] group-hover:border-fuchsia-300/75 group-hover:shadow-[0_0_18px_rgba(232,121,249,0.36)]',
             },
             7: {
               outerBorder: 'border-2 border-rose-400/65 shadow-[0_0_20px_rgba(251,113,133,0.22)] hover:border-rose-300 hover:shadow-[0_0_28px_rgba(251,113,133,0.36)]',
@@ -233,6 +240,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-rose-400 to-transparent',
               iconBox: 'bg-rose-500/15 border-rose-400/50 text-rose-300',
               progressBar: 'bg-gradient-to-r from-rose-400 to-orange-400',
+              rewardBoxGlow: 'border-rose-400/45 shadow-[0_0_14px_rgba(251,113,133,0.24),inset_0_0_10px_rgba(251,113,133,0.06)] group-hover:border-rose-300/75 group-hover:shadow-[0_0_18px_rgba(251,113,133,0.36)]',
             },
             8: {
               outerBorder: 'border-2 border-amber-400/70 shadow-[0_0_22px_rgba(251,191,36,0.22)] hover:border-amber-300 hover:shadow-[0_0_30px_rgba(251,191,36,0.38)]',
@@ -240,6 +248,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-amber-400 to-transparent',
               iconBox: 'bg-amber-500/15 border-amber-400/55 text-amber-300',
               progressBar: 'bg-gradient-to-r from-amber-400 to-yellow-300',
+              rewardBoxGlow: 'border-amber-400/50 shadow-[0_0_15px_rgba(251,191,36,0.25),inset_0_0_10px_rgba(251,191,36,0.07)] group-hover:border-amber-300/80 group-hover:shadow-[0_0_20px_rgba(251,191,36,0.38)]',
             },
             9: {
               outerBorder: 'border-2 border-[#D4AF37]/85 shadow-[0_0_26px_rgba(212,175,55,0.28)] hover:border-[#ffe088] hover:shadow-[0_0_34px_rgba(255,224,136,0.45)]',
@@ -247,6 +256,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
               topAccent: 'bg-gradient-to-r from-transparent via-[#ffe088] to-transparent',
               iconBox: 'bg-[#D4AF37]/20 border-[#D4AF37]/60 text-[#ffe088]',
               progressBar: 'bg-gradient-to-r from-[#D4AF37] via-[#ffe088] to-[#00F0FF]',
+              rewardBoxGlow: 'border-[#D4AF37]/60 shadow-[0_0_16px_rgba(212,175,55,0.28),inset_0_0_12px_rgba(212,175,55,0.08)] group-hover:border-[#ffe088]/85 group-hover:shadow-[0_0_22px_rgba(255,224,136,0.42)]',
             },
           };
 
@@ -326,7 +336,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                         </div>
 
                         {/* Center Reward Showcase */}
-                        <div className="rounded-xl bg-[#040f1c]/90 border border-[#1c2b3b]/80 px-3 py-2.5 mb-3 text-center relative overflow-hidden">
+                        <div className={`rounded-xl bg-[#040f1c]/90 border px-3 py-2.5 mb-3 text-center relative overflow-hidden transition-all duration-300 ${theme.rewardBoxGlow}`}>
                           <div className="text-[10px] font-headline uppercase tracking-widest text-slate-400 mb-0.5">
                             Milestone Reward
                           </div>
@@ -468,7 +478,7 @@ export const TeamRewardMilestonesSection: React.FC<TeamRewardMilestonesSectionPr
                         </div>
 
                         {/* Center Reward Showcase */}
-                        <div className="rounded-xl bg-[#070d16]/90 border border-[#D4AF37]/20 px-3 py-3 mb-3 text-center relative overflow-hidden">
+                        <div className={`rounded-xl bg-[#070d16]/90 border px-3 py-3 mb-3 text-center relative overflow-hidden transition-all duration-300 ${theme.rewardBoxGlow}`}>
                           <div className="text-[10px] font-headline uppercase tracking-widest text-[#D4AF37]/80 mb-0.5">
                             Apex Bonus Pool
                           </div>

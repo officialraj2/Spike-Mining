@@ -19,29 +19,49 @@ import { registerReferralInFirestore, getReferralsFromFirestore, isUserAlreadyBo
 import { persistMiningStart, fetchActiveMiningSession } from './services/miningSessionSync';
 import { getRealActiveAccount, requestWeb3Connection, subscribeToWeb3AccountChanges } from './services/web3WalletSync';
 import { AiMiningAssistant } from './components/AiMiningAssistant';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { DashboardView } from './components/views/DashboardView';
+import { MiningNodesView } from './components/views/MiningNodesView';
+import { ReferralsView } from './components/views/ReferralsView';
+import { WithdrawalHistoryView } from './components/views/WithdrawalHistoryView';
+import { RoadmapView } from './components/views/RoadmapView';
 import {
   clearAdminSession,
   getActiveAdminSession,
   isMasterWalletHashMatch,
 } from './services/adminAuth';
 
+function lazyWithRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    const delays = [400, 1000, 2000];
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      try {
+        return await factory();
+      } catch (err) {
+        lastError = err;
+        if (attempt < delays.length) {
+          await new Promise((r) => setTimeout(r, delays[attempt]));
+        }
+      }
+    }
+    throw lastError;
+  });
+}
 
-// Code-split heavy views and modals for sub-100ms ultra-fast initial paint
-const DashboardView = lazy(() => import('./components/views/DashboardView').then(m => ({ default: m.DashboardView })));
-const MiningNodesView = lazy(() => import('./components/views/MiningNodesView').then(m => ({ default: m.MiningNodesView })));
-const ReferralsView = lazy(() => import('./components/views/ReferralsView').then(m => ({ default: m.ReferralsView })));
-const WithdrawalHistoryView = lazy(() => import('./components/views/WithdrawalHistoryView').then(m => ({ default: m.WithdrawalHistoryView })));
-const RoadmapView = lazy(() => import('./components/views/RoadmapView').then(m => ({ default: m.RoadmapView })));
-const AdminView = lazy(() => import('./components/views/AdminView').then(m => ({ default: m.AdminView })));
+// Lazy-load Admin panel and on-demand modals with multi-attempt retry
+const AdminView = lazyWithRetry(() => import('./components/views/AdminView').then(m => ({ default: m.AdminView })));
 
-const ConnectWalletModal = lazy(() => import('./components/modals/ConnectWalletModal').then(m => ({ default: m.ConnectWalletModal })));
-const DeployNodeModal = lazy(() => import('./components/modals/DeployNodeModal').then(m => ({ default: m.DeployNodeModal })));
-const ClaimRewardsModal = lazy(() => import('./components/modals/ClaimRewardsModal').then(m => ({ default: m.ClaimRewardsModal })));
-const AuditModal = lazy(() => import('./components/modals/AuditModal').then(m => ({ default: m.AuditModal })));
-const SwapModal = lazy(() => import('./components/modals/SwapModal').then(m => ({ default: m.SwapModal })));
-const TestnetTestingModal = lazy(() => import('./components/modals/TestnetTestingModal').then(m => ({ default: m.TestnetTestingModal })));
-const DepositUsdtModal = lazy(() => import('./components/modals/DepositUsdtModal').then(m => ({ default: m.DepositUsdtModal })));
-const ReferralVerificationModal = lazy(() => import('./components/modals/ReferralVerificationModal').then(m => ({ default: m.ReferralVerificationModal })));
+const ConnectWalletModal = lazyWithRetry(() => import('./components/modals/ConnectWalletModal').then(m => ({ default: m.ConnectWalletModal })));
+const DeployNodeModal = lazyWithRetry(() => import('./components/modals/DeployNodeModal').then(m => ({ default: m.DeployNodeModal })));
+const ClaimRewardsModal = lazyWithRetry(() => import('./components/modals/ClaimRewardsModal').then(m => ({ default: m.ClaimRewardsModal })));
+const AuditModal = lazyWithRetry(() => import('./components/modals/AuditModal').then(m => ({ default: m.AuditModal })));
+const SwapModal = lazyWithRetry(() => import('./components/modals/SwapModal').then(m => ({ default: m.SwapModal })));
+const TestnetTestingModal = lazyWithRetry(() => import('./components/modals/TestnetTestingModal').then(m => ({ default: m.TestnetTestingModal })));
+const DepositUsdtModal = lazyWithRetry(() => import('./components/modals/DepositUsdtModal').then(m => ({ default: m.DepositUsdtModal })));
+const ReferralVerificationModal = lazyWithRetry(() => import('./components/modals/ReferralVerificationModal').then(m => ({ default: m.ReferralVerificationModal })));
 
 // Ultra-fast lightweight skeleton loader
 const ViewSkeleton: React.FC = () => (
@@ -2248,9 +2268,11 @@ export default function App() {
     }
 
     return (
-      <Suspense fallback={<ViewSkeleton />}>
-        {currentComponent}
-      </Suspense>
+      <ErrorBoundary fallbackTitle="View Render Recovery" resetKey={activeTab}>
+        <Suspense fallback={<ViewSkeleton />}>
+          {currentComponent}
+        </Suspense>
+      </ErrorBoundary>
     );
   };
 

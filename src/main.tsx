@@ -3,6 +3,7 @@ import App from './App.tsx';
 import './index.css';
 import { testConnection } from './firebase.ts';
 import { initAntiInspectGuard } from './utils/antiInspect.ts';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 
 initAntiInspectGuard();
 
@@ -144,4 +145,8 @@ if (typeof window !== 'undefined') {
 // Test connection to Firestore on initial boot
 testConnection().catch(() => {});
 
-createRoot(document.getElementById('root')!).render(<App />);
+createRoot(document.getElementById('root')!).render(
+  <ErrorBoundary fallbackTitle="SPIKE Application Recovery">
+    <App />
+  </ErrorBoundary>
+);
