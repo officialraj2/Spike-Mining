@@ -60,12 +60,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <button
           onClick={() => {
             onTabChange('home');
-            onNavigateHomeSection?.('features');
+            onNavigateHomeSection?.('why-spike');
           }}
-          className="flex flex-col items-center justify-center min-h-[46px] py-1 text-[#94a3b8] hover:text-[#00F0FF] transition-all rounded-xl hover:bg-[#122130]"
+          className="flex flex-col items-center justify-center min-h-[46px] py-1 text-[#94a3b8] hover:text-[#D4AF37] transition-all rounded-xl hover:bg-[#122130]"
         >
-          <span className="material-symbols-outlined text-[20px]">bolt</span>
-          <span className="text-[10px] font-headline font-semibold mt-0.5">Features</span>
+          <span className="material-symbols-outlined text-[20px]">architecture</span>
+          <span className="text-[10px] font-headline font-semibold mt-0.5 whitespace-nowrap">Why SPIKE</span>
         </button>
 
         <button

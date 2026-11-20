@@ -45,9 +45,9 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
-  const [activeSection, setActiveSection] = useState<'hero' | 'features' | 'calculator' | 'security'>('hero');
+  const [activeSection, setActiveSection] = useState<'hero' | 'why-spike' | 'features' | 'calculator' | 'security'>('hero');
 
-  const handleHomeSectionClick = (secId: 'hero' | 'features' | 'calculator' | 'security') => {
+  const handleHomeSectionClick = (secId: 'hero' | 'why-spike' | 'features' | 'calculator' | 'security') => {
     setActiveSection(secId);
     if (activeTab !== 'home') {
       onTabChange('home');
@@ -153,6 +153,18 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
 
               <button
+                onClick={() => handleHomeSectionClick('why-spike')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-headline font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 ${
+                  activeTab === 'home' && activeSection === 'why-spike'
+                    ? 'bg-[#1c2b3b] text-[#D4AF37] shadow-[0_0_12px_rgba(212,175,55,0.25)] border border-[#D4AF37]/40'
+                    : 'text-[#d4e4fa] hover:text-[#D4AF37] hover:bg-[#122130]'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">architecture</span>
+                <span>Why SPIKE</span>
+              </button>
+
+              <button
                 onClick={() => handleHomeSectionClick('features')}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-headline font-semibold flex items-center gap-1.5 transition-all ${
                   activeTab === 'home' && activeSection === 'features'
@@ -197,6 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
                 { id: 'referrals' as TabType, label: 'Referrals', icon: 'groups' },
                 { id: 'withdraw-history' as TabType, label: 'Withdraw History', icon: 'receipt_long' },
                 { id: 'swap' as TabType, label: 'DEX Swap', icon: 'swap_horiz' },
+                { id: 'why-spike' as TabType, label: 'Why SPIKE', icon: 'architecture' },
                 { id: 'roadmap' as TabType, label: 'Roadmap', icon: 'alt_route' },
               ] as { id: TabType; label: string; icon: string; badge?: string; hot?: boolean }[]).map((item) => {
                 const isActive = activeTab === item.id;
@@ -425,6 +438,16 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                   <button
                     onClick={() => {
+                      handleHomeSectionClick('why-spike');
+                      setShowMobileDrawer(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-semibold text-[#D4AF37] hover:bg-[#122130]"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-[#D4AF37]">architecture</span>
+                    <span>Why Mine SPIKE</span>
+                  </button>
+                  <button
+                    onClick={() => {
                       handleHomeSectionClick('features');
                       setShowMobileDrawer(false);
                     }}
@@ -510,6 +533,7 @@ export const Header: React.FC<HeaderProps> = ({
                     { id: 'referrals' as TabType, label: 'Referral system', icon: 'groups' },
                     { id: 'withdraw-history' as TabType, label: 'Withdraw History', icon: 'receipt_long' },
                     { id: 'swap' as TabType, label: 'Swap (DEX)', icon: 'swap_horiz' },
+                    { id: 'why-spike' as TabType, label: 'Why Mine SPIKE', icon: 'architecture' },
                     { id: 'roadmap' as TabType, label: 'Roadmap', icon: 'alt_route' },
                     ...(isAdmin ? [{ id: 'admin' as TabType, label: 'Admin Panel & DB', icon: 'shield_person', badge: 'ROOT' }] : []),
                   ] as { id: TabType; label: string; icon: string; badge?: string; hot?: boolean }[]).map((item) => {

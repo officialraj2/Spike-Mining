@@ -579,3 +579,142 @@
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 12px));
 }
 
+/* ============================================================================
+   WHY MINE SPIKE — Flagship Light-Luminous Typography & Architectural Motion
+   ============================================================================ */
+@keyframes whyLightShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes whyPanelEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes whyBeamGlide {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(220%);
+    opacity: 0;
+  }
+}
+
+@keyframes whyPacketTravel {
+  0% {
+    transform: translateY(0px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes whyHaloDrift {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.04);
+  }
+}
+
+.why-heading-light {
+  background: linear-gradient(
+    105deg,
+    #ffffff 0%,
+    #e0f7ff 22%,
+    #fff4cc 44%,
+    #ffffff 62%,
+    #c7f3ff 82%,
+    #ffffff 100%
+  );
+  background-size: 240% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: whyLightShimmer 6.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 18px rgba(186, 230, 253, 0.24));
+}
+
+.why-subheading-light {
+  background: linear-gradient(
+    100deg,
+    #f8fafc 0%,
+    #d8f3ff 35%,
+    #fef3c7 65%,
+    #f8fafc 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: whyLightShimmer 8s ease-in-out infinite;
+}
+
+.why-panel-enter {
+  animation: whyPanelEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.why-beam-glide {
+  animation: whyBeamGlide 4.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.why-packet-travel {
+  animation: whyPacketTravel 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.why-halo-drift {
+  animation: whyHaloDrift 7s ease-in-out infinite;
+}
+
+.why-grid-backdrop {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .why-heading-light,
+  .why-subheading-light,
+  .why-panel-enter,
+  .why-beam-glide,
+  .why-packet-travel,
+  .why-halo-drift {
+    animation: none !important;
+  }
+}
+
+

@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'referrals', label: 'Referral system', icon: 'groups' },
     { id: 'withdraw-history', label: 'Withdraw History', icon: 'receipt_long' },
     { id: 'swap', label: 'Swap (DEX)', icon: 'swap_horiz' },
+    { id: 'why-spike', label: 'Why SPIKE', icon: 'architecture' },
     { id: 'roadmap', label: 'Roadmap', icon: 'alt_route' },
     ...(isAdmin
       ? [

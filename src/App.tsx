@@ -25,6 +25,7 @@ import { MiningNodesView } from './components/views/MiningNodesView';
 import { ReferralsView } from './components/views/ReferralsView';
 import { WithdrawalHistoryView } from './components/views/WithdrawalHistoryView';
 import { RoadmapView } from './components/views/RoadmapView';
+import { WhyMineSpikeSection } from './components/WhyMineSpikeSection';
 import {
   clearAdminSession,
   getActiveAdminSession,
@@ -280,7 +281,8 @@ export default function App() {
     inspectedWallet &&
     activeTab !== 'admin' &&
     activeTab !== 'home' &&
-    activeTab !== 'roadmap'
+    activeTab !== 'roadmap' &&
+    activeTab !== 'why-spike'
   );
 
   // Read-only loader for inspected user wallet (never mutates target user's DB/localStorage state)
@@ -580,7 +582,7 @@ export default function App() {
         setActiveTab('admin');
       } else if (
         tabParam &&
-        ['home', 'dashboard', 'mining-nodes', 'referrals', 'withdraw-history', 'roadmap'].includes(tabParam)
+        ['home', 'dashboard', 'mining-nodes', 'referrals', 'withdraw-history', 'why-spike', 'roadmap'].includes(tabParam)
       ) {
         setActiveTab(tabParam as TabType);
       }
@@ -588,7 +590,7 @@ export default function App() {
       // Live tab switcher event for AI Assistant and internal links
       const handleSwitchTab = (e: any) => {
         const t = e?.detail?.tab;
-        if (t && ['home', 'dashboard', 'mining-nodes', 'referrals', 'withdraw-history', 'roadmap', 'admin'].includes(t)) {
+        if (t && ['home', 'dashboard', 'mining-nodes', 'referrals', 'withdraw-history', 'why-spike', 'roadmap', 'admin'].includes(t)) {
           setActiveTab(t as TabType);
         }
       };
@@ -2700,6 +2702,17 @@ export default function App() {
             walletAddress={viewWalletAddress}
             onNavigateToReferrals={() => handleTabChange('referrals')}
             onCopyText={copyToClipboard}
+          />
+        );
+        break;
+      case 'why-spike':
+        currentComponent = (
+          <WhyMineSpikeSection
+            mode="workspace"
+            isWalletConnected={isWalletConnected}
+            onConnectWallet={() => setIsConnectModalOpen(true)}
+            onNavigate={handleTabChange}
+            onOpenSwapModal={isInspectMode ? () => blockInspectMutation('Swap Tokens') : handleOpenSwapModal}
           />
         );
         break;

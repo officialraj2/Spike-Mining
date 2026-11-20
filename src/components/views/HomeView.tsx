@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SPIKE_LOGO_URL, SPIKE_TOKEN_METRICS } from '../../data/mockData';
 import { TabType } from '../../types';
 import { SparkleShatterMedallion } from '../SparkleShatterMedallion';
+import { WhyMineSpikeSection } from '../WhyMineSpikeSection';
 
 import { SPIKE_CONTRACT_ADDRESS } from '../../services/onchainBalance';
 
@@ -432,6 +433,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
       </section>
+
+      {/* =========================================================
+          DEDICATED INVESTOR BRIEF: WHY MINE SPIKE (id="why-spike")
+          Hybrid Layer-2 & DeFi Architecture + BTC vs SPIKE Matrix
+         ========================================================= */}
+      <WhyMineSpikeSection
+        mode="landing"
+        isWalletConnected={isWalletConnected}
+        onConnectWallet={onConnectWallet}
+        onNavigate={onNavigate}
+      />
 
       {/* =========================================================
           SECTION 2: FEATURES & UNDERSTANDING DIGITAL MINING (id="features")
