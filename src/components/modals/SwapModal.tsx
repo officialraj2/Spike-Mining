@@ -724,10 +724,7 @@ export const SwapModal: React.FC<SwapModalProps> = ({
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-[#94a3b8] font-body font-medium">
-                    {liveSpotPrice > 0 ? `≈ $${(numericFrom * liveSpotPrice).toFixed(4)} Live Value` : 'Fetching live value...'}
-                  </div>
+                <div className="flex items-center justify-end">
                   <div className="flex items-center gap-1.5">
                     {[
                       { label: '2.5%', pct: 0.25, title: '2.5% of Web3 Wallet SPIKE' },
