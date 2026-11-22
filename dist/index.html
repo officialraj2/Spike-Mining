@@ -59,7 +59,10 @@
             msg.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
             msg.indexOf('Quota limit exceeded') !== -1 ||
             msg.indexOf('Free daily write units') !== -1 ||
-            msg.indexOf('resource-exhausted') !== -1
+            msg.indexOf('resource-exhausted') !== -1 ||
+            msg.indexOf('WebSocket closed without opened') !== -1 ||
+            src.indexOf('/@vite/client') !== -1 ||
+            stack.indexOf('/@vite/client') !== -1
           );
         };
 
@@ -158,7 +161,7 @@
       })();
     </script>
 
-    <script type="module" crossorigin src="/assets/index-DuDj0nnW.js"></script>
+    <script type="module" crossorigin src="/assets/index-DnENgi7Z.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-Dwys_PaA.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-BtvuWgy3.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-firebase-CQTUv8Hd.js">
