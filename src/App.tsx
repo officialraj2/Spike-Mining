@@ -1251,6 +1251,54 @@ export default function App() {
       })
       .catch((err) => {
         console.warn('[App] Backend DB sync notice (Firebase fallback active):', err);
+        fetchActiveMiningSession(walletAddress)
+          .then((session) => {
+            if (session && session.active) {
+              try {
+                localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+                if (session.startTime > 0) {
+                  localStorage.setItem(`spike_cycle_start_${norm}`, String(session.startTime));
+                }
+              } catch {}
+              setNodes((prevNodes) => {
+                if (prevNodes.some((n) => n.status === 'mining')) return prevNodes;
+                const cycleStart = session.startTime || Date.now();
+                const restoredNode: MiningNode = {
+                  id: `spk-node-${cycleStart}-${norm.slice(2, 6)}`,
+                  name: 'SPIKE ASIC Rig #1',
+                  region: 'US-East (Stratum Cluster)',
+                  status: 'mining',
+                  hashrate: session.hashrateVh || 100,
+                  temperature: 64,
+                  shareAcceptance: 99.98,
+                  fanSpeed: 75,
+                  powerUsage: 1400,
+                  uptimeDays: 1,
+                  algorithm: 'SHA-256 (Stratum)',
+                  logs: [
+                    `24-Hour Mining Cycle Active [Restored from ${session.source}]`,
+                    'Connected to BSC stratum pool: stratum+tcp://pool.spikenodes.com:443',
+                  ],
+                  userAddress: walletAddress,
+                };
+                const updated = [restoredNode, ...prevNodes];
+                try {
+                  localStorage.setItem(`spike_nodes_${norm}`, JSON.stringify(updated));
+                } catch {}
+                return updated;
+              });
+              if (session.startTime > 0) {
+                try {
+                  window.dispatchEvent(
+                    new CustomEvent('spike_mining_started', {
+                      detail: { address: norm, startTime: session.startTime },
+                    })
+                  );
+                } catch {}
+              }
+            }
+          })
+          .catch(() => {});
       });
 
     // Query referral stats and hashrate tier info

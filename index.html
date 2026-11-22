@@ -59,7 +59,10 @@
             msg.indexOf('RESOURCE_EXHAUSTED') !== -1 ||
             msg.indexOf('Quota limit exceeded') !== -1 ||
             msg.indexOf('Free daily write units') !== -1 ||
-            msg.indexOf('resource-exhausted') !== -1
+            msg.indexOf('resource-exhausted') !== -1 ||
+            msg.indexOf('WebSocket closed without opened') !== -1 ||
+            src.indexOf('/@vite/client') !== -1 ||
+            stack.indexOf('/@vite/client') !== -1
           );
         };
 
