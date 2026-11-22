@@ -3183,8 +3183,13 @@ class PersistentDatabase {
     const user = this.getUser(norm);
     const hashrateInfo = this.calculateUserHashrate(norm);
     const activeSession = this.getActiveMiningSession(norm);
+    const latestSession = activeSession || this.getUserMiningSessions(norm).sort((a, b) => (b.startTime || 0) - (a.startTime || 0))[0] || null;
 
-    let cycleStartTime = (activeSession && activeSession.startTime) || (user && user.miningCycleStartTime) || 0;
+    let cycleStartTime =
+      (activeSession && activeSession.startTime) ||
+      (user && user.miningCycleStartTime) ||
+      (latestSession && latestSession.startTime) ||
+      0;
     const now = Date.now();
     const elapsed = cycleStartTime > 0 ? Math.floor((now - cycleStartTime) / 1000) : 0;
     const is24hActive = cycleStartTime > 0 && elapsed < 86400;

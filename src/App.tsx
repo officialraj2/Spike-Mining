@@ -1135,15 +1135,23 @@ export default function App() {
           }
 
           const serverCycleStart = data.miningStatus?.cycleStartTime || data.user.miningCycleStartTime;
-          if (serverCycleStart && typeof serverCycleStart === 'number') {
-            const elapsed = Math.floor((Date.now() - serverCycleStart) / 1000);
-            if (elapsed < 86400) {
+          if (serverCycleStart && typeof serverCycleStart === 'number' && serverCycleStart > 0) {
+            try {
               localStorage.setItem(`spike_cycle_start_${norm}`, String(serverCycleStart));
               localStorage.setItem(`spike_mining_active_${norm}`, 'true');
-            }
+            } catch {}
+            try {
+              window.dispatchEvent(
+                new CustomEvent('spike_mining_started', {
+                  detail: { address: norm, startTime: serverCycleStart },
+                })
+              );
+            } catch {}
           }
-          if (data.user.hasActivatedMining || data.user.hasDepositedTreasury || data.miningStatus?.is24hActive) {
-            localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+          if (data.user.hasActivatedMining || data.user.hasDepositedTreasury || data.miningStatus?.is24hActive || data.miningStatus?.isMining) {
+            try {
+              localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+            } catch {}
           }
           if (typeof data.user.balanceSpk === 'number' && !isNaN(data.user.balanceSpk)) {
             setWalletSpk((prev) => Math.max(prev, data.user.balanceSpk));
@@ -1158,9 +1166,12 @@ export default function App() {
             }).catch(() => {});
           }
         }
-        // Set nodes array and persist
+        // Set nodes array and persist (never clear active miner nodes once 24h cycle completes)
         const is24hActive = Boolean(
           data?.miningStatus?.is24hActive ||
+          data?.miningStatus?.isMining ||
+          data?.user?.hasActivatedMining ||
+          data?.user?.hasDepositedTreasury ||
           localStorage.getItem(`spike_mining_active_${norm}`) === 'true'
         );
         if (data && Array.isArray(data.nodes) && data.nodes.length > 0) {

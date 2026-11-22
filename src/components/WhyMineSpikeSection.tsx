@@ -1,5 +1,71 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { motion, useReducedMotion, type Variants } from 'motion/react';
 import { TabType } from '../types';
+
+const PREMIUM_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
+const createStaggerContainer = (stagger = 0.09, delay = 0.05): Variants => ({
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: stagger,
+      delayChildren: delay,
+    },
+  },
+});
+
+const heroCardVariants: Variants = {
+  hidden: { opacity: 0, y: 22, scale: 0.985 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.65, ease: PREMIUM_EASE },
+  },
+};
+
+const sectionHeaderVariants: Variants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.55, ease: PREMIUM_EASE },
+  },
+};
+
+const metricGridVariants = createStaggerContainer(0.1, 0.06);
+const pillarGridVariants = createStaggerContainer(0.09, 0.08);
+const layerFlowVariants = createStaggerContainer(0.1, 0.05);
+const comparisonRowsVariants = createStaggerContainer(0.05, 0.04);
+
+const cardItemVariants: Variants = {
+  hidden: { opacity: 0, y: 26, scale: 0.975 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.58, ease: PREMIUM_EASE },
+  },
+};
+
+const inspectorCardVariants: Variants = {
+  hidden: { opacity: 0, y: 26, scale: 0.985 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.62, delay: 0.14, ease: PREMIUM_EASE },
+  },
+};
+
+const rowItemVariants: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.42, ease: PREMIUM_EASE },
+  },
+};
 
 export interface WhyMineSpikeSectionProps {
   mode?: 'landing' | 'workspace';
@@ -308,10 +374,16 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
   onNavigate,
   onOpenSwapModal,
 }) => {
+  const prefersReducedMotion = useReducedMotion();
   const [activeLayerId, setActiveLayerId] = useState<LayerId>('l2-compute');
   const [autoPlayTour, setAutoPlayTour] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<ComparisonCategory>('all');
   const [expandedMetricId, setExpandedMetricId] = useState<string | null>('consensus-layer');
+
+  const initialRevealState = prefersReducedMotion ? false : 'hidden';
+  const cardHoverLift = prefersReducedMotion
+    ? undefined
+    : { y: -3, transition: { duration: 0.22, ease: PREMIUM_EASE } };
 
   const activeLayerIndex = ARCHITECTURE_LAYERS.findIndex((l) => l.id === activeLayerId);
   const activeLayer = ARCHITECTURE_LAYERS[activeLayerIndex] || ARCHITECTURE_LAYERS[0];
@@ -400,7 +472,13 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
     >
       {/* 1. Flagship Executive Hero Header (Clean Standalone Frame, Zero Nested Boxes) */}
       <div className="space-y-6">
-        <div className="relative rounded-3xl bg-gradient-to-b from-[#0b1c30] via-[#071525] to-[#051221] border border-sky-200/25 animate-box-glow-hybrid overflow-hidden">
+        <motion.div
+          variants={heroCardVariants}
+          initial={initialRevealState}
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.15 }}
+          className="relative rounded-3xl bg-gradient-to-b from-[#0b1c30] via-[#071525] to-[#051221] border border-sky-200/25 animate-box-glow-hybrid overflow-hidden"
+        >
           {/* Subtle Architectural Grid & Ambient Top Luminance */}
           <div className="absolute inset-0 why-grid-backdrop opacity-55 pointer-events-none" aria-hidden="true" />
           <div
@@ -435,14 +513,22 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
               Legacy Proof-of-Work mining prices out independent participants with megawatt ASIC farms, while typical mobile mining apps issue illiquid database points. SPIKE unifies zero-gas Layer-2 compute with on-chain BNB Smart Chain settlement, live Nodescan V3 liquidity, and protocol-enforced anti-dump protection.
             </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Standalone Key Protocol Metric Boxes (Extracted Outside Main Hero Box with Animated Outer Glow) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <motion.div
+          variants={metricGridVariants}
+          initial={initialRevealState}
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.15 }}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-5"
+        >
           {PROTOCOL_HIGHLIGHTS.map((item) => (
-            <div
+            <motion.div
               key={item.label}
-              className={`relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-[#0b1c30] to-[#071525] border ${item.glowClass} transition-transform duration-300 hover:-translate-y-0.5`}
+              variants={cardItemVariants}
+              whileHover={cardHoverLift}
+              className={`relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-[#0b1c30] to-[#071525] border ${item.glowClass} will-change-transform`}
             >
               <div
                 className={`absolute top-0 inset-x-5 h-[1px] bg-gradient-to-r ${item.topLine} pointer-events-none`}
@@ -455,16 +541,24 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
                 </div>
                 <div className="text-xs text-[#9eb4ce] pt-0.5">{item.sublabel}</div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Standalone Four Technical Pillar Boxes (Extracted Outside Main Hero Box with Animated Outer Glow) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <motion.div
+          variants={pillarGridVariants}
+          initial={initialRevealState}
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.12 }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+        >
           {CORE_PILLARS.map((pillar) => (
-            <div
+            <motion.div
               key={pillar.index}
-              className={`relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-[#0a1b2e] to-[#071525] border ${pillar.cardGlow} flex flex-col justify-between gap-4 transition-transform duration-300 hover:-translate-y-0.5`}
+              variants={cardItemVariants}
+              whileHover={cardHoverLift}
+              className={`relative overflow-hidden p-6 rounded-2xl bg-gradient-to-b from-[#0a1b2e] to-[#071525] border ${pillar.cardGlow} flex flex-col justify-between gap-4 will-change-transform`}
             >
               {/* Luminous Top Hairline Edge */}
               <div
@@ -485,14 +579,20 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
                   {pillar.description}
                 </p>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
 
       {/* 2. Interactive Layer-2 & DeFi Architecture Flow Diagram */}
       <div className="space-y-7">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
+        <motion.div
+          variants={sectionHeaderVariants}
+          initial={initialRevealState}
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          className="flex flex-col lg:flex-row lg:items-end justify-between gap-5"
+        >
           <div className="space-y-2 max-w-2xl">
             <div className="text-xs font-mono text-[#7df4ff] tracking-wide">
               Interactive System Blueprint · 4-Layer Protocol Stack
@@ -542,12 +642,16 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
               <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
             </button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Asymmetric 2-Column Architecture Blueprint */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-7 items-stretch">
           {/* Left Column (5 cols): Interactive Connected 4-Layer Flow Nodes */}
-          <div
+          <motion.div
+            variants={layerFlowVariants}
+            initial={initialRevealState}
+            whileInView="visible"
+            viewport={{ once: true, amount: 'some' }}
             className="lg:col-span-5 flex flex-col justify-between"
             role="tablist"
             aria-label="SPIKE Protocol Architecture Layers"
@@ -556,7 +660,7 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
               const isActive = layer.id === activeLayer.id;
               const isLast = index === ARCHITECTURE_LAYERS.length - 1;
               return (
-                <div key={layer.id} className="flex flex-col">
+                <motion.div key={layer.id} variants={cardItemVariants} className="flex flex-col will-change-transform">
                   <button
                     type="button"
                     role="tab"
@@ -640,16 +744,20 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
                       </svg>
                     </div>
                   )}
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
 
           {/* Right Column (7 cols): Live Technical Specification Inspector */}
-          <div
+          <motion.div
+            variants={inspectorCardVariants}
+            initial={initialRevealState}
+            whileInView="visible"
+            viewport={{ once: true, amount: 'some' }}
             role="tabpanel"
             aria-label={activeLayer.title}
-            className={`relative overflow-hidden lg:col-span-7 p-7 sm:p-9 rounded-3xl bg-gradient-to-b from-[#0b1c30] via-[#081627] to-[#061322] border flex flex-col justify-between gap-8 transition-all duration-300 ${getInspectorGlowClass(
+            className={`relative overflow-hidden lg:col-span-7 p-7 sm:p-9 rounded-3xl bg-gradient-to-b from-[#0b1c30] via-[#081627] to-[#061322] border flex flex-col justify-between gap-8 transition-colors duration-300 will-change-transform ${getInspectorGlowClass(
               activeLayer.accent
             )}`}
           >
@@ -759,13 +867,19 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
                 </span>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
       {/* 3. Interactive Bitcoin (BTC) vs. SPIKE Mining Comparison Matrix */}
       <div className="space-y-7">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
+        <motion.div
+          variants={sectionHeaderVariants}
+          initial={initialRevealState}
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          className="flex flex-col lg:flex-row lg:items-end justify-between gap-5"
+        >
           <div className="space-y-2 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
               <span className="text-[#fde68a] font-medium">Head-to-Head Protocol Benchmark</span>
@@ -808,10 +922,16 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
         {/* Comparison Matrix Container with Animated Outer Glow & Top Light Line */}
-        <div className="relative rounded-3xl bg-[#071525] border border-[#D4AF37]/45 animate-box-glow-gold overflow-hidden">
+        <motion.div
+          variants={heroCardVariants}
+          initial={initialRevealState}
+          whileInView="visible"
+          viewport={{ once: true, amount: 'some' }}
+          className="relative rounded-3xl bg-[#071525] border border-[#D4AF37]/45 animate-box-glow-gold overflow-hidden"
+        >
           <div
             className="absolute top-0 inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#fde68a]/80 to-transparent pointer-events-none"
             aria-hidden="true"
@@ -826,11 +946,18 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
           </div>
 
           {/* Comparison Rows */}
-          <div className="divide-y divide-sky-200/10">
+          <motion.div
+            key={selectedCategory}
+            variants={comparisonRowsVariants}
+            initial={initialRevealState}
+            whileInView="visible"
+            viewport={{ once: true, amount: 'some' }}
+            className="divide-y divide-sky-200/10"
+          >
             {filteredRows.map((row) => {
               const isExpanded = expandedMetricId === row.id;
               return (
-                <div key={row.id} className="transition-colors duration-200">
+                <motion.div key={row.id} variants={rowItemVariants} className="transition-colors duration-200">
                   <button
                     type="button"
                     onClick={() => setExpandedMetricId(isExpanded ? null : row.id)}
@@ -902,15 +1029,21 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
                       </div>
                     </div>
                   )}
-                </div>
+                </motion.div>
               );
             })}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </div>
 
       {/* 4. Luminous Flagship Conversion Banner */}
-      <div className="relative overflow-hidden p-7 sm:p-9 rounded-3xl bg-gradient-to-r from-[#0a1c30] via-[#0d2238] to-[#081728] border border-[#7df4ff]/45 animate-box-glow-cyan flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+      <motion.div
+        variants={heroCardVariants}
+        initial={initialRevealState}
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+        className="relative overflow-hidden p-7 sm:p-9 rounded-3xl bg-gradient-to-r from-[#0a1c30] via-[#0d2238] to-[#081728] border border-[#7df4ff]/45 animate-box-glow-cyan flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+      >
         <div className="absolute top-0 inset-x-0 h-[1.5px] overflow-hidden pointer-events-none" aria-hidden="true">
           <div className="w-1/3 h-full bg-gradient-to-r from-transparent via-[#e0f9ff] to-transparent why-beam-glide" />
         </div>
@@ -959,7 +1092,7 @@ export const WhyMineSpikeSection: React.FC<WhyMineSpikeSectionProps> = ({
             </>
           )}
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 };

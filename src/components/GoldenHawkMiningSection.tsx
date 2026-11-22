@@ -54,15 +54,13 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     }
   });
 
-  // 24-Hour Mining Cycle Countdown (86,400 seconds)
+  // 24-Hour Mining Cycle Countdown (86,400 seconds) — preserve completed cycles too so full 24h reward stays claimable
   const [cycleStartTime, setCycleStartTime] = useState<number>(() => {
     try {
       if (walletAddress) {
         const stored = localStorage.getItem(`spike_cycle_start_${walletAddress.toLowerCase()}`);
-        if (stored && !isNaN(Number(stored))) {
-          const parsed = Number(stored);
-          const elapsed = Math.floor((Date.now() - parsed) / 1000);
-          if (elapsed < 86400) return parsed;
+        if (stored && !isNaN(Number(stored)) && Number(stored) > 0) {
+          return Number(stored);
         }
       }
       return 0;
@@ -136,21 +134,32 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     return 86400;
   });
 
-  // Listen for mining started event from 5 USDT deposit
+  // Listen for mining started or server-synced cycle event
   useEffect(() => {
     const handleMiningStarted = (e: any) => {
+      const eventAddr = typeof e?.detail?.address === 'string' ? e.detail.address.toLowerCase().trim() : '';
+      if (eventAddr && walletAddress && eventAddr !== walletAddress.toLowerCase().trim()) {
+        return;
+      }
       setHasDeposited5Usdt(true);
-      setAccumulatedSpike(0);
-      setAccumulatedUsdt(0);
-      const now = (e?.detail?.startTime && typeof e.detail.startTime === 'number') ? e.detail.startTime : Date.now();
-      setCycleStartTime(now);
-      const elapsed = Math.floor((Date.now() - now) / 1000);
-      setSecondsRemaining(Math.max(0, 86400 - elapsed));
+      const startTs = (e?.detail?.startTime && typeof e.detail.startTime === 'number' && e.detail.startTime > 0)
+        ? e.detail.startTime
+        : Date.now();
+      const elapsed = Math.max(0, Math.floor((Date.now() - startTs) / 1000));
+      const remaining = Math.max(0, 86400 - elapsed);
+      setCycleStartTime(startTs);
+      setSecondsRemaining(remaining);
+      if (elapsed < 60) {
+        setAccumulatedSpike(0);
+        setAccumulatedUsdt(0);
+      }
       try {
         if (walletAddress) {
           localStorage.setItem(`spike_mining_active_${walletAddress.toLowerCase()}`, 'true');
-          localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(now));
-          localStorage.setItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`, '0');
+          localStorage.setItem(`spike_cycle_start_${walletAddress.toLowerCase()}`, String(startTs));
+          if (elapsed < 60) {
+            localStorage.setItem(`spike_accumulated_spk_${walletAddress.toLowerCase()}`, '0');
+          }
         }
       } catch {}
     };
@@ -162,6 +171,8 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
   useEffect(() => {
     if (!walletAddress) {
       setHasDeposited5Usdt(false);
+      setCycleStartTime(0);
+      setSecondsRemaining(86400);
       setAccumulatedSpike(0);
       setAccumulatedUsdt(0);
       setSharesCount(0);
@@ -170,28 +181,32 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
     const norm = walletAddress.toLowerCase();
     const stored = localStorage.getItem(`spike_cycle_start_${norm}`);
     const isAct = localStorage.getItem(`spike_mining_active_${norm}`) === 'true';
-    if (stored && !isNaN(Number(stored))) {
+    if (stored && !isNaN(Number(stored)) && Number(stored) > 0) {
       const parsedStart = Number(stored);
-      const elapsed = Math.floor((Date.now() - parsedStart) / 1000);
-      if (elapsed < 86400) {
-        setCycleStartTime(parsedStart);
-        setSecondsRemaining(Math.max(0, 86400 - elapsed));
-        setHasDeposited5Usdt(true);
-      }
+      const elapsed = Math.max(0, Math.floor((Date.now() - parsedStart) / 1000));
+      setCycleStartTime(parsedStart);
+      setSecondsRemaining(Math.max(0, 86400 - elapsed));
+      setHasDeposited5Usdt(true);
     } else if (isAct) {
       setHasDeposited5Usdt(true);
     }
 
-    // Authoritative check from database & Firestore so disconnects/reconnects never stop mining
+    // Authoritative check from database & Firestore so disconnects/reconnects and completed 24h cycles stay intact
     fetchActiveMiningSession(walletAddress).then((session) => {
-      if (session && session.active && session.startTime) {
-        setCycleStartTime(session.startTime);
-        setSecondsRemaining(session.secondsRemaining);
+      if (session && session.active) {
         setHasDeposited5Usdt(true);
-        try {
-          localStorage.setItem(`spike_cycle_start_${norm}`, String(session.startTime));
-          localStorage.setItem(`spike_mining_active_${norm}`, 'true');
-        } catch {}
+        if (session.startTime > 0) {
+          setCycleStartTime(session.startTime);
+          setSecondsRemaining(session.secondsRemaining);
+          try {
+            localStorage.setItem(`spike_cycle_start_${norm}`, String(session.startTime));
+            localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+          } catch {}
+        } else {
+          try {
+            localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+          } catch {}
+        }
       }
     }).catch(() => {});
 
@@ -207,12 +222,14 @@ export const GoldenHawkMiningSection: React.FC<GoldenHawkMiningSectionProps> = (
 
   // Real-time 24-hour countdown ticker
   useEffect(() => {
-    if (!isMining) return;
-    const timer = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - cycleStartTime) / 1000);
+    if (!isMining || cycleStartTime <= 0) return;
+    const syncRemaining = () => {
+      const elapsed = Math.max(0, Math.floor((Date.now() - cycleStartTime) / 1000));
       const remaining = Math.max(0, 86400 - elapsed);
       setSecondsRemaining(remaining);
-    }, 1000);
+    };
+    syncRemaining();
+    const timer = setInterval(syncRemaining, 1000);
     return () => clearInterval(timer);
   }, [isMining, cycleStartTime]);
 

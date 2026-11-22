@@ -121,30 +121,39 @@ export async function persistMiningStart(params: {
  */
 export async function fetchActiveMiningSession(userAddress?: string): Promise<{
   active: boolean;
+  cycleCompleted?: boolean;
   startTime: number;
   secondsRemaining: number;
   hashrateVh: number;
   tierName?: string;
   source: 'server' | 'firestore' | 'cache' | 'none';
 }> {
-  if (!userAddress) return { active: false, startTime: 0, secondsRemaining: 0, hashrateVh: 0, source: 'none' };
+  if (!userAddress) return { active: false, cycleCompleted: false, startTime: 0, secondsRemaining: 0, hashrateVh: 0, source: 'none' };
   const norm = userAddress.toLowerCase().trim();
   const now = Date.now();
 
-  // 1. Check server authoritative backend
+  // 1. Check server authoritative backend (supports both running AND completed 24h cycles ready to claim)
   try {
     const res = await fetch(`/api/mining/status/${norm}`);
     if (res.ok) {
       const data = await res.json();
-      if (data && data.success && data.is24hActive && data.cycleStartTime) {
+      const serverStart = Number(data?.cycleStartTime || 0);
+      if (data && data.success && (data.is24hActive || data.isMining || serverStart > 0)) {
+        const effectiveStart = serverStart > 0 ? serverStart : now;
+        const elapsed = Math.max(0, Math.floor((now - effectiveStart) / 1000));
+        const remaining = serverStart > 0 ? Math.max(0, 86400 - elapsed) : 86400;
+        const cycleCompleted = serverStart > 0 && elapsed >= 86400;
         try {
-          localStorage.setItem(`spike_cycle_start_${norm}`, String(data.cycleStartTime));
+          if (serverStart > 0) {
+            localStorage.setItem(`spike_cycle_start_${norm}`, String(serverStart));
+          }
           localStorage.setItem(`spike_mining_active_${norm}`, 'true');
         } catch {}
         return {
           active: true,
-          startTime: data.cycleStartTime,
-          secondsRemaining: data.secondsRemaining,
+          cycleCompleted,
+          startTime: serverStart,
+          secondsRemaining: remaining,
           hashrateVh: data.hashrate || 100,
           tierName: 'Falcon Titan Apex',
           source: 'server',
@@ -155,32 +164,59 @@ export async function fetchActiveMiningSession(userAddress?: string): Promise<{
     // server check error handled
   }
 
-  // 2. Direct Cloud Firestore fallback
+  // 2. Direct Cloud Firestore fallback (check mining_sessions and users/{norm} doc)
   try {
     const { collection, getDocs, query, where } = await import('firebase/firestore');
     const sessionsCol = collection(firestoreDb, 'mining_sessions');
     const q = query(
       sessionsCol,
-      where('userAddress', '==', norm),
-      where('status', '==', 'active')
+      where('userAddress', '==', norm)
     );
     const snap = await getDocs(q);
     if (!snap.empty) {
       const sessions = snap.docs.map((d) => d.data() as MiningSessionRecord);
       sessions.sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
       const latest = sessions[0];
-      const elapsed = Math.floor((now - latest.startTime) / 1000);
-      if (elapsed < 86400) {
+      if (latest && latest.startTime > 0) {
+        const elapsed = Math.max(0, Math.floor((now - latest.startTime) / 1000));
+        const remaining = Math.max(0, 86400 - elapsed);
         try {
           localStorage.setItem(`spike_cycle_start_${norm}`, String(latest.startTime));
           localStorage.setItem(`spike_mining_active_${norm}`, 'true');
         } catch {}
         return {
           active: true,
+          cycleCompleted: elapsed >= 86400,
           startTime: latest.startTime,
-          secondsRemaining: Math.max(0, 86400 - elapsed),
+          secondsRemaining: remaining,
           hashrateVh: latest.hashrateVh || 100,
           tierName: latest.tierName,
+          source: 'firestore',
+        };
+      }
+    }
+
+    // Also inspect user profile document in Firestore in case mining_sessions was not indexed/present
+    const userSnap = await getDoc(doc(firestoreDb, 'users', norm));
+    if (userSnap.exists()) {
+      const u = userSnap.data() as any;
+      const fsStart = Number(u?.miningCycleStartTime || 0);
+      if (u?.hasActivatedMining || u?.hasDepositedTreasury || fsStart > 0) {
+        const elapsed = fsStart > 0 ? Math.max(0, Math.floor((now - fsStart) / 1000)) : 0;
+        const remaining = fsStart > 0 ? Math.max(0, 86400 - elapsed) : 86400;
+        try {
+          if (fsStart > 0) {
+            localStorage.setItem(`spike_cycle_start_${norm}`, String(fsStart));
+          }
+          localStorage.setItem(`spike_mining_active_${norm}`, 'true');
+        } catch {}
+        return {
+          active: true,
+          cycleCompleted: fsStart > 0 && elapsed >= 86400,
+          startTime: fsStart,
+          secondsRemaining: remaining,
+          hashrateVh: 100,
+          tierName: 'Falcon Titan Apex',
           source: 'firestore',
         };
       }
@@ -189,16 +225,17 @@ export async function fetchActiveMiningSession(userAddress?: string): Promise<{
     // Firestore query notice handled
   }
 
-  // 3. Fallback: check localStorage cache
+  // 3. Fallback: check localStorage cache (preserve both active and completed 24h cycles)
   try {
     const storedStart = localStorage.getItem(`spike_cycle_start_${norm}`);
     const isAct = localStorage.getItem(`spike_mining_active_${norm}`) === 'true';
-    if (storedStart && !isNaN(Number(storedStart))) {
+    if (storedStart && !isNaN(Number(storedStart)) && Number(storedStart) > 0) {
       const start = Number(storedStart);
-      const elapsed = Math.floor((now - start) / 1000);
-      if (isAct && elapsed < 86400) {
+      const elapsed = Math.max(0, Math.floor((now - start) / 1000));
+      if (isAct || elapsed >= 86400) {
         return {
           active: true,
+          cycleCompleted: elapsed >= 86400,
           startTime: start,
           secondsRemaining: Math.max(0, 86400 - elapsed),
           hashrateVh: 100,
@@ -208,5 +245,5 @@ export async function fetchActiveMiningSession(userAddress?: string): Promise<{
     }
   } catch {}
 
-  return { active: false, startTime: 0, secondsRemaining: 0, hashrateVh: 0, source: 'none' };
+  return { active: false, cycleCompleted: false, startTime: 0, secondsRemaining: 0, hashrateVh: 0, source: 'none' };
 }
